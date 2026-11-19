@@ -1,10 +1,14 @@
 import {describe, expect, it} from "vitest"
 import {
     coarseHandover,
+    DIVISIONS_FADE_SECONDS,
+    divisionsAt,
     flagPaint,
     flownZoomsOf,
     inOrbit,
     leastFlagRadiusOf,
+    provinceShareAfter,
+    provincesZoomOf,
     tilePointSize,
     tileSpacing,
     tilesZoomOf,
@@ -13,6 +17,7 @@ import {
 import {maxZoomOf, MIN_ZOOM} from "./zoom.ts"
 import {BoardScale, EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {FIXTURE_1} from "../../testdata/boards.ts"
+import {BOARDS} from "./boardsAsset.ts"
 
 const VIEWPORTS = [640, 900, 1243, 2160, 3400]
 const STEP = 0.25
@@ -121,6 +126,81 @@ describe("orbit", () => {
     it("is the opening view on a common screen, and ends before the tiles have the frame", () => {
         expect(inOrbit(1, 900, EARTH_1_SCALE)).toBe(true)
         for (const height of VIEWPORTS) expect(inOrbit(tilesZoomOf(height, EARTH_1_SCALE), height, EARTH_1_SCALE), `${height}px`).toBe(false)
+    })
+})
+
+describe("the provinces", () => {
+    // iPhone 13's page in Safari: 390 by 664 CSS pixels.
+    const PHONE = 664
+    const PROVINCED = Object.values(BOARDS).filter((board) => board.files.provinces !== undefined)
+
+    it("come in where a CSS pixel is 10 km of the ground: about zoom 1.9 on a phone", () => {
+        expect(provincesZoomOf(PHONE)).toBeCloseTo(1.919, 3)
+        expect(provincesZoomOf(900)).toBeCloseTo(1.416, 3)
+        for (const height of [PHONE, 900]) {
+            expect(6371 / (provincesZoomOf(height) * height / 2), `${height}px`).toBeCloseTo(10, 9)
+        }
+    })
+
+    it("never divide the whole globe in view, on any screen", () => {
+        for (const height of VIEWPORTS) {
+            for (const zoom of [MIN_ZOOM, 1, 1.2]) expect(divisionsAt(zoom, height, "countries"), `zoom ${zoom} at ${height}px`).toBe("countries")
+            expect(provincesZoomOf(height), `${height}px`).toBeGreaterThanOrEqual(1.25)
+        }
+    })
+
+    it("come 5% past the line and go 5% short of it, so a zoom held on it does not switch to and fro", () => {
+        for (const height of VIEWPORTS) {
+            const line = provincesZoomOf(height)
+            expect(divisionsAt(line * 1.04, height, "countries"), `${height}px`).toBe("countries")
+            expect(divisionsAt(line * 1.05, height, "countries"), `${height}px`).toBe("provinces")
+            expect(divisionsAt(line / 1.04, height, "provinces"), `${height}px`).toBe("provinces")
+            expect(divisionsAt(line / 1.06, height, "provinces"), `${height}px`).toBe("countries")
+            for (const shown of ["countries", "provinces"] as const) expect(divisionsAt(line, height, shown)).toBe(shown)
+        }
+    })
+
+    it("divide earth-2's painted flags in orbit, long before its tiles take over", () => {
+        const scale = scaleOf(BOARDS["earth-2"])
+        for (const height of VIEWPORTS) {
+            expect(inOrbit(provincesZoomOf(height) * 1.05 * 1.25, height, scale), `${height}px`).toBe(true)
+        }
+        // A phone sees the provinces' flags over 4 times the zoom before the tiles.
+        expect(inOrbit(provincesZoomOf(PHONE) * 1.05 * 4, PHONE, scale)).toBe(true)
+    })
+
+    it("are not seen in orbit on siege-1, whose tiles, 6 times earth-2's, take over first on every screen", () => {
+        expect(PROVINCED.map(({name}) => name).sort()).toEqual(["earth-2", "siege-1"])
+        const scale = scaleOf(BOARDS["siege-1"])
+        for (const height of VIEWPORTS) {
+            expect(inOrbit(provincesZoomOf(height) * 1.05, height, scale), `${height}px`).toBe(false)
+        }
+    })
+})
+
+describe("the fade between the countries and the provinces", () => {
+    it("takes a quarter of a second each way, and stops at the divisions drawn", () => {
+        expect(DIVISIONS_FADE_SECONDS).toBe(0.25)
+        expect(provinceShareAfter(0, "provinces", 0.1, false)).toBeCloseTo(0.4, 9)
+        expect(provinceShareAfter(0.4, "provinces", 0.1, false)).toBeCloseTo(0.8, 9)
+        expect(provinceShareAfter(0.8, "provinces", 0.1, false)).toBe(1)
+        expect(provinceShareAfter(1, "countries", 0.05, false)).toBeCloseTo(0.8, 9)
+        expect(provinceShareAfter(0.1, "countries", 0.1, false)).toBe(0)
+    })
+
+    it("turns back from where it is when the zoom crosses the line again mid-fade", () => {
+        expect(provinceShareAfter(0.6, "countries", 0.05, false)).toBeCloseTo(0.4, 9)
+        expect(provinceShareAfter(0.6, "provinces", 0.05, false)).toBeCloseTo(0.8, 9)
+    })
+
+    it("does not move on a frame with no time, and never backwards in time", () => {
+        expect(provinceShareAfter(0.3, "provinces", 0, false)).toBe(0.3)
+        expect(provinceShareAfter(0.3, "provinces", -1, false)).toBe(0.3)
+    })
+
+    it("switches at once for a player who asks for less motion", () => {
+        expect(provinceShareAfter(0, "provinces", 0, true)).toBe(1)
+        expect(provinceShareAfter(0.7, "countries", 0, true)).toBe(0)
     })
 })
 

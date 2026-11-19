@@ -3,7 +3,7 @@
 A flag that takes all of a province gives each of its tiles a shield; the same flag
 never twice in a row (the rule is the server's, see the backend's [Fortify](../../backend/docs/fortify.md)).
 A province is a row of the board's provinces file, inside one landmass (see [Provinces](../../../docs/provinces.md)).
-Fortify reads provinces whatever divides the map on screen, Countries or Provinces. Until 2026-11-18 it played on
+Fortify reads provinces whatever divides the map on screen, the countries from orbit or the provinces closer in. Until 2026-11-18 it played on
 landmasses.
 
 - **The provinces on the page**: `loadProvinces` (`borderField.ts`) reads the board's `provinces-<hash>.bin` beside its

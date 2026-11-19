@@ -1,7 +1,11 @@
-// A row a ground the flags are painted over: the landmasses, or the provinces when they divide the map.
-uniform sampler2D groundData;
-uniform float groundCount;
-uniform float byProvince;
+// A row a ground the flags are painted over: the landmasses', and the provinces'.
+uniform sampler2D landmassData;
+uniform float landmassCount;
+uniform sampler2D provinceData;
+uniform float provinceCount;
+// How far the provinces divide the map: 0 the countries' landmasses, 1 the provinces, in between for the short fade
+// when the zoom crosses the provinces' line (pointSize.ts).
+uniform float provinceShare;
 // Each province's landmass, PROVINCE_COLUMNS a row.
 uniform highp usampler2D provinceLandmass;
 
@@ -163,7 +167,8 @@ vec2 coverOf(vec2 reach, float aspect) {
     return vec2(halfV * aspect, halfV);
 }
 
-vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float under) {
+vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float under, sampler2D groundData, float groundCount) {
+    if (under < 0.5) return vec4(0.0);
     float row = (under + 0.5) / groundCount;
     vec4 region = texture(groundData, vec2(5.0 / 8.0, row));
     vec4 held = texture(groundData, vec2(7.0 / 8.0, row));
@@ -262,8 +267,14 @@ void main() {
     float landmass = float(texelFetch(provinceLandmass, ivec2(at % PROVINCE_COLUMNS, at / PROVINCE_COLUMNS), 0).r);
     vec4 own = texelFetch(flagRectangles, ivec2(int(tile.x), 0), 0);
 
-    float under = byProvince > 0.5 ? province : landmass;
-    vec4 colour = under > 0.5 ? paintedFlag(ground, acrossStep, upStep, own, int(tile.x), under) : vec4(0.0);
+    // Each framing painted only while it shows: both for the fade alone, blended with their coverage.
+    vec4 colour = vec4(0.0);
+    if (provinceShare < 1.0) colour = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), landmass, landmassData, landmassCount);
+    if (provinceShare > 0.0) {
+        vec4 divided = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), province, provinceData, provinceCount);
+        vec4 blend = mix(vec4(colour.rgb * colour.a, colour.a), vec4(divided.rgb * divided.a, divided.a), provinceShare);
+        colour = blend.a > 0.0 ? vec4(blend.rgb / blend.a, blend.a) : vec4(0.0);
+    }
 
     if (province > highlight.x - 0.5 && province < highlight.y + 0.5) {
         colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));

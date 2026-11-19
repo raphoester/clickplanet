@@ -4,7 +4,7 @@ import {Halo} from './atmosphere.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
-import {Divisions, MapView, Rendering} from '../../domain/displaySettings.ts';
+import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {firstTakeAhead} from '../frontGuide.ts';
@@ -64,7 +64,6 @@ export type UseGlobeOptions = {
     battle: boolean
     clickHue: number | undefined
     mapView: MapView
-    divisions: Divisions
     halo: Halo
     // Each change is a scan of every tile: keep its identity while the targets are the same.
     missions: readonly MissionTarget[]
@@ -73,7 +72,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, divisions, halo, missions, rendering} = options
+    const {container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -114,7 +113,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const latestBattle = useRef(battle)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
-    const latestDivisions = useRef(divisions)
     const latestHalo = useRef(halo)
     const latestMissions = useRef(missions)
 
@@ -145,7 +143,7 @@ export function useGlobe(options: UseGlobeOptions) {
             showTap: showFront && firstTakeAhead(),
             country: initialCountry.current,
             mapView: latestMapView.current,
-            divisions: latestDivisions.current,
+            provinces: true,
             rendering,
             onLeaderboardChange: recordLeaderboard,
             onLoadProgress: (share) => {
@@ -199,7 +197,6 @@ export function useGlobe(options: UseGlobeOptions) {
             globe.setBattle(latestBattle.current)
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
-            globe.setDivisions(latestDivisions.current)
             globe.setHalo(latestHalo.current)
             globe.setMissions(latestMissions.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
@@ -251,11 +248,6 @@ export function useGlobe(options: UseGlobeOptions) {
         latestMapView.current = mapView
         globeRef.current?.setMapView(mapView)
     }, [mapView])
-
-    useEffect(() => {
-        latestDivisions.current = divisions
-        globeRef.current?.setDivisions(divisions)
-    }, [divisions])
 
     useEffect(() => {
         latestHalo.current = halo

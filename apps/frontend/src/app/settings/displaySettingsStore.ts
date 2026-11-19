@@ -2,7 +2,6 @@ import {create} from "zustand"
 import {
     DISPLAY_SETTINGS_STORAGE_KEY,
     DisplaySettings,
-    Divisions,
     MapView,
     parseDisplaySettings,
     Rendering,
@@ -10,7 +9,6 @@ import {
 
 type DisplaySettingsStore = DisplaySettings & {
     setMapView: (mapView: MapView) => void
-    setDivisions: (divisions: Divisions) => void
     setRendering: (rendering: Rendering) => void
 }
 
@@ -25,12 +23,11 @@ function readStoredSettings(): string | null {
 export const useDisplaySettings = create<DisplaySettingsStore>()((set) => ({
     ...parseDisplaySettings(readStoredSettings()),
     setMapView: (mapView) => set({mapView}),
-    setDivisions: (divisions) => set({divisions}),
     setRendering: (rendering) => set({rendering}),
 }))
 
-useDisplaySettings.subscribe(({mapView, divisions, rendering}) => {
-    const settings: DisplaySettings = {mapView, divisions, rendering}
+useDisplaySettings.subscribe(({mapView, rendering}) => {
+    const settings: DisplaySettings = {mapView, rendering}
     try {
         window.localStorage.setItem(DISPLAY_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
     } catch (e) {

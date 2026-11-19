@@ -177,8 +177,11 @@ shader, under `DASHED`). Until 2026-11-18 the line stayed light grey at every zo
 flags, it could hardly be seen pushed in, where a province is the ground a fortify plays on. Dark, it reads as clearly
 as a country's border; dashed, it is not taken for one. `borderLines.test.ts` checks the schedule, and the dashes on a
 copy of `dashOf`: both ends of every piece inked, one gap a period. **From orbit only
-Provinces draws them; pushed in, every mode does**: the over pass shows in Provinces while a flag is painted, the under
-pass while the tiles show and in Provinces or out of orbit. So the country lines are drawn as they were in every mode.
+the provinces' divisions draw them, zoomed in past their line (see [The provinces come in with the
+zoom](zoomed-out-view.md#the-provinces-come-in-with-the-zoom)); out of orbit they always are**: the over pass shows past
+the line while a flag is painted, its ink fading in and out with the provinces' frames (`PROVINCE_ORBIT_INK` times the
+territory layer's `provinceShare`), the under pass while the tiles show, past the line or out of orbit. So the country
+lines are drawn as they were at every zoom.
 They are a second kind of line in `borderLines.ts`: their own cell edges and five coarse sets, of the same tolerances,
 culled as the countries' are (`kindOf`), and their own over, under and highlight passes; from orbit the over and the
 highlight pass draw the coarse set the countries' draw, of the province lines. `npm run borderLines` writes them beside the countries' for a board with provinces

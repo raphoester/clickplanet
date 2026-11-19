@@ -36,18 +36,51 @@ landmass of fewer than 4 tiles of `earth-1` (as much ground on another board, `l
 flag is fitted to its frame: see [Sized by the board](board-scale.md). A tile knows it holds the leader's flag
 when its own atlas rectangle is the one in the row.
 
-**In Provinces, each flag is framed by its province** (the Map setting, `divisions` in the display settings; see
-[Provinces](../../../docs/provinces.md#the-page)): the US flag repeats over each state. The territory layer reads a
+**Zoomed in past the provinces' line, each flag is framed by its province** (see [The provinces come in with the
+zoom](#the-provinces-come-in-with-the-zoom) below): the US flag repeats over each state. The territory layer reads a
 second table, one row per province of the board's provinces file (`provinceFrames`, a `BorderField` over the file's
 frames and counts), indexed by each tile's province, which `TileField.tileData` holds where the landmass was (see
 [What a tile costs on the GPU](tile-layout.md)). Its leader is the province's, from the server's holdings per province
 (`Holdings.leaderOfProvince`, see [The counts are the server's](counts.md)), and `leastPaintedTiles` holds per province.
-In Countries a pixel finds its landmass from its province (`provinceLandmass`, a u16 per province). The choice is three
-uniforms, `groundData`, `groundCount` and `byProvince`, swapped by `Globe.setDivisions`, so it never rebuilds the globe.
-The slots then rank the flags by the provinces they lead, on a second `LandmassSight` over the provinces, made the
-first time Provinces is chosen. **The table is taller than the landmasses'**: `earth-2`'s 2,098 rows (its 2,097
-provinces and the none) pass the 2,048 rows WebGL2 guarantees, and `BorderField` refuses more than 4,096, some players'
-`MAX_TEXTURE_SIZE`. The video, the archive and the clips keep Countries.
+Short of it a pixel finds its landmass from its province (`provinceLandmass`, a u16 per province). Both tables are
+bound (`landmassData` and `provinceData`, with their counts) and one uniform, `provinceShare`, says how far the
+provinces divide the map: 0 or 1, and in between for the fade below, so the switch never rebuilds the globe. The slots then rank the flags by the provinces they lead, on a second `LandmassSight` over the
+provinces, made the first time the provinces divide the map. **The table is taller than the landmasses'**: `earth-2`'s
+2,098 rows (its 2,097 provinces and the none) pass the 2,048 rows WebGL2 guarantees, and `BorderField` refuses more than
+4,096, some players' `MAX_TEXTURE_SIZE`. The video, the archive and the clips keep the countries at every zoom
+(`provinces: false` in the globe's options).
+
+### The provinces come in with the zoom
+
+**From orbit the countries divide the map; close enough, their provinces** (`divisionsAt` in `pointSize.ts`). It is the
+zoom alone, as for the tiles: no setting. A setting, "Map: Countries or Provinces", came first (2026-11-18, #895) and
+went the next day: from orbit Provinces painted some 2,000 flags a few pixels each and the map read as noise, while
+Countries, pushed in, stretched one band of a big country's flag over the whole screen (China, the USA or Brazil came
+out one white or one red). Each was right at one end only, and a player would have switched it at every zoom.
+
+- **The line is a ground length a CSS pixel spans: 10 km** (`PROVINCES_KM`), whatever the board. The province a point
+  of land is in is about 500 km across on `earth-2` (1,659 tiles, the land-weighted median) and on `siege-1` (52 tiles),
+  so from the line on it is about 50 CSS px and its flag reads. On a phone (iPhone 13's 390 by 664) that is zoom 1.92,
+  where the screen is about 3,900 km across: a little less than China, the owner's mark for it ("the camera frame shows
+  about China"); on a 900 px tall desktop, zoom 1.42. Shots of the live map on a phone at zoom 1 to 9, each region in
+  both divisions, put it there: at 1.5 Europe's provinces are still noise, at 2 every region reads.
+- **Never with the whole globe in view**: never below zoom 1.25 (`PROVINCES_LEAST_ZOOM`), so a screen taller than about
+  1,000 CSS px, where 10 km a pixel comes before zoom 1.25, still lands on the countries.
+- **A zoom held on the line does not flicker**: the provinces come 5% past it and go 5% short of it (`PROVINCES_MARGIN`).
+- **The switch happens in the frame tick** (`divide` in `globe.ts`), mid-pinch: it ends the peek of a territory so the
+  pointer finds the new one, and asks `Settling` to rank the flags again once the camera rests (`rankAgain`), never for
+  a camera in motion; until then each flag is drawn from its cell, at its old size.
+- **The frames fade into each other over a quarter of a second** (`DIVISIONS_FADE_SECONDS`, `provinceShareAfter` in
+  `pointSize.ts`), from the frame the zoom crosses the line, and turn back from where they are if it crosses again
+  mid-fade; at once for a player who asks for less motion (`prefers-reduced-motion`). The territory layer paints a
+  pixel in both framings only while `provinceShare` is between 0 and 1, and blends them by their coverage
+  (premultiplied, so a ground one framing leaves unpainted fades to the terrain, not to black); at 0 or 1 it paints one,
+  as before. The province lines from orbit fade with it: their ink is the share's. A fade in time rather than over a
+  band of zooms: a pinch that stops just past the line rests on one framing, never on a double image. Until the fade
+  (2026-11-19, the owner) the switch was one frame, and one US flag became 50 at once.
+- **On a board without provinces** (`earth-1`) the countries divide the map at every zoom. **On `siege-1`** the tiles,
+  6 times as wide as `earth-2`'s, take the frame before the line on every screen, so its orbit shows the countries
+  alone and its province lines show over the tiles. `pointSize.test.ts` pins both, and the line.
 
 **The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after
 the earth and before the tiles. For each pixel, its fragment shader finds the ground under it (the camera is

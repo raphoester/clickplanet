@@ -1,7 +1,7 @@
 import * as THREE from "three"
-import {flagPaint, inOrbit, tilePointSize} from "./pointSize.ts"
+import {type Divisions, flagPaint, inOrbit, tilePointSize} from "./pointSize.ts"
 import {type BoardScale, EARTH_1_SPACING} from "../../domain/boardScale.ts"
-import type {Divisions, MapView} from "../../domain/displaySettings.ts"
+import type {MapView} from "../../domain/displaySettings.ts"
 import {type BorderLineData, decodeBorderLines} from "../../domain/borderLinesFile.ts"
 import {LEAST_SLANT} from "../../domain/coarseOutline.ts"
 import {decodeProvinceLines} from "../../domain/provinceLinesFile.ts"
@@ -166,7 +166,8 @@ export const MOST_SLACK = 0.05
 
 export type BorderLines = {
     object: THREE.Object3D
-    update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView, divisions: Divisions): void
+    // `provinces`: how far the provinces divide the map, 0 to 1, as the territory layer's provinceShare.
+    update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView, provinces: number): void
     cull(camera: THREE.Camera): void
     // The landmass or the province lit, by the divisions it is one of; 0 for none.
     setHighlight(divisions: Divisions, id: number): void
@@ -380,7 +381,7 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
     // Once the board's province lines are read.
     let provinces: ProvinceLines | undefined
     let lit: {divisions: Divisions, id: number} = {divisions: "countries", id: 0}
-    let shown = {zoom: 1, height: 1, ratio: 1, view: "split" as MapView, divisions: "countries" as Divisions}
+    let shown = {zoom: 1, height: 1, ratio: 1, view: "split" as MapView, share: 0}
     const halfViewport = new THREE.Vector2(1, 1)
 
     const toClip = new THREE.Matrix4()
@@ -391,17 +392,17 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
     }
 
     const showLines = () => {
-        const {zoom, height, ratio, view, divisions} = shown
+        const {zoom, height, ratio, view, share} = shown
         const paint = flagPaint(zoom, height / ratio, view, scale)
         const dark = provinceDarkOf(tilePointSize(zoom, height / ratio, scale))
         over.material.uniforms.ink.value = paint * ORBIT_INK
         over.group.visible = paint > 0
         under.group.visible = paint < 1
         if (!provinces) return
-        // From orbit only the provinces' divisions draw them; pushed in, every one does.
-        const drawn = divisions === "provinces" || !inOrbit(zoom, height / ratio, scale)
-        provinces.over.material.uniforms.ink.value = paint * PROVINCE_ORBIT_INK
-        provinces.over.group.visible = divisions === "provinces" && paint > 0
+        // From orbit only once the provinces divide the map, coming in and going with their frames; pushed in, always.
+        const drawn = share > 0 || !inOrbit(zoom, height / ratio, scale)
+        provinces.over.material.uniforms.ink.value = paint * PROVINCE_ORBIT_INK * share
+        provinces.over.group.visible = share > 0 && paint > 0
         provinces.under.group.visible = drawn && paint < 1
         const {uniforms} = provinces.under.material
         uniforms.colour.value.lerpColors(PROVINCE_COLOUR, COLOUR, dark)
@@ -420,9 +421,9 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
 
     return {
         object,
-        update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView, divisions: Divisions) {
+        update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView, provinces: number) {
             halfViewport.set(width / 2, height / 2)
-            shown = {zoom, height, ratio: pixelRatio, view, divisions}
+            shown = {zoom, height, ratio: pixelRatio, view, share: provinces}
             for (const pass of passes) size(pass)
             showLines()
         },

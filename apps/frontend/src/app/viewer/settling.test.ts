@@ -47,4 +47,14 @@ describe("Settling", () => {
         expect(seen.filter((motion) => motion === "settled")).toHaveLength(1)
         expect(seen.lastIndexOf("moving")).toBeLessThan(seen.indexOf("settled"))
     })
+
+    it("settles again at the next calm sample once told what it ranked changed, wherever the camera is", () => {
+        const settling = new Settling()
+        run(settling, 0, 1000, 0, 0)
+        expect(run(settling, 1000, 1000, 0, 0)).toEqual(["calm"])
+
+        settling.rankAgain()
+
+        expect(run(settling, 2000, 1000, 0, 0)).toEqual(["calm", "settled", "calm"])
+    })
 })

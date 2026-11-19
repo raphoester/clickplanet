@@ -24,7 +24,7 @@ export type TerritoryLayerInputs = {
     cells: TileCells
     terrain: Uint8Array
     tileData: THREE.Texture
-    // Each province's landmass: the flags of the countries' divisions are painted in the landmass's frame.
+    // Each province's landmass: from orbit, the countries' flags are painted in the landmass's frame.
     provinceLandmass: Uint16Array
     flagRectangles: THREE.Texture
     uniforms: {[uniform: string]: THREE.IUniform}

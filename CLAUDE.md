@@ -39,8 +39,9 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Provinces](docs/provinces.md) — fortify on Natural Earth's admin-1 units, joined under N tiles (200 on `earth-2`, 20
   on `siege-1`) inside one landmass; PR 2 built: `npm run provinces`, the board's `provinces-<hash>.bin`, the names, the
   overrides Claude wrote for the owner's review and their translations, the preview and the audit; PR 3 built: fortify
-  by province, the locks' switch, the wire, the ledger, the chat line; PR 4 built: the page's Countries / Provinces
-  setting, the hover and the big flags by province, the grey province lines; the PRs in order.
+  by province, the locks' switch, the wire, the ledger, the chat line; PR 4 built: the hover and the big flags by
+  province, the grey province lines; PR 5 built: the zoom brings the provinces in, the Map setting gone; the PRs in
+  order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

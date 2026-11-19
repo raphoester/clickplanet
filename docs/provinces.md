@@ -2,11 +2,11 @@
 
 **Designed 2026-11-18, with the owner. PR 2 is built (2026-11-18): the generator, the file, the names and their
 translations, the preview and the audit. PR 3 is built (2026-11-18): fortify plays on provinces, on the backend and the
-page. PR 4 is built (2026-11-18): the page's Countries / Provinces setting, the hover and the big flags by province, the
-province lines, the taller texture.** Each PR at the end turns its part of this doc
-into "how it works" and updates the docs it makes stale: [Fortify](../apps/backend/docs/fortify.md), the frontend's
-`fortify.md`, `zoomed-out-view.md`, `territory-card.md` and `country-outlines.md`, [Map geometry](map-geometry.md) and
-[`map/README.md`](../map/README.md).
+page. PR 4 is built (2026-11-18): the hover and the big flags by province, the province lines, the taller texture, then
+behind a setting. PR 5 is built (2026-11-19): the zoom brings the provinces in, and the setting is gone.** Each PR at
+the end turns its part of this doc into "how it works" and updates the docs it makes stale:
+[Fortify](../apps/backend/docs/fortify.md), the frontend's `fortify.md`, `zoomed-out-view.md`, `territory-card.md` and
+`country-outlines.md`, [Map geometry](map-geometry.md) and [`map/README.md`](../map/README.md).
 
 ## Why
 
@@ -156,20 +156,26 @@ brotli at 5; `siege-1`'s 73 KB.
 
 ## The page
 
-- **A setting, "Map": Countries or Provinces**, beside "Country flags", kept in `clickplanet-display-settings` as
-  `divisions`, Countries by default, so a new player knows the map. It reaches the running globe as the map view does
-  (`Globe.setDivisions`), and changes three things only: the territory the pointer lights and names in orbit, the frame
-  each big flag stretches over (in Provinces, the US flag repeats over each state), and the lines seen from orbit. The
-  video, the archive and the clips keep Countries. How each works is in the page's docs: the hover in
-  `territory-card.md`, the frames in `zoomed-out-view.md`, the lines in `country-outlines.md`, the tile's province on the
-  GPU in `tile-layout.md`, the counts in `counts.md`.
+- **The zoom chooses the divisions, as it does the tiles: the countries from orbit, their provinces from where a CSS
+  pixel is 10 km of ground** (zoom 1.92 on a phone, 1.42 on a 900 px tall desktop, never below 1.25), 5% each side of
+  the line so a zoom held on it does not flicker, the one framing fading into the other over a quarter of a second as
+  the zoom crosses it. No setting: a new player lands on the countries and finds the provinces
+  by zooming in. They change three things only: the territory the pointer lights and names in orbit, the frame each big
+  flag stretches over (past the line, the US flag repeats over each state), and the lines seen from orbit. The video,
+  the archive and the clips keep the countries at every zoom. Why, the measures and the shots that put the line there:
+  [The provinces come in with the zoom](../apps/frontend/docs/zoomed-out-view.md#the-provinces-come-in-with-the-zoom).
+  A setting, "Map: Countries or Provinces", came first (2026-11-18, #895): from orbit Provinces was noise, and pushed
+  in Countries stretched one band of a big flag over the screen, so the owner had it follow the zoom the next day; the
+  `divisions` it saved in `clickplanet-display-settings` is dropped on read. How each works is in the page's docs: the
+  hover in `territory-card.md`, the frames in `zoomed-out-view.md`, the lines in `country-outlines.md`, the tile's
+  province on the GPU in `tile-layout.md`, the counts in `counts.md`.
 - **A big flag's leader in a province is read from the holdings per province**: `ProvinceHoldings` in `GetHoldings`
   and `HoldingsChanged`, beside the landmasses' (`Holdings.leaderOfProvince`). The least painted size,
   `leastPaintedTiles`, is per province as it is per landmass.
-- **Fortify reads provinces in both modes**: the pulse on the tiles a flag still misses, the "Fortified!" card ("France
+- **Fortify reads provinces at every zoom**: the pulse on the tiles a flag still misses, the "Fortified!" card ("France
   owns all of Bavaria"), the hover card's last fortify.
-- **The lines.** From orbit, Countries draws the country lines and Provinces adds the province lines in light grey.
-  Zoomed in, both, in every mode, the province lines darkening as the tiles grow to the country lines' grey, dashed
+- **The lines.** From orbit, the country lines, and past the provinces' line the province lines in light grey too.
+  Zoomed in, both, the province lines darkening as the tiles grow to the country lines' grey, dashed
   (2026-11-18: the owner could not see the light grey pushed in; see [The countries'
   outlines](../apps/frontend/docs/country-outlines.md)). The country lines are as they were.
 - **The outlines are straight cell edges, with no B-spline** (the owner, 2026-11-18). The tiles are straight hexagons,
@@ -190,3 +196,5 @@ brotli at 5; `siege-1`'s 73 KB.
    the ledger, the hover card's last fortify, the chat line.
 4. **The page** (built 2026-11-18): the setting, the hover and the big flags by province, the grey lines, the taller
    texture.
+5. **The zoom chooses** (built 2026-11-19): the countries from orbit, the provinces from 10 km a CSS pixel, a quarter
+   of a second's fade between them; the setting goes.

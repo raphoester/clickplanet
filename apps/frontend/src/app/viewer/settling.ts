@@ -17,6 +17,11 @@ export class Settling {
     private ranked: Viewpoint | undefined
     private motion: Motion = "calm"
 
+    // The next calm sample settles, wherever the camera is: what is ranked changed under it.
+    rankAgain(): void {
+        this.ranked = undefined
+    }
+
     tick(at: number, viewpoint: Viewpoint): Motion {
         if (this.sample === undefined) {
             this.sample = {at, viewpoint}

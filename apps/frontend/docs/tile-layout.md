@@ -35,7 +35,7 @@ province is the landmass). A board's provinces are cut landmass by landmass, in 
 span of ids (`ProvinceSpans`, `domain/provinces.ts`, which refuses a file where they are not): the shaders light a
 landmass, and run a fortify's wave over it, as a span (`highlight`, `fortifyProvinces[i]`, first and last), and the plain
 layout's vertex shader still reads no texture. Only the territory layer turns a province into its landmass, for the
-Countries frames: `provinceLandmass`, a u16 per province, 1,024 a row.
+countries' frames from orbit: `provinceLandmass`, a u16 per province, 1,024 a row.
 
 **The territory layer reads the same flag numbers from a texture**, `TileField.tileData`: each tile's flag and
 province, two u16, at the texel `cellsOf` gives it (1 MB on `earth-1`, 4 MB on `earth-2`), in both layouts. See
