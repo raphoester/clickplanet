@@ -76,9 +76,16 @@ func (s *StoreContractSuite) TestEverySourceIsKeptAsItWas() {
 		ID: contractID("unknown"), Account: AccountID{15: 3}, Source: SourceUnknown, Tag: "2poko2", At: contractStart.Add(2 * time.Second),
 	}
 
-	s.save(recruit, youtube, unknown)
+	tiktok := Snapshot{
+		ID: contractID("tiktok"), Account: AccountID{15: 4}, Source: SourceTikTok, Tag: "t", At: contractStart.Add(3 * time.Second),
+	}
+	video := Snapshot{
+		ID: contractID("video"), Account: AccountID{15: 5}, Source: SourceRecruitVideo, Tag: "v", At: contractStart.Add(4 * time.Second),
+	}
 
-	s.same([]Snapshot{recruit, youtube, unknown}, s.Kept(s.store))
+	s.save(recruit, youtube, unknown, tiktok, video)
+
+	s.same([]Snapshot{recruit, youtube, unknown, tiktok, video}, s.Kept(s.store))
 }
 
 func (s *StoreContractSuite) TestAnArrivalSavedAgainReplacesItself() {

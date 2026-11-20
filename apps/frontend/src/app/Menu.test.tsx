@@ -640,7 +640,7 @@ describe("Menu", () => {
             await user.click(tab("Share"))
 
             expect(screen.getByText("Recruit for France")).toBeDefined()
-            expect(screen.getByText("clickplanet.lol/fr")).toBeDefined()
+            expect(screen.getByText("clickplanet.lol/r?f=fr")).toBeDefined()
         })
 
         it("is CrazyGames' invite there, with no link that leads off it", async () => {
@@ -653,7 +653,7 @@ describe("Menu", () => {
 
             expect(button("Invite friends")).toBeDefined()
             expect(screen.queryByRole("button", {name: "Take a picture"})).toBeNull()
-            expect(screen.queryByText("clickplanet.lol/fr")).toBeNull()
+            expect(screen.queryByText("clickplanet.lol/r?f=fr")).toBeNull()
         })
     })
 

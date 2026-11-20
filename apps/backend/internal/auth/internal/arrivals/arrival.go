@@ -19,20 +19,39 @@ type AccountID = accounts.AccountID
 type Source string
 
 const (
-	SourceRecruit    Source = "recruit"
-	SourceYouTube    Source = "youtube"
-	SourceCrazyGames Source = "crazygames"
-	SourceUnknown    Source = "unknown"
+	// A player's recruit link, which is pressed: the link, Invite, the picture.
+	SourceRecruit Source = "recruit"
+	// The address a player's video shows, which a viewer types.
+	SourceRecruitVideo Source = "recruit_video"
+	SourceYouTube      Source = "youtube"
+	SourceTikTok       Source = "tiktok"
+	SourceCrazyGames   Source = "crazygames"
+	SourceUnknown      Source = "unknown"
 )
 
 func (s Source) known() bool {
-	return s == SourceRecruit || s == SourceYouTube || s == SourceCrazyGames || s == SourceUnknown
+	switch s {
+	case SourceRecruit, SourceRecruitVideo, SourceYouTube, SourceTikTok, SourceCrazyGames, SourceUnknown:
+		return true
+	default:
+		return false
+	}
 }
 
+// A tracked address's first segment, one letter, since the ones that matter are typed by hand off a video:
+// clickplanet.lol/t. The frontend's home page sends it as the tag.
 const (
-	recruitTag    = "rc"
-	youtubeTag    = "yt"
-	crazyGamesTag = "cg"
+	tiktokTag       = "t"
+	youtubeTag      = "y"
+	recruitTag      = "r"
+	recruitVideoTag = "v"
+	crazyGamesTag   = "cg"
+)
+
+// The tags of the links out before the one-letter addresses (Nov 20 2026): every clip's description says ?s=yt.
+const (
+	oldRecruitTag = "rc"
+	oldYouTubeTag = "yt"
 )
 
 // What the browser's first page said, as the client sent it: its ?s=, the host it came from, and the account that held
@@ -72,10 +91,14 @@ func NewArrival(id ArrivalID, account AccountID, landing Landing, at time.Time) 
 // A tag nobody posted is no source: anybody can type one.
 func sourceOf(tag string) Source {
 	switch tag {
-	case recruitTag:
+	case recruitTag, oldRecruitTag:
 		return SourceRecruit
-	case youtubeTag:
+	case recruitVideoTag:
+		return SourceRecruitVideo
+	case youtubeTag, oldYouTubeTag:
 		return SourceYouTube
+	case tiktokTag:
+		return SourceTikTok
 	case crazyGamesTag:
 		return SourceCrazyGames
 	default:
@@ -111,9 +134,10 @@ func hostOf(referrer string) string {
 	return host
 }
 
-// A recruit's arrival keeps who recruited it; another arrival has no recruiter, whatever its landing said.
+// A recruit's arrival, by its link or its video, keeps who recruited it; another arrival has no recruiter, whatever its
+// landing said.
 func (a Arrival) Recruitment(recruiter AccountID) (Recruitment, bool) {
-	if a.source != SourceRecruit || recruiter == (AccountID{}) {
+	if (a.source != SourceRecruit && a.source != SourceRecruitVideo) || recruiter == (AccountID{}) {
 		return Recruitment{}, false
 	}
 	return Recruitment{arrival: a.id, recruiter: recruiter}, true

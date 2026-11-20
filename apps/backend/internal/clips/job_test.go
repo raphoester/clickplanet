@@ -167,7 +167,7 @@ func TestARunPostsEveryClipOfTheFolderThroughTheBackendBestFirstAndReportsEachOn
 	assert.Equal(t, []publishingv1.Platform{publishingv1.Platform_PLATFORM_TIKTOK, publishingv1.Platform_PLATFORM_YOUTUBE},
 		best.GetSlot().GetPlatforms())
 	assert.True(t, strings.HasPrefix(best.GetTiktok().GetCaption(), "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
-	assert.Contains(t, best.GetTiktok().GetCaption(), "👉 https://clickplanet.lol\n#clickplanet ")
+	assert.Contains(t, best.GetTiktok().GetCaption(), "👉 https://clickplanet.lol/t\n#clickplanet ")
 	assert.True(t, strings.HasSuffix(best.GetTiktok().GetCaption(), " #africa"))
 	assert.True(t, strings.HasSuffix(best.GetYoutube().GetDescription(), " #africa"))
 	assert.Equal(t, "https://media.example/clip-1.mp4", best.GetMediaUrl())

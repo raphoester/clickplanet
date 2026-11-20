@@ -7,17 +7,26 @@
             var address = location.hostname === "crazygames.clickplanet.lol"
                 ? null
                 : /^\/([^/]+)(?:\/([^/]+))?\/?$/.exec(location.pathname)
-            var flag = address && address[1].toLowerCase()
-            if (flag && " __FLAG_CODES__ ".indexOf(" " + flag + " ") !== -1) {
-                var query = new URLSearchParams(location.search)
-                query.set("f", flag)
-                query.set("s", "rc")
+            var first = address && address[1].toLowerCase()
+            var query = new URLSearchParams(location.search)
+            var opened = false
+            if (first && !address[2] && " t y r v ".indexOf(" " + first + " ") !== -1) {
+                // A tracked address: its one letter is the source, the flag and the name ride in the query.
+                query.set("s", first)
+                opened = true
+            } else if (first && " __FLAG_CODES__ ".indexOf(" " + first + " ") !== -1) {
+                // The old player's address, /<flag> and /<flag>/<name>, already shared: still a recruit link.
+                query.set("f", first)
+                query.set("s", "r")
                 query.delete("r")
                 try {
                     if (address[2]) query.set("r", decodeURIComponent(address[2]))
                 } catch (e) {
                     // Not a name: the game still opens on the flag.
                 }
+                opened = true
+            }
+            if (opened) {
                 try {
                     sessionStorage.setItem("clickplanet-referrer", document.referrer)
                 } catch (e) {

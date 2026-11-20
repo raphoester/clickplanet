@@ -25,8 +25,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   sentences with slots and ICU plurals, `t`/`rich`/`translator()`, `domain/` returns facts, Intl for every number and
   name, "in" a country as a phrase per language ("au Brésil"), each board's landmass and province names, how the
   language is chosen (pick, CrazyGames, browser), adding a string or a language.
-- [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a flag's address,
-  `clickplanet.lol/<flag>/<name>`, which the home page's first script opens on the game.
+- [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a tracked address, `/t`, `/y`,
+  `/r` and `/v`, and a flag's old address, `clickplanet.lol/<flag>/<name>`, which the home page's first script opens
+  on the game.
 - [Search](docs/search.md) — what Google reads: the titles, the one description, the JSON-LD that names us
   "Click Planet" too, the sitemap, the CrazyGames host's noindex; the Search Console baseline of Nov 2026 and how to
   read it with Composio.
@@ -138,7 +139,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   peeking over the globe's edge, the arrow only when the flag is not seen; the bank in tenths and its "0.5 per click";
   the chat's line naming the landmass.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
-  player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
+  player's address, `clickplanet.lol/r?f=<flag>&r=<name>`, or the flag alone for a guest.
 - [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,
   each era on its own board with a flash at the cut, its story (of the last board), names and address, the anthem
   copied in, the red dots, the moments that offer it, the welcome line.

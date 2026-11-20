@@ -26,8 +26,10 @@ var gameTags = []string{
 
 const (
 	site = "https://clickplanet.lol"
-	// ?s=yt is how the game counts the players that came from YouTube.
-	youtubeSite = site + "/?s=yt"
+	// The first segment, one letter, is how the game counts where a player came from: a TikTok caption is read and
+	// typed, so it is short (see the backend's docs/arrivals.md).
+	tiktokSite  = site + "/t"
+	youtubeSite = site + "/y"
 	brand       = " | CLICKPLANET"
 )
 
@@ -58,7 +60,7 @@ type TikTokWords struct {
 
 // A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
-	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, site)...)
+	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, tiktokSite)...)
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
 	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
 }

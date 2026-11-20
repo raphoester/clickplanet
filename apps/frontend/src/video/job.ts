@@ -8,7 +8,7 @@ export type VideoJob = {
     headline: string
     // The maker's name, only as the clips let a video show it.
     maker: string | undefined
-    // The address as a person reads it: clickplanet.lol/pl/kutza.
+    // The address as a person reads it: clickplanet.lol/v?f=pl&r=kutza.
     address: string
 }
 

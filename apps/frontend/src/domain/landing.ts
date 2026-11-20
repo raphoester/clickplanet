@@ -1,6 +1,12 @@
 export const SOURCE_TAG_PARAM = "s"
 
-export const RECRUIT_TAG = "rc"
+// The first segment of a tracked address names where it was posted, in one letter, since a person who saw it in a
+// video types it by hand: clickplanet.lol/t. The home page's first script holds the same letters.
+export const SOURCES = {tiktok: "t", youtube: "y", recruitLink: "r", recruitVideo: "v"} as const
+
+export type Source = typeof SOURCES[keyof typeof SOURCES]
+
+export const RECRUIT_TAG = SOURCES.recruitLink
 
 export const RECRUITER_PARAM = "r"
 

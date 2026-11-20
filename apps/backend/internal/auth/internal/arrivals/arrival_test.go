@@ -24,11 +24,16 @@ func TestTheTagSaysWhereTheAccountCameFrom(t *testing.T) {
 		source arrivals.Source
 		kept   string
 	}{
-		"a player's link":     {tag: "rc", source: arrivals.SourceRecruit, kept: "rc"},
-		"the YouTube link":    {tag: " YT ", source: arrivals.SourceYouTube, kept: "yt"},
-		"the CrazyGames page": {tag: "cg", source: arrivals.SourceCrazyGames, kept: "cg"},
-		"no tag":              {tag: "", source: arrivals.SourceUnknown, kept: ""},
-		"a streamer's link":   {tag: "2poko2", source: arrivals.SourceUnknown, kept: "2poko2"},
+		"a player's link":        {tag: "r", source: arrivals.SourceRecruit, kept: "r"},
+		"a player's video":       {tag: "v", source: arrivals.SourceRecruitVideo, kept: "v"},
+		"the YouTube link":       {tag: " Y ", source: arrivals.SourceYouTube, kept: "y"},
+		"the TikTok address":     {tag: "t", source: arrivals.SourceTikTok, kept: "t"},
+		"a player's old link":    {tag: "rc", source: arrivals.SourceRecruit, kept: "rc"},
+		"the old YouTube link":   {tag: "YT", source: arrivals.SourceYouTube, kept: "yt"},
+		"the CrazyGames page":    {tag: "cg", source: arrivals.SourceCrazyGames, kept: "cg"},
+		"a word, not the letter": {tag: "tiktok", source: arrivals.SourceUnknown, kept: "tiktok"},
+		"no tag":                 {tag: "", source: arrivals.SourceUnknown, kept: ""},
+		"a streamer's link":      {tag: "2poko2", source: arrivals.SourceUnknown, kept: "2poko2"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tc.tag}, at)
@@ -89,7 +94,7 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 	whole := arrivals.Snapshot{ID: id, Account: ada, Source: arrivals.SourceUnknown, At: at}
 	for name, broken := range map[string]func(arrivals.Snapshot) arrivals.Snapshot{
 		"no id":          func(s arrivals.Snapshot) arrivals.Snapshot { s.ID = arrivals.ArrivalID{}; return s },
-		"unknown source": func(s arrivals.Snapshot) arrivals.Snapshot { s.Source = "tiktok"; return s },
+		"unknown source": func(s arrivals.Snapshot) arrivals.Snapshot { s.Source = "instagram"; return s },
 		"no time":        func(s arrivals.Snapshot) arrivals.Snapshot { s.At = time.Time{}; return s },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -101,7 +106,7 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 }
 
 func TestOnlyARecruitHasARecruiter(t *testing.T) {
-	for _, tag := range []string{"yt", "cg", "", "tiktok"} {
+	for _, tag := range []string{"y", "yt", "t", "cg", "", "tiktok"} {
 		arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tag, Recruiter: bob}, at)
 		require.NoError(t, err)
 
@@ -112,15 +117,17 @@ func TestOnlyARecruitHasARecruiter(t *testing.T) {
 }
 
 func TestARecruitsRecruitmentNamesItsArrivalAndItsRecruiter(t *testing.T) {
-	arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: "rc"}, at)
-	require.NoError(t, err)
+	for _, tag := range []string{"r", "v", "rc"} {
+		arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tag}, at)
+		require.NoError(t, err)
 
-	recruitment, recruited := arrival.Recruitment(bob)
+		recruitment, recruited := arrival.Recruitment(bob)
 
-	require.True(t, recruited)
-	assert.Equal(t, arrivals.RecruitmentSnapshot{Arrival: id, Recruiter: bob}, recruitment.TakeSnapshot())
-	_, recruited = arrival.Recruitment(arrivals.AccountID{})
-	assert.False(t, recruited, "no recruiter, no recruitment")
+		require.True(t, recruited, "%q", tag)
+		assert.Equal(t, arrivals.RecruitmentSnapshot{Arrival: id, Recruiter: bob}, recruitment.TakeSnapshot())
+		_, recruited = arrival.Recruitment(arrivals.AccountID{})
+		assert.False(t, recruited, "%q: no recruiter, no recruitment", tag)
+	}
 }
 
 func TestAnAnonymizedRecruitmentKeepsItsArrival(t *testing.T) {
