@@ -36,9 +36,8 @@ npm run teaser -- --teaser teaser.json --headed        # watch Chrome take the s
   `clickplanet.lol` zone, and on the Free plan no rule skips it. It answered 403 (a managed challenge) to every
   background a GitHub runner's headless Chrome asked `media.clickplanet.lol` for, so the first Capital Siege teaser
   failed twice on 2026-11-13. The same render on a Mac passed.
-- **The slideshow** is ffmpeg's (`scripts/slideshow.mjs`, which a carousel of the clips shares): each still for
-  `--seconds`, H.264 in yuv420p with `faststart`, at 1080×1920, with a silent AAC track, cut at the stills' time, as
-  ffmpeg 9 showed the last one twice as long. TikTok adds its own music to the carousel (`autoAddMusic`, the backend's
+- **The slideshow** is ffmpeg's: each still for `--seconds`, H.264 in yuv420p with `faststart`, at 1080×1920, with a
+  silent AAC track. TikTok adds its own music to the carousel (`autoAddMusic`, the backend's
   [Publishing](../../backend/docs/publishing.md)).
 
 **Every 6 hours a workflow posts the battles due** (`.github/workflows/teasers.yml`, at 43 past 01:00, 07:00, 13:00

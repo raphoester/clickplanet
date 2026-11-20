@@ -4,7 +4,6 @@ import {availableParallelism, tmpdir} from "node:os"
 import {basename, dirname, join, resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createServer} from "vite"
-import {slideshow} from "../slideshow.mjs"
 
 const args = process.argv.slice(2)
 const flag = (name, fallback) => {
@@ -21,8 +20,7 @@ if (!replay || has("help")) {
                       its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
                       headline, teasers, line, call, its flags and the anthem; for a front or a place its look, flags
                       or dive. A seasonal story has words of its own, and dives.
-                      The job's choose prints one for each clip of a run; clips edit prints the model's by hand.
-                      A carousel's names its list, its cover in hook and its ranks: its photos are stills, below
+                      The job's choose prints one for each clip of a run; clips edit prints the model's by hand
   --findings <path>   write what the replay holds for the editor (clips.v1.Findings), as JSON, and make no clip
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
   --out <path>        the video, default clip-<n>.mp4 beside the replay
@@ -53,8 +51,7 @@ Everything below is chosen from the replay when left out:
   --headed            show the browser
 
 Writes the video and, beside it, a .json with what to post (clips.v1.Clip), and a .txt with the headline said other
-ways, one a line: the posting job writes the caption from them. A carousel writes clip-<n>-1.jpg to clip-<n>-7.jpg,
-JPEGs of 1080x1920, and its video is their slideshow. Needs ffmpeg.
+ways, one a line: the posting job writes the caption from them. Needs ffmpeg.
 CHROME_PATH overrides the browser binary.`)
     process.exit(1)
 }
@@ -227,12 +224,6 @@ async function openRecorder(speaks) {
             await open(url)
             return evaluate("window.clip.findings")
         },
-        // A carousel's photo, as a JPEG: TikTok's photo posts take JPEG and not PNG.
-        async still(index) {
-            await evaluate(`window.clip.frame(${index})`)
-            const {data} = await send("Page.captureScreenshot", {format: "jpeg", quality: 92})
-            return Buffer.from(data, "base64")
-        },
         // Every recorder plays every frame, so each holds the same map, and takes the picture of its own only.
         async shoot(from, frame) {
             for (let i = from; i <= frame; i++) await evaluate(`window.clip.frame(${i})`)
@@ -279,7 +270,6 @@ async function record(recorders) {
             ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
     ].join("\n"))
     if (has("plan")) return recording
-    if (recording.photos > 0) return photograph(recorders[0], recording, out)
 
     const frames = has("preview") ? Math.min(recording.frames, Math.round(Number(flag("preview")) * recording.fps)) : recording.frames
     const music = recording.music
@@ -330,22 +320,6 @@ async function record(recorders) {
     const clip = out.replace(/\.mp4$/, "") + ".json"
     writeFileSync(clip, JSON.stringify(recording.clip, null, 2) + "\n")
     console.log(`  saved ${out}, ${basename(text)} and ${basename(clip)}`)
-    return recording
-}
-
-// A carousel: each photo a still of the page, then their slideshow as the video, and the photos named in the clip.
-async function photograph(recorder, recording, out) {
-    const stem = out.replace(/\.mp4$/, "")
-    const photos = []
-    for (let i = 0; i < recording.photos; i++) {
-        const photo = `${basename(stem)}-${i + 1}.jpg`
-        writeFileSync(join(dirname(out), photo), await recorder.still(i))
-        photos.push(photo)
-    }
-    slideshow(dirname(out), photos, recording.secondsPerPhoto, out)
-    writeFileSync(`${stem}.txt`, recording.teasers.join("\n") + "\n")
-    writeFileSync(`${stem}.json`, JSON.stringify({...recording.clip, photos}, null, 2) + "\n")
-    console.log(`  saved ${photos[0]} to ${photos.at(-1)}, ${basename(out)}, ${basename(stem)}.txt and ${basename(stem)}.json`)
     return recording
 }
 

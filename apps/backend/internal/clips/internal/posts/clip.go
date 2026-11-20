@@ -3,16 +3,9 @@ package posts
 import (
 	"errors"
 	"fmt"
-	"slices"
-	"unicode/utf8"
 )
 
 type VideoFile string
-
-type PhotoFile string
-
-// The most a TikTok carousel takes.
-const maxPhotos = 35
 
 var ErrInvalidClip = errors.New("the clip is invalid")
 
@@ -44,13 +37,6 @@ type Clip struct {
 	cast         string
 	fighters     []ClipFighter
 	experiment   ExperimentName
-	photos       []PhotoFile
-	list         ListName
-}
-
-// Photos on TikTok in place of the video, which is their slideshow.
-func (c Clip) carousel() bool {
-	return len(c.photos) > 0
 }
 
 func (c Clip) countryCodes() []string {
@@ -76,7 +62,7 @@ func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
 		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, Seconds: c.seconds, TeaserNames: c.teaserNames,
-		Record: c.record, Cast: c.cast, Fighters: c.fighters, Experiment: c.experiment, Photos: c.photos, List: c.list,
+		Record: c.record, Cast: c.cast, Fighters: c.fighters, Experiment: c.experiment,
 	}
 }
 
@@ -101,9 +87,6 @@ type ClipSnapshot struct {
 	Fighters []ClipFighter
 	// The lab's experiment it was written for; empty for the control.
 	Experiment ExperimentName
-	// A carousel's photos, in the order they are swiped, and its list; none for a clip.
-	Photos []PhotoFile
-	List   ListName
 }
 
 func (s ClipSnapshot) Restore() (Clip, error) {
@@ -150,29 +133,9 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 			return Clip{}, fmt.Errorf("%w: %w", ErrInvalidClip, err)
 		}
 	}
-	if err := s.checkCarousel(); err != nil {
-		return Clip{}, err
-	}
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
 		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, seconds: s.Seconds, teaserNames: s.TeaserNames,
-		record: s.Record, cast: s.Cast, fighters: s.Fighters, experiment: s.Experiment, photos: s.Photos, list: s.List,
+		record: s.Record, cast: s.Cast, fighters: s.Fighters, experiment: s.Experiment,
 	}, nil
-}
-
-func (s ClipSnapshot) checkCarousel() error {
-	if len(s.Photos) == 0 && s.List == "" {
-		return nil
-	}
-	switch {
-	case !slices.Contains(ListNames, s.List):
-		return fmt.Errorf("%w: a carousel of no list %q", ErrInvalidClip, s.List)
-	case len(s.Photos) == 0 || len(s.Photos) > maxPhotos:
-		return fmt.Errorf("%w: a carousel of %d photos, not 1 to %d", ErrInvalidClip, len(s.Photos), maxPhotos)
-	case slices.Contains(s.Photos, ""):
-		return fmt.Errorf("%w: a photo with no file", ErrInvalidClip)
-	case utf8.RuneCountInString(s.Title) > coverRunes:
-		return fmt.Errorf("%w: the title %q is over the %d letters of TikTok's over photos", ErrInvalidClip, s.Title, coverRunes)
-	}
-	return nil
 }

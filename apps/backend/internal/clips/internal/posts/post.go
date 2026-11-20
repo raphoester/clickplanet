@@ -38,7 +38,7 @@ func (p Post) TakeSnapshot() PostSnapshot {
 		Title: p.clip.title, CallToAction: p.wording.call.ID, Key: p.clip.key, Countries: p.clip.countryCodes(),
 		Video: p.clip.video, At: p.at, Platforms: p.platforms, TikTok: p.wording.tiktok(p.clip), YouTube: p.wording.youtube(p.clip),
 		Record: p.clip.record, Teaser: p.wording.teaserName, RunPosition: p.position, RunSize: p.ofRun,
-		Experiment: p.clip.experimentOrControl(), Photos: p.clip.photos, List: p.clip.list,
+		Experiment: p.clip.experimentOrControl(),
 	}
 }
 
@@ -61,9 +61,6 @@ type PostSnapshot struct {
 	RunSize     int
 	// The lab's experiment it belongs to, Control for the clips as they are.
 	Experiment ExperimentName
-	// A carousel's photos, TikTok's media in place of the video, and its list; none for a clip.
-	Photos []PhotoFile
-	List   ListName
 }
 
 type Scheduled struct {

@@ -168,27 +168,3 @@ func TestAPostAWaitDelayedGoesAtTheSlotPlannedAfterTheWait(t *testing.T) {
 	assert.Equal(t, second.At, report[0].At)
 	assert.Len(t, r.calendar.Asked, 2)
 }
-
-func TestACarouselIsScheduledWithItsPhotosAsTikToksMediaUnderItsCover(t *testing.T) {
-	photos := []posts.PhotoFile{"clip-1-1.jpg", "clip-1-2.jpg", "clip-1-3.jpg", "clip-1-4.jpg", "clip-1-5.jpg", "clip-1-6.jpg", "clip-1-7.jpg"}
-	carousel, err := posts.ClipSnapshot{
-		Pick: 1, Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", Teasers: []string{"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"},
-		Key: posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed}, Video: "clip-1.mp4", Seconds: 21,
-		Photos: photos, List: posts.OwnLand, Experiment: "carousel",
-	}.Restore()
-	require.NoError(t, err)
-	r := scheduling(folder{clips: []posts.Clip{carousel}})
-
-	report, err := r.usecase.Execute(t.Context())
-
-	require.NoError(t, err)
-	assert.True(t, report.Complete())
-	require.Len(t, r.service.Scheduled, 1)
-	post := r.service.Scheduled[0]
-	assert.Equal(t, photos, post.Photos)
-	assert.Equal(t, posts.OwnLand, post.List)
-	assert.Equal(t, "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", post.TikTok.Title)
-	assert.True(t, strings.HasPrefix(post.TikTok.Caption, "Where is your country? 👇\nhttps://clickplanet.lol/t\n#clickplanet "))
-	assert.Empty(t, post.CallToAction)
-	assert.Equal(t, posts.ExperimentName("carousel"), post.Experiment)
-}

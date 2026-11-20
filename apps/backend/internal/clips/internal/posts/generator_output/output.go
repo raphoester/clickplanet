@@ -69,7 +69,6 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 	for _, path := range written.GetPaths() {
 		findings.Paths = append(findings.Paths, pathOf(path))
 	}
-	findings.Lists = listsOf(written.GetLists())
 	for _, seasonal := range written.GetSeasonal() {
 		facts, err := factsOf(seasonal.GetFacts())
 		if err != nil {
@@ -126,33 +125,6 @@ func sagaOf(written *clipsv1.Saga) posts.Saga {
 	return saga
 }
 
-func listsOf(written *clipsv1.Lists) posts.Lists {
-	lists := posts.Lists{AttackedSince: timeOf(written.GetAttackedSince())}
-	for _, entry := range written.GetOwnLand() {
-		lists.OwnLand = append(lists.OwnLand, posts.OwnLandEntry{
-			Country: entry.GetCountry(), Tiles: int(entry.GetTiles()), OwnShare: entry.GetOwnShare(), Holder: entry.GetHolder(),
-			HolderShare: entry.GetHolderShare(),
-		})
-	}
-	for _, entry := range written.GetMostAttacked() {
-		lists.MostAttacked = append(lists.MostAttacked, posts.AttackedEntry{
-			Flag: entry.GetFlag(), Lost: int(entry.GetLost()), TakenBy: entry.GetTakenBy(), TakenByTiles: int(entry.GetTakenByTiles()),
-			Country: entry.GetCountry(),
-		})
-	}
-	for _, entry := range written.GetFarFromHome() {
-		lists.FarFromHome = append(lists.FarFromHome, posts.FarLandEntry{
-			Flag: entry.GetFlag(), Country: entry.GetCountry(), Tiles: int(entry.GetTiles()), Km: int(entry.GetKm()),
-		})
-	}
-	for _, entry := range written.GetBiggestEmpires() {
-		lists.BiggestEmpires = append(lists.BiggestEmpires, posts.EmpireEntry{
-			Flag: entry.GetFlag(), Tiles: int(entry.GetTiles()), Share: entry.GetShare(), Country: entry.GetCountry(),
-		})
-	}
-	return lists
-}
-
 func pathOf(written *clipsv1.Path) posts.Path {
 	path := posts.Path{Flag: written.GetFlag(), Marks: make([]posts.PathMark, 0, len(written.GetMarks()))}
 	for _, mark := range written.GetMarks() {
@@ -204,10 +176,6 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 	for _, number := range story.Fighters {
 		fighters = append(fighters, uint32(number)) //nolint:gosec // a number of the cast, from 1.
 	}
-	ranks := make([]*clipsv1.Rank, 0, len(story.Ranks))
-	for _, rank := range story.Ranks {
-		ranks = append(ranks, &clipsv1.Rank{Code: rank.Code, Line: rank.Line})
-	}
 	written, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&clipsv1.Pick{
 		Front: uint32(story.Front), Tour: uint32(story.Tour), Place: uint32(story.Place), Seasonal: uint32(story.Seasonal), //nolint:gosec // from 1, a few dozen at most.
 		Saga: uint32(story.Saga), Since: sinceOf(story.Since), //nolint:gosec // from 1, a few dozen at most.
@@ -218,7 +186,6 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 		Fighters: fighters,
 		// The control is no experiment, and speaks English with no hook: none of the three is written.
 		Experiment: string(story.Experiment), Hook: story.Hook, Language: languageOf(story),
-		List: string(story.List), Ranks: ranks,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write the story: %w", err)
@@ -265,10 +232,6 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 		if _, err := os.Stat(video); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrNoVideo, filepath.Base(video))
 		}
-		photos, err := photosOf(filepath.Dir(path), written.GetPhotos())
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
-		}
 
 		clip, err := posts.ClipSnapshot{
 			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Key: keyOf(written.GetKey()),
@@ -278,7 +241,6 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Seconds: written.GetRecord().GetCommon().GetDurationSeconds(),
 			Cast:    written.GetCast(), Fighters: clipFightersOf(written.GetFighters()),
 			Experiment: posts.ExperimentName(written.GetExperiment()),
-			Photos:     photos, List: posts.ListName(written.GetList()),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
@@ -286,26 +248,6 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 		clips = append(clips, clip)
 	}
 	return clips, nil
-}
-
-var ErrNoPhoto = errors.New("a carousel's photo is not beside it")
-
-func photosOf(folder string, named []string) ([]posts.PhotoFile, error) {
-	if len(named) == 0 {
-		return nil, nil
-	}
-	photos := make([]posts.PhotoFile, 0, len(named))
-	for _, name := range named {
-		if name != filepath.Base(name) {
-			return nil, fmt.Errorf("%w: %q is no file of the folder", ErrNoPhoto, name)
-		}
-		photo := filepath.Join(folder, name)
-		if _, err := os.Stat(photo); err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrNoPhoto, name)
-		}
-		photos = append(photos, posts.PhotoFile(photo))
-	}
-	return photos, nil
 }
 
 func keyOf(written *clipsv1.StoryKey) posts.StoryKey {

@@ -1,9 +1,7 @@
 # The video lab: new formats on the game's own accounts
 
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
-experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. PR 3 is built (2026-11-20): the carousel,
-a list of countries in photos, on from its merge.** The clips had one format, and the experiments of October only tuned
-it.
+experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench.** The clips had one format, and the experiments of October only tuned it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
 frame works is the backend's [The clips job](../apps/backend/docs/clips-job.md), "The lab", and the hook the
@@ -52,8 +50,7 @@ Then, the same day:
 
 ## Words
 
-- **Format**: what a video looks like, its renderer: `ClipRecord.format`, `globe-replay`, or `carousel` (photos on
-  TikTok, not a video; built, PR 3).
+- **Format**: what a video looks like, its renderer: `ClipRecord.format`, `globe-replay` today.
 - **Brief**: what the editor is asked to tell, and how, for an experiment's story: prose, embedded. Not "angle": the
   code's `Angle` is what a story key says a story tells of its flag.
 - **Hook**: big words over a clip's opening, read alone before the headline: a lab story's alone.
@@ -103,9 +100,6 @@ Then, the same day:
   - **Else the signs, against the control of the same days**: on TikTok the share held at 2 s (control 64%), the share
     that watched to the end (16%), comments per 1,000 views (1.3), shares and follows per 1,000 (about 0); on YouTube
     the views (median 935) and likes per 1,000 views (7.7).
-  - **A carousel has no hold at 2 s**: its signs on TikTok are the average watch, the share to the end as TikTok
-    counts it, and the saves per 1,000, beside the comments and shares, against the control's of the same days (on
-    2026-11-20, the 43 clips since the cap: a median of 5.3 s and 15.3%, 1.5 saves per 1,000).
 - **The lab's log**, at the end of this doc, keeps each experiment: when it ran, its numbers, its verdict.
 
 ## The order
@@ -121,9 +115,9 @@ Then, the same day:
    to 20:00 UTC, are Europe's evening, not Brazil's or Indonesia's, so its turn needs hours per country.
 6. **Satisfying.**
 
-Far invasion and the carousel (below, "Photos, not a video"), on from the merge of PR 3, run until the war report and
-POV join them: the coin draws evenly among the experiments on, so they share every lab slot meanwhile. Call to arms ran
-from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
+Far invasion runs alone until the war report and POV join it: the coin draws evenly among the experiments on, so it
+takes every lab slot meanwhile. Call to arms ran from the merge of PR 1 to the merge of PR 2, the morning of
+2026-11-20.
 
 ## The formats
 
@@ -142,8 +136,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
   editor dropped "the odd pair is the hook" on 2026-11-09 for headlines a stranger could not read ("BULGARIA VS GERMANY
   FOR SAUDI ARABIA"); this brings the pair back as a question anyone reads. Far is the model's to judge, not a check's.
 - **Rankings: "THE 5 COUNTRIES THE INTERNET ATTACKED MOST THIS WEEK"**: the globe flies from 5th to 1st, each with its
-  rank and the tiles fought over. The carousel's lists as a video: the lists the findings hold by then, and the
-  tour's camera with ranks drawn.
+  rank and the tiles fought over. Built from the map history the job already fetches, a ranking in the findings, and
+  the tour's camera with ranks drawn.
 - **Call to arms, in the flag's language: "POLACY, GDZIE JESTEŚCIE?"** (built, off): a flag losing a place it held,
   told from its side to its own people: the hook, the headline, the teasers (so the YouTube title) and the call in its
   language, its anthem, the end card asking to defend it. The words in letters Luckiest Guy cannot draw are set in
@@ -151,52 +145,6 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
 - **Satisfying**: 6 to 7 s, no headline, close on the busiest moment of bombs, a virus spreading or an enclosure
   filling, ending on the payoff so it plays again; the address small in a corner. A camera that holds close, and an
   overlay with no words.
-
-**Photos, not a video** (designed 2026-11-20, built the same day, PR 3, on from its merge, outside the order):
-
-- **Carousel: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"**. The best format of an app maker who grew on TikTok with
-  no ads (an article on X, 2026-11-19): a photo carousel, a list people know, a question as the caption, and the name
-  on the last photo alone. Two calls to act in the middle of his posts cut their views from about 2,000 to 500. The
-  game had one carousel, the battle teaser of 2026-11-14: 684 views, as many as a clip, but watched 6.9 s on average
-  against the clips' median of 5.3 s, 18.6% to the end against 15.3%, and saved 4.4 times per 1,000 views against 1.5.
-  One post is a hint, not a finding.
-  - **7 photos**, JPEGs of 1080×1920: the cover, its hook in big words over the globe; the 5 ranks from 5th to 1st,
-    each the globe aimed at its place with its rank, its flag, its name and one number ("HELD BY PALAU · 81%"); and
-    the whole globe last, with `clickplanet.lol`. No address before the last photo.
-  - **Four lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
-    **not their own land** (each country's ground, the share its own flag holds, the flag that holds the most of it;
-    the 5 lowest of the countries big enough to show), **most attacked in 3 days** (the tiles taken from each flag in
-    the replay), **farthest from home** (each flag's land outside its country, the farthest from it, weighed by its
-    size) and **biggest empires** (each flag's share of the land now). The post keeps its list in its metadata
-    (`carouselList`), so the lists can be compared later. A list whose 5 are the 5 of its last post is not told
-    again, and the control's next story takes the pick.
-  - **Its words**: the cover's hook is TikTok's title over the photos (90 characters, no hashtag); the caption opens
-    with a question ("Where is your country? 👇"), then the address once, then the tags, with no "play now" line. In
-    English. TikTok adds its music, as on the teasers.
-  - **YouTube gets the photos as a slideshow**, 3 s a photo, as the teasers do, in the same post: a reading for
-    nothing, though of a slideshow and not of the carousel. The teaser's had 606 views, under the clips' median of
-    935.
-  - **Made from what is there**: the clip's page draws the stills (the map at the replay's end, the camera aimed at
-    each place, the clip's look), the teasers' ffmpeg makes the slideshow, and `schedule` uploads the photos and gives
-    them as TikTok's media (publishing's `tiktok_photo_urls`, as promo does). `clip.format` is `carousel`. How each
-    part works is in the backend's [The clips job](../apps/backend/docs/clips-job.md), "The carousel", and the
-    frontend's [Clips](../apps/frontend/docs/clips.md), "A carousel".
-  - **The measures the build chose** (2026-11-20, as the design left them open):
-    - **Big enough to show** is a country of 1,000 tiles of `earth-1` or more, on any board as much ground
-      (`bigCountryTiles`, the places' floor read from the board's scale: 49 countries on `earth-1`). A country nobody
-      holds any of has no holder to name, and is left out.
-    - **Far from home** is each flag's land on another country's ground, from its middle to the nearest ground of the
-      flag's own country, along the globe, to the nearest 100 km, weighed by its size: times `tiles / (tiles + 100)`,
-      100 tiles of `earth-1` being a painted flag read from far (`readableFlipTiles`). A holding that size counts half
-      its distance, one ten times bigger 91% of it, a speck nearly none. Each flag is ranked by its best holding; a
-      flag with no ground of its own has no home and is not ranked.
-    - **In 3 days** needs a replay of 3 days: the workflow fetches 72 hours since PR 3 (it fetched 12), as much as the
-      ledger keeps. The clips' stories are still searched in its last 12 hours (`newsSince`).
-    - **Each rank's one number is the generator's**, from the list (the holder's share, the tiles taken, the
-      distance, the share of the world), so it is true; the editor's line under the name holds no digit. The 5 are
-      the list's first 5, in its order, never the editor's pick.
-    - **A rank is framed a little wider than its place** (0.7 of the zoom that frames it), and never closer than
-      where the painted flags give way to tiles: the flag holding it reads, and its neighbours say where it is.
 
 **Not built: AI-made video.** A 2 s AI-made hook, then the real map, is the one form of it that still shows the game.
 It is paid by the second of video, more than every other AI call of the project, whose ceiling is $10 a month, and
@@ -259,20 +207,18 @@ words are tuned on real stories, in several tones, and compared by the owner, be
    metadata as it is given, so nothing is deployed.
 2. **The owner's order and the war report's bench**: call to arms off, the findings kept 30 days, the writer, its
    tones, `clips bench`, Kokoro's voices, `narration-bench.yml`. Nothing it makes posts.
-3. **The carousel** (built 2026-11-20), on from its merge: the four lists in the findings, its brief, the stills and
-   the slideshow, the photos to TikTok, `carouselList` in the post's metadata, the replay fetched 72 hours.
-4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
+3. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
    globe, timed to it) and its experiment, once signed off.
-5. **POV.**
-6. **The readout**: auth's arrivals counted by source and by day on its `AdminService`, so the backoffice and Claude's
+4. **POV.**
+5. **The readout**: auth's arrivals counted by source and by day on its `AdminService`, so the backoffice and Claude's
    connector both read them; the backoffice's Lab page, each experiment on each platform against the control of the
    same days: posts, median and best views, breakouts, the signs above, and each day's arrivals by platform. Until it
    is built, the rows of the snapshot hold every number, each with its `post.experiment`, and Claude reads them
    through the connector.
-7. **Rankings.**
-8. **Call to arms' hours**, its country's evening, then it is on again.
-9. **Satisfying.**
-10. **Instagram Reels**, if the owner takes it: $6 a month, `instagram` in the publishing calendar and the snapshot, and
+6. **Rankings.**
+7. **Call to arms' hours**, its country's evening, then it is on again.
+8. **Satisfying.**
+9. **Instagram Reels**, if the owner takes it: $6 a month, `instagram` in the publishing calendar and the snapshot, and
    `clickplanet.lol/i` in the arrivals.
 
 ## The lab's log
@@ -280,4 +226,7 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 - **far-invasion**: built 2026-11-20, on from the merge of PR 1.
 - **call-to-arms**: built 2026-11-20, on from the merge of PR 1, off from the merge of PR 2, for the owner's order:
   its turn is fifth.
-- **carousel**: designed and built 2026-11-20, on from the merge of PR 3.
+- **carousel** (a list of 5 countries as TikTok photos): built 2026-11-20 (#920) and reverted the same day, before it
+  posted. Its first list, "these 5 countries don't own their own land", is no news on a map where most countries are
+  held by another flag; on stills of the map, the country of each rank is lost among the flags; and a still loses the
+  fights that make the game worth watching.

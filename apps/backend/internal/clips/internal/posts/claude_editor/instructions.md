@@ -191,8 +191,7 @@ tell and how, and where it says otherwise than this page, the brief wins. A lab 
 words over the clip's opening before the headline shows (empty for none), and `language`, the two-letter code of the
 language its words are in ("en" for English). When no story of the facts fits the brief, answer `lab` empty: the run
 tells your other stories, and nothing is lost. Write `stories` as you would with no lab, for the run's other picks, and
-never the lab's flag and continent among them: the lab's is told first. A lab of the `format` `carousel` is photos, not
-a clip: its story in `lab` is a `list` of the facts' `lists`, a `hook` and its `ranks`, as its brief says.
+never the lab's flag and continent among them: the lab's is told first.
 
 ## Your answer
 

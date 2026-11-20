@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/experiments"
 )
 
@@ -42,16 +41,4 @@ func TestAnExperimentNoneNamesIsNoExperiment(t *testing.T) {
 	_, err := experiments.Named("nobody")
 
 	assert.Error(t, err)
-}
-
-func TestTheCarouselIsDrawnAsPhotosAndTheOthersAsClips(t *testing.T) {
-	carousel, err := experiments.Named("carousel")
-	require.NoError(t, err)
-	assert.Equal(t, posts.Carousel, carousel.Format)
-
-	for _, name := range []string{"far-invasion", "call-to-arms"} {
-		experiment, err := experiments.Named(name)
-		require.NoError(t, err)
-		assert.Equal(t, posts.GlobeReplay, experiment.Format, name)
-	}
 }

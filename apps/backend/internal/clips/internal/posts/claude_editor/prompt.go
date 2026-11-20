@@ -32,54 +32,13 @@ type prompt struct {
 	ShownLately map[string]int    `json:"shownLately"`
 	// The run's experiment, when it has one: the one story to write in `lab`.
 	Lab *lab `json:"lab,omitempty"`
-	// A carousel's lists, when the lab's experiment is one.
-	Lists *lists `json:"lists,omitempty"`
 }
 
 type lab struct {
 	Experiment string `json:"experiment"`
 	// The run's pick it fills, from 1: the first is the run's only one on TikTok.
-	Pick   int    `json:"pick"`
-	Format string `json:"format"`
-	Brief  string `json:"brief"`
-}
-
-type lists struct {
-	OwnLand        []ownLand  `json:"own-land"`
-	MostAttacked   []attacked `json:"most-attacked"`
-	FarFromHome    []farLand  `json:"far-from-home"`
-	BiggestEmpires []empire   `json:"biggest-empires"`
-	AttackedSince  time.Time  `json:"attackedSince"`
-}
-
-type ownLand struct {
-	Country     string  `json:"country"`
-	Tiles       int     `json:"tiles"`
-	OwnShare    float64 `json:"ownShare"`
-	Holder      string  `json:"holder"`
-	HolderShare float64 `json:"holderShare"`
-}
-
-type attacked struct {
-	Flag         string `json:"flag"`
-	Lost         int    `json:"lost"`
-	TakenBy      string `json:"takenBy"`
-	TakenByTiles int    `json:"takenByTiles"`
-	Country      string `json:"country"`
-}
-
-type farLand struct {
-	Flag    string `json:"flag"`
-	Country string `json:"country"`
-	Tiles   int    `json:"tiles"`
-	Km      int    `json:"km"`
-}
-
-type empire struct {
-	Flag    string  `json:"flag"`
-	Tiles   int     `json:"tiles"`
-	Share   float64 `json:"share"`
-	Country string  `json:"country"`
+	Pick  int    `json:"pick"`
+	Brief string `json:"brief"`
 }
 
 type window struct {
@@ -228,9 +187,6 @@ type told struct {
 	ShareAtStart *float64   `json:"shareAtStart,omitempty"`
 	ShareAtEnd   *float64   `json:"shareAtEnd,omitempty"`
 	Shown        []string   `json:"shown,omitempty"`
-	// A carousel's list, and its ranks from the 1st.
-	List  string   `json:"list,omitempty"`
-	Ranks []string `json:"ranks,omitempty"`
 }
 
 type key struct {
@@ -274,11 +230,7 @@ func PromptOf(offer posts.Offer) (string, error) {
 		written.Told = append(written.Told, toldOf(telling))
 	}
 	if offer.Lab.On() {
-		experiment := offer.Lab.Experiment
-		written.Lab = &lab{Experiment: string(experiment.Name), Pick: offer.Lab.At, Format: string(experiment.Format), Brief: experiment.Brief}
-		if experiment.Format == posts.Carousel {
-			written.Lists = listsOf(findings.Lists)
-		}
+		written.Lab = &lab{Experiment: string(offer.Lab.Experiment.Name), Pick: offer.Lab.At, Brief: offer.Lab.Experiment.Brief}
 	}
 
 	text, err := json.Marshal(written)
@@ -306,29 +258,8 @@ func placeOf(number int, found posts.Place) place {
 	}
 }
 
-func listsOf(found posts.Lists) *lists {
-	written := &lists{
-		OwnLand: make([]ownLand, 0, len(found.OwnLand)), MostAttacked: make([]attacked, 0, len(found.MostAttacked)),
-		FarFromHome: make([]farLand, 0, len(found.FarFromHome)), BiggestEmpires: make([]empire, 0, len(found.BiggestEmpires)),
-		AttackedSince: found.AttackedSince.UTC(),
-	}
-	for _, entry := range found.OwnLand {
-		written.OwnLand = append(written.OwnLand, ownLand(entry))
-	}
-	for _, entry := range found.MostAttacked {
-		written.MostAttacked = append(written.MostAttacked, attacked(entry))
-	}
-	for _, entry := range found.FarFromHome {
-		written.FarFromHome = append(written.FarFromHome, farLand(entry))
-	}
-	for _, entry := range found.BiggestEmpires {
-		written.BiggestEmpires = append(written.BiggestEmpires, empire(entry))
-	}
-	return written
-}
-
 func toldOf(telling posts.Telling) told {
-	written := told{At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key), List: string(telling.List), Ranks: telling.Ranks}
+	written := told{At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key)}
 	facts := telling.Facts
 	if facts.Attacker == "" {
 		written.Shown = telling.Countries

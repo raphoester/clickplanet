@@ -26,61 +26,6 @@ message Findings {
   // Each flag that held over half of a place in the season, and its land on each continent over it: the story of one
   // flag across places, which the sagas tell place by place. Empty when the run fetched no history.
   repeated Path paths = 11;
-  // The carousel's lists (docs/video-lab.md, "Photos, not a video"), each ranked by the generator, its first the top.
-  Lists lists = 12;
-}
-
-// Four lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
-message Lists {
-  // The countries big enough to show whose own flag holds the least of their ground, the least first.
-  repeated OwnLand own_land = 1;
-  // The flags the most tiles were taken from since attacked_since, the most first.
-  repeated Attacked most_attacked = 2;
-  // The flags whose land outside their country is the farthest from it, weighed by its size, the farthest first.
-  repeated FarLand far_from_home = 3;
-  // The flags holding the most of the world, the most first.
-  repeated Empire biggest_empires = 4;
-  // When the stretch most_attacked counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
-  google.protobuf.Timestamp attacked_since = 5;
-}
-
-message OwnLand {
-  string country = 1;
-  uint32 tiles = 2;
-  // Of its tiles, the share its own flag holds.
-  double own_share = 3;
-  // The flag holding the most of it, and its share.
-  string holder = 4;
-  double holder_share = 5;
-}
-
-message Attacked {
-  string flag = 1;
-  // Tiles taken from it by another flag.
-  uint32 lost = 2;
-  // The flag that took the most from it, and how many.
-  string taken_by = 3;
-  uint32 taken_by_tiles = 4;
-  // The country whose ground it lost the most tiles on.
-  string country = 5;
-}
-
-message FarLand {
-  string flag = 1;
-  // The country whose ground its farthest land is on, and its tiles there.
-  string country = 2;
-  uint32 tiles = 3;
-  // From there to the nearest ground of its own country, to the nearest 100 km.
-  uint32 km = 4;
-}
-
-message Empire {
-  string flag = 1;
-  uint32 tiles = 2;
-  // Of all the tiles of the world.
-  double share = 3;
-  // The country whose ground it holds the most of.
-  string country = 4;
 }
 
 // A place over the season: the world, a continent or a country of 1,000 tiles or more that a flag held a tenth of at
@@ -332,18 +277,6 @@ message Pick {
   // The language its words are written in, as BCP 47's primary subtag ("pl"); empty is English. Only an experiment's
   // story speaks another.
   string language = 25;
-
-  // A carousel's: the list of the findings it tells (own-land, most-attacked, far-from-home or biggest-empires), its
-  // cover's words in hook, and its ranks from the 1st to the 5th, the list's first 5 in its order.
-  string list = 26;
-  repeated Rank ranks = 27;
-}
-
-// An entry of a carousel's list, and the words under its name; the number beside them is the generator's.
-message Rank {
-  // The country of own-land, the flag of the others.
-  string code = 1;
-  string line = 2;
 }
 
 message Clip {
@@ -364,11 +297,6 @@ message Clip {
   repeated ClipFighter fighters = 13;
   // The pick's experiment, as it came: empty for the control.
   string experiment = 14;
-  // A carousel's photos, beside this file, in the order they are swiped: TikTok's media in place of the video, which is
-  // their slideshow. Empty for a video.
-  repeated string photos = 15;
-  // A carousel's list: own-land, most-attacked, far-from-home or biggest-empires.
-  string list = 16;
 }
 
 // A player the clip names, with the flag it fought for.
@@ -385,19 +313,6 @@ message ClipRecord {
   GlobeReplay globe = 4;
   reserved 5;
   reserved "variants";
-  // A carousel's, for the format carousel.
-  Carousel carousel = 6;
-}
-
-// Photos on TikTok, their slideshow on YouTube (docs/video-lab.md, "Photos, not a video").
-message Carousel {
-  // own-land, most-attacked, far-from-home or biggest-empires.
-  string list = 1;
-  // The code of each rank, from the 1st to the 5th.
-  repeated string codes = 2;
-  uint32 photos = 3;
-  // How long the slideshow shows each photo.
-  double seconds_per_photo = 4;
 }
 
 message ClipCommon {

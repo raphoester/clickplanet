@@ -215,16 +215,13 @@ func TestThePromptGivesTheLabsBriefAndPickOnlyWhenTheRunHasOne(t *testing.T) {
 	assert.NotContains(t, plain, `"lab"`)
 
 	labbed := offer
-	labbed.Lab = posts.LabSlot{At: 2, Experiment: posts.Experiment{Name: "far-invasion", Brief: "A flag far from home.", Format: posts.GlobeReplay}}
+	labbed.Lab = posts.LabSlot{At: 2, Experiment: posts.Experiment{Name: "far-invasion", Brief: "A flag far from home."}}
 	prompt, err := claude_editor.PromptOf(labbed)
 	require.NoError(t, err)
 
 	var written map[string]any
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(prompt, "The run's findings, as JSON:\n\n")), &written))
-	assert.Equal(t, map[string]any{
-		"experiment": "far-invasion", "pick": float64(2), "format": "globe-replay", "brief": "A flag far from home.",
-	}, written["lab"])
-	assert.NotContains(t, written, "lists")
+	assert.Equal(t, map[string]any{"experiment": "far-invasion", "pick": float64(2), "brief": "A flag far from home."}, written["lab"])
 }
 
 func TestARefusalIsNoEditionButItsCostIsKept(t *testing.T) {
@@ -382,60 +379,4 @@ func TestAPromptOver100KTokensIsBilledFiveTimesOver(t *testing.T) {
 
 	assert.InDelta(t, 0.0105, short.USD, 1e-9)
 	assert.InDelta(t, 5*(100_001*0.10+1000*0.50)/1e6, long.USD, 1e-9)
-}
-
-func carouselOffer() posts.Offer {
-	listed := offer
-	listed.Findings.Lists = posts.Lists{
-		OwnLand:        []posts.OwnLandEntry{{Country: "fr", Tiles: 9000, Holder: "pw", HolderShare: 0.81}},
-		MostAttacked:   []posts.AttackedEntry{{Flag: "tr", Lost: 5300, TakenBy: "fr", TakenByTiles: 5100, Country: "tr"}},
-		FarFromHome:    []posts.FarLandEntry{{Flag: "hu", Country: "id", Tiles: 2100, Km: 10400}},
-		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
-		AttackedSince:  time.Date(2026, 10, 23, 20, 29, 0, 0, time.UTC),
-	}
-	listed.Told = []posts.Telling{{
-		Key: posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed}, Countries: []string{"fr", "tr"},
-		At: time.Date(2026, 10, 26, 9, 0, 0, 0, time.UTC), Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-		List: posts.OwnLand, Ranks: []string{"fr", "tr", "in", "de", "br"},
-	}}
-	listed.Lab = posts.LabSlot{At: 1, Experiment: posts.Experiment{Name: "carousel", Brief: "A list of countries.", Format: posts.Carousel}}
-	return listed
-}
-
-func TestACarouselsPromptGivesTheListsAndEachCarouselToldWithItsListAndRanks(t *testing.T) {
-	prompt, err := claude_editor.PromptOf(carouselOffer())
-	require.NoError(t, err)
-
-	var written map[string]any
-	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(prompt, "The run's findings, as JSON:\n\n")), &written))
-	assert.Equal(t, "carousel", written["lab"].(map[string]any)["format"])
-	assert.Equal(t, map[string]any{
-		"own-land":        []any{map[string]any{"country": "fr", "tiles": float64(9000), "ownShare": float64(0), "holder": "pw", "holderShare": 0.81}},
-		"most-attacked":   []any{map[string]any{"flag": "tr", "lost": float64(5300), "takenBy": "fr", "takenByTiles": float64(5100), "country": "tr"}},
-		"far-from-home":   []any{map[string]any{"flag": "hu", "country": "id", "tiles": float64(2100), "km": float64(10400)}},
-		"biggest-empires": []any{map[string]any{"flag": "pw", "tiles": float64(74000), "share": 0.28, "country": "ru"}},
-		"attackedSince":   "2026-10-23T20:29:00Z",
-	}, written["lists"])
-	told := written["told"].([]any)[0].(map[string]any)
-	assert.Equal(t, "own-land", told["list"])
-	assert.Equal(t, []any{"fr", "tr", "in", "de", "br"}, told["ranks"])
-}
-
-func TestACarouselsLabStoryIsAskedAsItsListItsCoverAndItsRanksAndReadSo(t *testing.T) {
-	api := &fake{status: http.StatusOK, answer: message("end_turn", `{"why":"","stories":[],"lab":[`+
-		`{"list":"own-land","hook":"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND","ranks":[{"code":"fr","line":"HELD BY PALAU"},{"code":"tr","line":"HELD BY FRANCE"}]}]}`)}
-
-	edition, _, err := editorOf(t, api.serve(t)).Edit(t.Context(), carouselOffer())
-
-	require.NoError(t, err)
-	require.Len(t, edition.Lab, 1)
-	assert.Equal(t, posts.Story{
-		List: posts.OwnLand, Hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-		Ranks: []posts.Rank{{Code: "fr", Line: "HELD BY PALAU"}, {Code: "tr", Line: "HELD BY FRANCE"}},
-	}, edition.Lab[0])
-	format := api.requests[0]["output_config"].(map[string]any)["format"].(map[string]any)
-	lab := format["schema"].(map[string]any)["properties"].(map[string]any)["lab"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, []any{"list", "hook", "ranks"}, lab["required"])
-	assert.Equal(t, []any{"own-land", "most-attacked", "far-from-home", "biggest-empires"},
-		lab["properties"].(map[string]any)["list"].(map[string]any)["enum"])
 }

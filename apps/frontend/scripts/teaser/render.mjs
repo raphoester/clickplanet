@@ -1,10 +1,9 @@
-import {spawn} from "node:child_process"
+import {execFileSync, spawn} from "node:child_process"
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, createReadStream, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {dirname, join, resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createServer} from "vite"
-import {slideshow} from "../slideshow.mjs"
 
 const args = process.argv.slice(2)
 const flag = (name, fallback) => {
@@ -96,7 +95,7 @@ try {
         await page.evaluate(`window.teaser.show(${i})`)
         writeFileSync(join(out, `card-${i + 1}.jpg`), await page.still())
     }
-    slideshow(out, Array.from({length: count}, (_, i) => `card-${i + 1}.jpg`), SECONDS, join(out, "teaser.mp4"))
+    slideshow(count)
     if (resolve(join(out, "teaser.json")) !== teaserPath) copyFileSync(teaserPath, join(out, "teaser.json"))
     console.log(`${count} cards in ${out}: card-1.jpg to card-${count}.jpg, teaser.mp4 and teaser.json`)
     await done(0)
@@ -188,5 +187,31 @@ async function openPage() {
             const {data} = await send("Page.captureScreenshot", {format: "jpeg", quality: 92})
             return Buffer.from(data, "base64")
         },
+    }
+}
+
+// Each card for SECONDS, then the next, at 30 frames a second, with a silent track: YouTube plays a Short with no
+// sound, and some players refuse a file with no audio stream.
+function slideshow(count) {
+    const list = join(out, "slideshow.txt")
+    const lines = []
+    for (let i = 1; i <= count; i++) lines.push(`file 'card-${i}.jpg'`, `duration ${SECONDS}`)
+    // The concat demuxer takes the last duration from the next entry: the last card is named once more.
+    lines.push(`file 'card-${count}.jpg'`)
+    writeFileSync(list, lines.join("\n") + "\n")
+    try {
+        execFileSync("ffmpeg", [
+            "-y", "-loglevel", "error",
+            "-f", "concat", "-safe", "0", "-i", list,
+            "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+            "-shortest",
+            "-vf", "fps=30,format=yuv420p",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-c:a", "aac", "-b:a", "64k",
+            "-movflags", "+faststart",
+            join(out, "teaser.mp4"),
+        ], {stdio: ["ignore", "inherit", "inherit"]})
+    } finally {
+        rmSync(list, {force: true})
     }
 }

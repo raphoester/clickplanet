@@ -13,13 +13,12 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 17 past every even hour from 06:00 to 22:00 UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
 happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 72 -race race.json -season season.json -cast cast.json -history history.json` over SSH, with
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json -history history.json` over SSH, with
    the deploy's `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
    artifact; all are public data, the cast's names and numbers too, never an account. A turn or a round that could not be fetched is no file, and the run goes on without
    a round to tell or a country to call up. So is a history (`history.json`, the map every hour since the season
-   started): the run then tells no saga. 72 hours since 2026-11-20 (12 before): a carousel's most-attacked counts 3
-   days, and the clips' stories are still searched in the last 12 (`newsSince`).
+   started): the run then tells no saga.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Anthropic key and the VPS's, and runs no npm), the backend's `clips choose` reads it and prints the stories to
    render, up to 2, and no more than the platforms have left of their day, as the backend's publishing module counts
@@ -32,8 +31,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    and what may be told, and the model only ranked what they let through: that evening they posted Brittany taking a
    corner of Australia while France and Turkey fought the biggest battle in weeks and France took all of India, both
    skipped because a flag was "told already" on that continent or "shown lately" as a bystander in other clips.
-3. **render**: one job per story, side by side, `--pick <n> --story <its JSON> --recorders 1`; a carousel's pick
-   renders its photos and their slideshow in seconds (below, "A carousel").
+3. **render**: one job per story, side by side, `--pick <n> --story <its JSON> --recorders 1`.
    The story goes through the environment, never into the script: it is the model's text. A runner has 4 cores and
    no GPU: Chrome draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the
    same 12s clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -105,16 +103,6 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
     on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
     its time**: the cast's times are postgres's, the replay's the stream's.
-  - **`lists`**, a carousel's (`domain/clip/lists.ts`, `listsOf`; the root's [The video lab](../../../docs/video-lab.md),
-    "Photos, not a video"), each ranked, 5 entries at most: **`ownLand`**, the countries big enough to show
-    (`bigCountryTiles`) whose own flag holds the least of their ground, then the most taken, each with the flag holding
-    the most of it (a country nobody holds any of is left out); **`mostAttacked`**, the flags the most tiles were taken
-    from by another flag since `attackedSince` (3 days before the window's end, or the replay's start), each with who
-    took the most and on which country's ground it lost the most; **`farFromHome`**, each flag's land on another
-    country's ground, from its middle to the nearest ground of its own country (its ground read at 2,000 tiles at
-    most), to the nearest 100 km, weighed by `tiles / (tiles + readableFlipTiles)`, its best holding each; and
-    **`biggestEmpires`**, the flags holding the most of the world, each with the country it holds the most of. All of
-    the map at the window's end.
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place, saga or seasonal story of
   the findings by its number, from 1, for a saga the time its clip starts (`since`), its `attacker` and its `rival`,
   and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
@@ -132,8 +120,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   **A story written for the lab** (the root's [The video lab](../../../docs/video-lab.md)) names its `experiment`, and
   may have a `hook` and a `language` (empty is English): the page draws the hook (below), keeps the language in the
   record's `common.language`, and hands the experiment back in the `Clip`'s `experiment`, as it came, for the post's
-  record. A pick of the control has none of the three, and plays as before the lab. **A carousel's pick** names a
-  `list`, its cover in `hook` and its `ranks`, and is no clip (below, "A carousel").
+  record. A pick of the control has none of the three, and plays as before the lab.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -436,28 +423,6 @@ virtual clock, `cameraOf`), drawn on a canvas in the player's browser: see [Play
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
   So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 6.5 to 19, by its stops; only `--seconds`
   reaches 22.
-
-**A carousel is 7 photos, not a clip** (2026-11-20, `src/clip/carousel.ts`; the root's [The video
-lab](../../../docs/video-lab.md), "Photos, not a video"): the same page, the same globe and the same letters, still.
-
-- **The photos** (`photosOf`): the cover, its hook in big gold words over the globe; the ranks from the 5th to the 1st,
-  each its rank, its flag, its name as people say it ("THE UK"), its one number and the editor's line under it; and the
-  logo with `clickplanet.lol` last. No address before the last photo: the clip's mark is not drawn.
-- **The number is the list's** (`numberOf`): the holder's share of `own-land` ("81%"), the tiles taken of
-  `most-attacked` ("5,300 TILES"), the distance of `far-from-home` ("16,000 KM"), the share of the world of
-  `biggest-empires` ("12%"); a share never more than it is, to a tenth of a point under a tenth (`percentOf`). The
-  editor writes the words, never a number.
-- **The ranks are the list's first 5, in its order**, or the page refuses the pick: the job checked it first.
-- **The camera** (`aimedTilesOf`, `framingOf`): the map at the window's end (`ReplayBackend.cut` past it), the cover
-  over the whole globe at the middle of the 5 places, each rank aimed at its place (`own-land`'s country on its main
-  landmasses, else the flag's tiles on the entry's country, those taken from it for `most-attacked`), framed a little
-  wider (0.7 of its zoom) and never closer than where the painted flags give way to tiles, and the whole globe last,
-  at the 1st. Each photo is drawn 8 frames of the virtual clock before it is taken.
-- **The files**: `render.mjs` takes each photo as a JPEG of quality 92 at 1080×1920 (`clip-<n>-1.jpg` to
-  `clip-<n>-7.jpg`), then their slideshow as `clip-<n>.mp4`, 3 s a photo (`scripts/slideshow.mjs`, the teasers'
-  ffmpeg, which their renderer shares), and names the photos in the `Clip` (`photos`, beside its `list`). Its record is
-  `format: carousel` with its section (`carouselRecordOf`: the list, the codes of its ranks, 7 photos, 3 s each) and
-  no `globe`. 20 s on a laptop from a replay of 12 hours, the most of it the page reading the replay.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,
