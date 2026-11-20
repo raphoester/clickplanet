@@ -91,6 +91,28 @@ func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
 	assert.Equal(t, "summary.md", parsed.SummaryFile)
 }
 
+func TestTheLabIsOnUnlessChooseIsToldOff(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
+	on, err := flags.Parse([]string{"choose", "-findings", "findings.json"})
+	require.NoError(t, err)
+	assert.False(t, on.Job.LabOff)
+
+	off, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-lab", "off"})
+	require.NoError(t, err)
+	assert.True(t, off.Job.LabOff)
+
+	_, err = flags.Parse([]string{"choose", "-findings", "findings.json", "-lab", "maybe"})
+	require.ErrorIs(t, err, flags.ErrArguments)
+}
+
+func TestEditTriesTheExperimentItIsNamed(t *testing.T) {
+	parsed, err := flags.Parse([]string{"edit", "-findings", "findings.json", "-experiment", "far-invasion"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "far-invasion", parsed.Job.Experiment)
+}
+
 func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")

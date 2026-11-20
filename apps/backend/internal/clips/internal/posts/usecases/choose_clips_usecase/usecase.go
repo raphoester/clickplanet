@@ -32,14 +32,16 @@ type Editor interface {
 type Room struct {
 	PerRun int
 	Plan   posts.Plan
+	// The experiments on: each run rolls whether one of its picks is theirs (docs/video-lab.md).
+	Lab posts.Lab
 }
 
 type Executor interface {
 	Execute(ctx context.Context) (posts.Choice, error)
 }
 
-func New(findings Findings, history History, rooms Rooms, clock cptime.Clock, room Room, editor Editor) *UseCase {
-	return &UseCase{findings: findings, history: history, rooms: rooms, clock: clock, room: room, editor: editor}
+func New(findings Findings, history History, rooms Rooms, clock cptime.Clock, room Room, editor Editor, dice posts.Dice) *UseCase {
+	return &UseCase{findings: findings, history: history, rooms: rooms, clock: clock, room: room, editor: editor, dice: dice}
 }
 
 type UseCase struct {
@@ -49,6 +51,7 @@ type UseCase struct {
 	clock    cptime.Clock
 	room     Room
 	editor   Editor
+	dice     posts.Dice
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -70,12 +73,13 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Choice, error) {
 	}
 	count := u.room.Plan.Clips(u.room.PerRun, room)
 
-	return Edit(ctx, u.editor, findings, count, told, now), nil
+	return Edit(ctx, u.editor, findings, count, told, now, u.room.Lab.Slot(count, u.dice)), nil
 }
 
-// No call when nothing is left to decide; an editor that cannot answer leaves the run its seasonal stories.
-func Edit(ctx context.Context, editor Editor, findings posts.Findings, count int, told []posts.Telling, now time.Time) posts.Choice {
-	offer := findings.Offer(count, told, now)
+// No call when nothing is left to decide; an editor that cannot answer leaves the run its seasonal stories. lab: the
+// pick the lab's experiment fills, none for a run of the control alone.
+func Edit(ctx context.Context, editor Editor, findings posts.Findings, count int, told []posts.Telling, now time.Time, lab posts.LabSlot) posts.Choice {
+	offer := findings.Offer(count, told, now, lab)
 	if !offer.Open() {
 		return findings.Edited(offer, posts.Edition{}, told, now)
 	}

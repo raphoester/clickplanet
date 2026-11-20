@@ -32,13 +32,15 @@ export type Shown = {
     fighters: number
     // The small line under the headline.
     line: string | undefined
+    // The language the editor wrote a lab story in; none is the story's own (languageOf).
+    language?: string
 }
 
 const NONE = "none"
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
 
-// Only a call-up speaks another language than English.
+// Of the stories the generator words itself, only a call-up speaks another language than English.
 export function languageOf(story: Story): string {
     return story.kind === "callup" && story.finaleAt !== undefined ? voiceOf(story.attacker, story.finaleAt).language : "en"
 }
@@ -53,7 +55,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             durationSeconds: rounded(shown.seconds, 2),
             music: shown.music?.code ?? NONE,
             musicStartSeconds: rounded(shown.music?.from ?? 0, 2),
-            language: languageOf(shown.story),
+            language: shown.language ?? languageOf(shown.story),
             fighters: shown.fighters,
             line: shown.line ?? "",
         },

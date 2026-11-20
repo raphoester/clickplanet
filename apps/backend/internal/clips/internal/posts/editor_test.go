@@ -30,7 +30,7 @@ func TestTheOfferIsTheFindingsWholeAndTheLastPostsToVaryOn(t *testing.T) {
 		told(posts.StoryKey{Flag: "es", Continent: "Africa"}, "SPAIN IS SWALLOWING MOROCCO", 5*24*time.Hour, "ma", "es"),
 	}
 
-	offer := found.Offer(2, posted, foundAt)
+	offer := found.Offer(2, posted, foundAt, posts.LabSlot{})
 
 	assert.Equal(t, found, offer.Findings, "nothing is kept from the editor")
 	assert.Equal(t, []int{1}, offer.First)
@@ -55,9 +55,9 @@ func TestARunWithNoFrontTourPlaceOrSagaAsksNobody(t *testing.T) {
 	sagasAlone := found
 	found.Sagas = nil
 
-	assert.False(t, found.Offer(2, nil, foundAt).Open())
-	assert.True(t, sagasAlone.Offer(2, nil, foundAt).Open())
-	assert.False(t, findings(t).Offer(1, nil, foundAt).Open(), "the day won fills the run")
+	assert.False(t, found.Offer(2, nil, foundAt, posts.LabSlot{}).Open())
+	assert.True(t, sagasAlone.Offer(2, nil, foundAt, posts.LabSlot{}).Open())
+	assert.False(t, findings(t).Offer(1, nil, foundAt, posts.LabSlot{}).Open(), "the day won fills the run")
 }
 
 func TestThePostsToldAreTheSeasonsWithinFourWeeks(t *testing.T) {
@@ -74,25 +74,25 @@ func TestThePostsToldAreTheSeasonsWithinFourWeeks(t *testing.T) {
 	noHistory := findings(t)
 	noHistory.Sagas = nil
 
-	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA"}, titlesOf(found.Offer(2, posted, foundAt).Told),
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA"}, titlesOf(found.Offer(2, posted, foundAt, posts.LabSlot{}).Told),
 		"since the season started")
 	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA", "BRAZIL RULES SOUTH AMERICA"},
-		titlesOf(long.Offer(2, posted, foundAt).Told), "4 weeks at most")
-	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA"}, titlesOf(noHistory.Offer(2, posted, foundAt).Told), "the last 3 days")
+		titlesOf(long.Offer(2, posted, foundAt, posts.LabSlot{}).Told), "4 weeks at most")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA"}, titlesOf(noHistory.Offer(2, posted, foundAt, posts.LabSlot{}).Told), "the last 3 days")
 }
 
 func TestAHeadlineOverAWeekOldMayBeWrittenAgain(t *testing.T) {
 	found := findings(t)
 	posted := []posts.Telling{told(posts.StoryKey{Flag: "fr", Continent: "South Asia", Angle: posts.Holding}, "ALGERIA LOSES ALL OF INDIA", 8*24*time.Hour)}
 
-	choice := found.Edited(found.Offer(3, posted, foundAt), posts.Edition{Stories: []posts.Story{india}}, posted, foundAt)
+	choice := found.Edited(found.Offer(3, posted, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{india}}, posted, foundAt)
 
 	assert.Empty(t, choice.Skipped)
 }
 
 func TestTheRunIsItsSeasonalStoryFirstThenTheEditorsInItsOrderWithTheirKeys(t *testing.T) {
 	found := findings(t)
-	offer := found.Offer(3, nil, foundAt)
+	offer := found.Offer(3, nil, foundAt, posts.LabSlot{})
 
 	choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{battle, india, tour}}, nil, foundAt)
 
@@ -114,7 +114,7 @@ func TestAHeadlineOfTheLastWeekOrOfThisRunIsSkippedAndSoIsAKeyToldTwiceInTheRun(
 		s.Kind, s.Continent, s.Countries, s.Headline = posts.Invasion, "", []string{"sy"}, "FRANCE TAKES SYRIA"
 	})
 
-	choice := found.Edited(found.Offer(6, posted, foundAt), posts.Edition{Stories: []posts.Story{battle, india, again, middleEast, sameKey, tour}}, posted, foundAt)
+	choice := found.Edited(found.Offer(6, posted, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{battle, india, again, middleEast, sameKey, tour}}, posted, foundAt)
 
 	require.Len(t, choice.Chosen, 4)
 	assert.Equal(t, []posts.Story{india, middleEast, tour}, []posts.Story{choice.Chosen[1].Story, choice.Chosen[2].Story, choice.Chosen[3].Story})
@@ -136,7 +136,7 @@ func whysOf(skipped []posts.Skipped) []string {
 func TestASeasonalStoryIsTheRunsToTellNotTheEditors(t *testing.T) {
 	found := findings(t)
 
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{{Seasonal: 1, Headline: "PALAU TAKES THE DAY"}}}, nil, foundAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{{Seasonal: 1, Headline: "PALAU TAKES THE DAY"}}}, nil, foundAt)
 
 	assert.Equal(t, []posts.Pick{1}, choice.Picks())
 	assert.Equal(t, []string{"a seasonal story is the run's to tell first, not the editor's"}, whysOf(choice.Skipped))
@@ -144,7 +144,7 @@ func TestASeasonalStoryIsTheRunsToTellNotTheEditors(t *testing.T) {
 
 func TestAHeadlineTheClipCannotDrawIsSkipped(t *testing.T) {
 	found := findings(t)
-	offer := found.Offer(5, nil, foundAt)
+	offer := found.Offer(5, nil, foundAt, posts.LabSlot{})
 
 	for name, c := range map[string]struct{ headline, why string }{
 		"too long":  {strings.Repeat("A", 61), "is empty or over 60 letters"},
@@ -173,7 +173,7 @@ func TestAHeadlineKeepsAnyScriptItsPunctuationAndOneSpaceBetweenWords(t *testing
 	found := findings(t)
 	kept := with(battle, func(s *posts.Story) { s.Headline = "  Polska:  14 punktów straty! Ça va?  " })
 
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{kept}}, nil, foundAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{kept}}, nil, foundAt)
 
 	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, "POLSKA: 14 PUNKTÓW STRATY! ÇA VA?", choice.Chosen[1].Story.Headline)
@@ -185,7 +185,7 @@ func TestTheTeasersAreTheEditorsSaidAsAHeadlineLeavingOutTheHeadlineAndOnesTooLo
 		s.Teasers = []string{" The war  for Turkey ", "france vs turkey", strings.Repeat("A", 87), "THE WAR FOR TURKEY", "Turkey fights back"}
 	})
 
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
 
 	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, []string{"THE WAR FOR TURKEY", "TURKEY FIGHTS BACK"}, choice.Chosen[1].Story.Teasers)
@@ -195,7 +195,7 @@ func TestAStoryWithNoTeaserForTheCaptionIsSkipped(t *testing.T) {
 	found := findings(t)
 	written := with(battle, func(s *posts.Story) { s.Teasers = []string{"FRANCE VS TURKEY", " "} })
 
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
 
 	assert.Equal(t, []posts.Pick{1}, choice.Picks())
 	require.Len(t, choice.Skipped, 1)
@@ -207,7 +207,7 @@ func TestTheCallIsDrawnInCapitalsAndTheLineAsWrittenOrNotAtAll(t *testing.T) {
 	written := with(battle, func(s *posts.Story) { s.Call, s.Line = " pick  a side ", "  The battle for  Turkey " })
 	unlined := with(india, func(s *posts.Story) { s.Line = "   " })
 
-	choice := found.Edited(found.Offer(3, nil, foundAt), posts.Edition{Stories: []posts.Story{written, unlined}}, nil, foundAt)
+	choice := found.Edited(found.Offer(3, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{written, unlined}}, nil, foundAt)
 
 	require.Len(t, choice.Chosen, 3)
 	assert.Equal(t, "PICK A SIDE", choice.Chosen[1].Story.Call)
@@ -223,7 +223,7 @@ func TestAStoryWithACallOrALineTheClipCannotDrawIsSkipped(t *testing.T) {
 		with(battle, func(s *posts.Story) { s.Line = "The battle 🔥" }),
 	}
 
-	choice := found.Edited(found.Offer(4, nil, foundAt), posts.Edition{Stories: stories}, nil, foundAt)
+	choice := found.Edited(found.Offer(4, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: stories}, nil, foundAt)
 
 	assert.Equal(t, []posts.Pick{1}, choice.Picks())
 	assert.Equal(t, []string{

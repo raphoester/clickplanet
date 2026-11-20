@@ -184,11 +184,21 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 		Headline: story.Headline, Teasers: story.Teasers, Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,
 		Look:     string(story.Look),
 		Fighters: fighters,
+		// The control is no experiment, and speaks English with no hook: none of the three is written.
+		Experiment: string(story.Experiment), Hook: story.Hook, Language: languageOf(story),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write the story: %w", err)
 	}
 	return written, nil
+}
+
+// English is left out, so a control pick is written as before the lab.
+func languageOf(story posts.Story) string {
+	if story.Language == posts.English {
+		return ""
+	}
+	return story.Language
 }
 
 type Folder string
@@ -230,6 +240,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			TeaserNames: written.GetTeaserNames(), Record: record,
 			Seconds: written.GetRecord().GetCommon().GetDurationSeconds(),
 			Cast:    written.GetCast(), Fighters: clipFightersOf(written.GetFighters()),
+			Experiment: posts.ExperimentName(written.GetExperiment()),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)

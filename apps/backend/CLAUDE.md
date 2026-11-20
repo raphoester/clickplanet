@@ -268,4 +268,5 @@ and says what is in it. Read the doc before you change its area.
   flag's country that are new or changed, as batch files for Haiku subagents, and their answers checked and written
   back with a fingerprint of the English.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
-  publishing module, over ssh; the model editor, the stats and the experiments it ran.
+  publishing module, over ssh; the model editor, the lab (an experiment's brief at one pick a run, by a coin, its
+  post marked; `CLIPS_LAB`), the stats and the experiments it ran.

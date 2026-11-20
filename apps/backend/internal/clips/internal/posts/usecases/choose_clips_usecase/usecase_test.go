@@ -80,7 +80,7 @@ func (e *editor) Edit(_ context.Context, offer posts.Offer) (posts.Edition, post
 }
 
 func editedBy(w written, h *history, model *editor) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, model)
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, model, posts.LoadedDice(0))
 }
 
 func answering(stories ...posts.Story) *editor {
@@ -200,4 +200,30 @@ func TestADayWonToldAlreadyIsNotToldAgain(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Chosen{{Pick: 1, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}}}, choice.Chosen)
+}
+
+func TestEachRunRollsTheLabsSlotBeforeTheEditorReadsAnythingAndGivesItItsBrief(t *testing.T) {
+	far := posts.Experiment{Name: "far-invasion", Brief: "A flag far from home."}
+	lab, err := posts.LabOf(far)
+	require.NoError(t, err)
+	labbed := room
+	labbed.Lab = lab
+	story := with(battle, "FRANCE STORMS TURKEY", "WHY IS FRANCE IN TURKEY?")
+	model := &editor{edition: posts.Edition{Lab: []posts.Story{story}}, spend: posts.Spend{Model: "claude-haiku-5-5"}}
+
+	// LoadedDice(2): the second pick, the first the day won takes.
+	choice, err := choose_clips_usecase.New(written{findings: found}, &history{}, &history{}, cptime.NewFixedClock(now), labbed, model, posts.LoadedDice(2)).
+		Execute(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, model.offers, 1)
+	assert.Equal(t, posts.LabSlot{At: 2, Experiment: far}, model.offers[0].Lab)
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, posts.ExperimentName("far-invasion"), choice.Chosen[1].Story.Experiment)
+	assert.True(t, choice.LabTold)
+}
+
+func with(story posts.Story, headline, hook string) posts.Story {
+	story.Headline, story.Hook = headline, hook
+	return story
 }

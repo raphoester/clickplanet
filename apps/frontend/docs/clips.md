@@ -117,6 +117,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   read, and the job checked it against the findings before the render. `--headline` overrides the story's. Its
   `fighters` are the players the editor names, by their number in the cast, each a top fighter of a side of the story
   in the findings; a number the cast does not have fails the render. A seasonal story names nobody.
+  **A story written for the lab** (the root's [The video lab](../../../docs/video-lab.md)) names its `experiment`, and
+  may have a `hook` and a `language` (empty is English): the page draws the hook (below), keeps the language in the
+  record's `common.language`, and hands the experiment back in the `Clip`'s `experiment`, as it came, for the post's
+  record. A pick of the control has none of the three, and plays as before the lab.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -239,6 +243,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   (`.clip-ending-flag`). Until 2026-11-20 each had a width of 180px alone, the row stretched every one to the tallest's
   height, and a 2:1 flag floated in a 3:2 frame. A row wider than the card is drawn lower, every flag at the same height
   (`fit`, once the pictures are in): two Union Jacks at 105px. Nepal's pennant gets a rectangle round it.
+- **A lab story's hook is read alone first** (`.clip-hook`, `HOOK_SECONDS`): big gold words over the first 1.5 s,
+  "WHY IS HUNGARY IN INDONESIA?", below where the headline then fades in over half a second as the hook fades out, so
+  the two never cross. The map plays under it from the first frame, and the counter shows. A hook in letters Luckiest
+  Guy cannot draw sets the clip in Rubik Black, as a headline's do. A clip with no hook shows its headline from the
+  first frame.
 - **The end card names the top fighters** the pick names: "TOP FIGHTERS" under the call, then each side's players
   (`sidesOf`), two sides and 3 a side at most, a row each with the side's flag, the name and the tiles it took in what
   the clip plays, counted again from the cast on the story's tiles in the stretch the clip is cut to

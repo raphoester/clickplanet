@@ -1624,8 +1624,16 @@ type Pick struct {
 	Fighters []uint32 `protobuf:"varint,19,rep,packed,name=fighters,proto3" json:"fighters,omitempty"`
 	// A saga of the findings, by its number from 1, and when its clip starts: the clip plays the place from then to the
 	// end of the history, its counters the attacker's share and the rival's.
-	Saga          uint32                 `protobuf:"varint,20,opt,name=saga,proto3" json:"saga,omitempty"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=since,proto3" json:"since,omitempty"`
+	Saga  uint32                 `protobuf:"varint,20,opt,name=saga,proto3" json:"saga,omitempty"`
+	Since *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=since,proto3" json:"since,omitempty"`
+	// The experiment of the lab the story was written for, by its brief; empty for the control, the clips as they are
+	// (docs/video-lab.md).
+	Experiment string `protobuf:"bytes,23,opt,name=experiment,proto3" json:"experiment,omitempty"`
+	// Big words over the opening, before the headline shows; empty for none. Only an experiment's story has them.
+	Hook string `protobuf:"bytes,24,opt,name=hook,proto3" json:"hook,omitempty"`
+	// The language its words are written in, as BCP 47's primary subtag ("pl"); empty is English. Only an experiment's
+	// story speaks another.
+	Language      string `protobuf:"bytes,25,opt,name=language,proto3" json:"language,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1807,6 +1815,27 @@ func (x *Pick) GetSince() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Pick) GetExperiment() string {
+	if x != nil {
+		return x.Experiment
+	}
+	return ""
+}
+
+func (x *Pick) GetHook() string {
+	if x != nil {
+		return x.Hook
+	}
+	return ""
+}
+
+func (x *Pick) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
 type Clip struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Pick         uint32                 `protobuf:"varint,1,opt,name=pick,proto3" json:"pick,omitempty"`
@@ -1819,8 +1848,10 @@ type Clip struct {
 	Record       *ClipRecord            `protobuf:"bytes,10,opt,name=record,proto3" json:"record,omitempty"`
 	TeaserNames  []string               `protobuf:"bytes,11,rep,name=teaser_names,json=teaserNames,proto3" json:"teaser_names,omitempty"`
 	// The cast the fighters are numbered in; empty for a clip that names nobody.
-	Cast          string         `protobuf:"bytes,12,opt,name=cast,proto3" json:"cast,omitempty"`
-	Fighters      []*ClipFighter `protobuf:"bytes,13,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	Cast     string         `protobuf:"bytes,12,opt,name=cast,proto3" json:"cast,omitempty"`
+	Fighters []*ClipFighter `protobuf:"bytes,13,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	// The pick's experiment, as it came: empty for the control.
+	Experiment    string `protobuf:"bytes,14,opt,name=experiment,proto3" json:"experiment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1930,6 +1961,13 @@ func (x *Clip) GetFighters() []*ClipFighter {
 		return x.Fighters
 	}
 	return nil
+}
+
+func (x *Clip) GetExperiment() string {
+	if x != nil {
+		return x.Experiment
+	}
+	return ""
 }
 
 // A player the clip names, with the flag it fought for.
@@ -2414,12 +2452,15 @@ func (x *PostRecord) GetPost() *PostFacts {
 }
 
 type PostFacts struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Teaser        string                 `protobuf:"bytes,1,opt,name=teaser,proto3" json:"teaser,omitempty"`
-	CallToAction  string                 `protobuf:"bytes,2,opt,name=call_to_action,json=callToAction,proto3" json:"call_to_action,omitempty"`
-	ScheduledAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
-	RunPosition   uint32                 `protobuf:"varint,4,opt,name=run_position,json=runPosition,proto3" json:"run_position,omitempty"`
-	RunSize       uint32                 `protobuf:"varint,5,opt,name=run_size,json=runSize,proto3" json:"run_size,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Teaser       string                 `protobuf:"bytes,1,opt,name=teaser,proto3" json:"teaser,omitempty"`
+	CallToAction string                 `protobuf:"bytes,2,opt,name=call_to_action,json=callToAction,proto3" json:"call_to_action,omitempty"`
+	ScheduledAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RunPosition  uint32                 `protobuf:"varint,4,opt,name=run_position,json=runPosition,proto3" json:"run_position,omitempty"`
+	RunSize      uint32                 `protobuf:"varint,5,opt,name=run_size,json=runSize,proto3" json:"run_size,omitempty"`
+	// The lab's experiment the post belongs to, "control" for the clips as they are (docs/video-lab.md); empty on the
+	// posts made before the lab.
+	Experiment    string `protobuf:"bytes,8,opt,name=experiment,proto3" json:"experiment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2487,6 +2528,13 @@ func (x *PostFacts) GetRunSize() uint32 {
 		return x.RunSize
 	}
 	return 0
+}
+
+func (x *PostFacts) GetExperiment() string {
+	if x != nil {
+		return x.Experiment
+	}
+	return ""
 }
 
 type TaggedCountry struct {
@@ -3017,7 +3065,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"NamesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xaf\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xff\x04\n" +
 	"\x04Pick\x12\x14\n" +
 	"\x05front\x18\x01 \x01(\rR\x05front\x12\x12\n" +
 	"\x04tour\x18\x02 \x01(\rR\x04tour\x12\x14\n" +
@@ -3042,7 +3090,12 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x04look\x18\x12 \x01(\tR\x04look\x12\x1a\n" +
 	"\bfighters\x18\x13 \x03(\rR\bfighters\x12\x12\n" +
 	"\x04saga\x18\x14 \x01(\rR\x04saga\x120\n" +
-	"\x05since\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\x05sinceJ\x04\b\x15\x10\x16R\x05reign\"\x97\x03\n" +
+	"\x05since\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x1e\n" +
+	"\n" +
+	"experiment\x18\x17 \x01(\tR\n" +
+	"experiment\x12\x12\n" +
+	"\x04hook\x18\x18 \x01(\tR\x04hook\x12\x1a\n" +
+	"\blanguage\x18\x19 \x01(\tR\blanguageJ\x04\b\x15\x10\x16R\x05reign\"\xb7\x03\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
@@ -3055,7 +3108,10 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	" \x01(\v2\x14.clips.v1.ClipRecordR\x06record\x12!\n" +
 	"\fteaser_names\x18\v \x03(\tR\vteaserNames\x12\x12\n" +
 	"\x04cast\x18\f \x01(\tR\x04cast\x121\n" +
-	"\bfighters\x18\r \x03(\v2\x15.clips.v1.ClipFighterR\bfightersJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\acaptionR\x04tags\"M\n" +
+	"\bfighters\x18\r \x03(\v2\x15.clips.v1.ClipFighterR\bfighters\x12\x1e\n" +
+	"\n" +
+	"experiment\x18\x0e \x01(\tR\n" +
+	"experimentJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\acaptionR\x04tags\"M\n" +
 	"\vClipFighter\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3106,13 +3162,16 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"PostRecord\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12(\n" +
 	"\x04clip\x18\x02 \x01(\v2\x14.clips.v1.ClipRecordR\x04clip\x12'\n" +
-	"\x04post\x18\x03 \x01(\v2\x13.clips.v1.PostFactsR\x04post\"\xe3\x01\n" +
+	"\x04post\x18\x03 \x01(\v2\x13.clips.v1.PostFactsR\x04post\"\x83\x02\n" +
 	"\tPostFacts\x12\x16\n" +
 	"\x06teaser\x18\x01 \x01(\tR\x06teaser\x12$\n" +
 	"\x0ecall_to_action\x18\x02 \x01(\tR\fcallToAction\x12=\n" +
 	"\fscheduled_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\x12!\n" +
 	"\frun_position\x18\x04 \x01(\rR\vrunPosition\x12\x19\n" +
-	"\brun_size\x18\x05 \x01(\rR\arunSizeJ\x04\b\x06\x10\aJ\x04\b\a\x10\bR\bvariantsR\x05sound\"5\n" +
+	"\brun_size\x18\x05 \x01(\rR\arunSize\x12\x1e\n" +
+	"\n" +
+	"experiment\x18\b \x01(\tR\n" +
+	"experimentJ\x04\b\x06\x10\aJ\x04\b\a\x10\bR\bvariantsR\x05sound\"5\n" +
 	"\rTaggedCountry\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\"h\n" +

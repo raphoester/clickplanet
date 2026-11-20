@@ -3,6 +3,7 @@ package generator_output_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -197,6 +198,36 @@ func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 	assert.JSONEq(t, `{"saga":2,"since":"2026-11-07T19:00:00Z","attacker":"pw","rival":"lv","headline":"TINY PALAU CONQUERS RUSSIA","teasers":["RUSSIA FALLS TO PALAU"],"call":"TAKE RUSSIA BACK","callFlags":["ru"],"anthem":"pw"}`, string(saga))
+}
+
+func TestALabStoryIsWrittenWithItsExperimentItsHookAndALanguageOtherThanEnglish(t *testing.T) {
+	lab, err := generator_output.StoryJSON(posts.Story{
+		Front: 3, Kind: posts.Rout, Attacker: "de", TakenFrom: []string{"pl"}, Countries: []string{"pl"}, Headline: "POLSKA TRACI POLSKĘ",
+		Teasers: []string{"NIEMCY ZABIERAJĄ POLSKĘ"}, Call: "BROŃ POLSKI", CallFlags: []string{"pl"}, Look: posts.Dive,
+		Experiment: "call-to-arms", Hook: "POLACY, GDZIE JESTEŚCIE?", Language: "pl",
+	})
+	require.NoError(t, err)
+	english, err := generator_output.StoryJSON(posts.Story{
+		Front: 3, Kind: posts.Invasion, Attacker: "hu", Countries: []string{"id"}, Headline: "HUNGARY INVADES INDONESIA",
+		Teasers: []string{"INDONESIA FALLS TO HUNGARY"}, Call: "DEFEND INDONESIA", Look: posts.Dive,
+		Experiment: "far-invasion", Hook: "WHY IS HUNGARY IN INDONESIA?", Language: posts.English,
+	})
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"front":3,"kind":"rout","attacker":"de","takenFrom":["pl"],"countries":["pl"],"headline":"POLSKA TRACI POLSKĘ","teasers":["NIEMCY ZABIERAJĄ POLSKĘ"],"call":"BROŃ POLSKI","callFlags":["pl"],"look":"dive","experiment":"call-to-arms","hook":"POLACY, GDZIE JESTEŚCIE?","language":"pl"}`, string(lab))
+	assert.JSONEq(t, `{"front":3,"kind":"invasion","attacker":"hu","countries":["id"],"headline":"HUNGARY INVADES INDONESIA","teasers":["INDONESIA FALLS TO HUNGARY"],"call":"DEFEND INDONESIA","look":"dive","experiment":"far-invasion","hook":"WHY IS HUNGARY IN INDONESIA?"}`, string(english), "English is left out")
+}
+
+func TestAClipKeepsTheExperimentItWasWrittenFor(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", strings.Replace(writtenClip, `"pick": 2,`, `"pick": 1, "experiment": "far-invasion",`, 1))
+	write(t, folder, "clip-1.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 1)
+	assert.Equal(t, posts.ExperimentName("far-invasion"), clips[0].TakeSnapshot().Experiment)
 }
 
 func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {

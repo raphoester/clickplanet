@@ -10,6 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/claude_editor"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/experiments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/generator_output"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
@@ -52,6 +53,8 @@ type (
 	Report          = posts.Report
 	Outcome         = posts.Outcome
 	PlatformOutcome = posts.PlatformOutcome
+	LabSlot         = posts.LabSlot
+	Experiment      = posts.Experiment
 )
 
 type Config struct {
@@ -62,6 +65,10 @@ type Config struct {
 	Platforms []Platform
 	// The editor's. No key is no editor: every run is its seasonal stories alone, and says why.
 	Anthropic cpanthropic.Config
+	// The control alone, whatever experiment is on (the repository's CLIPS_LAB=off; docs/video-lab.md).
+	LabOff bool
+	// edit: the experiment tried at the run's first pick, on or off; empty is none.
+	Experiment string
 }
 
 type ReplayConfig struct {
@@ -187,12 +194,29 @@ func Choose(ctx context.Context, findings string, config Config, logger *slog.Lo
 		return Choice{}, err
 	}
 
+	lab, err := labOf(config)
+	if err != nil {
+		return Choice{}, err
+	}
+
 	choose := log_choose_clips.New(choose_clips_usecase.New(
 		generator_output.FindingsFile(findings), log_history.New(publishing, logger), publishing, cptime.SystemClock{},
-		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config)}, editor,
+		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config), Lab: lab}, editor, posts.SystemDice{},
 	), logger)
 
 	return choose.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
+}
+
+// The experiments on, or none when the lab is off.
+func labOf(config Config) (posts.Lab, error) {
+	if config.LabOff {
+		return posts.Lab{}, nil
+	}
+	lab, err := experiments.Lab()
+	if err != nil {
+		return posts.Lab{}, fmt.Errorf("failed to read the lab's experiments: %w", err)
+	}
+	return lab, nil
 }
 
 // What makes a run's stories, and counts its prompt for `clips edit`.
@@ -224,7 +248,8 @@ type Trial struct {
 }
 
 // The editor tried by hand on saved findings, outside any run: every platform with room for PerRun clips, and what
-// was told read from the backend's publishing module when an ssh host is set, else nothing told.
+// was told read from the backend's publishing module when an ssh host is set, else nothing told; the experiment named,
+// at the first pick.
 func Edit(ctx context.Context, findings string, promptOnly bool, config Config, logger *slog.Logger) (Trial, error) {
 	config = config.withDefaults()
 	now := cptime.SystemClock{}.Now()
@@ -250,7 +275,15 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 	if err != nil {
 		return Trial{}, err
 	}
-	trial := Trial{Instructions: claude_editor.Instructions, Offer: found.Offer(config.PerRun, told, now)}
+	var lab posts.LabSlot
+	if config.Experiment != "" {
+		experiment, err := experiments.Named(config.Experiment)
+		if err != nil {
+			return Trial{}, err //nolint:wrapcheck // the experiments already say what is wrong.
+		}
+		lab = posts.LabSlot{At: 1, Experiment: experiment}
+	}
+	trial := Trial{Instructions: claude_editor.Instructions, Offer: found.Offer(config.PerRun, told, now, lab)}
 	if trial.Prompt, err = claude_editor.PromptOf(trial.Offer); err != nil {
 		return Trial{}, err //nolint:wrapcheck // the editor already said what it could not write.
 	}
@@ -258,7 +291,7 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 		logger.Warn("the prompt is not counted", slog.String("why", err.Error()))
 	}
 	if !promptOnly {
-		trial.Choice = choose_clips_usecase.Edit(ctx, editor, found, config.PerRun, told, now)
+		trial.Choice = choose_clips_usecase.Edit(ctx, editor, found, config.PerRun, told, now, lab)
 	}
 	return trial, nil
 }

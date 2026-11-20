@@ -71,7 +71,7 @@ func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slo
 	if err != nil {
 		return fmt.Errorf("failed to choose the clips of the run: %w", err)
 	}
-	if err := display.Editorial(parsed.SummaryFile, choice.Editorial); err != nil {
+	if err := display.Editorial(parsed.SummaryFile, choice); err != nil {
 		return err //nolint:wrapcheck // the display already named what it could not write.
 	}
 	return display.Picks(out, choice.Chosen) //nolint:wrapcheck // the display already named what it could not write.

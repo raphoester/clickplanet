@@ -170,28 +170,33 @@ export type Told =
 // is judged here: a pick that names no front, no kind, no flag, no words or no look is refused as it is read, and the
 // job checked it against the findings before the render. fighters: the players of the cast it names, by number; a
 // seasonal story names nobody.
-export function toldOf(json: string): {told: Told, written: Written | undefined, fighters: number[]} {
+// experiment: the lab's experiment the story was written to, empty for the control (docs/video-lab.md), which the clip
+// hands back to the job as it came.
+export function toldOf(json: string): {told: Told, written: Written | undefined, fighters: number[], experiment: string} {
     const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
     const fighters = pick.fighters
+    const experiment = pick.experiment
     const named = [pick.front, pick.tour, pick.place, pick.saga, pick.seasonal].filter((number) => number > 0)
     if (named.length !== 1) throw new Error("a story names one front, one tour, one place, one saga or one seasonal story")
-    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined, fighters: []}
+    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined, fighters: [], experiment}
     if (pick.headline === "" || pick.call === "") throw new Error("a story the editor tells has its headline and its call")
     const written: Written = {
         headline: pick.headline, teasers: pick.teasers, line: pick.line === "" ? undefined : pick.line, call: pick.call,
         callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
+        ...pick.hook === "" ? {} : {hook: pick.hook},
+        ...pick.language === "" ? {} : {language: pick.language},
     }
-    if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters}
+    if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters, experiment}
     if (pick.saga > 0) {
         if (pick.since === undefined || pick.attacker === "") throw new Error("a saga is told from a time, about one of its flags")
         return {
             told: {saga: pick.saga, since: pick.since.toDate().getTime(), attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival},
-            written, fighters: [],
+            written, fighters: [], experiment,
         }
     }
     const look = LOOKS.find((known) => known === pick.look)
     if (look === undefined) throw new Error(`a front or a place is told with the look "flags" or "dive", not "${pick.look}"`)
-    if (pick.place > 0) return {told: {place: pick.place, look}, written, fighters}
+    if (pick.place > 0) return {told: {place: pick.place, look}, written, fighters, experiment}
 
     const kind = KINDS.find((known) => known === pick.kind)
     if (kind === undefined || kind === "holding" || kind === "saga" || kind === "round" || kind === "callup") {
@@ -203,7 +208,7 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
         kind, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival, victims: pick.takenFrom, place,
         ...pick.team === "" ? {} : {team: pick.team},
     }
-    return {told: {front: pick.front, story, look}, written, fighters}
+    return {told: {front: pick.front, story, look}, written, fighters, experiment}
 }
 
 function placeOfPick(countries: string[], continent: string): Place {

@@ -7,6 +7,8 @@ import {DISPLAY_FONT_DRAWS, nameOf, said} from "./names.ts"
 
 export type Words = {
     headline: string
+    // Big words over the opening, before the headline: a lab story's alone (docs/video-lab.md).
+    hook?: string
     // Only where it says something the map does not.
     line: string | undefined
     call: string
@@ -34,6 +36,8 @@ export type Speech = {
 export type Hashtags = {countries: {code: string, tag: string}[], continent: string | undefined}
 
 export type Moment = {
+    // Seconds into the clip.
+    seconds: number
     replayAt: number
     played: number
     held: ReadonlyMap<string, number>
@@ -90,6 +94,9 @@ export type Written = {
     call: string
     callFlags: string[]
     anthem: string | undefined
+    // A lab story's: its words over the opening, and the language they are all in; none is English.
+    hook?: string
+    language?: string
 }
 
 const named = (teasers: [name: string, line: string][]) => ({
@@ -112,6 +119,7 @@ function editedOf(story: Story, written: Written | undefined, headline: string |
     if (written === undefined) throw new Error(`a ${story.kind} is told in the editor's words, and none were given`)
     return {
         headline: headline ?? written.headline,
+        ...written.hook === undefined ? {} : {hook: written.hook},
         line: written.line,
         call: written.call,
         callFlags: written.callFlags,
@@ -184,6 +192,9 @@ const FADE_SECONDS = 0.5
 
 const faded = (seconds: number) => Math.min(1, Math.max(0, seconds / FADE_SECONDS))
 
+// The hook is read alone first, then fades as the headline comes in.
+export const HOOK_SECONDS = 1.5
+
 function tilesSaid(count: number): string {
     return `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
 }
@@ -201,7 +212,7 @@ export function createOverlay(
     const sides = sidesOf(story)
     const speech = words.speech
     const said = [
-        words.headline, words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
+        words.headline, words.hook ?? "", words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
         ...speech === undefined ? [] : [0, 1, 2, 5, 22, 1234].map(speech.tiles),
         ...named.length === 0 ? [] : [TOP_FIGHTERS],
         ...named.flatMap(({fighters}) => fighters.map(({name, took}) => `${name} ${tilesSaid(took)}`)),
@@ -232,6 +243,9 @@ export function createOverlay(
     const time = element("span", "clip-time", mark)
     const track = element("div", "clip-track", bottom)
     const progress = element("div", "clip-progress", track)
+
+    const hook = words.hook === undefined ? undefined : element("p", "clip-hook", root)
+    if (hook !== undefined) hook.textContent = words.hook ?? ""
 
     const ending = element("section", "clip-ending", root)
     const endingFlags = element("div", "clip-ending-flags", ending)
@@ -276,8 +290,10 @@ export function createOverlay(
     }
 
     return {
-        show({replayAt, played, held, ending: into}) {
+        show({seconds, replayAt, played, held, ending: into}) {
             const over = faded(into)
+            const opened = hook === undefined ? 1 : faded(seconds - HOOK_SECONDS)
+            if (hook !== undefined) hook.style.opacity = String(1 - opened)
             for (const {side, tiles, delta} of shown) {
                 const count = held.get(side) ?? 0
                 const moved = count - (opening.get(side) ?? 0)
@@ -292,7 +308,7 @@ export function createOverlay(
             if (day !== undefined) day.textContent = DAY.format(new Date(replayAt)).toUpperCase()
             progress.style.transform = `scaleX(${played})`
             ending.style.opacity = String(over)
-            top.style.opacity = String(1 - over)
+            top.style.opacity = String(Math.min(opened, 1 - over))
             bottom.style.opacity = String(1 - over)
             if (card !== undefined) card.style.opacity = String(faded(into - FADE_SECONDS))
         },
