@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {visibleOptions} from "./visibleOptions.ts"
+import {foldForSearch, visibleOptions} from "./visibleOptions.ts"
 
 const VALUES = [
     {code: "fr", name: "France"},
@@ -18,6 +18,26 @@ describe("visibleOptions", () => {
     it("filters case-insensitively on a substring", () => {
         expect(visibleOptions(VALUES, JAPAN, "AN")).toEqual([FRANCE, JAPAN, GERMANY])
         expect(visibleOptions(VALUES, JAPAN, "rman")).toEqual([JAPAN, GERMANY])
+    })
+
+    it("ignores accents on either side", () => {
+        const NEPAL = {code: "np", name: "Népal"}
+        const IVORY = {code: "ci", name: "Côte d’Ivoire"}
+        const names = [FRANCE, NEPAL, IVORY]
+        expect(visibleOptions(names, FRANCE, "Nep")).toEqual([FRANCE, NEPAL])
+        expect(visibleOptions(names, FRANCE, "nép")).toEqual([FRANCE, NEPAL])
+        expect(visibleOptions(names, FRANCE, "NÉPAL")).toEqual([FRANCE, NEPAL])
+        expect(visibleOptions(names, FRANCE, "cote d'iv")).toEqual([FRANCE, IVORY])
+    })
+
+    it("folds the letters that carry their own mark", () => {
+        expect(foldForSearch("Włochy", "pl")).toBe("wlochy")
+        expect(foldForSearch("Færøerne", "da")).toBe("faeroerne")
+        expect(foldForSearch("Türkiye", "tr")).toBe("turkiye")
+        expect(foldForSearch("Irak", "tr")).toBe("irak")
+        expect(foldForSearch("İran", "tr")).toBe("iran")
+        expect(foldForSearch("İran", "en")).toBe("iran")
+        expect(foldForSearch("Çekya", "tr")).toBe("cekya")
     })
 
     it("leaves a matching selection where the search put it", () => {

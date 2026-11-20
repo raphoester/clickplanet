@@ -45,6 +45,9 @@ and so is one from an account that pledged none.
   the rule is right above it. The knock-out's out window has one, since it opens under a player still clicking
   (see [The capitals](capitals.md)). A pick that failed for another reason says so, and
   the picker stays open.
+- **The picker's search ignores case and accents** (`foldForSearch`, `app/components/visibleOptions.ts`): "nep" finds
+  "Népal", "cote d'iv" finds "Côte d’Ivoire", and the letters NFD leaves whole fold too (ł, ø, ı, æ, œ, ß…). It
+  matches a part of the name in the page's language, and keeps the selected flag in the list.
 - **While the knock-out plays the picker lists only the flags still in** (`useStanding`, see [The capitals](capitals.md)),
   with no flag selected when the one played is out, and `lockOf(allegiance, now, standing)` locks nothing for a flag held that
   does not stand: the server lets it change at once. The same goes for the Change button and the out window.
