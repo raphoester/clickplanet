@@ -134,7 +134,8 @@ npm run mobile -- http://localhost:5173/play --open-menu --out /tmp/shot.png \
 ```
 
 It runs headless Chrome under a throwaway profile, so it never disturbs the
-browser you have open. `--eval` evaluates in the page (top-level `await` works)
+browser you have open. A phone on its side is `--w 750 --h 340` (an iPhone 14 in Safari) or `--w 568 --h 320` (the
+smallest, an iPhone SE): the rail form of [The screen](screen.md). `--eval` evaluates in the page (top-level `await` works)
 and prints the result — measuring boxes with `getBoundingClientRect()` beats
 eyeballing a screenshot. `--headed`, `--w/--h/--dpr`, `--full` and `--settle`
 cover the rest; `npm run mobile -- --help` lists them. It is a touch phone at every

@@ -172,3 +172,17 @@ button.player-card-held {
         margin-bottom: 0;
     }
 }
+
+/* Held sideways a sheet as wide as the screen is a long strip: the card rises in the middle, as wide as a sheet. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .modal:has(.player-card) {
+        justify-content: center;
+        padding-top: var(--space-2);
+    }
+
+    .modal-content.player-card {
+        max-width: 520px;
+        border-left: var(--outline) solid var(--ink);
+        border-right: var(--outline) solid var(--ink);
+    }
+}

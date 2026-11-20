@@ -45,7 +45,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   opens on another or a read past the cache still names one, and the guard against a loop: a cached read after a
   reload, a board the bundle does not carry; "The world grew", once per browser, on the world's new board.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
-  768px wide or 600px high and under; the board and the chat folded under 1600px wide until the player opens one, and
+  768px wide or 600px high and under, and held sideways its tabs a rail on the left, its sheets drawers, its status two
+  pills and a dock one row shorter; the board and the chat folded under 1600px wide until the player opens one, and
   the player's last fold kept.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Stores](docs/stores.md) — a feature's state in its own Zustand store, read by the component that shows it, not

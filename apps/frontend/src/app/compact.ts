@@ -2,6 +2,10 @@ import {useEffect, useState} from "react"
 
 export const COMPACT = "(max-width: 768px), (max-height: 600px)"
 
+// A phone held sideways, or a small 16:9 frame: the phone form, its tabs a rail on the left; see docs/screen.md.
+// Every stylesheet's rules for it use this query, and it holds only inside COMPACT.
+export const LANDSCAPE = "(max-height: 600px) and (orientation: landscape)"
+
 // The desktop frame where the board and the chat start folded until the player opens one; see docs/screen.md.
 export const SMALL_FRAME = "(max-width: 1599px)"
 

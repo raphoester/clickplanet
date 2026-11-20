@@ -670,3 +670,29 @@
         font-size: var(--text-m);
     }
 }
+
+/* Held sideways the quiz is centred clear of the rail, as it is of the desktop menu, and is wider and tighter: a long
+   question on three lines and its answers on two still end above a 320px screen's bottom. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .quiz {
+        top: calc(var(--status-bottom, 8px) + 4px);
+        width: min(520px, calc(var(--top-room) - 32px));
+    }
+
+    .quiz-card {
+        padding: var(--space-2) var(--space-3) var(--space-3);
+    }
+
+    .quiz-head {
+        margin-bottom: var(--space-2);
+    }
+
+    .quiz-question {
+        margin-bottom: var(--space-2);
+        font-size: var(--text-m);
+    }
+
+    .quiz-choices {
+        gap: 6px;
+    }
+}

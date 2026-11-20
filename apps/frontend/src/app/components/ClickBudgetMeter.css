@@ -353,6 +353,56 @@
     }
 }
 
+/* Held sideways the height is what the globe lacks, so the dock is as short as its slots: the clicks and their line on
+   one row, the level's line under them, and the slots on the right of both. It is centred right of the rail, and a
+   sheet open beside it hides it: the sheet is for reading, as it covers the dock on a phone held upright. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .click-budget-dock {
+        left: var(--dock-left);
+        right: auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        row-gap: var(--space-1);
+        width: var(--landscape-dock-width);
+        min-height: 0;
+    }
+
+    .click-budget-dock > .inventory {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .click-budget-dock:has(> .click-budget-footer:not(:empty)) > .inventory {
+        grid-row: 1 / span 2;
+    }
+
+    .click-budget-footer {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .click-budget-shell {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: var(--space-2);
+        row-gap: 0;
+    }
+
+    .click-budget-shell > .click-budget {
+        flex: 1 1 140px;
+    }
+
+    .click-budget-line {
+        min-height: 0;
+    }
+
+    :root:has(.sheet) .click-budget-dock {
+        visibility: hidden;
+    }
+}
+
 .click-budget-refused {
     animation: click-budget-refused 0.45s ease-out;
 }

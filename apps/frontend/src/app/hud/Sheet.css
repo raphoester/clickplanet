@@ -65,6 +65,37 @@
     -webkit-overflow-scrolling: touch;
 }
 
+/* Held sideways a sheet is a drawer out of the rail, as tall as the screen, and the globe stays in view beside it. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .sheet {
+        top: 0;
+        bottom: 0;
+        left: calc(var(--rail-room) - var(--outline));
+        right: auto;
+        width: min(400px, calc(100vw - var(--rail-room) - 120px));
+        max-height: none;
+        border-top: none;
+        border-right: var(--outline) solid var(--ink);
+        border-radius: 0 var(--radius-l) var(--radius-l) 0;
+        animation-name: sheet-in-side;
+    }
+
+    .sheet-head {
+        padding-top: var(--space-3);
+    }
+
+    .sheet-handle {
+        display: none;
+    }
+}
+
+@keyframes sheet-in-side {
+    from {
+        transform: translateX(-24px);
+        opacity: 0;
+    }
+}
+
 @keyframes sheet-in {
     from {
         transform: translateY(24px);
