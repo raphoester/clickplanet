@@ -155,8 +155,8 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
   world (see [The ledger's readers](#the-ledgers-readers)). The vandal squad waits for the world's map: `GetTiles`
   names the board in play.
 
-Capital Siege's set names `siege-1` from PR 5 of [Boards](../../../docs/boards.md) (2026-11-18), once the owner saves
-it: see [Capital Siege's set](#capital-sieges-set).
+Capital Siege's set names `siege-1` (PR 5 of [Boards](../../../docs/boards.md), 2026-11-18), saved in production on
+2026-11-19: see [Capital Siege's set](#capital-sieges-set).
 
 **The world's switch of board waits for no arena** (PR 6): `SwitchBoard` is refused while an arena plays, read under
 the map's locks, and an arena that opens after the switch plays its set's board, or the world's new one when its set
@@ -223,13 +223,12 @@ after the battle ([Spreads off](spread.md#spreads-off-chargesspreadoff)); withou
 flag holds one land around its capital, joined over its bridges (see [The cut-off](capitals.md#the-cut-off-capitalscutoff)).
 With the reach, a march on a capital is a corridor the enemy can cut behind it.
 
-**The owner's steps, once PR 5 is deployed** (the sets are production's, saved by hand; `planet_get_rules` and
-`bonuses_get_rules` read them first, and again after). `SaveRuleSet` has no dry run and replaces every value of the
-set, so it carries the whole set; `capital-siege` does not play between battles, so a save changes nothing on the map,
-and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`, with
-`arena.board`, `charges.spread.off`, `charges.rally.off`, `capitals.cutOff` (once the cut-off is deployed), and its
-`spread` overrides (`clicks` 50, `rings` 2, `unlimited`) dropped. On 2026-11-19 production's set still held the
-`spread` overrides and no `spread.off` or `rally.off`:
+**Saved on 2026-11-19**, once the cut-off was deployed (#907), and read back with `planet_get_rules` and
+`bonuses_get_rules`. Until then planet's set still held the `spread` overrides (`clicks` 50, `rings` 2, `unlimited`) and
+no `arena.board`, `charges.spread.off` or `charges.rally.off`, and the offers' set no `kinds.rally`, so the battle
+would have played the world's board with the unlimited spread. `SaveRuleSet` has no dry run and replaces every value of
+the set, so a change carries the whole set; `capital-siege` does not play between battles, so a save changes nothing on
+the map, and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`:
 
 ```json
 {"clicks":{"tempo":3},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
@@ -239,8 +238,8 @@ and a set that cannot play is refused with every reason, which is the check. Pla
             "rally":{"off":true}}}
 ```
 
-The offers' `capital-siege` (`bonuses_save_rule_set`), with `kinds.rally` 0 added; it already weighs `spreadClicks`,
-`encloseClicks`, `bomb`, `virus` and `mine` 0:
+The offers' `capital-siege` (`bonuses_save_rule_set`), which weighs `spreadClicks`, `encloseClicks`, `bomb`, `virus`,
+`mine` and `rally` 0:
 
 ```json
 {"kinds":{"refill":1,"spreadClicks":0,"encloseClicks":0,"bomb":0,"shields":1,"virus":0,"mine":0,"rally":0},
