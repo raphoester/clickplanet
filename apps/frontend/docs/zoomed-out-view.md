@@ -29,9 +29,12 @@ running globe through `Globe.setMapView` and the `splitFlags` uniform, so it nev
 rebuilds it. The flag that leads the landmass gets the frame fitted to it and its slot:
 `BorderField` writes it from the server's row for the landmass (`setRows`, with
 `Holdings.leaderOf`: see [The counts are the server's](counts.md)) into one row
-per landmass of a `DataTexture` the territory layer reads. Any other flag covers the
-landmass from its middle (`coverOf` in the territory fragment shader), from the
-landmass's reach, which the same row keeps, and never less than about a tile of the board drawn (`leastFlagRadius`). A
+per landmass of a `DataTexture` the territory layer reads. **Any other flag is framed by its own footprint**: the
+tiles it holds on that landmass (or province), so each of its tiles wears the part of the flag it would in a flag drawn
+over them alone, and a few French tiles in the middle of a Canada led by Ireland show a whole tricolour, not the white
+of a tricolour as wide as Canada (see [A flag's own footprint](#a-flags-own-footprint) below). Its flag covers the
+footprint from its middle (`coverOf` in the territory fragment shader), and never less than about a tile of the board
+drawn (`leastFlagRadius`). A
 landmass of fewer than 4 tiles of `earth-1` (as much ground on another board, `leastPaintedTiles`) has no leader whose
 flag is fitted to its frame: see [Sized by the board](board-scale.md). A tile knows it holds the leader's flag
 when its own atlas rectangle is the one in the row.
@@ -97,6 +100,32 @@ out one white or one red). Each was right at one end only, and a player would ha
 - **On a board without provinces** (`earth-1`) the countries divide the map at every zoom. **On `siege-1`** the tiles,
   6 times as wide as `earth-2`'s, take the frame before the line on every screen, so its orbit shows the countries
   alone and its province lines show over the tiles. `pointSize.test.ts` pins both, and the line.
+
+### A flag's own footprint
+
+**Until November 2026 a flag that did not lead its ground was framed by the ground's middle and reach**, stretched over
+the whole landmass or province: its tiles near the middle of Canada wore the white band of the tricolour, near an edge a
+red or a blue one, and the whole flag showed only once it led and its frame snapped to the fitted one (the owner's
+report, 2026-11-20).
+
+**A footprint is a flag on a ground**: `Footprints` in `domain/footprints.ts`, one table for the provinces and one for
+the landmasses, each a number per (ground, flag) pair met on the map, freed when its last tile goes. It keeps the tile
+count, the sums of the tiles' unit positions and of their products (x², xy, …), so a tile that changes hands moves out
+of one footprint and into another in constant time: no footprint is counted again. Its frame is read from the sums when
+it is sent: the centre the mean direction, and each half extent (east along the centre's parallel and north across it,
+as the shader orients a frame) √3 times the standard deviation of the tiles along it, the half width of an even spread,
+as an arc.
+
+**On the GPU** (`FootprintField` in `footprintField.ts`, owned by `TileField`, fed by its `setOwners` and
+`setProvinces`): `footprintData`, each tile's province footprint, a u16 at its cell's texel as `tileData` (2 MB on
+`earth-2`); and `footprintFrames`, two texels a footprint, 1,024 a row, 32 rows the provinces' then 32 the landmasses'
+(2 MB): the centre and the half extent east, then the half extent north, the landmass footprint (a province's alone,
+the same flag on the province's landmass, so a tile needs one number) and the tile count. Each framing holds 32,767
+footprints; a tile none was free for keeps the ground's middle and reach, as before. `uploadTiles` sends only the rows
+that changed, as for `tileData`. The leader is unchanged: its flag keeps the landmass's or the province's fitted
+frame, as Big paints it.
+
+**The first read costs** some 120 ms in node for `earth-2`'s 1M tiles with 40 flags to a province, the frames 30 ms.
 
 **The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after
 the earth and before the tiles. For each pixel, its fragment shader finds the ground under it (the camera is

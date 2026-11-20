@@ -531,7 +531,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const landmass = provinces.landmass[province] ?? 0
         return translator().province(province, landmass, borders.codes[landmass])
     }
-    field.setProvinces(provinces.province)
+    field.setProvinces(provinces.province, provinces.landmass)
 
     // The tiles of each province, and how much of each is on screen, made the first time provinces divide the map.
     let provinceTiles: Landmasses | undefined
@@ -565,6 +565,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         cells: geometryData.cells,
         terrain,
         tileData: field.tileData,
+        footprintData: field.footprints.tileData,
+        footprintFrames: field.footprints.frames,
         provinceLandmass: provinces.landmass,
         flagRectangles: field.flagRectangles,
         uniforms,

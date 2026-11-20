@@ -175,7 +175,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,
   or each province's from where a CSS pixel is 7 km of ground and the screen's shorter side 2,700 km (the zoom chooses,
   no setting, a quarter of a second's fade between them), pixel by pixel by the territory layer under the tiles: Split,
-  Big or Off.
+  Big or Off; a flag that does not lead its ground framed by its own footprint there, its tiles on it.
 - [The terrain](docs/terrain.md) — the board-game ground: a kind of land per tile and the coast's bands, a file of the
   board painted by the territory layer at every zoom over a flat sea; no photo.
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from the board's runs and checked against the

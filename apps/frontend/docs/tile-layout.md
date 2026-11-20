@@ -45,7 +45,8 @@ none; at 1,024 they fill 982. The other textures sized from the board: the terra
 (`TERRAIN_COLUMNS`: `earth-2`'s 3,481,002 points fill 1,700 rows, which 1,024 a row could not hold); `tileCells`, a pair
 of words per 32 points, 256 a row (425 rows on `earth-2`); the landmasses' data, a row a landmass (1,175 on `earth-2`,
 of 2,048); the provinces' data, a row a province (2,098 on `earth-2`, past the 2,048 WebGL2 guarantees and under the 4,096
-`BorderField` takes); the aimed outlines, 1,024 landmasses a row. Nothing else on the GPU is sized by the tile count but the
+`BorderField` takes); the aimed outlines, 1,024 landmasses a row; each tile's flag footprint, a u16 at its cell's texel as `tileData`, and the
+footprints' frames, 2,048 by 64 (see [A flag's own footprint](zoomed-out-view.md#a-flags-own-footprint)). Nothing else on the GPU is sized by the tile count but the
 vertex buffers, which have no such limit.
 
 **A change sends only what changed.** `TileField.uploadTiles` sends the rows of `tileData` that hold a changed texel,

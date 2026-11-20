@@ -9,6 +9,7 @@ import type {Graphics} from "./graphics.ts";
 import {chunkCount, chunkOf, drawnRanges, type TileChunks} from "../../domain/tileChunks.ts";
 import {joinSpans, type Span, spansOf} from "../../domain/spans.ts";
 import {ChunkSight, CULL_SLACK} from "./chunkSight.ts";
+import {FootprintField} from "./footprintField.ts";
 
 import displayVertex from "./shaders/display/vertex.glsl"
 import displayFragment from "./shaders/display/fragment.glsl"
@@ -84,6 +85,8 @@ export class TileField {
     // Each tile's flag and province at its cell's texel, for the territory layer.
     readonly tileData: THREE.DataTexture
     readonly flagRectangles: THREE.DataTexture
+    // Where each flag's own tiles lie on each ground, for the territory layer's flags that do not lead it.
+    readonly footprints: FootprintField
 
     private readonly uniforms: TileUniforms
     private readonly compact: boolean
@@ -121,6 +124,7 @@ export class TileField {
         this.tileValues = new Uint16Array(TILE_COLUMNS * rows * 2)
         this.tileData = tileTexture(this.tileValues, rows)
         this.tileSource = tileTexture(this.tileValues, rows)
+        this.footprints = new FootprintField(positions, cells.texels, regions.size + 1)
 
         const {slots, attributes} = this.compact ? compactLayout(size) : plainLayout(size)
         this.slots = slots
@@ -200,6 +204,7 @@ export class TileField {
             this.tileValues[texel * 2] = flags[i]
             this.changedRows.add(Math.floor(texel / TILE_COLUMNS))
         })
+        this.footprints.setFlags(tiles.map((tile) => tile - 1), flags)
     }
 
     setShields(changes: readonly ShieldChange[]) {
@@ -232,8 +237,9 @@ export class TileField {
         this.mark(tiles, MINE_MARK, on)
     }
 
-    // Each tile's province: a landmass is lit, and a fortify's wave runs, as the span of its provinces.
-    setProvinces(province: Uint16Array) {
+    // Each tile's province: a landmass is lit, and a fortify's wave runs, as the span of its provinces. `landmassOf` gives
+    // each province's landmass; on a board with no provinces file a province is its landmass.
+    setProvinces(province: Uint16Array, landmassOf?: Uint16Array) {
         const {attribute, offset} = this.slots.province
         const values = attribute.array
         for (let i = 0; i < this.size; i++) values[i * attribute.itemSize + offset] = province[i]
@@ -243,10 +249,18 @@ export class TileField {
 
         for (let i = 0; i < this.size; i++) this.tileValues[this.texels[i] * 2 + 1] = province[i]
         this.tileData.needsUpdate = true
+
+        let grounds = 1
+        for (let i = 0; i < this.size; i++) grounds = Math.max(grounds, province[i] + 1)
+        const landmasses = landmassOf ?? Uint16Array.from({length: grounds}, (_, i) => i)
+        let landmassCount = 1
+        for (const landmass of landmasses) landmassCount = Math.max(landmassCount, landmass + 1)
+        this.footprints.setGrounds(province, landmasses, Math.max(grounds, landmasses.length), landmassCount)
     }
 
     // Sends the rows of tileData whose tiles changed hands, rather than the whole texture.
     uploadTiles(renderer: THREE.WebGLRenderer) {
+        this.footprints.upload(renderer)
         if (this.changedRows.size === 0) return
         const rows = Uint32Array.from(this.changedRows).sort()
         this.changedRows.clear()
@@ -276,6 +290,7 @@ export class TileField {
         this.displayPoints.geometry.dispose()
         for (const material of this.displayPoints.material as THREE.Material[]) disposeMaterial(material)
         this.tileData.dispose()
+        this.footprints.dispose()
         this.flagRectangles.dispose()
     }
 

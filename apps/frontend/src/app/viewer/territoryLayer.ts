@@ -24,6 +24,9 @@ export type TerritoryLayerInputs = {
     cells: TileCells
     terrain: Uint8Array
     tileData: THREE.Texture
+    // Each tile's flag's footprint on its province, and the footprints' frames (footprintField.ts).
+    footprintData: THREE.Texture
+    footprintFrames: THREE.Texture
     // Each province's landmass: from orbit, the countries' flags are painted in the landmass's frame.
     provinceLandmass: Uint16Array
     flagRectangles: THREE.Texture
@@ -32,7 +35,7 @@ export type TerritoryLayerInputs = {
 
 // The ground, and the flags painted on it zoomed out: each pixel finds its lattice point's cell, wears its terrain, and
 // on a tile its holder's flag over it. The open sea is left to the earth.
-export function createTerritoryLayer({sphere, cells, terrain, tileData, provinceLandmass, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
+export function createTerritoryLayer({sphere, cells, terrain, tileData, footprintData, footprintFrames, provinceLandmass, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
     const faces = latticeFaces(cells.lattice)
 
     const faceData = new Float32Array(FACE_TEXELS * faces.length * 4)
@@ -59,6 +62,8 @@ export function createTerritoryLayer({sphere, cells, terrain, tileData, province
             terrain: {value: terrainTexture(terrain)},
             terrainColours: {value: terrainColours()},
             tileData: {value: tileData},
+            footprintData: {value: footprintData},
+            footprintFrames: {value: footprintFrames},
             provinceLandmass: {value: provinceTexture(provinceLandmass)},
             flagRectangles: {value: flagRectangles},
         },
