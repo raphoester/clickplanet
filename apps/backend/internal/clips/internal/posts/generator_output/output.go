@@ -127,17 +127,11 @@ func sagaOf(written *clipsv1.Saga) posts.Saga {
 }
 
 func listsOf(written *clipsv1.Lists) posts.Lists {
-	lists := posts.Lists{AttackedSince: timeOf(written.GetAttackedSince())}
-	for _, entry := range written.GetOwnLand() {
-		lists.OwnLand = append(lists.OwnLand, posts.OwnLandEntry{
-			Country: entry.GetCountry(), Tiles: int(entry.GetTiles()), OwnShare: entry.GetOwnShare(), Holder: entry.GetHolder(),
-			HolderShare: entry.GetHolderShare(),
-		})
-	}
-	for _, entry := range written.GetMostAttacked() {
-		lists.MostAttacked = append(lists.MostAttacked, posts.AttackedEntry{
-			Flag: entry.GetFlag(), Lost: int(entry.GetLost()), TakenBy: entry.GetTakenBy(), TakenByTiles: int(entry.GetTakenByTiles()),
-			Country: entry.GetCountry(),
+	lists := posts.Lists{FoughtSince: timeOf(written.GetFoughtSince())}
+	for _, entry := range written.GetFightTheMost() {
+		lists.FightTheMost = append(lists.FightTheMost, posts.FightEntry{
+			Flag: entry.GetFlag(), Fought: int(entry.GetFought()), Took: int(entry.GetTook()), Lost: int(entry.GetLost()),
+			Rival: entry.GetRival(), RivalTiles: int(entry.GetRivalTiles()), Country: entry.GetCountry(),
 		})
 	}
 	for _, entry := range written.GetFarFromHome() {

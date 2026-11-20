@@ -53,12 +53,11 @@ const found: Found = {
         day: {season: 0, number: 18, finale: false, own: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
     anthems: ["dz", "eu", "fr"],
     lists: {
-        ownLand: [{country: "fr", tiles: 9000, ownShare: 0.00012, holder: "pw", holderShare: 0.81234}],
-        mostAttacked: [{flag: "tr", lost: 5300, takenBy: "fr", takenByTiles: 5100, country: "sy"}],
+        fightTheMost: [{flag: "tr", fought: 41200, took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
         farFromHome: [{flag: "hu", country: "id", tiles: 2100, km: 10400}],
         biggestEmpires: [{flag: "pw", tiles: 74000, share: 0.28456, country: "ru"}],
     },
-    attackedSince: Date.UTC(2026, 9, 23, 20),
+    foughtSince: Date.UTC(2026, 9, 23, 20),
 }
 
 describe("the findings", () => {
@@ -139,13 +138,12 @@ const WORDS = `"headline":"FRANCE TAKES INDIA","call":"FIGHT FOR ALGERIA","look"
 describe("the carousel's lists", () => {
     const json = findingsOf(found).toJson() as Record<string, unknown>
 
-    it("hold each list as ranked, its shares rounded, with when most-attacked counts from", () => {
+    it("hold each list as ranked, its shares rounded, with when fight-the-most counts from", () => {
         expect(json.lists).toEqual({
-            ownLand: [{country: "fr", tiles: 9000, holder: "pw", holderShare: 0.812}],
-            mostAttacked: [{flag: "tr", lost: 5300, takenBy: "fr", takenByTiles: 5100, country: "sy"}],
+            fightTheMost: [{flag: "tr", fought: 41200, took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
             farFromHome: [{flag: "hu", country: "id", tiles: 2100, km: 10400}],
             biggestEmpires: [{flag: "pw", tiles: 74000, share: 0.285, country: "ru"}],
-            attackedSince: "2026-10-23T20:00:00Z",
+            foughtSince: "2026-10-23T20:00:00Z",
         })
     })
 
@@ -157,13 +155,13 @@ describe("the carousel's lists", () => {
 describe("a carousel's pick", () => {
     it("is its list, its cover and its ranks, and no clip's", () => {
         const {told, written, fighters, experiment} = toldOf(JSON.stringify({
-            experiment: "carousel", list: "own-land", hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-            ranks: [{code: "fr", line: "HELD BY PALAU"}, {code: "tr", line: "HELD BY FRANCE"}],
+            experiment: "carousel", list: "fight-the-most", hook: "THE 5 COUNTRIES THAT FIGHT THE MOST",
+            ranks: [{code: "fr", line: "MOSTLY AGAINST PALAU"}, {code: "tr", line: "MOSTLY AGAINST FRANCE"}],
         }))
 
         expect(told).toEqual({carousel: {
-            list: "own-land", hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-            ranks: [{code: "fr", line: "HELD BY PALAU"}, {code: "tr", line: "HELD BY FRANCE"}],
+            list: "fight-the-most", hook: "THE 5 COUNTRIES THAT FIGHT THE MOST",
+            ranks: [{code: "fr", line: "MOSTLY AGAINST PALAU"}, {code: "tr", line: "MOSTLY AGAINST FRANCE"}],
         }})
         expect(written).toBeUndefined()
         expect(fighters).toEqual([])
@@ -172,7 +170,7 @@ describe("a carousel's pick", () => {
 
     it("is refused for a list there is none of, or with no cover", () => {
         expect(() => toldOf(JSON.stringify({list: "rankings", hook: "A COVER"}))).toThrow(/not "rankings"/)
-        expect(() => toldOf(JSON.stringify({list: "own-land"}))).toThrow(/cover/)
+        expect(() => toldOf(JSON.stringify({list: "fight-the-most"}))).toThrow(/cover/)
     })
 })
 

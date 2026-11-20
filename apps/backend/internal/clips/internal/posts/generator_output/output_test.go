@@ -343,45 +343,44 @@ func TestFightersOfNoCastAreAnError(t *testing.T) {
 	require.ErrorIs(t, err, posts.ErrInvalidClip)
 }
 
-func TestTheFindingsHoldTheCarouselsFourListsAsTheGeneratorRankedThem(t *testing.T) {
+func TestTheFindingsHoldTheCarouselsThreeListsAsTheGeneratorRankedThem(t *testing.T) {
 	file := write(t, t.TempDir(), "findings.json", `{"lists": {
-  "ownLand": [{"country": "fr", "tiles": 9000, "holder": "pw", "holderShare": 0.81}, {"country": "tr", "tiles": 8000, "ownShare": 0.01, "holder": "fr", "holderShare": 0.6}],
-  "mostAttacked": [{"flag": "tr", "lost": 5300, "takenBy": "fr", "takenByTiles": 5100, "country": "tr"}],
+  "fightTheMost": [{"flag": "fr", "fought": 41200, "took": 30000, "lost": 11200, "rival": "pw", "rivalTiles": 9000, "country": "fr"},
+    {"flag": "tr", "fought": 20000, "lost": 20000, "rival": "fr", "rivalTiles": 8000, "country": "tr"}],
   "farFromHome": [{"flag": "hu", "country": "id", "tiles": 2100, "km": 10400}],
   "biggestEmpires": [{"flag": "pw", "tiles": 74000, "share": 0.28, "country": "ru"}],
-  "attackedSince": "2026-10-23T20:29:17Z"
+  "foughtSince": "2026-10-23T20:29:17Z"
 }}`)
 
 	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Lists{
-		OwnLand: []posts.OwnLandEntry{
-			{Country: "fr", Tiles: 9000, Holder: "pw", HolderShare: 0.81},
-			{Country: "tr", Tiles: 8000, OwnShare: 0.01, Holder: "fr", HolderShare: 0.6},
+		FightTheMost: []posts.FightEntry{
+			{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
+			{Flag: "tr", Fought: 20000, Lost: 20000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
 		},
-		MostAttacked:   []posts.AttackedEntry{{Flag: "tr", Lost: 5300, TakenBy: "fr", TakenByTiles: 5100, Country: "tr"}},
 		FarFromHome:    []posts.FarLandEntry{{Flag: "hu", Country: "id", Tiles: 2100, Km: 10400}},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
-		AttackedSince:  time.Date(2026, 10, 23, 20, 29, 17, 0, time.UTC),
+		FoughtSince:    time.Date(2026, 10, 23, 20, 29, 17, 0, time.UTC),
 	}, findings.Lists)
 }
 
 func TestACarouselIsWrittenWithItsListItsCoverAndItsRanks(t *testing.T) {
 	carousel, err := generator_output.StoryJSON(posts.Story{
-		List: posts.OwnLand, Hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", Experiment: "carousel", Language: posts.English,
-		Ranks: []posts.Rank{{Code: "fr", Line: "HELD BY PALAU"}, {Code: "tr", Line: "HELD BY FRANCE"}},
+		List: posts.FightTheMost, Hook: "THE 5 COUNTRIES THAT FIGHT THE MOST", Experiment: "carousel", Language: posts.English,
+		Ranks: []posts.Rank{{Code: "fr", Line: "AGAINST PALAU"}, {Code: "tr", Line: "AGAINST FRANCE"}},
 	})
 
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"experiment":"carousel","hook":"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND","list":"own-land",`+
-		`"ranks":[{"code":"fr","line":"HELD BY PALAU"},{"code":"tr","line":"HELD BY FRANCE"}]}`, string(carousel))
+	assert.JSONEq(t, `{"experiment":"carousel","hook":"THE 5 COUNTRIES THAT FIGHT THE MOST","list":"fight-the-most",`+
+		`"ranks":[{"code":"fr","line":"AGAINST PALAU"},{"code":"tr","line":"AGAINST FRANCE"}]}`, string(carousel))
 }
 
 func TestACarouselGivesItsPhotosBesideItInTheirOrderWithItsList(t *testing.T) {
 	folder := t.TempDir()
 	write(t, folder, "clip-1.json", strings.Replace(writtenClip, `"pick": 2,`,
-		`"pick": 1, "experiment": "carousel", "list": "own-land", "photos": ["clip-1-2.jpg", "clip-1-1.jpg"],`, 1))
+		`"pick": 1, "experiment": "carousel", "list": "fight-the-most", "photos": ["clip-1-2.jpg", "clip-1-1.jpg"],`, 1))
 	write(t, folder, "clip-1.mp4", "the slideshow")
 	write(t, folder, "clip-1-1.jpg", "a photo")
 	write(t, folder, "clip-1-2.jpg", "a photo")
@@ -394,13 +393,13 @@ func TestACarouselGivesItsPhotosBesideItInTheirOrderWithItsList(t *testing.T) {
 	assert.Equal(t, []posts.PhotoFile{
 		posts.PhotoFile(filepath.Join(folder, "clip-1-2.jpg")), posts.PhotoFile(filepath.Join(folder, "clip-1-1.jpg")),
 	}, snapshot.Photos)
-	assert.Equal(t, posts.OwnLand, snapshot.List)
+	assert.Equal(t, posts.FightTheMost, snapshot.List)
 }
 
 func TestACarouselMissingAPhotoOrNamingAFileElsewhereIsAnError(t *testing.T) {
 	for name, photos := range map[string]string{"missing": `["clip-1-1.jpg", "clip-1-2.jpg"]`, "elsewhere": `["../clip-1-1.jpg"]`} {
 		folder := t.TempDir()
-		write(t, folder, "clip-1.json", strings.Replace(writtenClip, `"pick": 2,`, `"pick": 1, "list": "own-land", "photos": `+photos+`,`, 1))
+		write(t, folder, "clip-1.json", strings.Replace(writtenClip, `"pick": 2,`, `"pick": 1, "list": "fight-the-most", "photos": `+photos+`,`, 1))
 		write(t, folder, "clip-1.mp4", "the slideshow")
 		write(t, folder, "clip-1-1.jpg", "a photo")
 

@@ -51,8 +51,8 @@ export type Found = {
     // Each continent's size in tiles.
     continentTiles: Counts
     lists: Lists
-    // When the stretch most-attacked counts starts.
-    attackedSince: number
+    // When the stretch fight-the-most counts starts.
+    foughtSince: number
 }
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
@@ -77,9 +77,8 @@ export function findingsOf(found: Found): Findings {
         noted(...saga.contenders.map(({flag}) => flag))
     }
     for (const {story} of found.seasonal) noted(story.attacker, story.rival, ...story.victims, ...storyCountriesOf(story))
-    const {ownLand, mostAttacked, farFromHome, biggestEmpires} = found.lists
-    for (const entry of ownLand) noted(entry.country, entry.holder)
-    for (const entry of mostAttacked) noted(entry.flag, entry.takenBy, entry.country || undefined)
+    const {fightTheMost, farFromHome, biggestEmpires} = found.lists
+    for (const entry of fightTheMost) noted(entry.flag, entry.rival, entry.country || undefined)
     for (const entry of [...farFromHome, ...biggestEmpires]) noted(entry.flag, entry.country || undefined)
 
     return new Findings({
@@ -135,10 +134,9 @@ export function findingsOf(found: Found): Findings {
         continents: continents().map((name) => ({name, flag: flagOfContinent(name) ?? "", tiles: found.continentTiles[name] ?? 0})),
         anthems: found.anthems,
         lists: new ListsWritten({
-            ownLand: ownLand.map((entry) => ({...entry, ownShare: rounded(entry.ownShare, 3), holderShare: rounded(entry.holderShare, 3)})),
-            mostAttacked, farFromHome,
+            fightTheMost, farFromHome,
             biggestEmpires: biggestEmpires.map((entry) => ({...entry, share: rounded(entry.share, 3)})),
-            attackedSince: at(found.attackedSince),
+            foughtSince: at(found.foughtSince),
         }),
     })
 }

@@ -154,19 +154,18 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
 
 **Photos, not a video** (designed 2026-11-20, built the same day, PR 3, on from its merge, outside the order):
 
-- **Carousel: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"**. The best format of an app maker who grew on TikTok with
+- **Carousel: "THE 5 COUNTRIES THAT FIGHT THE MOST"**. The best format of an app maker who grew on TikTok with
   no ads (an article on X, 2026-11-19): a photo carousel, a list people know, a question as the caption, and the name
   on the last photo alone. Two calls to act in the middle of his posts cut their views from about 2,000 to 500. The
   game had one carousel, the battle teaser of 2026-11-14: 684 views, as many as a clip, but watched 6.9 s on average
   against the clips' median of 5.3 s, 18.6% to the end against 15.3%, and saved 4.4 times per 1,000 views against 1.5.
   One post is a hint, not a finding.
   - **7 photos**, JPEGs of 1080×1920: the cover, its hook in big words over the globe; the 5 ranks from 5th to 1st,
-    each the globe aimed at its place with its rank, its flag, its name and one number ("HELD BY PALAU · 81%"); and
-    the whole globe last, with `clickplanet.lol`. No address before the last photo.
-  - **Four lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
-    **not their own land** (each country's ground, the share its own flag holds, the flag that holds the most of it;
-    the 5 lowest of the countries big enough to show), **most attacked in 3 days** (the tiles taken from each flag in
-    the replay), **farthest from home** (each flag's land outside its country, the farthest from it, weighed by its
+    each the globe aimed at its place with its rank, its flag, its name and its numbers ("TOOK 1,887 · LOST 3,946 ·
+    MOSTLY AGAINST TURKEY"); and the whole globe last, with `clickplanet.lol`. No address before the last photo.
+  - **Three lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
+    **fight the most in 3 days** (for each flag, the tiles it took from other flags plus the tiles they took from it
+    in the replay), **farthest from home** (each flag's land outside its country, the farthest from it, weighed by its
     size) and **biggest empires** (each flag's share of the land now). The post keeps its list in its metadata
     (`carouselList`), so the lists can be compared later. A list whose 5 are the 5 of its last post is not told
     again, and the control's next story takes the pick.
@@ -182,9 +181,6 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
     part works is in the backend's [The clips job](../apps/backend/docs/clips-job.md), "The carousel", and the
     frontend's [Clips](../apps/frontend/docs/clips.md), "A carousel".
   - **The measures the build chose** (2026-11-20, as the design left them open):
-    - **Big enough to show** is a country of 1,000 tiles of `earth-1` or more, on any board as much ground
-      (`bigCountryTiles`, the places' floor read from the board's scale: 49 countries on `earth-1`). A country nobody
-      holds any of has no holder to name, and is left out.
     - **Far from home** is each flag's land on another country's ground, from its middle to the nearest ground of the
       flag's own country, along the globe, to the nearest 100 km, weighed by its size: times `tiles / (tiles + 100)`,
       100 tiles of `earth-1` being a painted flag read from far (`readableFlipTiles`). A holding that size counts half
@@ -192,8 +188,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
       flag with no ground of its own has no home and is not ranked.
     - **In 3 days** needs a replay of 3 days: the workflow fetches 72 hours since PR 3 (it fetched 12), as much as the
       ledger keeps. The clips' stories are still searched in its last 12 hours (`newsSince`).
-    - **Each rank's one number is the generator's**, from the list (the holder's share, the tiles taken, the
-      distance, the share of the world), so it is true; the editor's line under the name holds no digit. The 5 are
+    - **Each rank's numbers are the generator's**, from the list (the tiles taken and the tiles lost, a line each;
+      the distance; the share of the world), so they are true; the editor's line under the name holds no digit. The 5 are
       the list's first 5, in its order, never the editor's pick.
     - **A rank is framed a little wider than its place** (0.7 of the zoom that frames it), and never closer than
       where the painted flags give way to tiles: the flag holding it reads, and its neighbours say where it is.
@@ -259,7 +255,7 @@ words are tuned on real stories, in several tones, and compared by the owner, be
    metadata as it is given, so nothing is deployed.
 2. **The owner's order and the war report's bench**: call to arms off, the findings kept 30 days, the writer, its
    tones, `clips bench`, Kokoro's voices, `narration-bench.yml`. Nothing it makes posts.
-3. **The carousel** (built 2026-11-20), on from its merge: the four lists in the findings, its brief, the stills and
+3. **The carousel** (built 2026-11-20), on from its merge: the lists in the findings, its brief, the stills and
    the slideshow, the photos to TikTok, `carouselList` in the post's metadata, the replay fetched 72 hours.
 4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
    globe, timed to it) and its experiment, once signed off.
@@ -280,4 +276,7 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 - **far-invasion**: built 2026-11-20, on from the merge of PR 1.
 - **call-to-arms**: built 2026-11-20, on from the merge of PR 1, off from the merge of PR 2, for the owner's order:
   its turn is fifth.
-- **carousel**: designed and built 2026-11-20, on from the merge of PR 3.
+- **carousel**: designed and built 2026-11-20, on from the merge of PR 3. The same day, from the owner's review, the
+  list of the countries that do not hold their own land went: on this map most countries are held by another flag, so
+  it is no news, and the owner found it unappealing. Most attacked became fight the most, the headline the owner
+  liked: the tiles a flag took plus the tiles it lost.

@@ -45,27 +45,20 @@ type lab struct {
 }
 
 type lists struct {
-	OwnLand        []ownLand  `json:"own-land"`
-	MostAttacked   []attacked `json:"most-attacked"`
-	FarFromHome    []farLand  `json:"far-from-home"`
-	BiggestEmpires []empire   `json:"biggest-empires"`
-	AttackedSince  time.Time  `json:"attackedSince"`
+	FightTheMost   []fight   `json:"fight-the-most"`
+	FarFromHome    []farLand `json:"far-from-home"`
+	BiggestEmpires []empire  `json:"biggest-empires"`
+	FoughtSince    time.Time `json:"foughtSince"`
 }
 
-type ownLand struct {
-	Country     string  `json:"country"`
-	Tiles       int     `json:"tiles"`
-	OwnShare    float64 `json:"ownShare"`
-	Holder      string  `json:"holder"`
-	HolderShare float64 `json:"holderShare"`
-}
-
-type attacked struct {
-	Flag         string `json:"flag"`
-	Lost         int    `json:"lost"`
-	TakenBy      string `json:"takenBy"`
-	TakenByTiles int    `json:"takenByTiles"`
-	Country      string `json:"country"`
+type fight struct {
+	Flag       string `json:"flag"`
+	Fought     int    `json:"fought"`
+	Took       int    `json:"took"`
+	Lost       int    `json:"lost"`
+	Rival      string `json:"rival"`
+	RivalTiles int    `json:"rivalTiles"`
+	Country    string `json:"country"`
 }
 
 type farLand struct {
@@ -308,15 +301,11 @@ func placeOf(number int, found posts.Place) place {
 
 func listsOf(found posts.Lists) *lists {
 	written := &lists{
-		OwnLand: make([]ownLand, 0, len(found.OwnLand)), MostAttacked: make([]attacked, 0, len(found.MostAttacked)),
-		FarFromHome: make([]farLand, 0, len(found.FarFromHome)), BiggestEmpires: make([]empire, 0, len(found.BiggestEmpires)),
-		AttackedSince: found.AttackedSince.UTC(),
+		FightTheMost: make([]fight, 0, len(found.FightTheMost)), FarFromHome: make([]farLand, 0, len(found.FarFromHome)),
+		BiggestEmpires: make([]empire, 0, len(found.BiggestEmpires)), FoughtSince: found.FoughtSince.UTC(),
 	}
-	for _, entry := range found.OwnLand {
-		written.OwnLand = append(written.OwnLand, ownLand(entry))
-	}
-	for _, entry := range found.MostAttacked {
-		written.MostAttacked = append(written.MostAttacked, attacked(entry))
+	for _, entry := range found.FightTheMost {
+		written.FightTheMost = append(written.FightTheMost, fight(entry))
 	}
 	for _, entry := range found.FarFromHome {
 		written.FarFromHome = append(written.FarFromHome, farLand(entry))

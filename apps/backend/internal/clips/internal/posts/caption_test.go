@@ -105,13 +105,13 @@ func TestAClipThatNamesNobodyHasNoLineOfFighters(t *testing.T) {
 	assert.NotContains(t, captionOf(t, portugalInItaly(t, ""), 0).TikTok.Caption, "Top fighters")
 }
 
-func ownLandCarousel(t *testing.T) posts.Clip {
+func fightCarousel(t *testing.T) posts.Clip {
 	t.Helper()
 
 	restored, err := posts.ClipSnapshot{
-		Pick: 1, Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
+		Pick: 1, Title: "THE 5 COUNTRIES THAT FIGHT THE MOST",
 		Key:         posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed},
-		Teasers:     []string{"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"},
+		Teasers:     []string{"THE 5 COUNTRIES THAT FIGHT THE MOST"},
 		TeaserNames: []string{"editor"},
 		Countries: []posts.TaggedCountry{
 			{Code: "fr", Tag: "france"},
@@ -120,7 +120,7 @@ func ownLandCarousel(t *testing.T) posts.Clip {
 			{Code: "de", Tag: "germany"},
 			{Code: "br", Tag: "brazil"},
 		},
-		Video: "clip-1.mp4", Experiment: "carousel", List: posts.OwnLand,
+		Video: "clip-1.mp4", Experiment: "carousel", List: posts.FightTheMost,
 		Photos: []posts.PhotoFile{"clip-1-1.jpg", "clip-1-2.jpg", "clip-1-3.jpg", "clip-1-4.jpg", "clip-1-5.jpg", "clip-1-6.jpg", "clip-1-7.jpg"},
 	}.Restore()
 	require.NoError(t, err)
@@ -128,10 +128,10 @@ func ownLandCarousel(t *testing.T) posts.Clip {
 }
 
 func TestACarouselsTitleIsItsCoverAndItsCaptionAsksWhereTheViewersCountryIsWithNoCallToPlay(t *testing.T) {
-	post := captionOf(t, ownLandCarousel(t), 1)
+	post := captionOf(t, fightCarousel(t), 1)
 
 	assert.Equal(t, posts.TikTokWords{
-		Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
+		Title: "THE 5 COUNTRIES THAT FIGHT THE MOST",
 		Caption: "Where is your country? 👇\n" +
 			"https://clickplanet.lol/t\n" +
 			"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral " +
@@ -139,7 +139,7 @@ func TestACarouselsTitleIsItsCoverAndItsCaptionAsksWhereTheViewersCountryIsWithN
 	}, post.TikTok)
 	assert.Empty(t, post.CallToAction)
 	assert.Equal(t, "editor", post.Teaser)
-	assert.Equal(t, posts.OwnLand, post.List)
+	assert.Equal(t, posts.FightTheMost, post.List)
 	assert.Len(t, post.Photos, 7)
 	assert.Equal(t, posts.ExperimentName("carousel"), post.Experiment)
 }
@@ -149,7 +149,7 @@ func TestAClipsTikTokPostHasNoTitleOverItsVideo(t *testing.T) {
 }
 
 func TestACarouselIsItsListsPhotosUnderATitleTikTokTakes(t *testing.T) {
-	carousel := ownLandCarousel(t).TakeSnapshot()
+	carousel := fightCarousel(t).TakeSnapshot()
 	changed := func(change func(*posts.ClipSnapshot)) posts.ClipSnapshot {
 		snapshot := carousel
 		change(&snapshot)

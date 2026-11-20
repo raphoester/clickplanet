@@ -379,10 +379,10 @@ func carouselOf(t *testing.T, platforms ...posts.Platform) posts.Post {
 		photos = append(photos, posts.PhotoFile(photo))
 	}
 	clip, err := posts.ClipSnapshot{
-		Pick: 1, Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", Teasers: []string{"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"},
+		Pick: 1, Title: "THE 5 COUNTRIES THAT FIGHT THE MOST", Teasers: []string{"THE 5 COUNTRIES THAT FIGHT THE MOST"},
 		Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
 		Key:       posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed}, Video: posts.VideoFile(video),
-		Photos: photos, List: posts.OwnLand, Experiment: "carousel",
+		Photos: photos, List: posts.FightTheMost, Experiment: "carousel",
 	}.Restore()
 	require.NoError(t, err)
 	return posts.Plan{Platforms: platforms}.Post(clip, 1, 1, posts.LoadedDice(0)).At(posts.Slot{At: at, Platforms: platforms})
@@ -421,9 +421,9 @@ func TestACarouselsPhotosAreUploadedAsJPEGsAndPostedInTheirOrderAsTikToksMediaUn
 	assert.Equal(t, "SchedulePost", fake.call(t, 4, &request))
 	assert.Equal(t, "https://media.example/clip-1.mp4", request.GetMediaUrl(), "the slideshow, every other platform's")
 	assert.Equal(t, []string{"https://media.example/clip-1-1.jpg", "https://media.example/clip-1-2.jpg"}, request.GetTiktokPhotoUrls())
-	assert.Equal(t, "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", request.GetTiktok().GetTitle())
+	assert.Equal(t, "THE 5 COUNTRIES THAT FIGHT THE MOST", request.GetTiktok().GetTitle())
 	assert.Equal(t, post.TakeSnapshot().TikTok.Caption, request.GetTiktok().GetCaption())
-	assert.Equal(t, "own-land", request.GetMetadata().AsMap()["carouselList"])
+	assert.Equal(t, "fight-the-most", request.GetMetadata().AsMap()["carouselList"])
 }
 
 func TestACarouselWithNoTikTokInItsSlotIsItsSlideshowAlone(t *testing.T) {

@@ -145,7 +145,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   each era on its own board with a flash at the cut, its story (of the last board), names and address, the anthem
   copied in, the red dots, the moments that offer it, the welcome line.
 - [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video on the board it ends on (its last era
-  alone), a lab story's hook over its opening, a carousel's four lists and its 7 photos with their slideshow, what it
+  alone), a lab story's hook over its opening, a carousel's three lists and its 7 photos with their slideshow, what it
   hands to the backend's clips job, and the bench's voice (`scripts/clip/voice/`, Kokoro).
 - [Battle teasers, as posts](docs/teasers.md) — `npm run teaser`: a battle's cards in a frame that says when it
   starts, as the stills of a TikTok carousel and a slideshow for YouTube, which the backend's promo module posts.

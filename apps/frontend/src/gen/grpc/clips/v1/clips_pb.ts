@@ -129,25 +129,11 @@ export class Findings extends Message<Findings> {
 }
 
 /**
- * Four lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
+ * Three lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
  *
  * @generated from message clips.v1.Lists
  */
 export class Lists extends Message<Lists> {
-  /**
-   * The countries big enough to show whose own flag holds the least of their ground, the least first.
-   *
-   * @generated from field: repeated clips.v1.OwnLand own_land = 1;
-   */
-  ownLand: OwnLand[] = [];
-
-  /**
-   * The flags the most tiles were taken from since attacked_since, the most first.
-   *
-   * @generated from field: repeated clips.v1.Attacked most_attacked = 2;
-   */
-  mostAttacked: Attacked[] = [];
-
   /**
    * The flags whose land outside their country is the farthest from it, weighed by its size, the farthest first.
    *
@@ -163,11 +149,18 @@ export class Lists extends Message<Lists> {
   biggestEmpires: Empire[] = [];
 
   /**
-   * When the stretch most_attacked counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
+   * When the stretch fight_the_most counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
    *
-   * @generated from field: google.protobuf.Timestamp attacked_since = 5;
+   * @generated from field: google.protobuf.Timestamp fought_since = 5;
    */
-  attackedSince?: Timestamp;
+  foughtSince?: Timestamp;
+
+  /**
+   * The flags that took and lost the most tiles to other flags since fought_since, the most first.
+   *
+   * @generated from field: repeated clips.v1.FightingFlag fight_the_most = 6;
+   */
+  fightTheMost: FightingFlag[] = [];
 
   constructor(data?: PartialMessage<Lists>) {
     super();
@@ -177,11 +170,10 @@ export class Lists extends Message<Lists> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "clips.v1.Lists";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "own_land", kind: "message", T: OwnLand, repeated: true },
-    { no: 2, name: "most_attacked", kind: "message", T: Attacked, repeated: true },
     { no: 3, name: "far_from_home", kind: "message", T: FarLand, repeated: true },
     { no: 4, name: "biggest_empires", kind: "message", T: Empire, repeated: true },
-    { no: 5, name: "attacked_since", kind: "message", T: Timestamp },
+    { no: 5, name: "fought_since", kind: "message", T: Timestamp },
+    { no: 6, name: "fight_the_most", kind: "message", T: FightingFlag, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Lists {
@@ -202,134 +194,81 @@ export class Lists extends Message<Lists> {
 }
 
 /**
- * @generated from message clips.v1.OwnLand
+ * @generated from message clips.v1.FightingFlag
  */
-export class OwnLand extends Message<OwnLand> {
-  /**
-   * @generated from field: string country = 1;
-   */
-  country = "";
-
-  /**
-   * @generated from field: uint32 tiles = 2;
-   */
-  tiles = 0;
-
-  /**
-   * Of its tiles, the share its own flag holds.
-   *
-   * @generated from field: double own_share = 3;
-   */
-  ownShare = 0;
-
-  /**
-   * The flag holding the most of it, and its share.
-   *
-   * @generated from field: string holder = 4;
-   */
-  holder = "";
-
-  /**
-   * @generated from field: double holder_share = 5;
-   */
-  holderShare = 0;
-
-  constructor(data?: PartialMessage<OwnLand>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "clips.v1.OwnLand";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "own_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "holder", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "holder_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OwnLand {
-    return new OwnLand().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OwnLand {
-    return new OwnLand().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OwnLand {
-    return new OwnLand().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: OwnLand | PlainMessage<OwnLand> | undefined, b: OwnLand | PlainMessage<OwnLand> | undefined): boolean {
-    return proto3.util.equals(OwnLand, a, b);
-  }
-}
-
-/**
- * @generated from message clips.v1.Attacked
- */
-export class Attacked extends Message<Attacked> {
+export class FightingFlag extends Message<FightingFlag> {
   /**
    * @generated from field: string flag = 1;
    */
   flag = "";
 
   /**
-   * Tiles taken from it by another flag.
+   * Tiles it took from other flags plus tiles other flags took from it.
    *
-   * @generated from field: uint32 lost = 2;
+   * @generated from field: uint32 fought = 2;
+   */
+  fought = 0;
+
+  /**
+   * @generated from field: uint32 took = 3;
+   */
+  took = 0;
+
+  /**
+   * @generated from field: uint32 lost = 4;
    */
   lost = 0;
 
   /**
-   * The flag that took the most from it, and how many.
+   * The flag it fought the most tiles with, both ways, and how many.
    *
-   * @generated from field: string taken_by = 3;
+   * @generated from field: string rival = 5;
    */
-  takenBy = "";
+  rival = "";
 
   /**
-   * @generated from field: uint32 taken_by_tiles = 4;
+   * @generated from field: uint32 rival_tiles = 6;
    */
-  takenByTiles = 0;
+  rivalTiles = 0;
 
   /**
-   * The country whose ground it lost the most tiles on.
+   * The country whose ground it fought the most tiles on.
    *
-   * @generated from field: string country = 5;
+   * @generated from field: string country = 7;
    */
   country = "";
 
-  constructor(data?: PartialMessage<Attacked>) {
+  constructor(data?: PartialMessage<FightingFlag>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "clips.v1.Attacked";
+  static readonly typeName = "clips.v1.FightingFlag";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "taken_by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "taken_by_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "fought", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "took", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "rival", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "rival_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Attacked {
-    return new Attacked().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FightingFlag {
+    return new FightingFlag().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Attacked {
-    return new Attacked().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FightingFlag {
+    return new FightingFlag().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Attacked {
-    return new Attacked().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FightingFlag {
+    return new FightingFlag().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Attacked | PlainMessage<Attacked> | undefined, b: Attacked | PlainMessage<Attacked> | undefined): boolean {
-    return proto3.util.equals(Attacked, a, b);
+  static equals(a: FightingFlag | PlainMessage<FightingFlag> | undefined, b: FightingFlag | PlainMessage<FightingFlag> | undefined): boolean {
+    return proto3.util.equals(FightingFlag, a, b);
   }
 }
 
@@ -1796,7 +1735,7 @@ export class Pick extends Message<Pick> {
   language = "";
 
   /**
-   * A carousel's: the list of the findings it tells (own-land, most-attacked, far-from-home or biggest-empires), its
+   * A carousel's: the list of the findings it tells (fight-the-most, far-from-home or biggest-empires), its
    * cover's words in hook, and its ranks from the 1st to the 5th, the list's first 5 in its order.
    *
    * @generated from field: string list = 26;
@@ -1868,7 +1807,7 @@ export class Pick extends Message<Pick> {
  */
 export class Rank extends Message<Rank> {
   /**
-   * The country of own-land, the flag of the others.
+   * The flag of the entry.
    *
    * @generated from field: string code = 1;
    */
@@ -1985,7 +1924,7 @@ export class Clip extends Message<Clip> {
   photos: string[] = [];
 
   /**
-   * A carousel's list: own-land, most-attacked, far-from-home or biggest-empires.
+   * A carousel's list: fight-the-most, far-from-home or biggest-empires.
    *
    * @generated from field: string list = 16;
    */
@@ -2153,7 +2092,7 @@ export class ClipRecord extends Message<ClipRecord> {
  */
 export class Carousel extends Message<Carousel> {
   /**
-   * own-land, most-attacked, far-from-home or biggest-empires.
+   * fight-the-most, far-from-home or biggest-empires.
    *
    * @generated from field: string list = 1;
    */

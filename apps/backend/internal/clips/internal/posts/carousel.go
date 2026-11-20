@@ -15,13 +15,12 @@ import (
 type ListName string
 
 const (
-	OwnLand        ListName = "own-land"
-	MostAttacked   ListName = "most-attacked"
+	FightTheMost   ListName = "fight-the-most"
 	FarFromHome    ListName = "far-from-home"
 	BiggestEmpires ListName = "biggest-empires"
 )
 
-var ListNames = []ListName{OwnLand, MostAttacked, FarFromHome, BiggestEmpires}
+var ListNames = []ListName{FightTheMost, FarFromHome, BiggestEmpires}
 
 // A list's photos between the cover and the last.
 const CarouselRanks = 5
@@ -36,27 +35,20 @@ const (
 const Listed Angle = "list"
 
 type Lists struct {
-	OwnLand        []OwnLandEntry
-	MostAttacked   []AttackedEntry
+	FightTheMost   []FightEntry
 	FarFromHome    []FarLandEntry
 	BiggestEmpires []EmpireEntry
-	AttackedSince  time.Time
+	FoughtSince    time.Time
 }
 
-type OwnLandEntry struct {
-	Country     string
-	Tiles       int
-	OwnShare    float64
-	Holder      string
-	HolderShare float64
-}
-
-type AttackedEntry struct {
-	Flag         string
-	Lost         int
-	TakenBy      string
-	TakenByTiles int
-	Country      string
+type FightEntry struct {
+	Flag       string
+	Fought     int
+	Took       int
+	Lost       int
+	Rival      string
+	RivalTiles int
+	Country    string
 }
 
 type FarLandEntry struct {
@@ -80,13 +72,11 @@ type Rank struct {
 
 var ErrUnknownList = errors.New("no list is named so")
 
-// The code of each entry, the top first: the country of own-land, the flag of the others.
+// The flag of each entry, the top first.
 func (l Lists) codesOf(list ListName) ([]string, error) {
 	switch list {
-	case OwnLand:
-		return codes(l.OwnLand, func(entry OwnLandEntry) string { return entry.Country }), nil
-	case MostAttacked:
-		return codes(l.MostAttacked, func(entry AttackedEntry) string { return entry.Flag }), nil
+	case FightTheMost:
+		return codes(l.FightTheMost, func(entry FightEntry) string { return entry.Flag }), nil
 	case FarFromHome:
 		return codes(l.FarFromHome, func(entry FarLandEntry) string { return entry.Flag }), nil
 	case BiggestEmpires:
