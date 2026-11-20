@@ -76,7 +76,7 @@ func (s *testSuite) TestAnAnonymizedArrivalIsStoredWithNoAccount() {
 
 func (s *testSuite) TestASourceTheTypeDoesNotHoldIsRefused() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
-		`INSERT INTO arrivals (id, source, referrer, arrived_at) VALUES ($1, 'tiktok', '', now())`, uuid.UUID{15: 2})
+		`INSERT INTO arrivals (id, source, referrer, arrived_at) VALUES ($1, 'instagram', '', now())`, uuid.UUID{15: 2})
 
 	s.Error(err)
 }
