@@ -55,7 +55,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   accounts there are (no new TikTok account: 94% of its views are For You's), one pick a run by a coin (2 of TikTok's 3
   a day, half of YouTube's), `post.experiment` on every post, 2 or 3 experiments at once for 10 days each and the
   owner's verdict; the owner's order (the narrated war report, POV, far invasion, rankings, call to arms, satisfying);
-  the war report's bench (tones, models, Kokoro's Adam, the owner's blind comparison before production); the costs.
+  the carousel (a list of countries in photos), on as soon as it is built; the war report's bench (tones, models,
+  Kokoro's Adam, the owner's blind comparison before production); the costs.
 - [Chat moderation](docs/moderation.md) — the three layers (banned phrases at send, raid mode for guests, a Claude Haiku
   judge of reports alone) and the daily Claude audit; the policy the judge sends Claude and the audit reads: what stays,
   what goes, the mute steps capped at 24 hours and counted from the moderation history, usernames, reports, what goes
