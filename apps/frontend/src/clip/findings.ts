@@ -1,9 +1,11 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {Contender as ContenderWritten, Findings, Front, Path as PathWritten, Pick, Place as PlaceWritten, Reign as ReignWritten, Saga, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
+import {Contender as ContenderWritten, Findings, Front, Lists as ListsWritten, Path as PathWritten, Pick, Place as PlaceWritten, Reign as ReignWritten, Saga, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Counts, FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
 import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/story.ts"
 import {Look, LOOKS} from "../domain/clip/look.ts"
 import {Path, SagaFacts} from "../domain/clip/saga.ts"
+import {LIST_NAMES, ListName, Lists} from "../domain/clip/lists.ts"
+import {Rank} from "./carousel.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {placeName, wordsOf, Written} from "./overlay.ts"
 import {nameOf, said} from "./names.ts"
@@ -48,6 +50,9 @@ export type Found = {
     anthems: string[]
     // Each continent's size in tiles.
     continentTiles: Counts
+    lists: Lists
+    // When the stretch most-attacked counts starts.
+    attackedSince: number
 }
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
@@ -72,6 +77,10 @@ export function findingsOf(found: Found): Findings {
         noted(...saga.contenders.map(({flag}) => flag))
     }
     for (const {story} of found.seasonal) noted(story.attacker, story.rival, ...story.victims, ...storyCountriesOf(story))
+    const {ownLand, mostAttacked, farFromHome, biggestEmpires} = found.lists
+    for (const entry of ownLand) noted(entry.country, entry.holder)
+    for (const entry of mostAttacked) noted(entry.flag, entry.takenBy, entry.country || undefined)
+    for (const entry of [...farFromHome, ...biggestEmpires]) noted(entry.flag, entry.country || undefined)
 
     return new Findings({
         since: at(found.since),
@@ -125,6 +134,12 @@ export function findingsOf(found: Found): Findings {
         names: Object.fromEntries([...codes].sort().map((code) => [code, said(nameOf(code))])),
         continents: continents().map((name) => ({name, flag: flagOfContinent(name) ?? "", tiles: found.continentTiles[name] ?? 0})),
         anthems: found.anthems,
+        lists: new ListsWritten({
+            ownLand: ownLand.map((entry) => ({...entry, ownShare: rounded(entry.ownShare, 3), holderShare: rounded(entry.holderShare, 3)})),
+            mostAttacked, farFromHome,
+            biggestEmpires: biggestEmpires.map((entry) => ({...entry, share: rounded(entry.share, 3)})),
+            attackedSince: at(found.attackedSince),
+        }),
     })
 }
 
@@ -160,6 +175,7 @@ export function storyFactsOf(story: Story, line: string | undefined, measured: M
 // What --story names: one of the findings, for a front what the editor made of it, and for a front or a place the look
 // the editor chose.
 export type Told =
+    | {carousel: {list: ListName, hook: string, ranks: Rank[]}}
     | {front: number, story: Story, look: Look}
     | {tour: number}
     | {place: number, look: Look}
@@ -176,6 +192,12 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
     const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
     const fighters = pick.fighters
     const experiment = pick.experiment
+    if (pick.list !== "") {
+        const list = LIST_NAMES.find((known) => known === pick.list)
+        if (list === undefined) throw new Error(`a carousel tells one of the lists ${LIST_NAMES.join(", ")}, not "${pick.list}"`)
+        if (pick.hook === "") throw new Error("a carousel has its cover")
+        return {told: {carousel: {list, hook: pick.hook, ranks: pick.ranks.map(({code, line}) => ({code, line}))}}, written: undefined, fighters: [], experiment}
+    }
     const named = [pick.front, pick.tour, pick.place, pick.saga, pick.seasonal].filter((number) => number > 0)
     if (named.length !== 1) throw new Error("a story names one front, one tour, one place, one saga or one seasonal story")
     if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined, fighters: [], experiment}

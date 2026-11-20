@@ -28,10 +28,19 @@ func ExperimentNameOf(name string) (ExperimentName, error) {
 	return ExperimentName(name), nil
 }
 
+// What an experiment's posts are: a clip of the globe, or a carousel of photos.
+type Format string
+
+const (
+	GlobeReplay Format = "globe-replay"
+	Carousel    Format = "carousel"
+)
+
 // A story the editor writes to a brief of its own, beside the run's other stories: the prose of what to tell and how.
 type Experiment struct {
-	Name  ExperimentName
-	Brief string
+	Name   ExperimentName
+	Brief  string
+	Format Format
 }
 
 // The experiments on. None is no lab: every run is the control's.
@@ -47,6 +56,9 @@ func LabOf(experiments ...Experiment) (Lab, error) {
 		}
 		if strings.TrimSpace(experiment.Brief) == "" {
 			return Lab{}, fmt.Errorf("%w: %s has no brief", ErrInvalidExperiment, experiment.Name)
+		}
+		if experiment.Format != GlobeReplay && experiment.Format != Carousel {
+			return Lab{}, fmt.Errorf("%w: %s is drawn as %q", ErrInvalidExperiment, experiment.Name, experiment.Format)
 		}
 		if seen.Contains(experiment.Name) {
 			return Lab{}, fmt.Errorf("%w: %s is on twice", ErrInvalidExperiment, experiment.Name)

@@ -32,7 +32,8 @@ jobs:
       # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
       # the cast, the players who took tiles in it, numbered and named, never an account id (the artifact is public);
       # the history, the map every hour since the season started, which each place's saga is told from.
-      # A backend that does not answer one leaves it out.
+      # A backend that does not answer one leaves it out. 72 hours, as much as the ledger keeps: a carousel's most-attacked
+      # counts the last 3 days, and the clips' stories are searched in the last 12 alone.
       - name: fetch the last 12 hours
         working-directory: apps/backend
         env:
@@ -44,7 +45,7 @@ jobs:
           ssh-add -q - <<< "$VPS_SSH_KEY"
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
-          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
+          go run ./cmd/clips fetch -hours 72 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
             -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json" -history "$GITHUB_WORKSPACE/history.json"
 
       - uses: actions/upload-artifact@v4
@@ -181,7 +182,8 @@ jobs:
           path: apps/frontend
 
       # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The model's story, its
-      # headline in it, goes through the environment, never into the script: it is the model's text.
+      # headline in it, goes through the environment, never into the script: it is the model's text. A carousel's pick
+      # renders its photos and their slideshow.
       - name: render the clip
         env:
           PICK: ${{ matrix.clip.pick }}
@@ -199,6 +201,7 @@ jobs:
           path: |
             apps/frontend/clip-${{ matrix.clip.pick }}.mp4
             apps/frontend/clip-${{ matrix.clip.pick }}.json
+            apps/frontend/clip-${{ matrix.clip.pick }}-*.jpg
           if-no-files-found: error
           retention-days: 3
 
@@ -223,8 +226,8 @@ jobs:
           merge-multiple: true
 
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
-      # The backend's publishing module plans and posts each clip, over ssh; the video goes straight to the posting
-      # service's storage, through a link the backend signs. Then the backend keeps who each post names, so the game
+      # The backend's publishing module plans and posts each clip, over ssh; the video, and a carousel's photos for
+      # TikTok, go straight to the posting service's storage, through a link the backend signs. Then the backend keeps who each post names, so the game
       # tells them: no npm in this job either.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend

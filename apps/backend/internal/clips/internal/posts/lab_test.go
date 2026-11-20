@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	farInvasion = posts.Experiment{Name: "far-invasion", Brief: "A flag far from home."}
-	callToArms  = posts.Experiment{Name: "call-to-arms", Brief: "A flag losing ground, in its language."}
+	farInvasion = posts.Experiment{Name: "far-invasion", Brief: "A flag far from home.", Format: posts.GlobeReplay}
+	callToArms  = posts.Experiment{Name: "call-to-arms", Brief: "A flag losing ground, in its language.", Format: posts.GlobeReplay}
 	// France far from home in Turkey, written to the far invasion's brief.
 	farFrance = with(battle, func(s *posts.Story) {
 		s.Headline, s.Hook = "FRANCE STORMS TURKEY", "why is france in turkey?"

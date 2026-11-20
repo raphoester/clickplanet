@@ -203,7 +203,7 @@ func TestADayWonToldAlreadyIsNotToldAgain(t *testing.T) {
 }
 
 func TestEachRunRollsTheLabsSlotBeforeTheEditorReadsAnythingAndGivesItItsBrief(t *testing.T) {
-	far := posts.Experiment{Name: "far-invasion", Brief: "A flag far from home."}
+	far := posts.Experiment{Name: "far-invasion", Brief: "A flag far from home.", Format: posts.GlobeReplay}
 	lab, err := posts.LabOf(far)
 	require.NoError(t, err)
 	labbed := room

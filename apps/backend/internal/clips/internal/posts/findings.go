@@ -41,6 +41,8 @@ func (k StoryKey) known() bool {
 		return k.Round == ""
 	case DayWon, CallUp:
 		return k.Round != ""
+	case Listed:
+		return k.Round == "" && k.Continent == TheWorld
 	default:
 		return false
 	}
@@ -64,6 +66,7 @@ type Findings struct {
 	// Each continent's size in tiles.
 	ContinentTiles map[string]int
 	Anthems        []string
+	Lists          Lists
 }
 
 type Front struct {
@@ -266,10 +269,15 @@ type Story struct {
 	Experiment ExperimentName
 	Hook       string
 	Language   string
+	// A carousel's: the list it tells, its cover in Hook, and its ranks from the 1st.
+	List  ListName
+	Ranks []Rank
 }
 
 func (s Story) Names() string {
 	switch {
+	case s.List != "":
+		return fmt.Sprintf("the carousel of %s", s.List)
 	case s.Tour > 0:
 		return fmt.Sprintf("tour %d", s.Tour)
 	case s.Place > 0:

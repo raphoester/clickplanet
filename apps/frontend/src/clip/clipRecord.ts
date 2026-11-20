@@ -2,6 +2,7 @@ import {Timestamp} from "@bufbuild/protobuf"
 import {ClipRecord} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Story, THE_WORLD} from "../domain/clip/story.ts"
 import {Look} from "../domain/clip/look.ts"
+import {ListName} from "../domain/clip/lists.ts"
 import {voiceOf} from "./callUp.ts"
 
 // What a clip was, as the generator chose it and the replay played it: numbers it already worked out, never new ones.
@@ -43,6 +44,16 @@ const rounded = (value: number, places: number) => Math.round(value * 10 ** plac
 // Of the stories the generator words itself, only a call-up speaks another language than English.
 export function languageOf(story: Story): string {
     return story.kind === "callup" && story.finaleAt !== undefined ? voiceOf(story.attacker, story.finaleAt).language : "en"
+}
+
+// Photos on TikTok and their slideshow on YouTube: codes, the ranks from the 1st.
+export function carouselRecordOf(list: ListName, codes: readonly string[], photos: number, secondsPerPhoto: number, generator: string): ClipRecord {
+    return new ClipRecord({
+        format: "carousel",
+        generator: generator || "unknown",
+        common: {durationSeconds: photos * secondsPerPhoto, music: NONE, musicStartSeconds: 0, language: "en", fighters: 0, line: ""},
+        carousel: {list, codes: [...codes], photos, secondsPerPhoto},
+    })
 }
 
 export function clipRecordOf(shown: Shown): ClipRecord {

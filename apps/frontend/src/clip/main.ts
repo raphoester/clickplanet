@@ -34,17 +34,19 @@ import {castWithin, namedSidesOf, NO_CAST} from "../domain/clip/cast.ts"
 import {fightersOf, inPlace, sidesOf, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flippedTo, flipsOf, Look, LOOKS} from "../domain/clip/look.ts"
-import {cameraOf, framingOf, overviewOf, PullBack, sagaCameraOf, screensOf} from "../domain/clip/camera.ts"
 import {blendedPaceOf, paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {framedTilesOf, pathsOf, sagasOf} from "../domain/clip/saga.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, hashtagsOf, placeName, wordsOf} from "./overlay.ts"
+import {createOverlay, hashtagsOf, placeName, tagOf, wordsOf} from "./overlay.ts"
 import {nameOf} from "./names.ts"
 import {findingsOf, FrontFound, Measured, PlaceFound, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
-import {clipRecordOf} from "./clipRecord.ts"
+import {carouselRecordOf, clipRecordOf} from "./clipRecord.ts"
+import {aimedTilesOf, codeOf, entriesOf, LIST_LENGTH, ListGround, ListName, listsOf} from "../domain/clip/lists.ts"
+import {createCarousel, photosOf, Rank} from "./carousel.ts"
+import {cameraOf, framingOf, overviewOf, PullBack, sagaCameraOf, screensOf, Shot, widestZoomOf} from "../domain/clip/camera.ts"
 import {dayOf, finaleAtOf} from "./race.ts"
 import {castOf} from "./cast.ts"
 
@@ -68,6 +70,9 @@ export type Recording = {
     fighters: {number: number, name: string, flag: string, took: number}[]
     // What to post with the clip, as a clips.v1.Clip.
     clip: JsonValue
+    // A carousel's photos, each a still frame, and how long the slideshow shows each; none for a video.
+    photos: number
+    secondsPerPhoto: number
 }
 
 export type Recorder = {
@@ -111,6 +116,18 @@ const SAGA_CALENDAR = 0.4
 
 // How long before each change a saga's clock starts to run into it: enclosures a minute apart flow, none freezes it.
 const SAGA_LEAD_MS = 5 * 60_000
+
+// What most-attacked counts: the last 3 days of the replay, or all of it when it is shorter.
+const ATTACKED_MS = 72 * 3_600_000
+
+// A carousel's slideshow on YouTube, as the teasers'.
+const SECONDS_PER_PHOTO = 3
+
+// The frames a still is drawn over before it is taken, so the painted flags and the tiles are in.
+const STILL_FRAMES = 8
+
+// A rank's place framed a little wider, so its neighbours say where on the globe it is.
+const RANK_CONTEXT = 0.7
 
 const clock = installVirtualClock()
 // Several recorders take one clip's frames in turn: each has to draw the same debris and the same shake.
@@ -328,6 +345,11 @@ async function choose(): Promise<Chosen> {
     const window = everything.filter(({at}) => at >= since && at <= until)
     const end = ownersAfter(replay.opening, everything.filter(({at}) => at <= until))
     const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf, castWithin(cast, since, until), scale)
+    // A carousel's lists, of the map at the end, and of the last 3 days for most-attacked.
+    const attackedSince = Math.max(replay.since, until - ATTACKED_MS)
+    const attacks = everything.filter(({at}) => at > attackedSince && at <= until)
+    const listGround: ListGround = {owners: end, tiles: borders.assignment.length, groundOf: groundAt, pointOf: pointAt}
+    const lists = focus !== undefined ? {ownLand: [], mostAttacked: [], farFromHome: [], biggestEmpires: []} : listsOf(listGround, attacks, scale)
     // The clip of a holding plays its flag's fighting for it, all over the place.
     const holdingReviewOf = (story: Story, look: Look): Review => {
         const changes = window.filter(({tile, from, to}) => from !== to && (from === story.attacker || to === story.attacker)
@@ -423,7 +445,7 @@ async function choose(): Promise<Chosen> {
     const toursFound = tours.map(tourFound)
 
     // The clip of the story --story names: the fighting of its sides where it is told, the story as the editor wrote it.
-    const reviewOf = (told: Told): Review => {
+    const reviewOf = (told: Exclude<Told, {carousel: unknown}>): Review => {
         if ("tour" in told) {
             const found = tours[told.tour - 1]
             const facts = toursFound[told.tour - 1]
@@ -458,9 +480,94 @@ async function choose(): Promise<Chosen> {
         return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity, look: told.look}
     }
 
+    // The game's globe over a replay, its camera the clip's: country, the flag it plays for.
+    const globeOf = (backend: ReplayBackend, country: string, director: () => Shot) => createGlobe({
+        board,
+        tileClicker: {clickTile: () => Promise.resolve()},
+        ownershipsGetter: backend,
+        updatesListener: backend,
+        bonusListener: backend,
+        bomber: backend,
+        container: stage,
+        country: Countries.get(country) ?? {code: country},
+        mapView: "split",
+        provinces: false,
+        rendering: "sharp",
+        director,
+        onLeaderboardChange: () => {},
+        onLoadProgress: () => {},
+        onRateLimited: () => {},
+        onFrozen: () => {},
+        onVPNBlocked: () => {},
+        onBanned: () => {},
+        onSessionUnavailable: () => {},
+        onAllegianceLocked: () => {},
+        onOutOfReach: () => {},
+        onBonusWon: () => {},
+        onCharges: () => {},
+        onRules: () => {},
+        onSwitchesChange: () => {},
+        onBombDropped: () => {},
+        onArmedChange: () => {},
+        signal: new AbortController().signal,
+    })
+
+    // The map at the end, still: each rank aimed at its place no closer than its painted flags, one photo a frame.
+    const carouselOf = async (pick: number, told: {list: ListName, hook: string, ranks: Rank[]}, experiment: string): Promise<Recording> => {
+        const entries = entriesOf(lists, told.list)
+        const photos = photosOf(told.list, entries, told.ranks, told.hook)
+        const aimed = entries.slice(0, LIST_LENGTH).map((entry) => {
+            const tiles = aimedTilesOf(entry, listGround, attacks)
+            const framed = "flag" in entry ? tiles : framedTilesOf(tiles, (tile) => borders.assignment[tile - 1])
+            return framingOf(framed.map(pointAt), aspect)
+        })
+        const widest = widestZoomOf(aspect)
+        const flagsZoom = flagsZoomOf(root.clientHeight, scale)
+        const whole = {direction: meanOf(aimed.map(({direction}) => direction)) ?? aimed[0].direction, zoom: widest}
+        const shots: Shot[] = [
+            whole,
+            ...aimed.map(({direction, zoom}) => ({direction, zoom: Math.max(widest, Math.min(zoom * RANK_CONTEXT, flagsZoom))})).reverse(),
+            {direction: aimed[0].direction, zoom: widest},
+        ]
+        const backend = replay.cut(until + 1, until)
+        let shown = 0
+        const first = codeOf(entries[0])
+        const globe = await globeOf(backend, first, () => shots[shown])
+        await globe.tilesRead
+        await textures()
+        await document.fonts.ready
+        const carousel = createCarousel(root, photos)
+        await picturesLoaded(root)
+        carousel.fit()
+        carousel.show(0)
+
+        frame = (index) => {
+            shown = index
+            carousel.show(index)
+            for (let i = 0; i < STILL_FRAMES; i++) clock.advance(1000 / fps)
+        }
+
+        const codes = told.ranks.map(({code}) => code)
+        const countries = codes.filter((code) => Countries.has(code)).map((code) => ({code, tag: tagOf(nameOf(code))}))
+        return {
+            pick, frames: 0, fps, seconds: photos.length * SECONDS_PER_PHOTO,
+            since: new Date(attackedSince).toISOString(), until: new Date(until).toISOString(),
+            look: `carousel of ${told.list}: ${photos.length} photos, ${photos.flatMap((photo) => photo.kind === "rank" ? [`#${photo.rank} ${photo.name} ${photo.number}`] : []).join(", ")}`,
+            music: undefined, place: told.list, headline: told.hook, line: "", call: "", teasers: [told.hook], fighters: [],
+            clip: new Clip({
+                pick, title: told.hook, key: {flag: first, continent: THE_WORLD, angle: "list"}, teasers: [told.hook], teaserNames: ["editor"],
+                countries, record: carouselRecordOf(told.list, codes, photos.length, SECONDS_PER_PHOTO, params.get("commit") ?? ""),
+                experiment, list: told.list,
+            }).toJson(),
+            photos: photos.length,
+            secondsPerPhoto: SECONDS_PER_PHOTO,
+        }
+    }
+
     const record = async (): Promise<Recording> => {
         const pick = numberParam("pick") ?? 1
         const {told, written, fighters: chosen, experiment} = storyParam()
+        if ("carousel" in told) return carouselOf(pick, told.carousel, experiment)
         const picked = reviewOf(told)
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
@@ -537,36 +644,7 @@ async function choose(): Promise<Chosen> {
         const hashtags = hashtagsOf(story)
 
         let played = 0
-        const globe = await createGlobe({
-            board,
-            tileClicker: {clickTile: () => Promise.resolve()},
-            ownershipsGetter: backend,
-            updatesListener: backend,
-            bonusListener: backend,
-            bomber: backend,
-            container: stage,
-            country: Countries.get(story.attacker) ?? {code: story.attacker},
-            mapView: "split",
-            provinces: false,
-            rendering: "sharp",
-            director: () => camera(played),
-            onLeaderboardChange: () => {},
-            onLoadProgress: () => {},
-            onRateLimited: () => {},
-            onFrozen: () => {},
-            onVPNBlocked: () => {},
-            onBanned: () => {},
-            onSessionUnavailable: () => {},
-            onAllegianceLocked: () => {},
-            onOutOfReach: () => {},
-            onBonusWon: () => {},
-            onCharges: () => {},
-            onRules: () => {},
-            onSwitchesChange: () => {},
-            onBombDropped: () => {},
-            onArmedChange: () => {},
-            signal: new AbortController().signal,
-        })
+        const globe = await globeOf(backend, story.attacker, () => camera(played))
         await globe.tilesRead
 
         await textures()
@@ -622,13 +700,15 @@ async function choose(): Promise<Chosen> {
                 experiment,
             }).toJson(),
             music,
+            photos: 0,
+            secondsPerPhoto: 0,
         }
     }
 
     return {
         findings: findingsOf({
             since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, paths,
-            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(),
+            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(), lists, attackedSince,
             continentTiles: Object.fromEntries(tally(Array.from({length: borders.assignment.length}, (_, i) => continentAt(i + 1) ?? []).flat())),
         }).toJson(),
         record,

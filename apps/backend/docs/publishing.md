@@ -113,9 +113,9 @@ each post's address as the snapshots read it, for the clips module. With no key,
   the post's numbers beside. The words are the job's too: the server writes none, and checks only that each platform
   of the slot has its own (`posts.NewPost`, `InvalidArgument`).
 
-  **On TikTok, photos can stand in for the video** (`tiktok_photo_urls`, 2026-11-09, for the battle teasers): the
-  TikTok target is then a carousel of them, in their order, 35 at most, in its own media (`customMedia`), while every
-  other platform gets the video. Zernio makes a photo post's text its title, 90 characters at most, its hashtags and
+  **On TikTok, photos can stand in for the video** (`tiktok_photo_urls`, 2026-11-09, for the battle teasers, and the
+  clips job's carousels since 2026-11-20): the TikTok target is then a carousel of them, in their order, 35 at most, in
+  its own media (`customMedia`), while every other platform gets the video. Zernio makes a photo post's text its title, 90 characters at most, its hashtags and
   links stripped, so the title is `TikTokWords.title` and the caption goes below the photos (`description`); public,
   with comments, opening on the first photo, and **with music TikTok adds** (`autoAddMusic`), as a carousel has no
   sound of its own; no duet or stitch, which a carousel does not have. Photos with no title are `InvalidArgument` when

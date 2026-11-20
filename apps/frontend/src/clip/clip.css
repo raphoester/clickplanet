@@ -23,7 +23,7 @@ html, body {
 }
 
 .clip--fallback-font :is(.clip-headline, .clip-hook, .clip-counter, .clip-site, .clip-call, .clip-when, .clip-url, .clip-podium-place,
-    .clip-fighters-title, .clip-fighter) {
+    .clip-fighters-title, .clip-fighter, .carousel-hook, .carousel-rank, .carousel-title, .carousel-number, .carousel-line, .carousel-site) {
     font-weight: 900;
 }
 
@@ -365,4 +365,132 @@ html, body {
     margin-left: 10px;
     color: var(--gain);
     white-space: nowrap;
+}
+
+/* A carousel's photos: one card at a time over the still globe, in the clip's letters, and no address before the last. */
+.carousel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.carousel--cover {
+    justify-content: center;
+    padding: var(--safe-top) var(--safe-side) var(--safe-bottom);
+    background: radial-gradient(ellipse at center, var(--scrim), transparent 70%);
+}
+
+.carousel-hook {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 58px;
+    font-weight: normal;
+    line-height: 1.05;
+    color: var(--gold);
+    -webkit-text-stroke: 7px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 var(--ink);
+}
+
+.carousel--rank {
+    justify-content: space-between;
+}
+
+.carousel-top {
+    padding: var(--safe-top) var(--safe-side) 48px;
+    background: linear-gradient(var(--scrim), var(--scrim) 60%, transparent);
+}
+
+.carousel-rank {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 1;
+    color: var(--gold);
+    -webkit-text-stroke: 7px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 var(--ink);
+}
+
+.carousel-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 10px 0 0;
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: normal;
+    line-height: 1.05;
+    color: var(--text);
+    -webkit-text-stroke: 6px var(--ink);
+    paint-order: stroke fill;
+    white-space: nowrap;
+}
+
+.carousel-flag {
+    flex: none;
+    height: 1.1em;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+}
+
+.carousel-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 48px var(--safe-right) var(--safe-bottom) var(--safe-side);
+    background: linear-gradient(transparent, var(--scrim) 40%);
+}
+
+.carousel-number {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 60px;
+    line-height: 1;
+    color: var(--gold);
+    -webkit-text-stroke: 7px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 var(--ink);
+}
+
+.carousel-line {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 1.1;
+    color: var(--text);
+    -webkit-text-stroke: 5px var(--ink);
+    paint-order: stroke fill;
+}
+
+.carousel--last {
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(ellipse at center, var(--scrim), transparent 65%);
+}
+
+.carousel-mark {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.carousel-logo {
+    width: 120px;
+    height: 120px;
+}
+
+.carousel-site {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 56px;
+    color: var(--gold);
+    -webkit-text-stroke: 7px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 var(--ink);
 }

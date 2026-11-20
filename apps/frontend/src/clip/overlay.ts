@@ -71,7 +71,7 @@ export function placeName(place: Place): string {
     return "region" in place ? place.region : LIST.format(countriesOf(place).map(nameOf))
 }
 
-function tagOf(name: string): string {
+export function tagOf(name: string): string {
     return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
 }
 

@@ -31,6 +31,8 @@ const (
 	tiktokSite  = site + "/t"
 	youtubeSite = site + "/y"
 	brand       = " | CLICKPLANET"
+	// A carousel asks it, and calls to nothing: two calls to act in the middle of a carousel cut its views by 4.
+	carouselQuestion = "Where is your country? 👇"
 )
 
 type Dice interface {
@@ -51,17 +53,25 @@ func wordingOf(clip Clip, dice Dice) wording {
 	if len(clip.teaserNames) == len(clip.teasers) {
 		name = clip.teaserNames[teaser]
 	}
+	if clip.carousel() {
+		return wording{teaser: clip.teasers[teaser], teaserName: name}
+	}
 	return wording{teaser: clip.teasers[teaser], teaserName: name, call: callsToAction[dice.IntN(len(callsToAction))]}
 }
 
 type TikTokWords struct {
+	// Over a carousel's photos; none on a video.
+	Title   string
 	Caption string
 }
 
 // A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
-	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, tiktokSite)...)
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
+	if clip.carousel() {
+		return TikTokWords{Title: clip.title, Caption: strings.Join([]string{carouselQuestion, tiktokSite, hashtagged(tags)}, "\n")}
+	}
+	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, tiktokSite)...)
 	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
 }
 
