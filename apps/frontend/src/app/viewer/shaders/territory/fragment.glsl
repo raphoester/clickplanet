@@ -226,9 +226,9 @@ vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNum
 
     // Explicit gradients: they follow the ground, which runs on across two tiles of different flags.
     vec2 at = frameUVof(flagFrame, uv);
-    vec3 rgb = slotted
-        ? textureGrad(slotTexture, at, across * flagFrame.zw, upward * flagFrame.zw).rgb
-        : textureGrad(atlasTexture, at, across * flagFrame.zw, upward * flagFrame.zw).rgb;
+    vec3 rgb = onWhite(slotted
+        ? textureGrad(slotTexture, at, across * flagFrame.zw, upward * flagFrame.zw)
+        : textureGrad(atlasTexture, at, across * flagFrame.zw, upward * flagFrame.zw));
     return vec4(rgb, share);
 }
 

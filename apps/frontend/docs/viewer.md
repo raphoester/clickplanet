@@ -41,7 +41,11 @@
 - `strayFingers.ts` — `endStrayFingers`, the `pointercancel` sent for a finger iOS took for its swipe back and never
   ended, which left OrbitControls in a pinch. See [A finger iOS took for its swipe back](stray-fingers.md).
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
-  atlas URL and size.
+  atlas URL and size. **A flag's empty part is white on the globe** (`onWhite` in `shaders/flagFrame.glsl`, read by
+  the tiles and the territory layer, from the atlas and the slots alike). Nepal is the one flag with one, 42% of its
+  sprite. The tiles set their own alpha, so its corners used to show whatever colour the file hides under an alpha
+  of 0: blue streaks in the atlas, black where a browser drops it. The UI, the share card and the videos draw a flag
+  over their own backgrounds and keep it transparent.
 - `territoryLayer.ts` — the terrain and the zoomed-out view's flags, painted pixel by pixel on a sphere under the
   tiles: each pixel finds its lattice point's cell. See [The zoomed-out view](zoomed-out-view.md).
 - `terrain.ts` — the board's terrain file, loaded with the globe, its texture and its palette. See
