@@ -8,6 +8,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration/claude_writer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration/tones"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration/usecases/bench_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/claude_editor"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/experiments"
@@ -55,6 +59,19 @@ type (
 	PlatformOutcome = posts.PlatformOutcome
 	LabSlot         = posts.LabSlot
 	Experiment      = posts.Experiment
+	BenchRound      = narration.Bench
+	BenchEntry      = narration.Entry
+	Script          = narration.Script
+	WriterModel     = narration.Model
+	ToneName        = narration.ToneName
+	Spend           = posts.Spend
+)
+
+// The writers of the war report's bench.
+const (
+	Haiku  = narration.Haiku
+	Sonnet = narration.Sonnet
+	Opus   = narration.Opus
 )
 
 type Config struct {
@@ -324,4 +341,59 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 	}
 	log_keep_appearances.New(keep_appearances_usecase.New(appearances), logger).Execute(ctx, report)
 	return report, nil
+}
+
+// A round of the war report's bench (docs/video-lab.md): no ssh and nothing posted, the findings of a run and the key
+// of Anthropic's API alone. Tones empty is every tone; models empty is Opus.
+type BenchConfig struct {
+	Anthropic cpanthropic.Config
+	Stories   int
+	Tones     []string
+	Models    []string
+	Day       int
+}
+
+const defaultBenchStories = 3
+
+func Bench(ctx context.Context, findings string, config BenchConfig) (narration.Bench, error) {
+	round, err := roundOf(config)
+	if err != nil {
+		return narration.Bench{}, err
+	}
+	client, err := cpanthropic.NewClient(config.Anthropic)
+	if err != nil {
+		return narration.Bench{}, fmt.Errorf("the bench needs the key of Anthropic's API: %w", err)
+	}
+	bench := bench_usecase.New(
+		generator_output.FindingsFile(findings), claude_editor.New(client, claude_editor.DefaultModel), claude_editor.FactsOf,
+		claude_writer.New(client), round,
+	)
+	return bench.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
+}
+
+func roundOf(config BenchConfig) (bench_usecase.Round, error) {
+	round := bench_usecase.Round{Stories: config.Stories, Day: config.Day}
+	if round.Stories <= 0 {
+		round.Stories = defaultBenchStories
+	}
+	var err error
+	if len(config.Tones) == 0 {
+		round.Tones, err = tones.All()
+	} else {
+		round.Tones, err = tones.Named(config.Tones...)
+	}
+	if err != nil {
+		return bench_usecase.Round{}, err //nolint:wrapcheck // the tones already say which is missing.
+	}
+	if len(config.Models) == 0 {
+		round.Models = []narration.Model{narration.Opus}
+	}
+	for _, name := range config.Models {
+		model, err := narration.ModelOf(name)
+		if err != nil {
+			return bench_usecase.Round{}, err //nolint:wrapcheck // the domain already says what is wrong.
+		}
+		round.Models = append(round.Models, model)
+	}
+	return round, nil
 }

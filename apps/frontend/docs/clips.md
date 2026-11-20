@@ -243,6 +243,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   (`.clip-ending-flag`). Until 2026-11-20 each had a width of 180px alone, the row stretched every one to the tallest's
   height, and a 2:1 flag floated in a 3:2 frame. A row wider than the card is drawn lower, every flag at the same height
   (`fit`, once the pictures are in): two Union Jacks at 105px. Nepal's pennant gets a rectangle round it.
+- **The bench's voice** (`scripts/clip/voice/`, the root's [The video lab](../../../docs/video-lab.md), "The war report's
+  bench"): `node voice.mjs <bench.json> <out> [am_adam,af_heart]` says each script of a bench round in each voice,
+  **Kokoro** (`kokoro-js`, Apache 2.0, its phonemizer too) on the CPU, one line at a time since Kokoro truncates a long
+  input, the lines joined with a breath of 0.3 s, as `<id>-<voice>.wav` and a `voices.json`; the workflow turns each into
+  an MP3. Adam (`am_adam`) is the default, the owner's pick by ear. **A package of its own**, with its lock and an
+  `.npmrc` that skips onnxruntime's CUDA download, so none of it is in the game's dependencies. Its model comes from
+  Hugging Face on the first call, which the runner reaches.
 - **A lab story's hook is read alone first** (`.clip-hook`, `HOOK_SECONDS`): big gold words over the first 1.5 s,
   "WHY IS HUNGARY IN INDONESIA?", below where the headline then fades in over half a second as the hook fades out, so
   the two never cross. The map plays under it from the first frame, and the counter shows. A hook in letters Luckiest

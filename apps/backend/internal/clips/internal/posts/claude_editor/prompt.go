@@ -218,20 +218,10 @@ func PromptOf(offer posts.Offer) (string, error) {
 		written.Fronts = append(written.Fronts, frontOf(i+1, found))
 	}
 	for i, found := range findings.Tours {
-		written.Tours = append(written.Tours, tour{
-			Tour: i + 1, Flag: found.Flag, Since: found.Since.UTC(), Until: found.Until.UTC(), Hours: hoursOf(found.Since, found.Until),
-			Took: found.Took, ByContinent: found.ByContinent, TookFrom: found.TookFrom, NextTook: found.NextTook,
-			FlippedByContinent: found.FlippedByContinent, Solidity: found.Solidity, Bombs: found.Bombs,
-			Fighters: fightersOf(found.Fighters),
-		})
+		written.Tours = append(written.Tours, tourOf(i+1, found))
 	}
 	for i, found := range findings.Places {
-		written.Places = append(written.Places, place{
-			Place: i + 1, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles,
-			Holder: found.Holder, Held: found.Held, Share: found.Share, Rivals: found.Rivals, Changed: found.Changed,
-			FlippedByContinent: found.FlippedByContinent,
-			Fighters:           fightersOf(found.Fighters),
-		})
+		written.Places = append(written.Places, placeOf(i+1, found))
 	}
 	for i, found := range findings.Sagas {
 		written.Sagas = append(written.Sagas, sagaOf(i+1, found))
@@ -248,6 +238,24 @@ func PromptOf(offer posts.Offer) (string, error) {
 		return "", fmt.Errorf("failed to write the prompt: %w", err)
 	}
 	return "The run's findings, as JSON:\n\n" + string(text), nil
+}
+
+func tourOf(number int, found posts.Tour) tour {
+	return tour{
+		Tour: number, Flag: found.Flag, Since: found.Since.UTC(), Until: found.Until.UTC(), Hours: hoursOf(found.Since, found.Until),
+		Took: found.Took, ByContinent: found.ByContinent, TookFrom: found.TookFrom, NextTook: found.NextTook,
+		FlippedByContinent: found.FlippedByContinent, Solidity: found.Solidity, Bombs: found.Bombs,
+		Fighters: fightersOf(found.Fighters),
+	}
+}
+
+func placeOf(number int, found posts.Place) place {
+	return place{
+		Place: number, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles,
+		Holder: found.Holder, Held: found.Held, Share: found.Share, Rivals: found.Rivals, Changed: found.Changed,
+		FlippedByContinent: found.FlippedByContinent,
+		Fighters:           fightersOf(found.Fighters),
+	}
 }
 
 func toldOf(telling posts.Telling) told {

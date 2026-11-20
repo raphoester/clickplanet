@@ -1,7 +1,7 @@
 # The video lab: new formats on the game's own accounts
 
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
-experiments, far invasion and call to arms.** The clips had one format, and the experiments of October only tuned it.
+experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench.** The clips had one format, and the experiments of October only tuned it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
 frame works is the backend's [The clips job](../apps/backend/docs/clips-job.md), "The lab", and the hook the
@@ -102,44 +102,90 @@ Then, the same day:
     the views (median 935) and likes per 1,000 views (7.7).
 - **The lab's log**, at the end of this doc, keeps each experiment: when it ran, its numbers, its verdict.
 
-## The formats, in the order they are built
+## The order
 
-**On today's renderer, with a brief and a hook** (built, PR 1):
+**The owner ranked the experiments on 2026-11-20, and they are tested in that order**, two or three at once:
 
-- **Far invasion: "WHY IS HUNGARY IN INDONESIA?"** The lead of the best posts, made on purpose. A flag fighting on a
-  continent that is not its own; the hook asks the question over the opening, and the headline answers it. The editor
-  dropped "the odd pair is the hook" on 2026-11-09 for headlines a stranger could not read ("BULGARIA VS GERMANY FOR
-  SAUDI ARABIA"); this brings the pair back as a question anyone reads. Far is the model's to judge, not a check's.
-- **Call to arms, in the flag's language: "POLACY, GDZIE JESTEŚCIE?"** A flag losing a place it held, told from its
-  side to its own people: the hook, the headline, the teasers (so the YouTube title) and the call in its language, its
-  anthem, the end card asking to defend it. National pride argues in the comments, and the viewer has a reason to come
-  in now. The words in letters Luckiest Guy cannot draw are set in Rubik Black; the caption's call to play and its
-  hashtags stay English.
+1. **The war report, narrated.** It goes to production only once the owner has compared its scripts and voices and
+   signed one off (below, "The war report's bench").
+2. **POV, the game itself.**
+3. **Far invasion** (built, on).
+4. **Rankings.**
+5. **Call to arms**, posted at the country's evening (built, off until its turn): the calendar's TikTok hours, 14:00
+   to 20:00 UTC, are Europe's evening, not Brazil's or Indonesia's, so its turn needs hours per country.
+6. **Satisfying.**
 
-**New cuts of the same globe:**
+Far invasion runs alone until the war report and POV join it: the coin draws evenly among the experiments on, so it
+takes every lab slot meanwhile. Call to arms ran from the merge of PR 1 to the merge of PR 2, the morning of
+2026-11-20.
 
-- **Satisfying**: 6 to 7 s, no headline, close on the busiest moment of bombs, a virus spreading or an enclosure
-  filling, ending on the payoff so it plays again; the address small in a corner. Built from the findings, which count
-  each front's bombs, spreads and enclosures: a camera that holds close, and an overlay with no words. The third
-  experiment on.
-- **Rankings: "THE 5 COUNTRIES THE INTERNET ATTACKED MOST THIS WEEK"**: the globe flies from 5th to 1st, each with its
-  rank and the tiles fought over. Built from the map history the job already fetches, a ranking in the findings, and
-  the tour's camera with ranks drawn.
+## The formats
 
-**New tools:**
-
-- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"**: 20 to 25 s, a voice tells a saga
-  like a war correspondent, one episode a day of the season, ending on what may come next. The editor writes the
-  script with the saga. The voice is **Kokoro** (open weights under Apache 2.0, runs on a CPU), in English, made in the
-  render job, for nothing. Its phonemizer, espeak-ng, is GPLv3: run as a program in the job, never shipped. 25 s is 750
-  frames, 24 to 39 minutes at 1.9 to 3.1 s a frame, inside the render job's 60.
+- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"**: 20 to 30 s, a voice tells one
+  story's new chapter, one episode a day of the season, ending on what may come next. The editor chooses the story, as
+  for any lab story; a writer of its own writes what the voice says, from that story's facts alone, the tone, and the
+  episodes before it, so the series goes on from where it was. The globe plays the story under the voice, the anthem
+  low beneath it. 30 s is 900 frames, 28 to 47 minutes at 1.9 to 3.1 s a frame, inside the render job's 60. The voice is
+  **Kokoro** (open weights and code under Apache 2.0, its phonemizer too), run in Node with `kokoro-js`, for nothing; a
+  paid voice only if every one of Kokoro's sounds made by a machine to the owner.
 - **POV, the game itself: "POV: IT'S 3AM AND YOU'RE THE LAST BELGIAN"**: the play screen and not the cinematic globe,
   its bar and counters, a finger tapping, bombs going off. The play page driven by the replay in the recorder, and a
   drawn finger. The biggest build of the list.
+- **Far invasion: "WHY IS HUNGARY IN INDONESIA?"** (built): the lead of the best posts, made on purpose. A flag fighting
+  on a continent that is not its own; the hook asks the question over the opening, and the headline answers it. The
+  editor dropped "the odd pair is the hook" on 2026-11-09 for headlines a stranger could not read ("BULGARIA VS GERMANY
+  FOR SAUDI ARABIA"); this brings the pair back as a question anyone reads. Far is the model's to judge, not a check's.
+- **Rankings: "THE 5 COUNTRIES THE INTERNET ATTACKED MOST THIS WEEK"**: the globe flies from 5th to 1st, each with its
+  rank and the tiles fought over. Built from the map history the job already fetches, a ranking in the findings, and
+  the tour's camera with ranks drawn.
+- **Call to arms, in the flag's language: "POLACY, GDZIE JESTEŚCIE?"** (built, off): a flag losing a place it held,
+  told from its side to its own people: the hook, the headline, the teasers (so the YouTube title) and the call in its
+  language, its anthem, the end card asking to defend it. The words in letters Luckiest Guy cannot draw are set in
+  Rubik Black; the caption's call to play and its hashtags stay English.
+- **Satisfying**: 6 to 7 s, no headline, close on the busiest moment of bombs, a virus spreading or an enclosure
+  filling, ending on the payoff so it plays again; the address small in a corner. A camera that holds close, and an
+  overlay with no words.
 
 **Not built: AI-made video.** A 2 s AI-made hook, then the real map, is the one form of it that still shows the game.
 It is paid by the second of video, more than every other AI call of the project, whose ceiling is $10 a month, and
 TikTok labels AI-made content. One experiment of it, once the others have read, with a cap the owner sets.
+
+## The war report's bench
+
+**A voice that sounds written by a machine loses the viewer in a second** (the owner, 2026-11-20): the war report's
+words are tuned on real stories, in several tones, and compared by the owner, before any of it is posted.
+
+- **Nothing posts.** A bench run is a workflow started by hand (`narration-bench.yml`): it takes a clips run's
+  findings, the editor chooses that moment's best stories as it would for a run, and **the writer writes each in each
+  tone, with each model asked**; Kokoro voices each script in each voice asked. The run's artifact holds the scripts,
+  what each cost, and the audio.
+- **On real moments, with no access to production**: the findings are what each clips run measured, kept 30 days
+  from 2026-11-20 (they were kept 1), so a round can be run again on any recent run, the same stories for every
+  variant. The sagas start at the world's switch to `earth-2` (2026-11-18).
+- **The tones are briefs** (`narration/tones/<name>.md`), as the experiments are, and the first five are: a war
+  correspondent on the ground; a sports commentator calling it; a history documentary looking back; a storyteller
+  telling a friend; and deadpan, the absurd said flat. **The writer's instructions hold what every tone keeps**: written
+  for the ear, short sentences, words a teen knows, numbers as people say them, only what the facts say, and none of
+  the turns that give a machine away ("in a stunning turn of events", "little did they know", "buckle up", "it's not
+  just X, it's Y", "only time will tell"). The bench counts each script's words, its length spoken, and any such turn
+  it still has; it refuses none.
+- **The models**: Claude Haiku 5.5, the editor's ($0.10 and $0.50 a million tokens in and out), Sonnet 5.5 ($2 and
+  $10) and Opus 5.5 ($4 and $20). A script is a small call, one story and its tone: about $0.05 on Opus, so one episode
+  a day is under $2 a month on any of them, inside the $10 ceiling. Which writes like a person is the bench's to show.
+- **A round is started by hand**: GitHub's Actions, "narration bench", Run workflow, or Claude starting it. Its inputs:
+  the clips run (empty is the latest that succeeded), the stories (3), the tones (every one), the models (opus), the
+  voices (`am_adam`) and the season's day (0, none). Its artifact `bench`, kept 30 days, holds `bench.json` (each
+  script, its words, its length, the turns that give a machine away, its cost) and an MP3 of each script in each voice.
+- **The owner compares on a page**, on a phone as well: each story with its variants in a random order and no label,
+  each with its audio and its words, rated 1 to 5 on "sounds like a person" and "I'd watch to the end", the best of
+  each story picked, a note for any. The page keeps the ratings; Claude reads them, unblinds them, and says which
+  tone, model and voice won and what the notes said. The next round changes one thing.
+- **The voice is Kokoro's Adam (`am_adam`) by default**, a male American voice: the owner tried Kokoro's voices by hand
+  on 2026-11-20 and Adam sounded the best, whatever its grade in Kokoro's table (F+). Another voice is a bench input.
+- **The rounds**: 1. the tones, on Opus, in Adam's voice, 3 stories: 15 scripts, about 6
+  minutes of listening, about $1. 2. the best two tones on the three models, in Adam's voice. 3. whole videos of the
+  winner on new stories, once the renderer plays a voice. **The owner signs one off**, and only then is it an
+  experiment of the lab.
 
 ## What it costs
 
@@ -149,6 +195,7 @@ TikTok labels AI-made content. One experiment of it, once the others have read, 
 | Rendering | nothing: Actions are free for a public repository |
 | The editor | a brief and one story more a run: about $0.05 |
 | The voice | nothing: Kokoro, in the render job |
+| The war report's bench | about $1 a round of 15 scripts on Opus, while it is tuned |
 | The owner | nothing to film; the readout when wanted; a verdict per experiment, every 10 days or so |
 
 ## The PRs, in order
@@ -158,18 +205,24 @@ TikTok labels AI-made content. One experiment of it, once the others have read, 
    `experiment` from the pick to the post's record, `CLIPS_LAB`, `clips edit -experiment`. **The lab is on from its
    merge**: the workflow runs the job and the generator from the default branch, and the server keeps a post's
    metadata as it is given, so nothing is deployed.
-2. **The readout**: auth's arrivals counted by source and by day on its `AdminService`, so the backoffice and Claude's
+2. **The owner's order and the war report's bench**: call to arms off, the findings kept 30 days, the writer, its
+   tones, `clips bench`, Kokoro's voices, `narration-bench.yml`. Nothing it makes posts.
+3. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
+   globe, timed to it) and its experiment, once signed off.
+4. **POV.**
+5. **The readout**: auth's arrivals counted by source and by day on its `AdminService`, so the backoffice and Claude's
    connector both read them; the backoffice's Lab page, each experiment on each platform against the control of the
    same days: posts, median and best views, breakouts, the signs above, and each day's arrivals by platform. Until it
    is built, the rows of the snapshot hold every number, each with its `post.experiment`, and Claude reads them
    through the connector.
-3. **Satisfying**, the third experiment on.
-4. **Rankings.**
-5. **The war report, narrated.**
-6. **POV.**
-7. **Instagram Reels**, if the owner takes it: $6 a month, `instagram` in the publishing calendar and the snapshot, and
+6. **Rankings.**
+7. **Call to arms' hours**, its country's evening, then it is on again.
+8. **Satisfying.**
+9. **Instagram Reels**, if the owner takes it: $6 a month, `instagram` in the publishing calendar and the snapshot, and
    `clickplanet.lol/i` in the arrivals.
 
 ## The lab's log
 
-- **far-invasion** and **call-to-arms**: built 2026-11-20, on from the merge of PR 1.
+- **far-invasion**: built 2026-11-20, on from the merge of PR 1.
+- **call-to-arms**: built 2026-11-20, on from the merge of PR 1, off from the merge of PR 2, for the owner's order:
+  its turn is fifth.
