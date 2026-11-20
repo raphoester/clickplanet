@@ -1,8 +1,9 @@
 # The video lab: new formats on the game's own accounts
 
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
-experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. The carousel, a list of countries in
-photos, was designed the same day.** The clips had one format, and the experiments of October only tuned it.
+experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. PR 3 is built (2026-11-20): the carousel,
+a list of countries in photos, on from its merge.** The clips had one format, and the experiments of October only tuned
+it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
 frame works is the backend's [The clips job](../apps/backend/docs/clips-job.md), "The lab", and the hook the
@@ -51,8 +52,8 @@ Then, the same day:
 
 ## Words
 
-- **Format**: what a video looks like, its renderer: `ClipRecord.format`, `globe-replay` today, `carousel` to come
-  (photos on TikTok, not a video).
+- **Format**: what a video looks like, its renderer: `ClipRecord.format`, `globe-replay`, or `carousel` (photos on
+  TikTok, not a video; built, PR 3).
 - **Brief**: what the editor is asked to tell, and how, for an experiment's story: prose, embedded. Not "angle": the
   code's `Angle` is what a story key says a story tells of its flag.
 - **Hook**: big words over a clip's opening, read alone before the headline: a lab story's alone.
@@ -120,9 +121,9 @@ Then, the same day:
    to 20:00 UTC, are Europe's evening, not Brazil's or Indonesia's, so its turn needs hours per country.
 6. **Satisfying.**
 
-Far invasion runs alone until the war report and POV join it, or the carousel (below, "Photos, not a video"), which is
-on as soon as it is built: the coin draws evenly among the experiments on, so they share every lab slot meanwhile. Call to arms ran from the merge of PR 1 to the merge of PR 2, the morning of
-2026-11-20.
+Far invasion and the carousel (below, "Photos, not a video"), on from the merge of PR 3, run until the war report and
+POV join them: the coin draws evenly among the experiments on, so they share every lab slot meanwhile. Call to arms ran
+from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
 
 ## The formats
 
@@ -151,7 +152,7 @@ on as soon as it is built: the coin draws evenly among the experiments on, so th
   filling, ending on the payoff so it plays again; the address small in a corner. A camera that holds close, and an
   overlay with no words.
 
-**Photos, not a video** (designed 2026-11-20, on as soon as it is built, outside the order):
+**Photos, not a video** (designed 2026-11-20, built the same day, PR 3, on from its merge, outside the order):
 
 - **Carousel: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"**. The best format of an app maker who grew on TikTok with
   no ads (an article on X, 2026-11-19): a photo carousel, a list people know, a question as the caption, and the name
@@ -177,7 +178,25 @@ on as soon as it is built: the coin draws evenly among the experiments on, so th
     935.
   - **Made from what is there**: the clip's page draws the stills (the map at the replay's end, the camera aimed at
     each place, the clip's look), the teasers' ffmpeg makes the slideshow, and `schedule` uploads the photos and gives
-    them as TikTok's media (publishing's `tiktok_photo_urls`, as promo does). `clip.format` is `carousel`.
+    them as TikTok's media (publishing's `tiktok_photo_urls`, as promo does). `clip.format` is `carousel`. How each
+    part works is in the backend's [The clips job](../apps/backend/docs/clips-job.md), "The carousel", and the
+    frontend's [Clips](../apps/frontend/docs/clips.md), "A carousel".
+  - **The measures the build chose** (2026-11-20, as the design left them open):
+    - **Big enough to show** is a country of 1,000 tiles of `earth-1` or more, on any board as much ground
+      (`bigCountryTiles`, the places' floor read from the board's scale: 49 countries on `earth-1`). A country nobody
+      holds any of has no holder to name, and is left out.
+    - **Far from home** is each flag's land on another country's ground, from its middle to the nearest ground of the
+      flag's own country, along the globe, to the nearest 100 km, weighed by its size: times `tiles / (tiles + 100)`,
+      100 tiles of `earth-1` being a painted flag read from far (`readableFlipTiles`). A holding that size counts half
+      its distance, one ten times bigger 91% of it, a speck nearly none. Each flag is ranked by its best holding; a
+      flag with no ground of its own has no home and is not ranked.
+    - **In 3 days** needs a replay of 3 days: the workflow fetches 72 hours since PR 3 (it fetched 12), as much as the
+      ledger keeps. The clips' stories are still searched in its last 12 hours (`newsSince`).
+    - **Each rank's one number is the generator's**, from the list (the holder's share, the tiles taken, the
+      distance, the share of the world), so it is true; the editor's line under the name holds no digit. The 5 are
+      the list's first 5, in its order, never the editor's pick.
+    - **A rank is framed a little wider than its place** (0.7 of the zoom that frames it), and never closer than
+      where the painted flags give way to tiles: the flag holding it reads, and its neighbours say where it is.
 
 **Not built: AI-made video.** A 2 s AI-made hook, then the real map, is the one form of it that still shows the game.
 It is paid by the second of video, more than every other AI call of the project, whose ceiling is $10 a month, and
@@ -240,8 +259,8 @@ words are tuned on real stories, in several tones, and compared by the owner, be
    metadata as it is given, so nothing is deployed.
 2. **The owner's order and the war report's bench**: call to arms off, the findings kept 30 days, the writer, its
    tones, `clips bench`, Kokoro's voices, `narration-bench.yml`. Nothing it makes posts.
-3. **The carousel**, on from its merge: the four lists in the findings, its brief, the stills and the slideshow, the
-   photos to TikTok, `carouselList` in the post's metadata.
+3. **The carousel** (built 2026-11-20), on from its merge: the four lists in the findings, its brief, the stills and
+   the slideshow, the photos to TikTok, `carouselList` in the post's metadata, the replay fetched 72 hours.
 4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
    globe, timed to it) and its experiment, once signed off.
 5. **POV.**
@@ -261,4 +280,4 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 - **far-invasion**: built 2026-11-20, on from the merge of PR 1.
 - **call-to-arms**: built 2026-11-20, on from the merge of PR 1, off from the merge of PR 2, for the owner's order:
   its turn is fifth.
-- **carousel**: designed 2026-11-20, on from the merge of PR 3.
+- **carousel**: designed and built 2026-11-20, on from the merge of PR 3.
