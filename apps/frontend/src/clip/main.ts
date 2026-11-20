@@ -480,6 +480,38 @@ async function choose(): Promise<Chosen> {
         return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity, look: told.look}
     }
 
+    // The game's globe over a replay, its camera the clip's: country, the flag it plays for.
+    const globeOf = (backend: ReplayBackend, country: string, director: () => Shot) => createGlobe({
+        board,
+        tileClicker: {clickTile: () => Promise.resolve()},
+        ownershipsGetter: backend,
+        updatesListener: backend,
+        bonusListener: backend,
+        bomber: backend,
+        container: stage,
+        country: Countries.get(country) ?? {code: country},
+        mapView: "split",
+        provinces: false,
+        rendering: "sharp",
+        director,
+        onLeaderboardChange: () => {},
+        onLoadProgress: () => {},
+        onRateLimited: () => {},
+        onFrozen: () => {},
+        onVPNBlocked: () => {},
+        onBanned: () => {},
+        onSessionUnavailable: () => {},
+        onAllegianceLocked: () => {},
+        onOutOfReach: () => {},
+        onBonusWon: () => {},
+        onCharges: () => {},
+        onRules: () => {},
+        onSwitchesChange: () => {},
+        onBombDropped: () => {},
+        onArmedChange: () => {},
+        signal: new AbortController().signal,
+    })
+
     // The map at the end, still: each rank aimed at its place no closer than its painted flags, one photo a frame.
     const carouselOf = async (pick: number, told: {list: ListName, hook: string, ranks: Rank[]}, experiment: string): Promise<Recording> => {
         const entries = entriesOf(lists, told.list)
@@ -500,36 +532,7 @@ async function choose(): Promise<Chosen> {
         const backend = replay.cut(until + 1, until)
         let shown = 0
         const first = codeOf(entries[0])
-        const globe = await createGlobe({
-            board,
-            tileClicker: {clickTile: () => Promise.resolve()},
-            ownershipsGetter: backend,
-            updatesListener: backend,
-            bonusListener: backend,
-            bomber: backend,
-            container: stage,
-            country: Countries.get(first) ?? {code: first},
-            mapView: "split",
-            provinces: false,
-            rendering: "sharp",
-            director: () => shots[shown],
-            onLeaderboardChange: () => {},
-            onLoadProgress: () => {},
-            onRateLimited: () => {},
-            onFrozen: () => {},
-            onVPNBlocked: () => {},
-            onBanned: () => {},
-            onSessionUnavailable: () => {},
-            onAllegianceLocked: () => {},
-            onOutOfReach: () => {},
-            onBonusWon: () => {},
-            onCharges: () => {},
-            onRules: () => {},
-            onSwitchesChange: () => {},
-            onBombDropped: () => {},
-            onArmedChange: () => {},
-            signal: new AbortController().signal,
-        })
+        const globe = await globeOf(backend, first, () => shots[shown])
         await globe.tilesRead
         await textures()
         await document.fonts.ready
@@ -641,36 +644,7 @@ async function choose(): Promise<Chosen> {
         const hashtags = hashtagsOf(story)
 
         let played = 0
-        const globe = await createGlobe({
-            board,
-            tileClicker: {clickTile: () => Promise.resolve()},
-            ownershipsGetter: backend,
-            updatesListener: backend,
-            bonusListener: backend,
-            bomber: backend,
-            container: stage,
-            country: Countries.get(story.attacker) ?? {code: story.attacker},
-            mapView: "split",
-            provinces: false,
-            rendering: "sharp",
-            director: () => camera(played),
-            onLeaderboardChange: () => {},
-            onLoadProgress: () => {},
-            onRateLimited: () => {},
-            onFrozen: () => {},
-            onVPNBlocked: () => {},
-            onBanned: () => {},
-            onSessionUnavailable: () => {},
-            onAllegianceLocked: () => {},
-            onOutOfReach: () => {},
-            onBonusWon: () => {},
-            onCharges: () => {},
-            onRules: () => {},
-            onSwitchesChange: () => {},
-            onBombDropped: () => {},
-            onArmedChange: () => {},
-            signal: new AbortController().signal,
-        })
+        const globe = await globeOf(backend, story.attacker, () => camera(played))
         await globe.tilesRead
 
         await textures()

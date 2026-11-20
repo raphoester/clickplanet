@@ -148,7 +148,7 @@ func (f Findings) carouselTellable(story Story, told []Telling, keys *cpcolls.Se
 	return Story{List: story.List, Ranks: ranks, Hook: cover, Experiment: experiment, Language: English}, key, nil
 }
 
-// None is no line: the number on the photo is the generator's, so the words say none.
+// The number on the photo is the generator's, so the words hold none.
 func rankLineFrom(written string) (string, error) {
 	line, err := drawn("rank's line", headlineOf(oneLine(written)), rankRunes)
 	if err != nil {
