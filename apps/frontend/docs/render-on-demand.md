@@ -171,6 +171,40 @@ again.
   `invalidate()`, one frame per stream batch: about 2 frames a second at the
   average, 1 to 2 points above a page that draws nothing.
 
+**The loop sleeps when nothing is left to draw.** Each display frame the page
+asks for wakes the main thread, drawn or not, and the loop asked for every one of
+them to answer "nothing". `FrameLoop` (`frameLoop.ts`) asks for the next display
+frame only while a tick has work: it drew a frame, or the caps held one back
+(`ticksOn`: the camera turning, a glint playing, a pulse to beat, the globe
+handled, a flight, a director). After a tick with none, the next tick comes
+`IDLE_TICK_MS` (200 ms) later, on a display frame again, so a hidden tab stays at
+rest. `invalidate()`, every input on the window, and OrbitControls' `start` and
+`change` wake it at once: a claim, a drag or a wheel is drawn on the next frame,
+as before.
+
+- **The idle tick still reads what nothing tells it**: a box offered, a rest on a
+  tile that opens a card, the ghosts' march (every 0.2 s), the tap hand's aim,
+  the camera settling for the flag slots, the minute after the last input. Each
+  is at most 200 ms late, and only while nothing on the globe moves.
+- **The pace of the frames is not fed the sleep.** The loop calls
+  `Sharpness.pause()` as it sleeps, so the tick after it starts a new run (see
+  [Slow frames lower the ratio](pixel-ratio.md#slow-frames-lower-the-ratio)):
+  200 ms after a tick that drew nothing would read as the display's own pace.
+- **The click bank's meter asked for every frame too**, to fill its pips. It asks
+  for them only while the bank fills (`refilling` in `backends/clickBudget.ts`); a
+  full bank changes with the next budget, or when a rally's ring ends, for which
+  it sets a timer.
+- **Why.** A still globe drew nothing and still cost most of what a page drawing
+  60 frames a second of nothing does. Measured on 2026-11-19 in headless Chrome
+  on an M2 Max, renderer and GPU process together, the camera still just past
+  the resting zoom, no claims, 2 runs each: a page in use, 9.8% of a core before
+  and 6.8% after on a desktop screen, 7.8% and 5.1% on a phone screen; a page
+  nobody watches, 7.0% and 3.6%, 8.1% and 4.5%. The main thread's frames fell
+  from 60 a second to about 10. With the bots at 2.2 claims a second the frames
+  drawn are the same (51 a second) and the cost is within the noise (20.6% before,
+  21.5% after). On a desktop screen in use, the unread chat's glow
+  (`chat-attention`, an opacity) still keeps the compositor at 60 frames a second.
+
 **Two ticks in a row that both drew a frame are what slow frames are measured
 on**, and a tick after one that drew nothing is the display's own pace: see
 [Slow frames lower the ratio](pixel-ratio.md#slow-frames-lower-the-ratio).

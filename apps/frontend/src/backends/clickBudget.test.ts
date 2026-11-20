@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {canClick, ClickBudget, nextClickProgress, secondsToOneMore, tokensAt} from './clickBudget.ts'
+import {canClick, ClickBudget, nextClickProgress, refilling, secondsToOneMore, tokensAt} from './clickBudget.ts'
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
     return {tokens: 4, capacity: 10, perSecond: 1, readAt: 1_000, ...overrides}
@@ -61,6 +61,22 @@ describe("nextClickProgress", () => {
 
     it("is whole at a full bucket, which is granting nothing back", () => {
         expect(nextClickProgress(reading({tokens: 10}), 1_000)).toBe(1)
+    })
+})
+
+describe("refilling", () => {
+    it("holds while the bank is short of full and fills", () => {
+        expect(refilling(reading(), 1_000)).toBe(true)
+        expect(refilling(reading(), 6_999)).toBe(true)
+    })
+
+    it("ends once the bank is full", () => {
+        expect(refilling(reading(), 7_000)).toBe(false)
+        expect(refilling(reading({tokens: 10}), 1_000)).toBe(false)
+    })
+
+    it("never starts when nothing is granted back", () => {
+        expect(refilling(reading({tokens: 0, perSecond: 0}), 1_000)).toBe(false)
     })
 })
 

@@ -32,6 +32,10 @@ export class Sharpness {
         if (this.adapts) this.pace.tick(at)
     }
 
+    pause(): void {
+        if (this.adapts) this.pace.pause()
+    }
+
     // True when the frames came slow and the ratio went down: the canvas is to be sized again.
     drew(): boolean {
         if (!this.adapts || !this.pace.drew()) return false

@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {beatClock, drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep, watched} from "./globe.ts"
+import {beatClock, drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep, ticksOn, watched} from "./globe.ts"
 import {MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts"
 import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfReachError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
@@ -197,6 +197,31 @@ describe("drawsFrame", () => {
 
     it("never holds a change back for a glint's sake", () => {
         expect(tick({glints: "playing", attended: false, changed: true, drawnAt: 9_999})).toBe(true)
+    })
+})
+
+describe("ticksOn", () => {
+    const wait = (over: Partial<Parameters<typeof ticksOn>[0]>) => ticksOn({
+        turned: false, changed: false, glints: "none", ambient: false, attended: true, at: 10_000, drawnAt: 9_990,
+        interactingUntil: 0, sinceLastTick: 16, flying: false, directed: false, ...over,
+    })
+
+    it("lets the loop sleep once nothing is left to draw", () => {
+        expect(wait({})).toBe(false)
+        expect(wait({glints: "over", attended: false})).toBe(false)
+    })
+
+    it("keeps the display's pace for a frame the cap holds back", () => {
+        expect(wait({turned: true})).toBe(true)
+        expect(wait({glints: "playing"})).toBe(true)
+        expect(wait({ambient: true})).toBe(true)
+    })
+
+    it("keeps it while the globe is handled, flown or directed", () => {
+        expect(wait({interactingUntil: Infinity})).toBe(true)
+        expect(wait({interactingUntil: 10_000})).toBe(true)
+        expect(wait({flying: true})).toBe(true)
+        expect(wait({directed: true})).toBe(true)
     })
 })
 
