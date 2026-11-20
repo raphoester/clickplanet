@@ -9,7 +9,6 @@ import (
 
 type VideoFile string
 
-// A JPEG of a carousel.
 type PhotoFile string
 
 // The most a TikTok carousel takes.
@@ -161,7 +160,6 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 	}, nil
 }
 
-// A carousel has its list and its photos, and its title is TikTok's over them.
 func (s ClipSnapshot) checkCarousel() error {
 	if len(s.Photos) == 0 && s.List == "" {
 		return nil

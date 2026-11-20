@@ -290,7 +290,6 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 
 var ErrNoPhoto = errors.New("a carousel's photo is not beside it")
 
-// Each named by its file, beside the clip's.
 func photosOf(folder string, named []string) ([]posts.PhotoFile, error) {
 	if len(named) == 0 {
 		return nil, nil

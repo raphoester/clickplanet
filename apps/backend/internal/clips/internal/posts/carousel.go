@@ -35,7 +35,6 @@ const (
 // What a story of a carousel tells of its flags: the 1st of a list.
 const Listed Angle = "list"
 
-// The four lists the generator ranked, the top of each first.
 type Lists struct {
 	OwnLand        []OwnLandEntry
 	MostAttacked   []AttackedEntry
@@ -74,7 +73,6 @@ type EmpireEntry struct {
 	Country string
 }
 
-// A photo of a carousel: an entry of its list, and the words under its name.
 type Rank struct {
 	Code string
 	Line string
@@ -106,8 +104,7 @@ func codes[T any](entries []T, codeOf func(T) string) []string {
 	return written
 }
 
-// A carousel's story when it is true to its list: the list's first 5, in its order, each with its words, under a cover
-// that can be drawn. A list told with the same 5 as its last post is not told again.
+// A list told with the same 5 as its last post is not told again.
 func (f Findings) carouselTellable(story Story, told []Telling, keys *cpcolls.Set[StoryKey], experiment ExperimentName) (Story, StoryKey, error) {
 	refused := func(why string, args ...any) (Story, StoryKey, error) {
 		return Story{}, StoryKey{}, fmt.Errorf("%w: %s", ErrInvalidStory, fmt.Sprintf(why, args...))
@@ -174,7 +171,6 @@ func lastTold(told []Telling, list ListName) (Telling, bool) {
 	return last, found
 }
 
-// The same codes, in any order.
 func sameCodes(a, b []string) bool {
 	return slices.Equal(slices.Sorted(slices.Values(a)), slices.Sorted(slices.Values(b)))
 }

@@ -65,8 +65,7 @@ type TikTokWords struct {
 	Caption string
 }
 
-// A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags. A
-// carousel's title is its cover, and its caption its question, the site and the tags.
+// A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
 	if clip.carousel() {

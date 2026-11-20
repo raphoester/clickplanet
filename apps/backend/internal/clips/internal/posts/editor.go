@@ -241,7 +241,6 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 	return choice
 }
 
-// A lab story is checked as its format tells it: a clip's as every story, a carousel's against its list.
 func (f Findings) labTellable(story Story, experiment Experiment, past *past, told []Telling, keys *cpcolls.Set[StoryKey]) (Story, StoryKey, error) {
 	switch experiment.Format {
 	case GlobeReplay:

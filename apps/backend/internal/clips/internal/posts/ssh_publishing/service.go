@@ -191,7 +191,7 @@ const (
 	photoType = "image/jpeg"
 )
 
-// A carousel's photos, in their order, when TikTok is in the post's slot: on every other platform the video is the post.
+// On every other platform than TikTok the video is the post.
 func (s *Service) photosOf(ctx context.Context, snapshot posts.PostSnapshot) ([]string, error) {
 	if !slices.Contains(snapshot.Platforms, posts.TikTok) {
 		return nil, nil

@@ -150,11 +150,10 @@ type answeredStory struct {
 	Look      string   `json:"look"`
 	Fighters  []int    `json:"fighters"`
 	// A lab story's alone.
-	Hook     string `json:"hook"`
-	Language string `json:"language"`
-	// A carousel's alone.
-	List  string         `json:"list"`
-	Ranks []answeredRank `json:"ranks"`
+	Hook     string         `json:"hook"`
+	Language string         `json:"language"`
+	List     string         `json:"list"`
+	Ranks    []answeredRank `json:"ranks"`
 }
 
 type answeredRank struct {
@@ -178,7 +177,6 @@ func storySchema(lab bool) map[string]any {
 	return map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": properties}
 }
 
-// A carousel's lab story is its list, its cover and its ranks.
 var carouselSchema = map[string]any{
 	"type": "object", "additionalProperties": false, "required": []string{"list", "hook", "ranks"},
 	"properties": map[string]any{

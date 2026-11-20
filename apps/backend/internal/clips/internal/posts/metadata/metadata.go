@@ -134,7 +134,6 @@ func FactsOf(metadata map[string]any) posts.TellingFacts {
 	}
 }
 
-// Empty for a post with none.
 func recordIn(metadata map[string]any) *clipsv1.PostRecord {
 	var record clipsv1.PostRecord
 	kept, ok := metadata[recordKey].(map[string]any)

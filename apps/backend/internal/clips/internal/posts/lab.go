@@ -36,8 +36,7 @@ const (
 	Carousel    Format = "carousel"
 )
 
-// A story the editor writes to a brief of its own, beside the run's other stories: the prose of what to tell and how,
-// and the format it is drawn in.
+// A story the editor writes to a brief of its own, beside the run's other stories: the prose of what to tell and how.
 type Experiment struct {
 	Name   ExperimentName
 	Brief  string
