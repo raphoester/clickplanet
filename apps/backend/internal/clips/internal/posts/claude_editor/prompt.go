@@ -30,6 +30,15 @@ type prompt struct {
 	Paths       paths             `json:"paths"`
 	Told        []told            `json:"told"`
 	ShownLately map[string]int    `json:"shownLately"`
+	// The run's experiment, when it has one: the one story to write in `lab`.
+	Lab *lab `json:"lab,omitempty"`
+}
+
+type lab struct {
+	Experiment string `json:"experiment"`
+	// The run's pick it fills, from 1: the first is the run's only one on TikTok.
+	Pick  int    `json:"pick"`
+	Brief string `json:"brief"`
 }
 
 type window struct {
@@ -229,6 +238,9 @@ func PromptOf(offer posts.Offer) (string, error) {
 	}
 	for _, telling := range offer.Told {
 		written.Told = append(written.Told, toldOf(telling))
+	}
+	if offer.Lab.On() {
+		written.Lab = &lab{Experiment: string(offer.Lab.Experiment.Name), Pick: offer.Lab.At, Brief: offer.Lab.Experiment.Brief}
 	}
 
 	text, err := json.Marshal(written)

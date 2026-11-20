@@ -34,6 +34,15 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 		l.logger.Info("no story is told this run")
 	}
 	l.logEditorial(choice)
+	switch {
+	case !choice.Lab.On():
+	case choice.LabTold:
+		l.logger.Info("the lab's experiment is told this run",
+			slog.String("experiment", string(choice.Lab.Experiment.Name)), slog.Int("pick", choice.Lab.At))
+	default:
+		l.logger.Warn("the lab's experiment had no story that holds, and its pick is the control's",
+			slog.String("experiment", string(choice.Lab.Experiment.Name)), slog.Int("pick", choice.Lab.At))
+	}
 	for _, skipped := range choice.Skipped {
 		l.logger.Warn("skipped a story of the editor's", append(attributesOf(skipped.Story), slog.String("why", skipped.Why))...)
 	}
@@ -92,6 +101,12 @@ func attributesOf(story posts.Story) []any {
 	}
 	if story.Look != "" {
 		attributes = append(attributes, slog.String("look", string(story.Look)))
+	}
+	if story.Experiment != "" {
+		attributes = append(attributes, slog.String("experiment", string(story.Experiment)), slog.String("language", story.Language))
+	}
+	if story.Hook != "" {
+		attributes = append(attributes, slog.String("hook", story.Hook))
 	}
 	if story.Front > 0 {
 		place := story.Continent

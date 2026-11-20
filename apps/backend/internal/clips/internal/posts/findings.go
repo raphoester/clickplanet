@@ -261,6 +261,11 @@ type Story struct {
 	Look      Look
 	// The players the clip names.
 	Fighters []FighterNumber
+	// The lab's: the experiment it was written for, empty for the control; its words over the opening, and the language
+	// its words are in, English for the control.
+	Experiment ExperimentName
+	Hook       string
+	Language   string
 }
 
 func (s Story) Names() string {

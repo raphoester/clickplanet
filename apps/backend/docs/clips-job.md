@@ -10,9 +10,9 @@ rendered (`proto/clips/v1/clips.proto`).
 
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-history <history.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-lab on|off] [-ssh <user@host>] [-summary <file>]
 clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
-clips edit -findings <findings.json> [-count 2] [-prompt]
+clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -124,6 +124,42 @@ backoffice's table shows as `meta.record.clip.variants.*`.
   judgment that it does better, not on the numbers. The posts of those three days keep their arm in their record,
   which the analysis still reads.
 
+**The lab, since 2026-11-20: one pick of a run may be an experiment's** (`posts/lab.go`, `posts/experiments/`; why,
+and what each experiment tries, in the root's [The video lab](../../../docs/video-lab.md)). The clips as they are are
+its control, and every post says which it is.
+
+- **An experiment is a brief, embedded** (`experiments/briefs/<name>.md`): prose for the editor, of what to tell and
+  how. `experiments.On` names the ones on, `Off` the ones that ran, whose briefs stay so what their posts were written
+  to can be read; a test holds each name to a brief and each brief to a name. A commit turns one on or off. **`choose
+  -lab off`** is the control alone, whatever is on: the workflow passes the repository variable `CLIPS_LAB` (Settings →
+  Variables), as it does `CLIPS_PLATFORMS`, so the lab stops with no commit; unset is on.
+- **A coin per run, before the editor reads anything** (`Lab.Slot`): the run's first pick is the lab's 2 times in 3,
+  else its second, and the experiment is even among those on. TikTok takes the first pick alone, so 2 of its 3 posts a
+  day are the lab's; YouTube takes both, so half of its posts are the control's. A slot past the run's clips is none
+  (a run of one clip rolls 2 for none), and one the seasonal stories take moves to the first they leave, or is none
+  (`Findings.Offer`). The coin is the arm, never a choice made from the story: the arms compare fair, as the
+  experiments of October did.
+- **The editor writes the lab's story apart**: the prompt's `lab` gives the experiment, its brief and its pick, and
+  the answer's `lab`, beside `stories`, holds one story written to it, with two fields of its own: `hook`, big words
+  over the clip's opening, and `language`, the code of the language its words are in. The instructions' "The lab"
+  says the brief wins where it says otherwise than they do, and that an empty `lab` loses nothing.
+- **Checked as every story is** (`Findings.tellable`), and more: its hook drawn as a headline is and never the
+  headline, its language two or three letters (none is English). **The control speaks English and opens on no hook**:
+  a story of `stories` that has either loses it.
+- **At its slot, or the control's**: a lab story that holds takes its pick, and its key and headline go before the
+  control's; one that does not is skipped with why (`the lab's call-to-arms: …`), and the control's next story takes
+  the pick. A run with fewer stories than its slot tells it right after its last. The log says which
+  (`the lab's experiment is told this run`, or `… had no story that holds, and its pick is the control's`), and so does
+  the summary (`**Lab:** far-invasion at pick 1.`).
+- **The experiment rides with the clip**: `Pick.experiment`, `hook` and `language` (English left out) go to the
+  generator, which hands the experiment back in `Clip.experiment`, and the post keeps it in its record's
+  `post.experiment`, `control` for every other (`PostSnapshot.Experiment`). The snapshot of the posts' numbers keeps it
+  beside them, and the readout compares by it. A lab clip is a post like any other: its platforms, its words, its
+  slot are the plan's and the calendar's.
+- **`clips edit -experiment <name>`** tries a brief by hand at the run's first pick, an experiment on or off.
+- **What it costs**: a brief of about 1,500 characters (about 400 tokens) in the prompt and one story more in the
+  answer: about $0.0002 a run, $0.05 a month at 9 runs a day.
+
 **The editor: a model makes the run's stories from the findings, and writes every word of them** (`posts/editor.go`,
 `posts/findings.go`, `posts/claude_editor/`; it picked and worded within hand-written rules from 2026-10-24, and
 makes the stories since 2026-10-27). The renderer and its camera are as they were.
@@ -211,7 +247,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   continent the facts measure by (`flippedByContinent`) and gave STORMS a FROM. The file now says the facts'
   continents are not names for a headline, takes that clip as its example in place of Ireland's, and gives each verb
   its shape.
-- **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour`, `place` or
+- **What it answers** (`answerSchema`): `why`, then `stories`, best first, then `lab`, the lab's story when the run
+  has one (above, "The lab"), each with its `front`, `tour`, `place` or
   `saga` (the others 0), for a saga its `since` (when its clip starts, a time; empty for the others), `attacker` and
   `rival`, and for a front its `kind`, `attacker`,
   `rival`, `takenFrom`, `countries` or `continent`, `team`,

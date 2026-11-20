@@ -14,8 +14,8 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-history <history.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
-  clips edit -findings <findings.json> [-count 2] [-prompt]
+  clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-lab on|off] [-ssh <user@host>] [-summary <file>]
+  clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
 
 Every command asks the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh.
@@ -27,13 +27,15 @@ numbered and named, never an account; it leaves each out with a warning when the
 prints the stories to render, as a JSON array, each with its number in the run: a day of the season won first, not
 told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's findings and headlines, each checked
 against them and against the headlines of the last week. It takes no more than the platform with the most room left
-takes, as the backend's publishing module counts it, and TikTok a run's best clip alone. schedule sends every clip of
+takes, as the backend's publishing module counts it, and TikTok a run's best clip alone. With the lab on (-lab, on by
+default), each run rolls whether one of its picks is an experiment's, written to its brief (docs/video-lab.md). schedule sends every clip of
 the folder to the publishing module, which posts it as one post on every platform that takes it, at the first slot of
 its calendar, then tells the backend who each post names, so the game tells them. The posts' numbers are the backend's:
 its publishing module takes a snapshot a day. A model that cannot answer leaves the run its day won alone; -summary
 adds how the call went, and what it cost, to that file. edit tries the editor on saved findings, as many clips as
 -count, the told stories read from the backend when CLICKPLANET_SSH is set: -prompt prints what it would be sent,
-counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
+counted when ANTHROPIC_API_KEY is set, and asks for no answer; -experiment tries that experiment's brief at the first
+pick.`
 
 type Command string
 
@@ -132,12 +134,20 @@ func parseChoose(args []string) (Config, error) {
 	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips a run schedules at most")
 	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file who chose the run is added to, default none")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
+	lab := flags.String("lab", "on", "on: each run may give a pick to an experiment; off: the control alone")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
 	if parsed.FindingsFile == "" || parsed.Job.Replay.SSH == "" {
 		return Config{}, misused(ErrArguments)
+	}
+	switch *lab {
+	case "on", "":
+	case "off":
+		parsed.Job.LabOff = true
+	default:
+		return Config{}, misused(fmt.Errorf("%w: -lab is on or off, not %q", ErrArguments, *lab))
 	}
 	return withPlatforms(parsed, *platforms)
 }
@@ -151,6 +161,7 @@ func parseEdit(args []string) (Config, error) {
 	flags.StringVar(&parsed.FindingsFile, "findings", "", "the file the generator's --findings wrote")
 	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips the run makes, default 2")
 	flags.BoolVar(&parsed.PromptOnly, "prompt", false, "print what the model would be sent, and ask for no answer")
+	flags.StringVar(&parsed.Job.Experiment, "experiment", "", "the experiment whose brief the first pick is written to, default none")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}

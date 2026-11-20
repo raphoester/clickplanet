@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -176,15 +177,51 @@ func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) 
 	assert.Equal(t, "medium", request["output_config"].(map[string]any)["effort"])
 	format := request["output_config"].(map[string]any)["format"].(map[string]any)
 	assert.Equal(t, "json_schema", format["type"])
-	assert.Equal(t, []any{"why", "stories"}, format["schema"].(map[string]any)["required"])
-	story := format["schema"].(map[string]any)["properties"].(map[string]any)["stories"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, []any{"front", "tour", "place", "saga", "since", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look", "fighters"}, story["required"])
+	assert.Equal(t, []any{"why", "stories", "lab"}, format["schema"].(map[string]any)["required"])
+	properties := format["schema"].(map[string]any)["properties"].(map[string]any)
+	story := properties["stories"].(map[string]any)["items"].(map[string]any)
+	fields := []any{"front", "tour", "place", "saga", "since", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look", "fighters"}
+	assert.Equal(t, fields, story["required"])
+	lab := properties["lab"].(map[string]any)["items"].(map[string]any)
+	assert.Equal(t, slices.Concat(fields, []any{"hook", "language"}), lab["required"], "a lab story has its hook and its language")
+	assert.NotContains(t, story["properties"], "hook", "the control opens on no hook")
 
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
 	assert.Equal(t, []any{map[string]any{"role": "user", "content": []any{map[string]any{"type": "text", "text": prompt}}}},
 		request["messages"])
 	assert.Equal(t, key, api.headers[0].Get("X-Api-Key"))
+}
+
+func TestALabStoryIsReadWithItsHookAndItsLanguage(t *testing.T) {
+	api := &fake{status: http.StatusOK, answer: message("end_turn", `{"why":"","stories":[],"lab":[`+
+		`{"front":1,"tour":0,"place":0,"saga":0,"since":"","kind":"rout","attacker":"fr","rival":"","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"",`+
+		`"headline":"TÜRKİYE TÜRKİYE'Yİ KAYBEDİYOR","teasers":["FRANSA TÜRKİYE'Yİ ALIYOR"],"line":"","call":"TÜRKİYE'Yİ SAVUN","callFlags":["tr"],"anthem":"tr",`+
+		`"look":"dive","fighters":[],"hook":"TÜRKLER, NEREDESİNİZ?","language":"tr"}]}`)}
+
+	edition, _, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
+
+	require.NoError(t, err)
+	assert.Empty(t, edition.Stories)
+	require.Len(t, edition.Lab, 1)
+	assert.Equal(t, "TÜRKLER, NEREDESİNİZ?", edition.Lab[0].Hook)
+	assert.Equal(t, "tr", edition.Lab[0].Language)
+	assert.Equal(t, posts.Rout, edition.Lab[0].Kind)
+}
+
+func TestThePromptGivesTheLabsBriefAndPickOnlyWhenTheRunHasOne(t *testing.T) {
+	plain, err := claude_editor.PromptOf(offer)
+	require.NoError(t, err)
+	assert.NotContains(t, plain, `"lab"`)
+
+	labbed := offer
+	labbed.Lab = posts.LabSlot{At: 2, Experiment: posts.Experiment{Name: "far-invasion", Brief: "A flag far from home."}}
+	prompt, err := claude_editor.PromptOf(labbed)
+	require.NoError(t, err)
+
+	var written map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(prompt, "The run's findings, as JSON:\n\n")), &written))
+	assert.Equal(t, map[string]any{"experiment": "far-invasion", "pick": float64(2), "brief": "A flag far from home."}, written["lab"])
 }
 
 func TestARefusalIsNoEditionButItsCostIsKept(t *testing.T) {

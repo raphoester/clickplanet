@@ -149,10 +149,23 @@ describe("the story --story names", () => {
                 callFlags: ["eu"], anthem: "fr",
             },
             fighters: [],
+            experiment: "",
         })
         expect(toldOf(`{"place":4,${WORDS}}`).written).toEqual({
             headline: "FRANCE TAKES INDIA", teasers: [], line: undefined, call: "FIGHT FOR ALGERIA", callFlags: [], anthem: undefined,
         })
+    })
+
+    it("carries a lab story's experiment, its hook and its language, and the control has none of them", () => {
+        const lab = toldOf(`{"front":3,"kind":"rout","attacker":"de","takenFrom":["pl"],"countries":["pl"],${WORDS},`
+            + `"experiment":"call-to-arms","hook":"POLACY, GDZIE JESTEŚCIE?","language":"pl"}`)
+        expect(lab.experiment).toBe("call-to-arms")
+        expect(lab.written).toMatchObject({hook: "POLACY, GDZIE JESTEŚCIE?", language: "pl"})
+
+        const control = toldOf(`{"front":3,"kind":"rout","attacker":"de","takenFrom":["pl"],"countries":["pl"],${WORDS}}`)
+        expect(control.experiment).toBe("")
+        expect(control.written).not.toHaveProperty("hook")
+        expect(control.written).not.toHaveProperty("language")
     })
 
     it("carries the look the editor chose for a front or a place; a tour has none", () => {
@@ -178,7 +191,7 @@ describe("the story --story names", () => {
     })
 
     it("is a seasonal story by its number alone, in words of its own", () => {
-        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, written: undefined, fighters: []})
+        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, written: undefined, fighters: [], experiment: ""})
     })
 
     it("is refused when it names nothing or two things, a kind no front tells, no attacker, no place, no words or no look", () => {

@@ -55,6 +55,7 @@ func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
 		Post: &clipsv1.PostFacts{
 			Teaser: snapshot.Teaser, CallToAction: snapshot.CallToAction, ScheduledAt: timestamppb.New(snapshot.At),
 			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 2 a run.
+			Experiment: string(snapshot.Experiment),
 		},
 	}
 	if len(snapshot.Record) != 0 {

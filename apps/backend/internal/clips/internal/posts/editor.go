@@ -66,6 +66,8 @@ type Offer struct {
 	Told  []Telling
 	Shown map[string]int
 	Now   time.Time
+	// The pick the lab's experiment fills, after the seasonal stories; none when no experiment is on this run.
+	Lab LabSlot
 }
 
 func (o Offer) Slots() int {
@@ -76,8 +78,9 @@ func (o Offer) Open() bool {
 	return o.Slots() > 0 && o.Findings.Any()
 }
 
-// A seasonal story is told once; nothing else is kept from the editor.
-func (f Findings) Offer(count int, told []Telling, now time.Time) Offer {
+// A seasonal story is told once; nothing else is kept from the editor. lab: the slot the run's coin gave the lab, which
+// moves past the seasonal stories told first.
+func (f Findings) Offer(count int, told []Telling, now time.Time, lab LabSlot) Offer {
 	past := pastOf(told, now)
 	offer := Offer{Count: count, Findings: f, Shown: map[string]int{}, Now: now}
 	for i, seasonal := range f.Seasonal {
@@ -85,6 +88,7 @@ func (f Findings) Offer(count int, told []Telling, now time.Time) Offer {
 			offer.First = append(offer.First, i+1)
 		}
 	}
+	offer.Lab = lab.after(len(offer.First), count)
 	for _, flags := range past.shown {
 		flags.ForEach(func(flag string) { offer.Shown[flag]++ })
 	}
@@ -111,7 +115,9 @@ func (f Findings) seasonSince(otherwise time.Time) time.Time {
 
 type Edition struct {
 	Stories []Story
-	Why     string
+	// The story written to the lab's brief, when the run asked for one: the first that holds is told.
+	Lab []Story
+	Why string
 }
 
 // Zero when nothing was sent; USD is estimated from the model's prices.
@@ -149,6 +155,10 @@ type Choice struct {
 	// 0 when every platform's day is full.
 	Room      int
 	Editorial Editorial
+	// The slot the lab was given this run, and whether its story was told there; one that was not left its slot to the
+	// control, and its story is in Skipped with why.
+	Lab     LabSlot
+	LabTold bool
 }
 
 func (c Choice) Picks() []Pick {
@@ -159,13 +169,12 @@ func (c Choice) Picks() []Pick {
 	return picks
 }
 
-// The seasonal stories first, then the editor's that hold, one story a key; the rest skipped with why.
+// The seasonal stories first, then the editor's that hold, one story a key, with the lab's story at its slot; the rest
+// skipped with why. A lab story that does not hold leaves its slot to the control's next one.
 func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.Time) Choice {
 	past := pastOf(told, now)
-	choice := Choice{Room: offer.Count}
-	tell := func(story Story, key StoryKey) {
-		choice.Chosen = append(choice.Chosen, Chosen{Pick: Pick(len(choice.Chosen) + 1), Story: story, Key: key})
-	}
+	choice := Choice{Room: offer.Count, Lab: offer.Lab}
+	var chosen []Chosen
 	skip := func(story Story, why string) {
 		choice.Skipped = append(choice.Skipped, Skipped{Story: story, Why: why})
 	}
@@ -173,58 +182,111 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 	for _, number := range offer.First {
 		seasonal := f.Seasonal[number-1]
 		past.headlines.Add(headlineOf(seasonal.Title))
-		tell(Story{Seasonal: number}, seasonal.Key)
+		chosen = append(chosen, Chosen{Story: Story{Seasonal: number}, Key: seasonal.Key})
 	}
 
 	keys := cpcolls.NewSet[StoryKey]()
+	var lab *Chosen
+	for _, story := range edition.Lab {
+		switch {
+		case !offer.Lab.On():
+			skip(story, "the run gave the lab no slot")
+		case lab != nil:
+			skip(story, "the lab tells one story a run")
+		default:
+			told, key, err := f.tellable(story, past, keys, offer.Lab.Experiment.Name)
+			if err != nil {
+				skip(story, fmt.Sprintf("the lab's %s: %s", offer.Lab.Experiment.Name, err))
+				continue
+			}
+			lab = &Chosen{Story: told, Key: key}
+		}
+	}
+	choice.LabTold = lab != nil
+
+	room := offer.Count - len(chosen)
+	if lab != nil {
+		room--
+	}
+	var others []Chosen
 	for _, story := range edition.Stories {
-		if len(choice.Chosen) >= offer.Count {
+		if len(others) >= room {
 			skip(story, "the run is full")
 			continue
 		}
-		key, err := f.Check(story)
+		told, key, err := f.tellable(story, past, keys, "")
 		if err != nil {
 			skip(story, err.Error())
 			continue
 		}
-		if story.Seasonal > 0 {
-			skip(story, "a seasonal story is the run's to tell first, not the editor's")
-			continue
-		}
-		headline, err := headlineFrom(story.Headline)
-		if err != nil {
-			skip(story, err.Error())
-			continue
-		}
-		teasers, err := teasersFrom(story.Teasers, headline)
-		if err != nil {
-			skip(story, err.Error())
-			continue
-		}
-		call, err := drawn("call", headlineOf(oneLine(story.Call)), callRunes)
-		if err != nil {
-			skip(story, err.Error())
-			continue
-		}
-		line, err := lineFrom(story.Line)
-		if err != nil {
-			skip(story, err.Error())
-			continue
-		}
-		if past.headlines.Contains(headline) {
-			skip(story, fmt.Sprintf("%q was a headline of the last week, or of this run", headline))
-			continue
-		}
-		if keys.Contains(key) {
-			skip(story, fmt.Sprintf("%s in %s is told already in this run", key.Flag, key.Continent))
-			continue
-		}
-		keys.Add(key)
-		past.headlines.Add(headline)
-		story.Headline, story.Teasers, story.Call, story.Line = headline, teasers, call, line
-		tell(story, key)
+		others = append(others, Chosen{Story: told, Key: key})
 	}
+
+	// The lab's story at its slot, or right after the run's last when the run has fewer.
+	for len(others) > 0 || lab != nil {
+		if lab != nil && (len(chosen)+1 >= offer.Lab.At || len(others) == 0) {
+			chosen = append(chosen, *lab)
+			lab = nil
+			continue
+		}
+		chosen, others = append(chosen, others[0]), others[1:]
+	}
+	for i := range chosen {
+		chosen[i].Pick = Pick(i + 1)
+	}
+	choice.Chosen = chosen
 	return choice
+}
+
+// The story as it is told, and its key, when it holds; why not, else. The control speaks English and opens on no hook:
+// an experiment's story alone has its own (experiment, empty for the control).
+func (f Findings) tellable(story Story, past *past, keys *cpcolls.Set[StoryKey], experiment ExperimentName) (Story, StoryKey, error) {
+	key, err := f.Check(story)
+	if err != nil {
+		return Story{}, StoryKey{}, err
+	}
+	if story.Seasonal > 0 {
+		return Story{}, StoryKey{}, errors.New("a seasonal story is the run's to tell first, not the editor's")
+	}
+	headline, err := headlineFrom(story.Headline)
+	if err != nil {
+		return Story{}, StoryKey{}, err
+	}
+	teasers, err := teasersFrom(story.Teasers, headline)
+	if err != nil {
+		return Story{}, StoryKey{}, err
+	}
+	call, err := drawn("call", headlineOf(oneLine(story.Call)), callRunes)
+	if err != nil {
+		return Story{}, StoryKey{}, err
+	}
+	line, err := lineFrom(story.Line)
+	if err != nil {
+		return Story{}, StoryKey{}, err
+	}
+	hook, language := "", ""
+	if experiment != "" {
+		if hook, err = hookFrom(story.Hook); err != nil {
+			return Story{}, StoryKey{}, err
+		}
+		if language, err = languageFrom(story.Language); err != nil {
+			return Story{}, StoryKey{}, err
+		}
+		if hook == headline {
+			return Story{}, StoryKey{}, fmt.Errorf("%w: the hook %q says the headline", errUndrawable, hook)
+		}
+	}
+	if past.headlines.Contains(headline) {
+		return Story{}, StoryKey{}, fmt.Errorf("%q was a headline of the last week, or of this run", headline)
+	}
+	if keys.Contains(key) {
+		return Story{}, StoryKey{}, fmt.Errorf("%s in %s is told already in this run", key.Flag, key.Continent)
+	}
+	keys.Add(key)
+	past.headlines.Add(headline)
+	story.Headline, story.Teasers, story.Call, story.Line = headline, teasers, call, line
+	story.Experiment, story.Hook, story.Language = experiment, hook, language
+	return story, key, nil
 }
 
 type past struct {

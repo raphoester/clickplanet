@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -112,71 +114,86 @@ func (e *Editor) Count(ctx context.Context, offer posts.Offer) (int64, error) {
 
 // What the model answers, as the schema of its structured output holds it to.
 type answer struct {
-	Why     string `json:"why"`
-	Stories []struct {
-		Front     int      `json:"front"`
-		Tour      int      `json:"tour"`
-		Place     int      `json:"place"`
-		Saga      int      `json:"saga"`
-		Since     string   `json:"since"`
-		Kind      string   `json:"kind"`
-		Attacker  string   `json:"attacker"`
-		Rival     string   `json:"rival"`
-		TakenFrom []string `json:"takenFrom"`
-		Countries []string `json:"countries"`
-		Continent string   `json:"continent"`
-		Team      string   `json:"team"`
-		Headline  string   `json:"headline"`
-		Teasers   []string `json:"teasers"`
-		Line      string   `json:"line"`
-		Call      string   `json:"call"`
-		CallFlags []string `json:"callFlags"`
-		Anthem    string   `json:"anthem"`
-		Look      string   `json:"look"`
-		Fighters  []int    `json:"fighters"`
-	} `json:"stories"`
+	Why     string          `json:"why"`
+	Stories []answeredStory `json:"stories"`
+	// Written to the lab's brief: one at most, and none when the run asks for none.
+	Lab []answeredStory `json:"lab"`
+}
+
+type answeredStory struct {
+	Front     int      `json:"front"`
+	Tour      int      `json:"tour"`
+	Place     int      `json:"place"`
+	Saga      int      `json:"saga"`
+	Since     string   `json:"since"`
+	Kind      string   `json:"kind"`
+	Attacker  string   `json:"attacker"`
+	Rival     string   `json:"rival"`
+	TakenFrom []string `json:"takenFrom"`
+	Countries []string `json:"countries"`
+	Continent string   `json:"continent"`
+	Team      string   `json:"team"`
+	Headline  string   `json:"headline"`
+	Teasers   []string `json:"teasers"`
+	Line      string   `json:"line"`
+	Call      string   `json:"call"`
+	CallFlags []string `json:"callFlags"`
+	Anthem    string   `json:"anthem"`
+	Look      string   `json:"look"`
+	Fighters  []int    `json:"fighters"`
+	// A lab story's alone.
+	Hook     string `json:"hook"`
+	Language string `json:"language"`
+}
+
+var storyFields = []string{
+	"front", "tour", "place", "saga", "since", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
+	"line", "call", "callFlags", "anthem", "look", "fighters",
+}
+
+// A lab story is a story with its hook and its language.
+func storySchema(lab bool) map[string]any {
+	required, properties := slices.Clone(storyFields), maps.Clone(storyProperties)
+	if lab {
+		required = append(required, "hook", "language")
+		properties["hook"] = map[string]any{"type": "string"}
+		properties["language"] = map[string]any{"type": "string"}
+	}
+	return map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": properties}
 }
 
 var answerSchema = map[string]any{
 	"type":                 "object",
 	"additionalProperties": false,
-	"required":             []string{"why", "stories"},
+	"required":             []string{"why", "stories", "lab"},
 	"properties": map[string]any{
-		"why": map[string]any{"type": "string"},
-		"stories": map[string]any{
-			"type": "array",
-			"items": map[string]any{
-				"type":                 "object",
-				"additionalProperties": false,
-				"required": []string{
-					"front", "tour", "place", "saga", "since", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
-					"line", "call", "callFlags", "anthem", "look", "fighters",
-				},
-				"properties": map[string]any{
-					"front":     map[string]any{"type": "integer"},
-					"tour":      map[string]any{"type": "integer"},
-					"place":     map[string]any{"type": "integer"},
-					"saga":      map[string]any{"type": "integer"},
-					"since":     map[string]any{"type": "string"},
-					"kind":      map[string]any{"type": "string", "enum": []string{"attack", "invasion", "comeback", "kickout", "rout", "battle", ""}},
-					"attacker":  map[string]any{"type": "string"},
-					"rival":     map[string]any{"type": "string"},
-					"takenFrom": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"countries": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"continent": map[string]any{"type": "string"},
-					"team":      map[string]any{"type": "string"},
-					"headline":  map[string]any{"type": "string"},
-					"teasers":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"line":      map[string]any{"type": "string"},
-					"call":      map[string]any{"type": "string"},
-					"callFlags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"anthem":    map[string]any{"type": "string"},
-					"look":      map[string]any{"type": "string", "enum": []string{"flags", "dive", ""}},
-					"fighters":  map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
-				},
-			},
-		},
+		"why":     map[string]any{"type": "string"},
+		"stories": map[string]any{"type": "array", "items": storySchema(false)},
+		"lab":     map[string]any{"type": "array", "items": storySchema(true)},
 	},
+}
+
+var storyProperties = map[string]any{
+	"front":     map[string]any{"type": "integer"},
+	"tour":      map[string]any{"type": "integer"},
+	"place":     map[string]any{"type": "integer"},
+	"saga":      map[string]any{"type": "integer"},
+	"since":     map[string]any{"type": "string"},
+	"kind":      map[string]any{"type": "string", "enum": []string{"attack", "invasion", "comeback", "kickout", "rout", "battle", ""}},
+	"attacker":  map[string]any{"type": "string"},
+	"rival":     map[string]any{"type": "string"},
+	"takenFrom": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	"countries": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	"continent": map[string]any{"type": "string"},
+	"team":      map[string]any{"type": "string"},
+	"headline":  map[string]any{"type": "string"},
+	"teasers":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	"line":      map[string]any{"type": "string"},
+	"call":      map[string]any{"type": "string"},
+	"callFlags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	"anthem":    map[string]any{"type": "string"},
+	"look":      map[string]any{"type": "string", "enum": []string{"flags", "dive", ""}},
+	"fighters":  map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
 }
 
 // The answer is the one text block; thinking blocks come before it and are left.
@@ -192,23 +209,34 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 		}
 		edition := posts.Edition{Why: strings.TrimSpace(answered.Why)}
 		for _, story := range answered.Stories {
-			var fighters []posts.FighterNumber
-			for _, number := range story.Fighters {
-				fighters = append(fighters, posts.FighterNumber(number))
-			}
-			// A time that is none is no time of a saga: the check refuses it.
-			since, _ := time.Parse(time.RFC3339, story.Since)
-			edition.Stories = append(edition.Stories, posts.Story{
-				Front: story.Front, Tour: story.Tour, Place: story.Place, Saga: story.Saga, Since: since, Kind: posts.Kind(story.Kind),
-				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
-				Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
-				Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem, Look: posts.Look(story.Look),
-				Fighters: fighters,
-			})
+			edition.Stories = append(edition.Stories, story.story())
+		}
+		for _, story := range answered.Lab {
+			edition.Lab = append(edition.Lab, story.story())
 		}
 		return edition, nil
 	}
 	return posts.Edition{}, fmt.Errorf("%w: no text", ErrNoAnswer)
+}
+
+func (s answeredStory) story() posts.Story {
+	// None is nil, as the model's [] was before the lab.
+	var fighters []posts.FighterNumber
+	if len(s.Fighters) > 0 {
+		fighters = make([]posts.FighterNumber, 0, len(s.Fighters))
+	}
+	for _, number := range s.Fighters {
+		fighters = append(fighters, posts.FighterNumber(number))
+	}
+	// A time that is none is no time of a saga: the check refuses it.
+	since, _ := time.Parse(time.RFC3339, s.Since)
+	return posts.Story{
+		Front: s.Front, Tour: s.Tour, Place: s.Place, Saga: s.Saga, Since: since, Kind: posts.Kind(s.Kind),
+		Attacker: s.Attacker, Rival: s.Rival, TakenFrom: s.TakenFrom, Countries: s.Countries,
+		Continent: s.Continent, Team: s.Team, Headline: s.Headline, Teasers: s.Teasers,
+		Line: s.Line, Call: s.Call, CallFlags: s.CallFlags, Anthem: s.Anthem, Look: posts.Look(s.Look),
+		Fighters: fighters, Hook: s.Hook, Language: s.Language,
+	}
 }
 
 func cmpOr(value, otherwise string) string {

@@ -17,7 +17,7 @@ var at = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
 // What a post of a clip with no record and no teaser names keeps.
 var unnamedPost = map[string]any{
 	"teaser": "unnamed", "callToAction": "join-the-battle", "scheduledAt": "2026-10-12T16:40:00Z",
-	"runPosition": float64(1), "runSize": float64(1),
+	"runPosition": float64(1), "runSize": float64(1), "experiment": "control",
 }
 
 func snapshotOf(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser string) posts.PostSnapshot {
@@ -67,11 +67,25 @@ func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteItA
 		},
 		"post": map[string]any{
 			"teaser": "takes-over-the-world", "callToAction": "join-the-battle", "scheduledAt": "2026-10-12T16:40:00Z",
-			"runPosition": float64(1), "runSize": float64(1),
+			"runPosition": float64(1), "runSize": float64(1), "experiment": "control",
 		},
 	}, kept["record"])
 	assert.Equal(t, "pt", kept["storyFlag"])
 	assert.NotContains(t, kept, "storyAngle", "a post of what a flag did")
+}
+
+func TestAClipOfAnExperimentKeepsItsNameWithThePost(t *testing.T) {
+	clip, err := posts.ClipSnapshot{
+		Pick: 1, Title: "HUNGARY INVADES INDONESIA", Teasers: []string{"INDONESIA FALLS TO HUNGARY"},
+		Key: posts.StoryKey{Flag: "hu", Continent: "Southeast Asia"}, Video: "clip-1.mp4", Experiment: "far-invasion",
+	}.Restore()
+	require.NoError(t, err)
+	post := posts.Plan{Platforms: []posts.Platform{posts.YouTube}}.Post(clip, 1, 1, posts.LoadedDice(0))
+
+	kept, err := metadata.Of(post.At(posts.Slot{At: at, Platforms: []posts.Platform{posts.YouTube}}).TakeSnapshot())
+
+	require.NoError(t, err)
+	assert.Equal(t, "far-invasion", kept["record"].(map[string]any)["post"].(map[string]any)["experiment"])
 }
 
 func TestARecordThatIsNotAClipRecordIsAnError(t *testing.T) {

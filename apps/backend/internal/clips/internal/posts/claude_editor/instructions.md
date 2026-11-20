@@ -183,6 +183,16 @@ each story, `fighters` is the `number` of each player to name, from the `fighter
 - `[]` when no player should be named, and always for a saga.
 - Never a player's name in the words you write.
 
+## The lab
+
+Some runs try a new kind of clip. Their facts have a `lab`: its `experiment`, its `brief`, and the `pick` of the run it
+fills. Write in `lab` one story to that brief, from the same facts, checked as every story is: the brief says what to
+tell and how, and where it says otherwise than this page, the brief wins. A lab story has two fields more: `hook`, big
+words over the clip's opening before the headline shows (empty for none), and `language`, the two-letter code of the
+language its words are in ("en" for English). When no story of the facts fits the brief, answer `lab` empty: the run
+tells your other stories, and nothing is lost. Write `stories` as you would with no lab, for the run's other picks, and
+never the lab's flag and continent among them: the lab's is told first.
+
 ## Your answer
 
 `why` first: one or two sentences on why the first stories. Then `stories`, best first. For a front: its `front`,
@@ -191,4 +201,5 @@ each story, `fighters` is the `number` of each player to name, from the `fighter
 empty. For a saga: its `saga`, `since` (a time as the facts write them: "2026-11-07T19:00:00Z"), `attacker` and
 `rival`, the rest of those empty. For every story: `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and
 `fighters`. For a front or a place: its `look`, `flags` or `dive`; empty for a tour and a saga. Every field is present;
-a number not used is 0, and `since` is empty but for a saga.
+a number not used is 0, and `since` is empty but for a saga. Then `lab`: one story to the lab's brief with its `hook`
+and `language`, or none, always none when the facts have no `lab`.

@@ -460,7 +460,7 @@ async function choose(): Promise<Chosen> {
 
     const record = async (): Promise<Recording> => {
         const pick = numberParam("pick") ?? 1
-        const {told, written, fighters: chosen} = storyParam()
+        const {told, written, fighters: chosen, experiment} = storyParam()
         const picked = reviewOf(told)
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
@@ -583,7 +583,7 @@ async function choose(): Promise<Chosen> {
             clock.advance(1000 / fps)
 
             const ending = timeline.seconds - timeline.ending
-            overlay.show({replayAt, played, held, ending: seconds - ending})
+            overlay.show({seconds, replayAt, played, held, ending: seconds - ending})
         }
 
         const clipFighters = named.flatMap(({flag, fighters}) => fighters.map(({number, name, took}) => ({number, name, flag, took})))
@@ -592,6 +592,7 @@ async function choose(): Promise<Chosen> {
             camera: world ? "tour" : saga ? "saga" : "front", look: world || saga ? undefined : look,
             landmassesFlipped: flips.length, screens, tourStops: stops.length,
             fighters: clipFighters.length, line: words.line,
+            ...written?.language === undefined ? {} : {language: written.language},
         })
 
         return {
@@ -618,6 +619,7 @@ async function choose(): Promise<Chosen> {
                 countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", record: clipRecord,
                 teaserNames: words.teaserNames,
                 cast: clipFighters.length > 0 ? cast.id : "", fighters: clipFighters.map(({number, name, flag}) => ({number, name, flag})),
+                experiment,
             }).toJson(),
             music,
         }

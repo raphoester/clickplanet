@@ -16,8 +16,14 @@ import (
 func summaryOf(t *testing.T, editorial clips.Editorial) string {
 	t.Helper()
 
+	return summaryOfChoice(t, clips.Choice{Editorial: editorial})
+}
+
+func summaryOfChoice(t *testing.T, choice clips.Choice) string {
+	t.Helper()
+
 	path := filepath.Join(t.TempDir(), "summary.md")
-	require.NoError(t, display.Editorial(path, editorial))
+	require.NoError(t, display.Editorial(path, choice))
 	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
 	if os.IsNotExist(err) {
 		return ""
@@ -49,7 +55,18 @@ func TestTheSummarySaysWhenNothingWasAsked(t *testing.T) {
 }
 
 func TestNoSummaryFileIsNoSummary(t *testing.T) {
-	require.NoError(t, display.Editorial("", clips.Editorial{Asked: true, Spend: spend}))
+	require.NoError(t, display.Editorial("", clips.Choice{Editorial: clips.Editorial{Asked: true, Spend: spend}}))
+}
+
+func TestTheSummarySaysWhatTheLabsExperimentGot(t *testing.T) {
+	slot := clips.LabSlot{At: 1, Experiment: clips.Experiment{Name: "far-invasion"}}
+
+	told := summaryOfChoice(t, clips.Choice{Lab: slot, LabTold: true})
+	fellBack := summaryOfChoice(t, clips.Choice{Lab: slot})
+
+	assert.Contains(t, told, "**Lab:** `far-invasion` at pick 1.\n\n")
+	assert.Contains(t, fellBack, "**Lab:** `far-invasion` drawn at pick 1, with no story that holds: the control's.")
+	assert.NotContains(t, summaryOf(t, clips.Editorial{}), "Lab")
 }
 
 func TestATrialOfThePromptAlonePrintsItAndNoChoice(t *testing.T) {

@@ -9,9 +9,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
-// How the editor's call went, added to the summary file: what it cost and its reason, or why no answer was had.
-// Nothing with no file named: choose's standard output is the picks, and its log says it too.
-func Editorial(summaryFile string, editorial clips.Editorial) error {
+// How the editor's call went, added to the summary file: what it cost and its reason, or why no answer was had, and
+// what the lab's experiment got. Nothing with no file named: choose's standard output is the picks, and its log says it
+// too.
+func Editorial(summaryFile string, choice clips.Choice) error {
 	if summaryFile == "" {
 		return nil
 	}
@@ -21,7 +22,7 @@ func Editorial(summaryFile string, editorial clips.Editorial) error {
 	}
 	defer func() { _ = file.Close() }()
 
-	if _, err := io.WriteString(file, editorialOf(editorial)); err != nil {
+	if _, err := io.WriteString(file, editorialOf(choice.Editorial)+labOf(choice)); err != nil {
 		return fmt.Errorf("failed to write the summary: %w", err)
 	}
 	return nil
@@ -50,6 +51,18 @@ func editorialOf(editorial clips.Editorial) string {
 	return page.String()
 }
 
+// The lab's line of the summary; none for a run of the control alone.
+func labOf(choice clips.Choice) string {
+	switch {
+	case !choice.Lab.On():
+		return ""
+	case choice.LabTold:
+		return fmt.Sprintf("**Lab:** `%s` at pick %d.\n\n", choice.Lab.Experiment.Name, choice.Lab.At)
+	default:
+		return fmt.Sprintf("**Lab:** `%s` drawn at pick %d, with no story that holds: the control's.\n\n", choice.Lab.Experiment.Name, choice.Lab.At)
+	}
+}
+
 // The editor tried on findings: the prompt, and unless only that was asked for, what it chose, as the generator's
 // --story takes each story, and what it cost.
 func Trial(out io.Writer, trial clips.Trial, promptOnly bool) error {
@@ -71,7 +84,7 @@ func Trial(out io.Writer, trial clips.Trial, promptOnly bool) error {
 		return wrapped(err)
 	}
 
-	page.WriteString(editorialOf(trial.Choice.Editorial))
+	page.WriteString(editorialOf(trial.Choice.Editorial) + labOf(trial.Choice))
 	for _, skipped := range trial.Choice.Skipped {
 		fmt.Fprintf(&page, "skipped %s: %s\n", skipped.Story.Names(), oneLine(skipped.Why))
 	}

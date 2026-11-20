@@ -268,6 +268,15 @@ message Pick {
   // end of the history, its counters the attacker's share and the rival's.
   uint32 saga = 20;
   google.protobuf.Timestamp since = 22;
+
+  // The experiment of the lab the story was written for, by its brief; empty for the control, the clips as they are
+  // (docs/video-lab.md).
+  string experiment = 23;
+  // Big words over the opening, before the headline shows; empty for none. Only an experiment's story has them.
+  string hook = 24;
+  // The language its words are written in, as BCP 47's primary subtag ("pl"); empty is English. Only an experiment's
+  // story speaks another.
+  string language = 25;
 }
 
 message Clip {
@@ -286,6 +295,8 @@ message Clip {
   // The cast the fighters are numbered in; empty for a clip that names nobody.
   string cast = 12;
   repeated ClipFighter fighters = 13;
+  // The pick's experiment, as it came: empty for the control.
+  string experiment = 14;
 }
 
 // A player the clip names, with the flag it fought for.
@@ -355,6 +366,9 @@ message PostFacts {
   uint32 run_size = 5;
   reserved 6, 7;
   reserved "variants", "sound";
+  // The lab's experiment the post belongs to, "control" for the clips as they are (docs/video-lab.md); empty on the
+  // posts made before the lab.
+  string experiment = 8;
 }
 
 message TaggedCountry {

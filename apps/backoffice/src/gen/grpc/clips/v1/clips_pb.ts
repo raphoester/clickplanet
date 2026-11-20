@@ -1441,6 +1441,29 @@ export class Pick extends Message<Pick> {
    */
   since?: Timestamp;
 
+  /**
+   * The experiment of the lab the story was written for, by its brief; empty for the control, the clips as they are
+   * (docs/video-lab.md).
+   *
+   * @generated from field: string experiment = 23;
+   */
+  experiment = "";
+
+  /**
+   * Big words over the opening, before the headline shows; empty for none. Only an experiment's story has them.
+   *
+   * @generated from field: string hook = 24;
+   */
+  hook = "";
+
+  /**
+   * The language its words are written in, as BCP 47's primary subtag ("pl"); empty is English. Only an experiment's
+   * story speaks another.
+   *
+   * @generated from field: string language = 25;
+   */
+  language = "";
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1470,6 +1493,9 @@ export class Pick extends Message<Pick> {
     { no: 19, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 20, name: "saga", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 22, name: "since", kind: "message", T: Timestamp },
+    { no: 23, name: "experiment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 24, name: "hook", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 25, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {
@@ -1550,6 +1576,13 @@ export class Clip extends Message<Clip> {
    */
   fighters: ClipFighter[] = [];
 
+  /**
+   * The pick's experiment, as it came: empty for the control.
+   *
+   * @generated from field: string experiment = 14;
+   */
+  experiment = "";
+
   constructor(data?: PartialMessage<Clip>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1569,6 +1602,7 @@ export class Clip extends Message<Clip> {
     { no: 11, name: "teaser_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 12, name: "cast", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 13, name: "fighters", kind: "message", T: ClipFighter, repeated: true },
+    { no: 14, name: "experiment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -2004,6 +2038,14 @@ export class PostFacts extends Message<PostFacts> {
    */
   runSize = 0;
 
+  /**
+   * The lab's experiment the post belongs to, "control" for the clips as they are (docs/video-lab.md); empty on the
+   * posts made before the lab.
+   *
+   * @generated from field: string experiment = 8;
+   */
+  experiment = "";
+
   constructor(data?: PartialMessage<PostFacts>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2017,6 +2059,7 @@ export class PostFacts extends Message<PostFacts> {
     { no: 3, name: "scheduled_at", kind: "message", T: Timestamp },
     { no: 4, name: "run_position", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "run_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "experiment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostFacts {

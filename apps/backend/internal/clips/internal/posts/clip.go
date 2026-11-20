@@ -36,6 +36,7 @@ type Clip struct {
 	record       ClipRecord
 	cast         string
 	fighters     []ClipFighter
+	experiment   ExperimentName
 }
 
 func (c Clip) countryCodes() []string {
@@ -61,7 +62,7 @@ func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
 		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, Seconds: c.seconds, TeaserNames: c.teaserNames,
-		Record: c.record, Cast: c.cast, Fighters: c.fighters,
+		Record: c.record, Cast: c.cast, Fighters: c.fighters, Experiment: c.experiment,
 	}
 }
 
@@ -84,6 +85,8 @@ type ClipSnapshot struct {
 	// The cast its fighters are numbered in; empty when it names nobody.
 	Cast     string
 	Fighters []ClipFighter
+	// The lab's experiment it was written for; empty for the control.
+	Experiment ExperimentName
 }
 
 func (s ClipSnapshot) Restore() (Clip, error) {
@@ -125,9 +128,14 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 			return Clip{}, fmt.Errorf("%w: a fighter with no number, no name or no flag", ErrInvalidClip)
 		}
 	}
+	if s.Experiment != "" {
+		if _, err := ExperimentNameOf(string(s.Experiment)); err != nil {
+			return Clip{}, fmt.Errorf("%w: %w", ErrInvalidClip, err)
+		}
+	}
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
 		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, seconds: s.Seconds, teaserNames: s.TeaserNames,
-		record: s.Record, cast: s.Cast, fighters: s.Fighters,
+		record: s.Record, cast: s.Cast, fighters: s.Fighters, experiment: s.Experiment,
 	}, nil
 }

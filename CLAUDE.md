@@ -51,10 +51,10 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   tooling.
 - [CrazyGames](docs/crazygames.md) — the game framed from `crazygames.clickplanet.lol`: why a host of its own, what
   each app and the deploy do, and what the owner sets up.
-- [The video lab](docs/video-lab.md) — designed 2026-11-20, nothing built: new video formats beside the clips, on the
-  two accounts there are (no new TikTok account: 94% of its views are For You's), a coin per slot (2 of TikTok's 3 a
-  day, about 4 of YouTube's 12), `post.experiment` on every post, waves of 2 for 10 days and the owner's verdict; the
-  formats in waves (far invasion, call to arms; satisfying, rankings; the narrated war report, POV), the costs, the PRs.
+- [The video lab](docs/video-lab.md) — PR 1 built 2026-11-20: new video formats beside the clips, on the two accounts
+  there are (no new TikTok account: 94% of its views are For You's), one pick a run by a coin (2 of TikTok's 3 a day,
+  half of YouTube's), `post.experiment` on every post, 2 or 3 experiments at once for 10 days each and the owner's
+  verdict; far invasion and call to arms built, then satisfying, rankings, the narrated war report, POV; the costs.
 - [Chat moderation](docs/moderation.md) — the three layers (banned phrases at send, raid mode for guests, a Claude Haiku
   judge of reports alone) and the daily Claude audit; the policy the judge sends Claude and the audit reads: what stays,
   what goes, the mute steps capped at 24 hours and counted from the moderation history, usernames, reports, what goes

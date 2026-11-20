@@ -154,13 +154,48 @@ describe("the hashtags of a story", () => {
             .toEqual({countries: [{code: "ps", tag: "palestine"}], continent: undefined})
     })
 })
+describe("a lab story's hook", () => {
+    const rout: Story = {...story("rout", {country: "pl"}), attacker: "de", victims: ["pl"]}
+    const hooked: Written = {...written, headline: "POLSKA TRACI POLSKĘ", hook: "POLACY, GDZIE JESTEŚCIE?", language: "pl"}
+    const opacities = (seconds: number) => {
+        const root = document.createElement("div")
+        const overlay = createOverlay(root, rout, wordsOf(rout, hooked), new Map(), [])
+        overlay.show({seconds, replayAt: 0, played: 0, held: new Map(), ending: -5})
+        return [".clip-hook", ".clip-top"].map((part) => root.querySelector<HTMLElement>(part)?.style.opacity)
+    }
+
+    it("is read alone over the opening, then fades as the headline comes in", () => {
+        expect(opacities(0)).toEqual(["1", "0"])
+        expect(opacities(1.5)).toEqual(["1", "0"])
+        expect(opacities(1.75)).toEqual(["0.5", "0.5"])
+        expect(opacities(2)).toEqual(["0", "1"])
+    })
+
+    it("is drawn in the font that has its letters", () => {
+        const root = document.createElement("div")
+        createOverlay(root, rout, wordsOf(rout, hooked), new Map(), [])
+
+        expect(root.querySelector(".clip-hook")?.textContent).toBe("POLACY, GDZIE JESTEŚCIE?")
+        expect(root.classList.contains("clip--fallback-font")).toBe(true)
+    })
+
+    it("is none for the control, whose headline shows from the first frame", () => {
+        const root = document.createElement("div")
+        const overlay = createOverlay(root, rout, wordsOf(rout, written), new Map(), [])
+        overlay.show({seconds: 0, replayAt: 0, played: 0, held: new Map(), ending: -5})
+
+        expect(root.querySelector(".clip-hook")).toBeNull()
+        expect(root.querySelector<HTMLElement>(".clip-top")?.style.opacity).toBe("1")
+    })
+})
+
 describe("the day a saga is at", () => {
     it("reads as big as its counters, and only on a saga", () => {
         const saga = {...story("battle", {country: "cn"}, "cz"), kind: "saga" as const}
         const root = document.createElement("div")
         const overlay = createOverlay(root, saga, wordsOf(saga, written), new Map(), [], 18_622)
 
-        overlay.show({replayAt: Date.parse("2026-11-07T20:50:00Z"), played: 0.6, held: new Map(), ending: -1})
+        overlay.show({seconds: 6, replayAt: Date.parse("2026-11-07T20:50:00Z"), played: 0.6, held: new Map(), ending: -1})
 
         expect(root.querySelector(".clip-day")?.textContent).toBe("SAT 7 NOV")
     })
@@ -235,7 +270,7 @@ describe("the end card of the players a clip names", () => {
     it("shows in the call to act once the counter is gone, never over it", () => {
         const {root, overlay} = overlaid(named)
         const opacities = (ending: number) => {
-            overlay.show({replayAt: 0, played: 1, held: new Map(), ending})
+            overlay.show({seconds: 9, replayAt: 0, played: 1, held: new Map(), ending})
             return [".clip-bottom", ".clip-ending", ".clip-fighters"].map((part) => root.querySelector<HTMLElement>(part)?.style.opacity)
         }
 
