@@ -49,7 +49,8 @@ clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   once; the generator searches its last 12 hours anyway (`newsSince`). **Since 2026-11-20 the workflow fetches 72
   hours** (`-hours 72`), as much as the ledger keeps, for the carousel's most-attacked list, which counts 3 days (below,
   "The carousel"); the clips' stories are still searched in the last 12. On `earth-2` the replay of 12 hours of
-  2026-11-20 was 39 MB, the most of it the map it opens on, which 72 hours do not grow.
+  2026-11-20 was 39 MB: 29 MB the map it opens on, which 72 hours do not grow, and 10 MB its 75,000 events, so 72
+  hours are about 90 MB, which the artifact zips.
 - **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
   run and the story as the generator's `--story` takes it
   (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"}}]`,
