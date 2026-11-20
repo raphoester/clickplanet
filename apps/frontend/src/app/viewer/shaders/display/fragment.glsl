@@ -87,9 +87,8 @@ vec4 ownColour(vec2 coordinates) {
     }
     uv.y = 1.0 - uv.y;
 
-    vec4 colour = texture2D(atlasTexture, atlasUVof(vRegionVector, uv));
-    colour.a = vHover > 0.5 ? 1.0 : 0.7;
-    return colour;
+    vec3 flag = onWhite(texture2D(atlasTexture, atlasUVof(vRegionVector, uv)));
+    return vec4(flag, vHover > 0.5 ? 1.0 : 0.7);
 }
 
 vec4 shieldMark(float cell, vec2 coordinates) {
