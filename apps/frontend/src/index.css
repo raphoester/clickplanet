@@ -456,7 +456,7 @@ th {
 }
 
 /* Held sideways the tabs are a rail on the left, and the dock is centred in the room right of it; see docs/screen.md. */
-@media (max-height: 600px) and (orientation: landscape) {
+@media (min-width: 481px) and (max-height: 600px) and (orientation: landscape) {
     :root {
         --rail-width: 64px;
         --rail-room: calc(var(--rail-width) + env(safe-area-inset-left, 0px));

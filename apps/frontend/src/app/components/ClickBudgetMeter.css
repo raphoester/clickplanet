@@ -356,7 +356,7 @@
 /* Held sideways the height is what the globe lacks, so the dock is as short as its slots: the clicks and their line on
    one row, the level's line under them, and the slots on the right of both. It is centred right of the rail, and a
    sheet open beside it hides it: the sheet is for reading, as it covers the dock on a phone held upright. */
-@media (max-height: 600px) and (orientation: landscape) {
+@media (min-width: 481px) and (max-height: 600px) and (orientation: landscape) {
     .click-budget-dock {
         left: var(--dock-left);
         right: auto;

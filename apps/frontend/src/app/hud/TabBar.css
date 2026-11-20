@@ -63,7 +63,7 @@
 }
 
 /* Held sideways the tabs are a rail down the left edge: a sideways phone has width to spare and no height. */
-@media (max-height: 600px) and (orientation: landscape) {
+@media (min-width: 481px) and (max-height: 600px) and (orientation: landscape) {
     .tab-bar {
         top: 0;
         right: auto;

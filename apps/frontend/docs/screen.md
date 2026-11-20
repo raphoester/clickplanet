@@ -14,8 +14,11 @@ chat and the globe between them, so it keeps that form. Every stylesheet's phone
 rules use the same `@media` query as `COMPACT`; `compact.test.ts` fails on one
 that does not.
 
-**Held sideways, the phone form turns its bars into a rail** (`LANDSCAPE` in `compact.ts`, 600px high or less and wider
-than high, which only a compact screen is). A phone on its side is 320 to 430px high: the status bar, the dock and the
+**Held sideways, the phone form turns its bars into a rail** (`LANDSCAPE` in `compact.ts`, 600px high or less, wider
+than high, which only a compact screen is, and wider than 480px). The width floor is for an upright phone with its
+keyboard open: a browser that shrinks the viewport above the keyboard (Brave on an iPhone 17: 402×375) makes it wider
+than high, and without the floor the chat turned into the rail's drawer while the player typed (2026-11-20). An
+upright phone is 480px wide or less (`NARROW_PHONE`); a phone on its side is 568px wide or more. A phone on its side is 320 to 430px high: the status bar, the dock and the
 tab bar stacked as upright left the globe a strip 60 to 100px high between them (iPhone SE 568×320, iPhone 14 750×340,
 Pixel 7 863×360, CrazyGames' 821×462; 2026-11-19). The same components, so a turn keeps the open sheet, laid out
 by CSS alone:
