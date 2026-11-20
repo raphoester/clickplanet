@@ -174,6 +174,39 @@ describe("the day a saga is at", () => {
     })
 })
 
+describe("the flags of the call to act", () => {
+    const battle = story("battle", {country: "fr"}, "nl")
+    // Each flag measured at the height the card draws it: as wide as its own shape, in a frame 4px a side, 16px apart.
+    const overlaid = (widths: number[], room: number) => {
+        const root = document.createElement("div")
+        const callFlags = widths.map((_, i) => ["gb", "co", "np"][i])
+        const overlay = createOverlay(root, battle, wordsOf(battle, {...written, callFlags}), new Map(), [])
+        const row = root.querySelector<HTMLElement>(".clip-ending-flags")
+        if (row === null || row.parentElement === null) throw new Error("no row of flags")
+        row.querySelectorAll<HTMLImageElement>(".clip-ending-flag").forEach((flag, i) => {
+            Object.defineProperty(flag, "clientWidth", {value: widths[i]})
+            Object.defineProperty(flag, "clientHeight", {value: 120})
+        })
+        const drawn = widths.reduce((sum, width) => sum + width, 0)
+        Object.defineProperty(row, "scrollWidth", {value: drawn + 8 * widths.length + 16 * (widths.length - 1)})
+        Object.defineProperty(row.parentElement, "clientWidth", {value: room})
+        overlay.fit()
+        return row
+    }
+
+    it("keep their height where their row fits the card", () => {
+        const row = overlaid([240, 180], 452)
+
+        expect(row.style.getPropertyValue("--clip-flag-height")).toBe("")
+    })
+
+    it("are lowered together where their row is wider than the card, their frames and gaps kept", () => {
+        const row = overlaid([240, 240], 452)
+
+        expect(row.style.getPropertyValue("--clip-flag-height")).toBe("105px")
+    })
+})
+
 describe("the end card of the players a clip names", () => {
     const battle = story("battle", {country: "fr"}, "nl")
     const named: NamedSide[] = [

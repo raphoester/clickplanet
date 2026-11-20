@@ -133,6 +133,11 @@ function texturesLoaded(): () => Promise<void> {
     return () => loaded
 }
 
+// The overlay's flags and logo drawn, so fit() measures each flag at its own shape.
+function picturesLoaded(root: HTMLElement): Promise<unknown> {
+    return Promise.all([...root.querySelectorAll("img")].map((image) => image.decode().catch(() => undefined)))
+}
+
 function countryParam(name: string): string | undefined {
     const code = params.get(name) ?? undefined
     if (code !== undefined && !Countries.has(code)) throw new Error(`no country "${code}"`)
@@ -566,6 +571,7 @@ async function choose(): Promise<Chosen> {
 
         await textures()
         await document.fonts.ready
+        await picturesLoaded(root)
         overlay.fit()
         for (let i = 0; i < WARM_UP_FRAMES; i++) clock.advance(1000 / fps)
 

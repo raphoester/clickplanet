@@ -43,7 +43,8 @@ export type Moment = {
 
 export type Overlay = {
     show(moment: Moment): void
-    // Once the fonts are in: sets a name too long for its row smaller, never cut nor wrapped.
+    // Once the fonts and the pictures are in: sets a name too long for its row smaller, never cut nor wrapped, and the
+    // call's flags lower together where their row is wider than the card.
     fit(): void
 }
 
@@ -158,6 +159,25 @@ function shareOf(count: number, ground: number): string {
 
 const TOP_FIGHTERS = "TOP FIGHTERS"
 
+// The height the call's flags share, each as wide as its own shape: the one they are drawn at, or lower where their row
+// is wider than the room. drawn: the flags' own widths at that height, which scale with it; the rest of the row, their
+// frames and the gaps between them, does not.
+export function flagHeightOf(height: number, row: number, drawn: number, room: number): number {
+    if (row <= room || drawn <= 0) return height
+    return Math.floor(height * (room - (row - drawn)) / drawn)
+}
+
+function fitFlags(row: HTMLElement, flags: HTMLImageElement[]) {
+    const card = row.parentElement
+    if (flags.length === 0 || card === null) return
+    const style = getComputedStyle(card)
+    const room = card.clientWidth - parseFloat(style.paddingLeft || "0") - parseFloat(style.paddingRight || "0")
+    const drawn = flags.reduce((sum, image) => sum + image.clientWidth, 0)
+    const height = flags[0].clientHeight
+    const fitted = flagHeightOf(height, row.scrollWidth, drawn, room)
+    if (fitted < height) row.style.setProperty("--clip-flag-height", `${fitted}px`)
+}
+
 // The call fades in as the counter fades out, and the end card only once the counter is gone: it covers where the
 // counter was.
 const FADE_SECONDS = 0.5
@@ -215,7 +235,7 @@ export function createOverlay(
 
     const ending = element("section", "clip-ending", root)
     const endingFlags = element("div", "clip-ending-flags", ending)
-    for (const called of words.callFlags) flag(called, "clip-ending-flag", endingFlags)
+    const callFlags = words.callFlags.map((called) => flag(called, "clip-ending-flag", endingFlags))
     if (words.table !== undefined) {
         const table = element("ol", "clip-podium", ending)
         for (const {rank, country, name, points} of words.table) {
@@ -277,6 +297,7 @@ export function createOverlay(
             if (card !== undefined) card.style.opacity = String(faded(into - FADE_SECONDS))
         },
         fit() {
+            fitFlags(endingFlags, callFlags)
             for (const name of names) {
                 if (name.scrollWidth > name.clientWidth) name.style.fontSize = `${Math.floor(name.clientWidth / name.scrollWidth * 100) / 100}em`
             }
