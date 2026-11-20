@@ -31,6 +31,10 @@ uniform int latticeCols;
 uniform vec4 latticeWarp;
 uniform highp usampler2D tileCells;
 uniform highp usampler2D tileData;
+// Each tile's flag's footprint on its province, and a row a footprint: the provinces' first, then the landmasses'
+// (footprintField.ts).
+uniform highp usampler2D footprintData;
+uniform sampler2D footprintFrames;
 uniform highp usampler2D terrain;
 // Must match KINDS in domain/terrain.ts.
 uniform vec3 terrainColours[12];
@@ -41,6 +45,9 @@ const int CELL_COLUMNS = 256;
 const int PROVINCE_COLUMNS = 1024;
 const int TILE_COLUMNS = 1024;
 const int TERRAIN_COLUMNS = 2048;
+// Must match FOOTPRINT_COLUMNS and MOST_FOOTPRINTS in footprintField.ts.
+const int FOOTPRINT_COLUMNS = 1024;
+const int FOOTPRINT_ROWS = 32;
 
 // Must match domain/terrain.ts: the land's kinds, then the sea's, the last the open sea.
 const uint LAND_KINDS = 8u;
@@ -161,13 +168,20 @@ vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, ve
     return surface / halfSize * 0.5 + anchor;
 }
 
-// A flag that does not lead the landmass covers its ground from the middle, as the leader's would with no fit.
+// A flag that does not lead the ground covers its own footprint there from its middle, as the leader's would with no fit.
 vec2 coverOf(vec2 reach, float aspect) {
     float halfV = clamp(max(reach.y, reach.x / aspect), leastFlagRadius, MAX_FLAG_RADIUS);
     return vec2(halfV * aspect, halfV);
 }
 
-vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float under, sampler2D groundData, float groundCount) {
+// A footprint's two texels: its centre and half extent east, then its half extent north, the landmass's footprint (a
+// province's alone) and its tiles. `firstRow` 0 for the provinces', FOOTPRINT_ROWS for the landmasses'.
+vec4 footprintTexel(int footprint, int firstRow, int texel) {
+    ivec2 at = ivec2((footprint % FOOTPRINT_COLUMNS) * 2 + texel, firstRow + footprint / FOOTPRINT_COLUMNS);
+    return texelFetch(footprintFrames, at, 0);
+}
+
+vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, int footprint, int firstRow, float under, sampler2D groundData, float groundCount) {
     if (under < 0.5) return vec4(0.0);
     float row = (under + 0.5) / groundCount;
     vec4 region = texture(groundData, vec2(5.0 / 8.0, row));
@@ -182,10 +196,21 @@ vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNum
     bool leads = all(equal(region, flag));
     vec4 frame = texture(groundData, vec2(1.0 / 8.0, row));
     vec4 axis = texture(groundData, vec2(3.0 / 8.0, row));
-    vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, flag.z / flag.w);
+    vec3 centre = frame.xyz;
+    vec2 reach = axis.xy;
+    // Any other flag is framed by where its own tiles are on this ground, so each wears the part of the flag it would
+    // in a flag drawn over them; with no footprint (a table full), by the ground's middle and reach.
+    if (!leads && footprint > 0) {
+        vec4 place = footprintTexel(footprint, firstRow, 0);
+        vec4 extent = footprintTexel(footprint, firstRow, 1);
+        if (extent.w > 0.0) {
+            centre = place.xyz;
+            reach = vec2(place.w, extent.x);
+        }
+    }
+    vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(reach, flag.z / flag.w);
     vec2 anchor = leads ? held.ba : vec2(0.5);
 
-    vec3 centre = frame.xyz;
     if (dot(ground, centre) <= 0.0) return vec4(0.0);
     vec3 east = normalize(vec3(centre.z, 0.0, -centre.x));
     if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
@@ -266,12 +291,14 @@ void main() {
     int at = int(tile.y);
     float landmass = float(texelFetch(provinceLandmass, ivec2(at % PROVINCE_COLUMNS, at / PROVINCE_COLUMNS), 0).r);
     vec4 own = texelFetch(flagRectangles, ivec2(int(tile.x), 0), 0);
+    int footprint = int(texelFetch(footprintData, ivec2(texel % TILE_COLUMNS, texel / TILE_COLUMNS), 0).r);
+    int landmassFootprint = footprint > 0 ? int(footprintTexel(footprint, 0, 1).y + 0.5) : 0;
 
     // Each framing painted only while it shows: both for the fade alone, blended with their coverage.
     vec4 colour = vec4(0.0);
-    if (provinceShare < 1.0) colour = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), landmass, landmassData, landmassCount);
+    if (provinceShare < 1.0) colour = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), landmassFootprint, FOOTPRINT_ROWS, landmass, landmassData, landmassCount);
     if (provinceShare > 0.0) {
-        vec4 divided = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), province, provinceData, provinceCount);
+        vec4 divided = paintedFlag(ground, acrossStep, upStep, own, int(tile.x), footprint, 0, province, provinceData, provinceCount);
         vec4 blend = mix(vec4(colour.rgb * colour.a, colour.a), vec4(divided.rgb * divided.a, divided.a), provinceShare);
         colour = blend.a > 0.0 ? vec4(blend.rgb / blend.a, blend.a) : vec4(0.0);
     }
