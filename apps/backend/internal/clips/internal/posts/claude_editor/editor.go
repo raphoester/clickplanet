@@ -60,7 +60,7 @@ func (e *Editor) Edit(ctx context.Context, offer posts.Offer) (posts.Edition, po
 		return posts.Edition{}, posts.Spend{}, err
 	}
 
-	message, err := e.client.Messages.New(ctx, e.paramsOf(prompt), requestOptions...)
+	message, err := e.client.Messages.New(ctx, e.paramsOf(prompt, formatOf(offer)), requestOptions...)
 	if err != nil {
 		// Sent, and billed as nothing that can be known here.
 		return posts.Edition{}, posts.Spend{Model: e.model}, fmt.Errorf("the model could not be asked: %w", cpanthropic.Redacted(err))
@@ -80,7 +80,15 @@ func (e *Editor) Edit(ctx context.Context, offer posts.Offer) (posts.Edition, po
 	return edition, spend, err
 }
 
-func (e *Editor) paramsOf(prompt string) anthropic.MessageNewParams {
+// The lab's, which shapes its answer; a run with no lab answers its stories as a clip's.
+func formatOf(offer posts.Offer) posts.Format {
+	if !offer.Lab.On() {
+		return posts.GlobeReplay
+	}
+	return offer.Lab.Experiment.Format
+}
+
+func (e *Editor) paramsOf(prompt string, format posts.Format) anthropic.MessageNewParams {
 	return anthropic.MessageNewParams{
 		Model:     e.model,
 		MaxTokens: maxTokens,
@@ -88,7 +96,7 @@ func (e *Editor) paramsOf(prompt string) anthropic.MessageNewParams {
 		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(prompt))},
 		OutputConfig: anthropic.OutputConfigParam{
 			Effort: anthropic.OutputConfigEffortMedium,
-			Format: anthropic.JSONOutputFormatParam{Schema: answerSchema},
+			Format: anthropic.JSONOutputFormatParam{Schema: answerSchemaOf(format)},
 		},
 	}
 }
@@ -99,7 +107,7 @@ func (e *Editor) Count(ctx context.Context, offer posts.Offer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	params := e.paramsOf(prompt)
+	params := e.paramsOf(prompt, formatOf(offer))
 	counted, err := e.client.Messages.CountTokens(ctx, anthropic.MessageCountTokensParams{
 		Model:        params.Model,
 		System:       anthropic.MessageCountTokensParamsSystemUnion{OfTextBlockArray: params.System},
@@ -144,6 +152,14 @@ type answeredStory struct {
 	// A lab story's alone.
 	Hook     string `json:"hook"`
 	Language string `json:"language"`
+	// A carousel's alone.
+	List  string         `json:"list"`
+	Ranks []answeredRank `json:"ranks"`
+}
+
+type answeredRank struct {
+	Code string `json:"code"`
+	Line string `json:"line"`
 }
 
 var storyFields = []string{
@@ -162,15 +178,42 @@ func storySchema(lab bool) map[string]any {
 	return map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": properties}
 }
 
-var answerSchema = map[string]any{
-	"type":                 "object",
-	"additionalProperties": false,
-	"required":             []string{"why", "stories", "lab"},
+// A carousel's lab story is its list, its cover and its ranks.
+var carouselSchema = map[string]any{
+	"type": "object", "additionalProperties": false, "required": []string{"list", "hook", "ranks"},
 	"properties": map[string]any{
-		"why":     map[string]any{"type": "string"},
-		"stories": map[string]any{"type": "array", "items": storySchema(false)},
-		"lab":     map[string]any{"type": "array", "items": storySchema(true)},
+		"list": map[string]any{"type": "string", "enum": listNames()},
+		"hook": map[string]any{"type": "string"},
+		"ranks": map[string]any{"type": "array", "items": map[string]any{
+			"type": "object", "additionalProperties": false, "required": []string{"code", "line"},
+			"properties": map[string]any{"code": map[string]any{"type": "string"}, "line": map[string]any{"type": "string"}},
+		}},
 	},
+}
+
+func listNames() []string {
+	names := make([]string, 0, len(posts.ListNames))
+	for _, name := range posts.ListNames {
+		names = append(names, string(name))
+	}
+	return names
+}
+
+func answerSchemaOf(format posts.Format) map[string]any {
+	lab := storySchema(true)
+	if format == posts.Carousel {
+		lab = carouselSchema
+	}
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             []string{"why", "stories", "lab"},
+		"properties": map[string]any{
+			"why":     map[string]any{"type": "string"},
+			"stories": map[string]any{"type": "array", "items": storySchema(false)},
+			"lab":     map[string]any{"type": "array", "items": lab},
+		},
+	}
 }
 
 var storyProperties = map[string]any{
@@ -228,6 +271,13 @@ func (s answeredStory) story() posts.Story {
 	for _, number := range s.Fighters {
 		fighters = append(fighters, posts.FighterNumber(number))
 	}
+	var ranks []posts.Rank
+	if len(s.Ranks) > 0 {
+		ranks = make([]posts.Rank, 0, len(s.Ranks))
+	}
+	for _, rank := range s.Ranks {
+		ranks = append(ranks, posts.Rank{Code: rank.Code, Line: rank.Line})
+	}
 	// A time that is none is no time of a saga: the check refuses it.
 	since, _ := time.Parse(time.RFC3339, s.Since)
 	return posts.Story{
@@ -235,7 +285,7 @@ func (s answeredStory) story() posts.Story {
 		Attacker: s.Attacker, Rival: s.Rival, TakenFrom: s.TakenFrom, Countries: s.Countries,
 		Continent: s.Continent, Team: s.Team, Headline: s.Headline, Teasers: s.Teasers,
 		Line: s.Line, Call: s.Call, CallFlags: s.CallFlags, Anthem: s.Anthem, Look: posts.Look(s.Look),
-		Fighters: fighters, Hook: s.Hook, Language: s.Language,
+		Fighters: fighters, Hook: s.Hook, Language: s.Language, List: posts.ListName(s.List), Ranks: ranks,
 	}
 }
 

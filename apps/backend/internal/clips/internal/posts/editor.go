@@ -30,6 +30,9 @@ type Telling struct {
 	Failure   string
 	// What its clip told, from the record kept with it: zero for a post made before the record kept it.
 	Facts TellingFacts
+	// A carousel's list, and the codes of its ranks from the 1st; none for a video.
+	List  ListName
+	Ranks []string
 }
 
 // What a post's clip told: its kind, its sides, where (countries, else a continent or TheWorld), its line, the stretch it
@@ -194,12 +197,12 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 		case lab != nil:
 			skip(story, "the lab tells one story a run")
 		default:
-			told, key, err := f.tellable(story, past, keys, offer.Lab.Experiment.Name)
+			kept, key, err := f.labTellable(story, offer.Lab.Experiment, past, told, keys)
 			if err != nil {
 				skip(story, fmt.Sprintf("the lab's %s: %s", offer.Lab.Experiment.Name, err))
 				continue
 			}
-			lab = &Chosen{Story: told, Key: key}
+			lab = &Chosen{Story: kept, Key: key}
 		}
 	}
 	choice.LabTold = lab != nil
@@ -236,6 +239,18 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 	}
 	choice.Chosen = chosen
 	return choice
+}
+
+// A lab story is checked as its format tells it: a clip's as every story, a carousel's against its list.
+func (f Findings) labTellable(story Story, experiment Experiment, past *past, told []Telling, keys *cpcolls.Set[StoryKey]) (Story, StoryKey, error) {
+	switch experiment.Format {
+	case GlobeReplay:
+		return f.tellable(story, past, keys, experiment.Name)
+	case Carousel:
+		return f.carouselTellable(story, told, keys, experiment.Name)
+	default:
+		return Story{}, StoryKey{}, fmt.Errorf("%w: %s is drawn as %q", ErrInvalidExperiment, experiment.Name, experiment.Format)
+	}
 }
 
 // The story as it is told, and its key, when it holds; why not, else. The control speaks English and opens on no hook:

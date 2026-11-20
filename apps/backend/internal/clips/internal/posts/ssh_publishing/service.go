@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +50,7 @@ func New(host, client string, httpClient *http.Client) (*Service, error) {
 	if host == "" {
 		return nil, errors.New("the ssh host is empty")
 	}
-	return &Service{host: host, client: client, http: httpClient, uploaded: map[posts.VideoFile]upload{}}, nil
+	return &Service{host: host, client: client, http: httpClient, uploaded: map[string]upload{}}, nil
 }
 
 type Service struct {
@@ -58,8 +59,8 @@ type Service struct {
 	http   *http.Client
 
 	mu sync.Mutex
-	// Each video once a run, however many times its post is tried.
-	uploaded map[posts.VideoFile]upload
+	// Each file once a run, however many times its post is tried.
+	uploaded map[string]upload
 }
 
 type upload struct {
@@ -98,9 +99,10 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 		if !keyed || post.GetScheduledFor() == nil {
 			continue
 		}
+		list, ranks := metadata.CarouselOf(kept)
 		told = append(told, posts.Telling{
 			Key: key, Countries: metadata.CountriesOf(kept), At: post.GetScheduledFor().AsTime(), Title: post.GetTitle(),
-			State: post.GetStatus(), Failure: post.GetFailure(), Facts: metadata.FactsOf(kept),
+			State: post.GetStatus(), Failure: post.GetFailure(), Facts: metadata.FactsOf(kept), List: list, Ranks: ranks,
 		})
 	}
 	return told, nil
@@ -140,7 +142,11 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 		return posts.Scheduled{}, fmt.Errorf("failed to write what the post keeps: %w", err)
 	}
 
-	video, err := s.upload(ctx, snapshot.Video)
+	video, err := s.upload(ctx, string(snapshot.Video), videoType)
+	if err != nil {
+		return posts.Scheduled{}, err
+	}
+	photos, err := s.photosOf(ctx, snapshot)
 	if err != nil {
 		return posts.Scheduled{}, err
 	}
@@ -149,11 +155,12 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 	if err := s.ask(ctx, "SchedulePost", &publishingv1.SchedulePostRequest{
 		Slot:     &publishingv1.Slot{At: timestamppb.New(snapshot.At), Platforms: wireOf(snapshot.Platforms)},
 		MediaUrl: video.media, IdempotencyKey: video.key, Title: snapshot.Title,
-		Tiktok: &publishingv1.TikTokWords{Caption: snapshot.TikTok.Caption},
+		Tiktok: &publishingv1.TikTokWords{Caption: snapshot.TikTok.Caption, Title: snapshot.TikTok.Title},
 		Youtube: &publishingv1.YouTubeWords{
 			Title: snapshot.YouTube.Title, Description: snapshot.YouTube.Description, Tags: snapshot.YouTube.Tags,
 		},
-		Metadata: keeps,
+		Metadata:        keeps,
+		TiktokPhotoUrls: photos,
 	}, &answer); err != nil {
 		return posts.Scheduled{}, &posts.BusyError{Reason: err.Error()}
 	}
@@ -179,42 +186,63 @@ func outcomeOf(answer *publishingv1.SchedulePostResponse) (posts.Scheduled, erro
 	}
 }
 
-// Once a run: the same file is the same media and the same key. The key is the SHA-256 of the video, so a run made
+const (
+	videoType = "video/mp4"
+	photoType = "image/jpeg"
+)
+
+// A carousel's photos, in their order, when TikTok is in the post's slot: on every other platform the video is the post.
+func (s *Service) photosOf(ctx context.Context, snapshot posts.PostSnapshot) ([]string, error) {
+	if !slices.Contains(snapshot.Platforms, posts.TikTok) {
+		return nil, nil
+	}
+	photos := make([]string, 0, len(snapshot.Photos))
+	for _, photo := range snapshot.Photos {
+		uploaded, err := s.upload(ctx, string(photo), photoType)
+		if err != nil {
+			return nil, err
+		}
+		photos = append(photos, uploaded.media)
+	}
+	return photos, nil
+}
+
+// Once a run: the same file is the same media and the same key. The key is the SHA-256 of the file, so a run made
 // again is the same post on the service, not a second one.
-func (s *Service) upload(ctx context.Context, file posts.VideoFile) (upload, error) {
+func (s *Service) upload(ctx context.Context, file, contentType string) (upload, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if done, sent := s.uploaded[file]; sent {
 		return done, nil
 	}
 
-	video, err := os.ReadFile(string(file)) //nolint:gosec // the file of a clip this job rendered.
+	content, err := os.ReadFile(file) //nolint:gosec // a file of a clip this job rendered.
 	if err != nil {
-		return upload{}, fmt.Errorf("failed to read the video: %w", err)
+		return upload{}, fmt.Errorf("failed to read %s: %w", filepath.Base(file), err)
 	}
 	var link publishingv1.CreateMediaUploadResponse
 	if err := s.ask(ctx, "CreateMediaUpload", &publishingv1.CreateMediaUploadRequest{
-		FileName: filepath.Base(string(file)), ContentType: "video/mp4", SizeBytes: uint64(len(video)),
+		FileName: filepath.Base(file), ContentType: contentType, SizeBytes: uint64(len(content)),
 	}, &link); err != nil {
 		return upload{}, &posts.BusyError{Reason: err.Error()}
 	}
-	if err := s.put(ctx, link.GetUploadUrl(), video); err != nil {
+	if err := s.put(ctx, link.GetUploadUrl(), contentType, content); err != nil {
 		return upload{}, err
 	}
 
-	key := sha256.Sum256(video)
+	key := sha256.Sum256(content)
 	done := upload{media: link.GetMediaUrl(), key: hex.EncodeToString(key[:])}
 	s.uploaded[file] = done
 	return done, nil
 }
 
 // Straight to the storage, which takes no key: the address is a credential for an hour, so no error says it.
-func (s *Service) put(ctx context.Context, address string, video []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, address, bytes.NewReader(video))
+func (s *Service) put(ctx context.Context, address, contentType string, content []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, address, bytes.NewReader(content))
 	if err != nil {
-		return errors.New("the backend gave an address to upload the video to that is not a URL")
+		return errors.New("the backend gave an address to upload a file to that is not a URL")
 	}
-	req.Header.Set("Content-Type", "video/mp4")
+	req.Header.Set("Content-Type", contentType)
 
 	res, err := s.http.Do(req)
 	if err != nil {
@@ -227,7 +255,7 @@ func (s *Service) put(ctx context.Context, address string, video []byte) error {
 	defer func() { _ = res.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, maxBodyBytes))
 
-	reason := fmt.Sprintf("the storage answered %d to the upload of the video", res.StatusCode)
+	reason := fmt.Sprintf("the storage answered %d to the upload of a %s", res.StatusCode, contentType)
 	switch {
 	case res.StatusCode/100 == 2:
 		return nil

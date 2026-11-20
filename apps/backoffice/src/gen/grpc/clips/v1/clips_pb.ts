@@ -82,6 +82,13 @@ export class Findings extends Message<Findings> {
    */
   paths: Path[] = [];
 
+  /**
+   * The carousel's lists (docs/video-lab.md, "Photos, not a video"), each ranked by the generator, its first the top.
+   *
+   * @generated from field: clips.v1.Lists lists = 12;
+   */
+  lists?: Lists;
+
   constructor(data?: PartialMessage<Findings>) {
     super();
     proto3.util.initPartial(data, this);
@@ -101,6 +108,7 @@ export class Findings extends Message<Findings> {
     { no: 9, name: "anthems", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 10, name: "sagas", kind: "message", T: Saga, repeated: true },
     { no: 11, name: "paths", kind: "message", T: Path, repeated: true },
+    { no: 12, name: "lists", kind: "message", T: Lists },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Findings {
@@ -117,6 +125,329 @@ export class Findings extends Message<Findings> {
 
   static equals(a: Findings | PlainMessage<Findings> | undefined, b: Findings | PlainMessage<Findings> | undefined): boolean {
     return proto3.util.equals(Findings, a, b);
+  }
+}
+
+/**
+ * Four lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
+ *
+ * @generated from message clips.v1.Lists
+ */
+export class Lists extends Message<Lists> {
+  /**
+   * The countries big enough to show whose own flag holds the least of their ground, the least first.
+   *
+   * @generated from field: repeated clips.v1.OwnLand own_land = 1;
+   */
+  ownLand: OwnLand[] = [];
+
+  /**
+   * The flags the most tiles were taken from since attacked_since, the most first.
+   *
+   * @generated from field: repeated clips.v1.Attacked most_attacked = 2;
+   */
+  mostAttacked: Attacked[] = [];
+
+  /**
+   * The flags whose land outside their country is the farthest from it, weighed by its size, the farthest first.
+   *
+   * @generated from field: repeated clips.v1.FarLand far_from_home = 3;
+   */
+  farFromHome: FarLand[] = [];
+
+  /**
+   * The flags holding the most of the world, the most first.
+   *
+   * @generated from field: repeated clips.v1.Empire biggest_empires = 4;
+   */
+  biggestEmpires: Empire[] = [];
+
+  /**
+   * When the stretch most_attacked counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
+   *
+   * @generated from field: google.protobuf.Timestamp attacked_since = 5;
+   */
+  attackedSince?: Timestamp;
+
+  constructor(data?: PartialMessage<Lists>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Lists";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "own_land", kind: "message", T: OwnLand, repeated: true },
+    { no: 2, name: "most_attacked", kind: "message", T: Attacked, repeated: true },
+    { no: 3, name: "far_from_home", kind: "message", T: FarLand, repeated: true },
+    { no: 4, name: "biggest_empires", kind: "message", T: Empire, repeated: true },
+    { no: 5, name: "attacked_since", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Lists {
+    return new Lists().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Lists {
+    return new Lists().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Lists {
+    return new Lists().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Lists | PlainMessage<Lists> | undefined, b: Lists | PlainMessage<Lists> | undefined): boolean {
+    return proto3.util.equals(Lists, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.OwnLand
+ */
+export class OwnLand extends Message<OwnLand> {
+  /**
+   * @generated from field: string country = 1;
+   */
+  country = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  /**
+   * Of its tiles, the share its own flag holds.
+   *
+   * @generated from field: double own_share = 3;
+   */
+  ownShare = 0;
+
+  /**
+   * The flag holding the most of it, and its share.
+   *
+   * @generated from field: string holder = 4;
+   */
+  holder = "";
+
+  /**
+   * @generated from field: double holder_share = 5;
+   */
+  holderShare = 0;
+
+  constructor(data?: PartialMessage<OwnLand>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.OwnLand";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "own_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "holder", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "holder_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OwnLand {
+    return new OwnLand().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OwnLand {
+    return new OwnLand().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OwnLand {
+    return new OwnLand().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OwnLand | PlainMessage<OwnLand> | undefined, b: OwnLand | PlainMessage<OwnLand> | undefined): boolean {
+    return proto3.util.equals(OwnLand, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.Attacked
+ */
+export class Attacked extends Message<Attacked> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * Tiles taken from it by another flag.
+   *
+   * @generated from field: uint32 lost = 2;
+   */
+  lost = 0;
+
+  /**
+   * The flag that took the most from it, and how many.
+   *
+   * @generated from field: string taken_by = 3;
+   */
+  takenBy = "";
+
+  /**
+   * @generated from field: uint32 taken_by_tiles = 4;
+   */
+  takenByTiles = 0;
+
+  /**
+   * The country whose ground it lost the most tiles on.
+   *
+   * @generated from field: string country = 5;
+   */
+  country = "";
+
+  constructor(data?: PartialMessage<Attacked>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Attacked";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "taken_by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "taken_by_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Attacked {
+    return new Attacked().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Attacked {
+    return new Attacked().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Attacked {
+    return new Attacked().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Attacked | PlainMessage<Attacked> | undefined, b: Attacked | PlainMessage<Attacked> | undefined): boolean {
+    return proto3.util.equals(Attacked, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.FarLand
+ */
+export class FarLand extends Message<FarLand> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * The country whose ground its farthest land is on, and its tiles there.
+   *
+   * @generated from field: string country = 2;
+   */
+  country = "";
+
+  /**
+   * @generated from field: uint32 tiles = 3;
+   */
+  tiles = 0;
+
+  /**
+   * From there to the nearest ground of its own country, to the nearest 100 km.
+   *
+   * @generated from field: uint32 km = 4;
+   */
+  km = 0;
+
+  constructor(data?: PartialMessage<FarLand>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.FarLand";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "km", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FarLand {
+    return new FarLand().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FarLand {
+    return new FarLand().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FarLand {
+    return new FarLand().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FarLand | PlainMessage<FarLand> | undefined, b: FarLand | PlainMessage<FarLand> | undefined): boolean {
+    return proto3.util.equals(FarLand, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.Empire
+ */
+export class Empire extends Message<Empire> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  /**
+   * Of all the tiles of the world.
+   *
+   * @generated from field: double share = 3;
+   */
+  share = 0;
+
+  /**
+   * The country whose ground it holds the most of.
+   *
+   * @generated from field: string country = 4;
+   */
+  country = "";
+
+  constructor(data?: PartialMessage<Empire>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Empire";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Empire {
+    return new Empire().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Empire {
+    return new Empire().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Empire {
+    return new Empire().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Empire | PlainMessage<Empire> | undefined, b: Empire | PlainMessage<Empire> | undefined): boolean {
+    return proto3.util.equals(Empire, a, b);
   }
 }
 
@@ -1464,6 +1795,19 @@ export class Pick extends Message<Pick> {
    */
   language = "";
 
+  /**
+   * A carousel's: the list of the findings it tells (own-land, most-attacked, far-from-home or biggest-empires), its
+   * cover's words in hook, and its ranks from the 1st to the 5th, the list's first 5 in its order.
+   *
+   * @generated from field: string list = 26;
+   */
+  list = "";
+
+  /**
+   * @generated from field: repeated clips.v1.Rank ranks = 27;
+   */
+  ranks: Rank[] = [];
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1496,6 +1840,8 @@ export class Pick extends Message<Pick> {
     { no: 23, name: "experiment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 24, name: "hook", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 25, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 26, name: "list", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 27, name: "ranks", kind: "message", T: Rank, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {
@@ -1512,6 +1858,53 @@ export class Pick extends Message<Pick> {
 
   static equals(a: Pick | PlainMessage<Pick> | undefined, b: Pick | PlainMessage<Pick> | undefined): boolean {
     return proto3.util.equals(Pick, a, b);
+  }
+}
+
+/**
+ * An entry of a carousel's list, and the words under its name; the number beside them is the generator's.
+ *
+ * @generated from message clips.v1.Rank
+ */
+export class Rank extends Message<Rank> {
+  /**
+   * The country of own-land, the flag of the others.
+   *
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  /**
+   * @generated from field: string line = 2;
+   */
+  line = "";
+
+  constructor(data?: PartialMessage<Rank>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Rank";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "line", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rank {
+    return new Rank().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rank {
+    return new Rank().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rank {
+    return new Rank().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Rank | PlainMessage<Rank> | undefined, b: Rank | PlainMessage<Rank> | undefined): boolean {
+    return proto3.util.equals(Rank, a, b);
   }
 }
 
@@ -1583,6 +1976,21 @@ export class Clip extends Message<Clip> {
    */
   experiment = "";
 
+  /**
+   * A carousel's photos, beside this file, in the order they are swiped: TikTok's media in place of the video, which is
+   * their slideshow. Empty for a video.
+   *
+   * @generated from field: repeated string photos = 15;
+   */
+  photos: string[] = [];
+
+  /**
+   * A carousel's list: own-land, most-attacked, far-from-home or biggest-empires.
+   *
+   * @generated from field: string list = 16;
+   */
+  list = "";
+
   constructor(data?: PartialMessage<Clip>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1603,6 +2011,8 @@ export class Clip extends Message<Clip> {
     { no: 12, name: "cast", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 13, name: "fighters", kind: "message", T: ClipFighter, repeated: true },
     { no: 14, name: "experiment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "photos", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 16, name: "list", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -1697,6 +2107,13 @@ export class ClipRecord extends Message<ClipRecord> {
    */
   globe?: GlobeReplay;
 
+  /**
+   * A carousel's, for the format carousel.
+   *
+   * @generated from field: clips.v1.Carousel carousel = 6;
+   */
+  carousel?: Carousel;
+
   constructor(data?: PartialMessage<ClipRecord>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1709,6 +2126,7 @@ export class ClipRecord extends Message<ClipRecord> {
     { no: 2, name: "generator", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "common", kind: "message", T: ClipCommon },
     { no: 4, name: "globe", kind: "message", T: GlobeReplay },
+    { no: 6, name: "carousel", kind: "message", T: Carousel },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipRecord {
@@ -1725,6 +2143,69 @@ export class ClipRecord extends Message<ClipRecord> {
 
   static equals(a: ClipRecord | PlainMessage<ClipRecord> | undefined, b: ClipRecord | PlainMessage<ClipRecord> | undefined): boolean {
     return proto3.util.equals(ClipRecord, a, b);
+  }
+}
+
+/**
+ * Photos on TikTok, their slideshow on YouTube (docs/video-lab.md, "Photos, not a video").
+ *
+ * @generated from message clips.v1.Carousel
+ */
+export class Carousel extends Message<Carousel> {
+  /**
+   * own-land, most-attacked, far-from-home or biggest-empires.
+   *
+   * @generated from field: string list = 1;
+   */
+  list = "";
+
+  /**
+   * The code of each rank, from the 1st to the 5th.
+   *
+   * @generated from field: repeated string codes = 2;
+   */
+  codes: string[] = [];
+
+  /**
+   * @generated from field: uint32 photos = 3;
+   */
+  photos = 0;
+
+  /**
+   * How long the slideshow shows each photo.
+   *
+   * @generated from field: double seconds_per_photo = 4;
+   */
+  secondsPerPhoto = 0;
+
+  constructor(data?: PartialMessage<Carousel>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Carousel";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "list", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "codes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "photos", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "seconds_per_photo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Carousel {
+    return new Carousel().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Carousel {
+    return new Carousel().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Carousel {
+    return new Carousel().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Carousel | PlainMessage<Carousel> | undefined, b: Carousel | PlainMessage<Carousel> | undefined): boolean {
+    return proto3.util.equals(Carousel, a, b);
   }
 }
 

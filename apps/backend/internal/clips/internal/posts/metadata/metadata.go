@@ -25,6 +25,8 @@ const (
 	roundKey = "storyRound"
 	// What the post was, to set beside how it did: a clips.v1.PostRecord.
 	recordKey = "record"
+	// A carousel's list, so the lists can be compared (docs/video-lab.md); absent on a clip.
+	listKey = "carouselList"
 )
 
 // What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
@@ -35,8 +37,13 @@ func Of(snapshot posts.PostSnapshot) (map[string]any, error) {
 		return nil, err
 	}
 	metadata := map[string]any{
-		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
-		callKey: snapshot.CallToAction, recordKey: record,
+		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries, recordKey: record,
+	}
+	if snapshot.CallToAction != "" {
+		metadata[callKey] = snapshot.CallToAction
+	}
+	if snapshot.List != "" {
+		metadata[listKey] = string(snapshot.List)
 	}
 	if snapshot.Key.Angle != posts.Deeds {
 		metadata[angleKey] = string(snapshot.Key.Angle)
@@ -96,20 +103,18 @@ func CountriesOf(metadata map[string]any) []string {
 	return countries
 }
 
+// A carousel's list, and the codes of its ranks from the 1st, from its record: none for a clip.
+func CarouselOf(metadata map[string]any) (posts.ListName, []string) {
+	list, _ := metadata[listKey].(string)
+	if list == "" {
+		return "", nil
+	}
+	return posts.ListName(list), recordIn(metadata).GetClip().GetCarousel().GetCodes()
+}
+
 // What a post's clip told, from its record: zero for a post with none, or with one written before it kept what it told.
 func FactsOf(metadata map[string]any) posts.TellingFacts {
-	kept, ok := metadata[recordKey].(map[string]any)
-	if !ok {
-		return posts.TellingFacts{}
-	}
-	written, err := json.Marshal(kept)
-	if err != nil {
-		return posts.TellingFacts{}
-	}
-	var record clipsv1.PostRecord
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(written, &record); err != nil {
-		return posts.TellingFacts{}
-	}
+	record := recordIn(metadata)
 	globe := record.GetClip().GetGlobe()
 	if globe.GetAttacker() == "" {
 		return posts.TellingFacts{}
@@ -127,4 +132,21 @@ func FactsOf(metadata map[string]any) posts.TellingFacts {
 		Since: until.Add(-time.Duration(globe.GetSpanMinutes() * float64(time.Minute))), Until: until,
 		ShareAtStart: shareOf(globe.GetFlagTilesStart()), ShareAtEnd: shareOf(globe.GetFlagTilesEnd()),
 	}
+}
+
+// Empty for a post with none.
+func recordIn(metadata map[string]any) *clipsv1.PostRecord {
+	var record clipsv1.PostRecord
+	kept, ok := metadata[recordKey].(map[string]any)
+	if !ok {
+		return &record
+	}
+	written, err := json.Marshal(kept)
+	if err != nil {
+		return &record
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(written, &record); err != nil {
+		return &clipsv1.PostRecord{}
+	}
+	return &record
 }

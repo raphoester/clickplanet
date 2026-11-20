@@ -91,3 +91,13 @@ func TestTheTagsOfAShortStopBeforeYouTubesLength(t *testing.T) {
 	assert.Less(t, len(words.Tags), 50, "some countries are left out")
 	assert.Equal(t, "clickplanet", words.Tags[0])
 }
+
+func TestACarouselsSlideshowOnYouTubeAsksWhereTheViewersCountryIsWithNoCallToPlay(t *testing.T) {
+	post := captionOf(t, ownLandCarousel(t), 0)
+
+	assert.Equal(t, "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND | CLICKPLANET", post.YouTube.Title)
+	assert.Equal(t, "Where is your country? 👇\n"+
+		"https://clickplanet.lol/y\n"+
+		"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral "+
+		"#france #turkey #india #germany #brazil", post.YouTube.Description)
+}

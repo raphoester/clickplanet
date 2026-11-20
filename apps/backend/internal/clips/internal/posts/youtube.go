@@ -22,7 +22,11 @@ type YouTubeWords struct {
 // No #Shorts: a vertical video of 3 minutes or less is one by itself. No TikTok community tag either.
 func (w wording) youtube(clip Clip) YouTubeWords {
 	tags := tagsOf(clip)
-	lines := append(append(fightersLine(clip), w.callAndCredit(clip, youtubeSite)...), hashtagged(tags[:min(len(tags), youtubeHashtags)]))
+	hashtags := hashtagged(tags[:min(len(tags), youtubeHashtags)])
+	lines := append(append(fightersLine(clip), w.callAndCredit(clip, youtubeSite)...), hashtags)
+	if clip.carousel() {
+		lines = []string{carouselQuestion, youtubeSite, hashtags}
+	}
 	return YouTubeWords{Title: w.youtubeTitle(), Description: strings.Join(lines, "\n"), Tags: within(tags, youtubeTagsLength)}
 }
 

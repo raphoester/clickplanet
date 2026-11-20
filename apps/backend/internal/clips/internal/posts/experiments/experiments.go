@@ -15,10 +15,13 @@ var briefs embed.FS
 
 var (
 	// The experiments on, in the order they started.
-	On = []string{"far-invasion"}
+	On = []string{"far-invasion", "carousel"}
 	// The ones that ran and stopped, or wait their turn (docs/video-lab.md, "The order"): their briefs stay, so what
 	// their posts were written to can still be read, and `clips edit -experiment` still tries them.
 	Off = []string{"call-to-arms"}
+
+	// The experiments drawn as something else than a clip of the globe.
+	formats = map[string]posts.Format{"carousel": posts.Carousel}
 )
 
 // The experiments on, each with its brief.
@@ -47,5 +50,9 @@ func Named(name string) (posts.Experiment, error) {
 	if err != nil {
 		return posts.Experiment{}, fmt.Errorf("%w: %s has no brief: %w", posts.ErrInvalidExperiment, name, err)
 	}
-	return posts.Experiment{Name: known, Brief: string(brief)}, nil
+	format, apart := formats[name]
+	if !apart {
+		format = posts.GlobeReplay
+	}
+	return posts.Experiment{Name: known, Brief: string(brief), Format: format}, nil
 }
