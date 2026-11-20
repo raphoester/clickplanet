@@ -93,9 +93,9 @@ func TestTheTagsOfAShortStopBeforeYouTubesLength(t *testing.T) {
 }
 
 func TestACarouselsSlideshowOnYouTubeAsksWhereTheViewersCountryIsWithNoCallToPlay(t *testing.T) {
-	post := captionOf(t, ownLandCarousel(t), 0)
+	post := captionOf(t, fightCarousel(t), 0)
 
-	assert.Equal(t, "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND | CLICKPLANET", post.YouTube.Title)
+	assert.Equal(t, "THE 5 COUNTRIES THAT FIGHT THE MOST | CLICKPLANET", post.YouTube.Title)
 	assert.Equal(t, "Where is your country? 👇\n"+
 		"https://clickplanet.lol/y\n"+
 		"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral "+

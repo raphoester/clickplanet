@@ -18,7 +18,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
    artifact; all are public data, the cast's names and numbers too, never an account. A turn or a round that could not be fetched is no file, and the run goes on without
    a round to tell or a country to call up. So is a history (`history.json`, the map every hour since the season
-   started): the run then tells no saga. 72 hours since 2026-11-20 (12 before): a carousel's most-attacked counts 3
+   started): the run then tells no saga. 72 hours since 2026-11-20 (12 before): a carousel's fight-the-most counts 3
    days, and the clips' stories are still searched in the last 12 (`newsSince`).
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Anthropic key and the VPS's, and runs no npm), the backend's `clips choose` reads it and prints the stories to
@@ -106,11 +106,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
     its time**: the cast's times are postgres's, the replay's the stream's.
   - **`lists`**, a carousel's (`domain/clip/lists.ts`, `listsOf`; the root's [The video lab](../../../docs/video-lab.md),
-    "Photos, not a video"), each ranked, 5 entries at most: **`ownLand`**, the countries big enough to show
-    (`bigCountryTiles`) whose own flag holds the least of their ground, then the most taken, each with the flag holding
-    the most of it (a country nobody holds any of is left out); **`mostAttacked`**, the flags the most tiles were taken
-    from by another flag since `attackedSince` (3 days before the window's end, or the replay's start), each with who
-    took the most and on which country's ground it lost the most; **`farFromHome`**, each flag's land on another
+    "Photos, not a video"), each ranked, 5 entries at most: **`fightTheMost`**, the flags by the tiles they took from
+    other flags plus the tiles other flags took from them since `foughtSince` (3 days before the window's end, or the
+    replay's start), each with the flag it fought the most tiles with, both ways, and on which country's ground it
+    fought the most; **`farFromHome`**, each flag's land on another
     country's ground, from its middle to the nearest ground of its own country (its ground read at 2,000 tiles at
     most), to the nearest 100 km, weighed by `tiles / (tiles + readableFlipTiles)`, its best holding each; and
     **`biggestEmpires`**, the flags holding the most of the world, each with the country it holds the most of. All of
@@ -443,14 +442,14 @@ lab](../../../docs/video-lab.md), "Photos, not a video"): the same page, the sam
 - **The photos** (`photosOf`): the cover, its hook in big gold words over the globe; the ranks from the 5th to the 1st,
   each its rank, its flag, its name as people say it ("THE UK"), its one number and the editor's line under it; and the
   logo with `clickplanet.lol` last. No address before the last photo: the clip's mark is not drawn.
-- **The number is the list's** (`numberOf`): the holder's share of `own-land` ("81%"), the tiles taken of
-  `most-attacked` ("5,300 TILES"), the distance of `far-from-home` ("16,000 KM"), the share of the world of
+- **The number is the list's** (`numberOf`): the tiles fought of `fight-the-most` ("5,833 TILES FOUGHT"), the
+  distance of `far-from-home` ("16,000 KM"), the share of the world of
   `biggest-empires` ("12%"); a share never more than it is, to a tenth of a point under a tenth (`percentOf`). The
   editor writes the words, never a number.
 - **The ranks are the list's first 5, in its order**, or the page refuses the pick: the job checked it first.
 - **The camera** (`aimedTilesOf`, `framingOf`): the map at the window's end (`ReplayBackend.cut` past it), the cover
-  over the whole globe at the middle of the 5 places, each rank aimed at its place (`own-land`'s country on its main
-  landmasses, else the flag's tiles on the entry's country, those taken from it for `most-attacked`), framed a little
+  over the whole globe at the middle of the 5 places, each rank aimed at its place (the flag's tiles on the entry's country,
+  those it fought for there for `fight-the-most`), framed a little
   wider (0.7 of its zoom) and never closer than where the painted flags give way to tiles, and the whole globe last,
   at the 1st. Each photo is drawn 8 frames of the virtual clock before it is taken.
 - **The files**: `render.mjs` takes each photo as a JPEG of quality 92 at 1080×1920 (`clip-<n>-1.jpg` to

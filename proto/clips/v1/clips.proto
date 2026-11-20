@@ -30,39 +30,31 @@ message Findings {
   Lists lists = 12;
 }
 
-// Four lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
+// Three lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
 message Lists {
-  // The countries big enough to show whose own flag holds the least of their ground, the least first.
-  repeated OwnLand own_land = 1;
-  // The flags the most tiles were taken from since attacked_since, the most first.
-  repeated Attacked most_attacked = 2;
+  reserved 1, 2;
+  reserved "own_land", "most_attacked";
   // The flags whose land outside their country is the farthest from it, weighed by its size, the farthest first.
   repeated FarLand far_from_home = 3;
   // The flags holding the most of the world, the most first.
   repeated Empire biggest_empires = 4;
-  // When the stretch most_attacked counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
-  google.protobuf.Timestamp attacked_since = 5;
+  // When the stretch fight_the_most counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
+  google.protobuf.Timestamp fought_since = 5;
+  // The flags that took and lost the most tiles to other flags since fought_since, the most first.
+  repeated FightingFlag fight_the_most = 6;
 }
 
-message OwnLand {
-  string country = 1;
-  uint32 tiles = 2;
-  // Of its tiles, the share its own flag holds.
-  double own_share = 3;
-  // The flag holding the most of it, and its share.
-  string holder = 4;
-  double holder_share = 5;
-}
-
-message Attacked {
+message FightingFlag {
   string flag = 1;
-  // Tiles taken from it by another flag.
-  uint32 lost = 2;
-  // The flag that took the most from it, and how many.
-  string taken_by = 3;
-  uint32 taken_by_tiles = 4;
-  // The country whose ground it lost the most tiles on.
-  string country = 5;
+  // Tiles it took from other flags plus tiles other flags took from it.
+  uint32 fought = 2;
+  uint32 took = 3;
+  uint32 lost = 4;
+  // The flag it fought the most tiles with, both ways, and how many.
+  string rival = 5;
+  uint32 rival_tiles = 6;
+  // The country whose ground it fought the most tiles on.
+  string country = 7;
 }
 
 message FarLand {
@@ -333,7 +325,7 @@ message Pick {
   // story speaks another.
   string language = 25;
 
-  // A carousel's: the list of the findings it tells (own-land, most-attacked, far-from-home or biggest-empires), its
+  // A carousel's: the list of the findings it tells (fight-the-most, far-from-home or biggest-empires), its
   // cover's words in hook, and its ranks from the 1st to the 5th, the list's first 5 in its order.
   string list = 26;
   repeated Rank ranks = 27;
@@ -341,7 +333,7 @@ message Pick {
 
 // An entry of a carousel's list, and the words under its name; the number beside them is the generator's.
 message Rank {
-  // The country of own-land, the flag of the others.
+  // The flag of the entry.
   string code = 1;
   string line = 2;
 }
@@ -367,7 +359,7 @@ message Clip {
   // A carousel's photos, beside this file, in the order they are swiped: TikTok's media in place of the video, which is
   // their slideshow. Empty for a video.
   repeated string photos = 15;
-  // A carousel's list: own-land, most-attacked, far-from-home or biggest-empires.
+  // A carousel's list: fight-the-most, far-from-home or biggest-empires.
   string list = 16;
 }
 
@@ -391,7 +383,7 @@ message ClipRecord {
 
 // Photos on TikTok, their slideshow on YouTube (docs/video-lab.md, "Photos, not a video").
 message Carousel {
-  // own-land, most-attacked, far-from-home or biggest-empires.
+  // fight-the-most, far-from-home or biggest-empires.
   string list = 1;
   // The code of each rank, from the 1st to the 5th.
   repeated string codes = 2;

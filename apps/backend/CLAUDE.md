@@ -269,6 +269,6 @@ and says what is in it. Read the doc before you change its area.
   back with a fingerprint of the English.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
   publishing module, over ssh; the model editor, the lab (an experiment's brief at one pick a run, by a coin, its
-  post marked; `CLIPS_LAB`), the carousel (an experiment drawn as photos: the four lists, its check, its words, its
+  post marked; `CLIPS_LAB`), the carousel (an experiment drawn as photos: the three lists, its check, its words, its
   photos as TikTok's media), `clips bench` (the war report's scripts in each tone and model, posted nowhere), the stats
   and the experiments it ran.

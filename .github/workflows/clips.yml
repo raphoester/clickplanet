@@ -32,7 +32,7 @@ jobs:
       # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
       # the cast, the players who took tiles in it, numbered and named, never an account id (the artifact is public);
       # the history, the map every hour since the season started, which each place's saga is told from.
-      # A backend that does not answer one leaves it out. 72 hours, as much as the ledger keeps: a carousel's most-attacked
+      # A backend that does not answer one leaves it out. 72 hours, as much as the ledger keeps: a carousel's fight-the-most
       # counts the last 3 days, and the clips' stories are searched in the last 12 alone.
       - name: fetch the last 12 hours
         working-directory: apps/backend

@@ -387,16 +387,15 @@ func TestAPromptOver100KTokensIsBilledFiveTimesOver(t *testing.T) {
 func carouselOffer() posts.Offer {
 	listed := offer
 	listed.Findings.Lists = posts.Lists{
-		OwnLand:        []posts.OwnLandEntry{{Country: "fr", Tiles: 9000, Holder: "pw", HolderShare: 0.81}},
-		MostAttacked:   []posts.AttackedEntry{{Flag: "tr", Lost: 5300, TakenBy: "fr", TakenByTiles: 5100, Country: "tr"}},
+		FightTheMost:   []posts.FightEntry{{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"}},
 		FarFromHome:    []posts.FarLandEntry{{Flag: "hu", Country: "id", Tiles: 2100, Km: 10400}},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
-		AttackedSince:  time.Date(2026, 10, 23, 20, 29, 0, 0, time.UTC),
+		FoughtSince:    time.Date(2026, 10, 23, 20, 29, 0, 0, time.UTC),
 	}
 	listed.Told = []posts.Telling{{
 		Key: posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed}, Countries: []string{"fr", "tr"},
-		At: time.Date(2026, 10, 26, 9, 0, 0, 0, time.UTC), Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-		List: posts.OwnLand, Ranks: []string{"fr", "tr", "in", "de", "br"},
+		At: time.Date(2026, 10, 26, 9, 0, 0, 0, time.UTC), Title: "THE 5 COUNTRIES THAT FIGHT THE MOST",
+		List: posts.FightTheMost, Ranks: []string{"fr", "tr", "in", "de", "br"},
 	}}
 	listed.Lab = posts.LabSlot{At: 1, Experiment: posts.Experiment{Name: "carousel", Brief: "A list of countries.", Format: posts.Carousel}}
 	return listed
@@ -410,32 +409,34 @@ func TestACarouselsPromptGivesTheListsAndEachCarouselToldWithItsListAndRanks(t *
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(prompt, "The run's findings, as JSON:\n\n")), &written))
 	assert.Equal(t, "carousel", written["lab"].(map[string]any)["format"])
 	assert.Equal(t, map[string]any{
-		"own-land":        []any{map[string]any{"country": "fr", "tiles": float64(9000), "ownShare": float64(0), "holder": "pw", "holderShare": 0.81}},
-		"most-attacked":   []any{map[string]any{"flag": "tr", "lost": float64(5300), "takenBy": "fr", "takenByTiles": float64(5100), "country": "tr"}},
+		"fight-the-most": []any{map[string]any{
+			"flag": "fr", "fought": float64(41200), "took": float64(30000), "lost": float64(11200), "rival": "pw", "rivalTiles": float64(9000),
+			"country": "fr",
+		}},
 		"far-from-home":   []any{map[string]any{"flag": "hu", "country": "id", "tiles": float64(2100), "km": float64(10400)}},
 		"biggest-empires": []any{map[string]any{"flag": "pw", "tiles": float64(74000), "share": 0.28, "country": "ru"}},
-		"attackedSince":   "2026-10-23T20:29:00Z",
+		"foughtSince":     "2026-10-23T20:29:00Z",
 	}, written["lists"])
 	told := written["told"].([]any)[0].(map[string]any)
-	assert.Equal(t, "own-land", told["list"])
+	assert.Equal(t, "fight-the-most", told["list"])
 	assert.Equal(t, []any{"fr", "tr", "in", "de", "br"}, told["ranks"])
 }
 
 func TestACarouselsLabStoryIsAskedAsItsListItsCoverAndItsRanksAndReadSo(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn", `{"why":"","stories":[],"lab":[`+
-		`{"list":"own-land","hook":"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND","ranks":[{"code":"fr","line":"HELD BY PALAU"},{"code":"tr","line":"HELD BY FRANCE"}]}]}`)}
+		`{"list":"fight-the-most","hook":"THE 5 COUNTRIES THAT FIGHT THE MOST","ranks":[{"code":"fr","line":"AGAINST PALAU"},{"code":"tr","line":"AGAINST FRANCE"}]}]}`)}
 
 	edition, _, err := editorOf(t, api.serve(t)).Edit(t.Context(), carouselOffer())
 
 	require.NoError(t, err)
 	require.Len(t, edition.Lab, 1)
 	assert.Equal(t, posts.Story{
-		List: posts.OwnLand, Hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND",
-		Ranks: []posts.Rank{{Code: "fr", Line: "HELD BY PALAU"}, {Code: "tr", Line: "HELD BY FRANCE"}},
+		List: posts.FightTheMost, Hook: "THE 5 COUNTRIES THAT FIGHT THE MOST",
+		Ranks: []posts.Rank{{Code: "fr", Line: "AGAINST PALAU"}, {Code: "tr", Line: "AGAINST FRANCE"}},
 	}, edition.Lab[0])
 	format := api.requests[0]["output_config"].(map[string]any)["format"].(map[string]any)
 	lab := format["schema"].(map[string]any)["properties"].(map[string]any)["lab"].(map[string]any)["items"].(map[string]any)
 	assert.Equal(t, []any{"list", "hook", "ranks"}, lab["required"])
-	assert.Equal(t, []any{"own-land", "most-attacked", "far-from-home", "biggest-empires"},
+	assert.Equal(t, []any{"fight-the-most", "far-from-home", "biggest-empires"},
 		lab["properties"].(map[string]any)["list"].(map[string]any)["enum"])
 }

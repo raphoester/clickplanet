@@ -14,14 +14,14 @@ import (
 
 var (
 	carousel = posts.Experiment{Name: "carousel", Brief: "A list of countries.", Format: posts.Carousel}
-	ownLand  = posts.Story{
-		List: posts.OwnLand, Hook: "these 5 countries don't own their own land",
+	fighting = posts.Story{
+		List: posts.FightTheMost, Hook: "the 5 countries that fight the most",
 		Ranks: []posts.Rank{
-			{Code: "fr", Line: "held by palau"},
-			{Code: "tr", Line: "held by france"},
-			{Code: "in", Line: "held by france"},
-			{Code: "de", Line: "held by brazil"},
-			{Code: "br", Line: "held by ireland"},
+			{Code: "fr", Line: "against palau"},
+			{Code: "tr", Line: "against france"},
+			{Code: "in", Line: "against france"},
+			{Code: "de", Line: "against brazil"},
+			{Code: "br", Line: "against ireland"},
 		},
 	}
 )
@@ -30,16 +30,15 @@ func listed(t *testing.T) posts.Findings {
 	t.Helper()
 	found := findings(t)
 	found.Lists = posts.Lists{
-		OwnLand: []posts.OwnLandEntry{
-			{Country: "fr", Tiles: 9000, OwnShare: 0, Holder: "pw", HolderShare: 0.81},
-			{Country: "tr", Tiles: 8000, OwnShare: 0.01, Holder: "fr", HolderShare: 0.6},
-			{Country: "in", Tiles: 6300, OwnShare: 0.02, Holder: "fr", HolderShare: 0.97},
-			{Country: "de", Tiles: 5000, OwnShare: 0.05, Holder: "br", HolderShare: 0.5},
-			{Country: "br", Tiles: 20000, OwnShare: 0.1, Holder: "ie", HolderShare: 0.4},
+		FightTheMost: []posts.FightEntry{
+			{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
+			{Flag: "tr", Fought: 20000, Took: 9000, Lost: 11000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
+			{Flag: "in", Fought: 9000, Took: 4000, Lost: 5000, Rival: "fr", RivalTiles: 3000, Country: "in"},
+			{Flag: "de", Fought: 5000, Took: 2500, Lost: 2500, Rival: "br", RivalTiles: 2000, Country: "de"},
+			{Flag: "br", Fought: 4000, Took: 3000, Lost: 1000, Rival: "ie", RivalTiles: 900, Country: "br"},
 		},
-		MostAttacked:   []posts.AttackedEntry{{Flag: "tr", Lost: 5300, TakenBy: "fr", TakenByTiles: 5300, Country: "tr"}},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
-		AttackedSince:  foundAt.Add(-72 * time.Hour),
+		FoughtSince:    foundAt.Add(-72 * time.Hour),
 	}
 	return found
 }
@@ -55,20 +54,20 @@ func TestACarouselTrueToItsListIsToldAtTheLabsSlotUnderItsCover(t *testing.T) {
 	found := listed(t)
 	offer := found.Offer(3, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
 
-	choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{india}, Lab: []posts.Story{ownLand}}, nil, foundAt)
+	choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{india}, Lab: []posts.Story{fighting}}, nil, foundAt)
 
 	require.Len(t, choice.Chosen, 3)
 	assert.True(t, choice.LabTold)
 	assert.Equal(t, posts.Chosen{
 		Pick: 2,
 		Story: posts.Story{
-			List: posts.OwnLand, Hook: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", Experiment: "carousel", Language: posts.English,
+			List: posts.FightTheMost, Hook: "THE 5 COUNTRIES THAT FIGHT THE MOST", Experiment: "carousel", Language: posts.English,
 			Ranks: []posts.Rank{
-				{Code: "fr", Line: "HELD BY PALAU"},
-				{Code: "tr", Line: "HELD BY FRANCE"},
-				{Code: "in", Line: "HELD BY FRANCE"},
-				{Code: "de", Line: "HELD BY BRAZIL"},
-				{Code: "br", Line: "HELD BY IRELAND"},
+				{Code: "fr", Line: "AGAINST PALAU"},
+				{Code: "tr", Line: "AGAINST FRANCE"},
+				{Code: "in", Line: "AGAINST FRANCE"},
+				{Code: "de", Line: "AGAINST BRAZIL"},
+				{Code: "br", Line: "AGAINST IRELAND"},
 			},
 		},
 		Key: posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed},
@@ -79,25 +78,25 @@ func TestACarouselTrueToItsListIsToldAtTheLabsSlotUnderItsCover(t *testing.T) {
 func TestACarouselUntrueToItsListLeavesItsSlotToTheControl(t *testing.T) {
 	found := listed(t)
 	offer := found.Offer(3, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
-	swapped := with(ownLand, func(s *posts.Story) {
+	swapped := with(fighting, func(s *posts.Story) {
 		s.Ranks = []posts.Rank{s.Ranks[1], s.Ranks[0], s.Ranks[2], s.Ranks[3], s.Ranks[4]}
 	})
 	firstLine := func(line string) posts.Story {
-		ranks := slices.Clone(ownLand.Ranks)
+		ranks := slices.Clone(fighting.Ranks)
 		ranks[0].Line = line
-		return with(ownLand, func(s *posts.Story) { s.Ranks = ranks })
+		return with(fighting, func(s *posts.Story) { s.Ranks = ranks })
 	}
 
 	for why, story := range map[string]posts.Story{
-		`rank 1 of own-land is "fr", not "tr"`:     swapped,
-		"a carousel tells 5 ranks, not 4":          with(ownLand, func(s *posts.Story) { s.Ranks = s.Ranks[:4] }),
-		"most-attacked has 1 entries, not 5":       with(ownLand, func(s *posts.Story) { s.List = posts.MostAttacked }),
-		"far-from-home has 0 entries, not 5":       with(ownLand, func(s *posts.Story) { s.List = posts.FarFromHome }),
-		`no list is named so: "rankings"`:          with(ownLand, func(s *posts.Story) { s.List = "rankings" }),
-		`the rank's line "HELD BY PALAU 81%"`:      firstLine("held by palau 81%"),
-		`the cover "" is empty`:                    with(ownLand, func(s *posts.Story) { s.Hook = " " }),
-		`the cover "` + strings.Repeat("A", 91):    with(ownLand, func(s *posts.Story) { s.Hook = strings.Repeat("a", 91) }),
-		`the rank's line "HELD BY #PALAU" has '#'`: firstLine("held by #palau"),
+		`rank 1 of fight-the-most is "fr", not "tr"`: swapped,
+		"a carousel tells 5 ranks, not 4":            with(fighting, func(s *posts.Story) { s.Ranks = s.Ranks[:4] }),
+		"biggest-empires has 1 entries, not 5":       with(fighting, func(s *posts.Story) { s.List = posts.BiggestEmpires }),
+		"far-from-home has 0 entries, not 5":         with(fighting, func(s *posts.Story) { s.List = posts.FarFromHome }),
+		`no list is named so: "rankings"`:            with(fighting, func(s *posts.Story) { s.List = "rankings" }),
+		`the rank's line "AGAINST PALAU 81%"`:        firstLine("against palau 81%"),
+		`the cover "" is empty`:                      with(fighting, func(s *posts.Story) { s.Hook = " " }),
+		`the cover "` + strings.Repeat("A", 91):      with(fighting, func(s *posts.Story) { s.Hook = strings.Repeat("a", 91) }),
+		`the rank's line "AGAINST #PALAU" has '#'`:   firstLine("against #palau"),
 	} {
 		choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{india, tour}, Lab: []posts.Story{story}}, nil, foundAt)
 
@@ -112,14 +111,14 @@ func TestACarouselUntrueToItsListLeavesItsSlotToTheControl(t *testing.T) {
 func TestAListWhoseFiveAreTheFiveOfItsLastPostIsNotToldAgain(t *testing.T) {
 	found := listed(t)
 	offer := found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
-	last := carouselTold(foundAt.Add(-5*time.Hour), posts.OwnLand, "br", "de", "in", "tr", "fr")
+	last := carouselTold(foundAt.Add(-5*time.Hour), posts.FightTheMost, "br", "de", "in", "tr", "fr")
 
-	choice := found.Edited(offer, posts.Edition{Lab: []posts.Story{ownLand}}, []posts.Telling{
-		carouselTold(foundAt.Add(-30*time.Hour), posts.OwnLand, "fr", "tr", "in", "de", "pw"), last,
+	choice := found.Edited(offer, posts.Edition{Lab: []posts.Story{fighting}}, []posts.Telling{
+		carouselTold(foundAt.Add(-30*time.Hour), posts.FightTheMost, "fr", "tr", "in", "de", "pw"), last,
 	}, foundAt)
 
 	assert.False(t, choice.LabTold)
-	assert.Equal(t, []string{"the lab's carousel: the story does not hold: the 5 of own-land are the 5 of its last post, at 2026-10-26T15:29:00Z"},
+	assert.Equal(t, []string{"the lab's carousel: the story does not hold: the 5 of fight-the-most are the 5 of its last post, at 2026-10-26T15:29:00Z"},
 		whysOf(choice.Skipped), "in any order")
 }
 
@@ -127,13 +126,13 @@ func TestAListIsToldAgainWithOtherFiveOrAfterAnotherListHadTheseFive(t *testing.
 	found := listed(t)
 	offer := found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
 
-	newer := found.Edited(offer, posts.Edition{Lab: []posts.Story{ownLand}}, []posts.Telling{
-		carouselTold(foundAt.Add(-30*time.Hour), posts.OwnLand, "fr", "tr", "in", "de", "br"),
-		carouselTold(foundAt.Add(-5*time.Hour), posts.OwnLand, "fr", "tr", "in", "de", "pw"),
+	newer := found.Edited(offer, posts.Edition{Lab: []posts.Story{fighting}}, []posts.Telling{
+		carouselTold(foundAt.Add(-30*time.Hour), posts.FightTheMost, "fr", "tr", "in", "de", "br"),
+		carouselTold(foundAt.Add(-5*time.Hour), posts.FightTheMost, "fr", "tr", "in", "de", "pw"),
 	}, foundAt)
 	assert.True(t, newer.LabTold, "its last post had another 5")
 
-	other := found.Edited(offer, posts.Edition{Lab: []posts.Story{ownLand}}, []posts.Telling{
+	other := found.Edited(offer, posts.Edition{Lab: []posts.Story{fighting}}, []posts.Telling{
 		carouselTold(foundAt.Add(-5*time.Hour), posts.BiggestEmpires, "fr", "tr", "in", "de", "br"),
 	}, foundAt)
 	assert.True(t, other.LabTold, "another list's 5")
@@ -142,10 +141,10 @@ func TestAListIsToldAgainWithOtherFiveOrAfterAnotherListHadTheseFive(t *testing.
 func TestACarouselIsNoStoryOfTheControlNorOfAClipsExperiment(t *testing.T) {
 	found := listed(t)
 
-	control := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{ownLand}}, nil, foundAt)
+	control := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{}), posts.Edition{Stories: []posts.Story{fighting}}, nil, foundAt)
 	assert.Len(t, control.Chosen, 1)
 
-	clip := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: farInvasion}), posts.Edition{Lab: []posts.Story{ownLand}}, nil, foundAt)
+	clip := found.Edited(found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: farInvasion}), posts.Edition{Lab: []posts.Story{fighting}}, nil, foundAt)
 	assert.False(t, clip.LabTold)
 }
 

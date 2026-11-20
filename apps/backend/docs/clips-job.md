@@ -47,7 +47,7 @@ clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
   once; the generator searches its last 12 hours anyway (`newsSince`). **Since 2026-11-20 the workflow fetches 72
-  hours** (`-hours 72`), as much as the ledger keeps, for the carousel's most-attacked list, which counts 3 days (below,
+  hours** (`-hours 72`), as much as the ledger keeps, for the carousel's fight-the-most list, which counts 3 days (below,
   "The carousel"); the clips' stories are still searched in the last 12. On `earth-2` the replay of 12 hours of
   2026-11-20 was 39 MB: 29 MB the map it opens on, which 72 hours do not grow, and 10 MB its 75,000 events, so 72
   hours are about 90 MB, which the artifact zips.
@@ -170,15 +170,15 @@ shows in the root's [The video lab](../../../docs/video-lab.md), "Photos, not a 
 - **An experiment has a format** (`Experiment.Format`): `globe-replay`, the clips', or `carousel`, named in
   `experiments.formats`. The carousel is an experiment of the lab like the others: its brief (`briefs/carousel.md`), its
   coin and its slot, `post.experiment` on its posts.
-- **Its facts are the findings' four `lists`**, which the generator ranks (the frontend's
-  [Clips](../../frontend/docs/clips.md), "`lists`"): `own-land`, `most-attacked`, `far-from-home` and
-  `biggest-empires`, 5 entries each at most, the top first. The prompt holds them only when the run's lab is a carousel
+- **Its facts are the findings' three `lists`**, which the generator ranks (the frontend's
+  [Clips](../../frontend/docs/clips.md), "`lists`"): `fight-the-most`, `far-from-home` and `biggest-empires`, 5
+  entries each at most, the top first. The prompt holds them only when the run's lab is a carousel
   (`lists`, beside `lab.format`), and each carousel of `told` with its `list` and its `ranks`. The schema asks the lab's
   story as a carousel's: `list`, `hook`, the cover, and `ranks`, each a `code` and a `line`.
-- **Checked against its list** (`Findings.carouselTellable`): a list of the four with 5 entries at least, its ranks the
+- **Checked against its list** (`Findings.carouselTellable`): a list of the three with 5 entries at least, its ranks the
   list's first 5 in its order, each line drawn as a headline is in 40 letters with no digit (the photo draws the list's
   number beside it), the cover drawn in 90, TikTok's title over photos. **A list whose 5 are the 5 of its last post**, in
-  any order, is skipped with why (`the 5 of own-land are the 5 of its last post`), and the control's next story takes
+  any order, is skipped with why (`the 5 of fight-the-most are the 5 of its last post`), and the control's next story takes
   the pick. That is the one rule of the design: a cover that says again a cover of the week is not refused. Its key is
   the list's 1st, `the world` and the angle `list`.
 - **The pick carries `list`, `hook` and `ranks`** to the generator, which draws 7 photos and their slideshow, and
@@ -515,10 +515,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
 - **A carousel's words are a question, the address once and the tags**, with no call to play (`carouselQuestion`): its
   cover is TikTok's title over the photos, and YouTube's title with the brand.
   ```
-  THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND                    (TikTok's title)
+  THE 5 COUNTRIES THAT FIGHT THE MOST                           (TikTok's title)
   Where is your country? 👇
   https://clickplanet.lol/t
-  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #argentina #drcongo #libya #mongolia #peru #argentinatiktok🇦🇷
+  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #turkey #bulgaria #ireland #uk #canada #turkeytiktok🇹🇷
   ```
 - **YouTube's words** (`youtube.go`) are a title, a description and tags, within YouTube's limits:
   ```

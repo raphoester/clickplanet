@@ -151,12 +151,12 @@ func readBack(t *testing.T, kept map[string]any) map[string]any {
 
 func TestACarouselKeepsItsListAndNoCallToActAndItsRanksAreReadBackFromItsRecord(t *testing.T) {
 	clip, err := posts.ClipSnapshot{
-		Pick: 1, Title: "THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND", Teasers: []string{"THESE 5 COUNTRIES DON'T OWN THEIR OWN LAND"},
+		Pick: 1, Title: "THE 5 COUNTRIES THAT FIGHT THE MOST", Teasers: []string{"THE 5 COUNTRIES THAT FIGHT THE MOST"},
 		Key:       posts.StoryKey{Flag: "fr", Continent: posts.TheWorld, Angle: posts.Listed},
 		Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}, {Code: "tr", Tag: "turkey"}},
-		Video:     "clip-1.mp4", Photos: []posts.PhotoFile{"clip-1-1.jpg"}, List: posts.OwnLand, Experiment: "carousel",
+		Video:     "clip-1.mp4", Photos: []posts.PhotoFile{"clip-1-1.jpg"}, List: posts.FightTheMost, Experiment: "carousel",
 		Record: posts.ClipRecord(`{"format":"carousel","generator":"8dc31d2","common":{"durationSeconds":21,"music":"none",` +
-			`"language":"en"},"carousel":{"list":"own-land","codes":["fr","tr","in","de","br"],"photos":7,"secondsPerPhoto":3}}`),
+			`"language":"en"},"carousel":{"list":"fight-the-most","codes":["fr","tr","in","de","br"],"photos":7,"secondsPerPhoto":3}}`),
 	}.Restore()
 	require.NoError(t, err)
 	post := posts.Plan{Platforms: []posts.Platform{posts.TikTok}}.Post(clip, 1, 1, posts.LoadedDice(0))
@@ -164,7 +164,7 @@ func TestACarouselKeepsItsListAndNoCallToActAndItsRanksAreReadBackFromItsRecord(
 	kept, err := metadata.Of(post.At(posts.Slot{At: at, Platforms: []posts.Platform{posts.TikTok}}).TakeSnapshot())
 
 	require.NoError(t, err)
-	assert.Equal(t, "own-land", kept["carouselList"])
+	assert.Equal(t, "fight-the-most", kept["carouselList"])
 	assert.Equal(t, "list", kept["storyAngle"])
 	assert.NotContains(t, kept, "callToAction")
 	written, err := json.Marshal(kept)
@@ -172,7 +172,7 @@ func TestACarouselKeepsItsListAndNoCallToActAndItsRanksAreReadBackFromItsRecord(
 	var read map[string]any
 	require.NoError(t, json.Unmarshal(written, &read))
 	list, ranks := metadata.CarouselOf(read)
-	assert.Equal(t, posts.OwnLand, list)
+	assert.Equal(t, posts.FightTheMost, list)
 	assert.Equal(t, []string{"fr", "tr", "in", "de", "br"}, ranks)
 	key, keyed := metadata.KeyOf(read)
 	assert.True(t, keyed)

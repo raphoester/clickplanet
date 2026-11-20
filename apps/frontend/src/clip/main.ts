@@ -117,8 +117,8 @@ const SAGA_CALENDAR = 0.4
 // How long before each change a saga's clock starts to run into it: enclosures a minute apart flow, none freezes it.
 const SAGA_LEAD_MS = 5 * 60_000
 
-// What most-attacked counts: the last 3 days of the replay, or all of it when it is shorter.
-const ATTACKED_MS = 72 * 3_600_000
+// What fight-the-most counts: the last 3 days of the replay, or all of it when it is shorter.
+const FOUGHT_MS = 72 * 3_600_000
 
 // A carousel's slideshow on YouTube, as the teasers'.
 const SECONDS_PER_PHOTO = 3
@@ -345,11 +345,11 @@ async function choose(): Promise<Chosen> {
     const window = everything.filter(({at}) => at >= since && at <= until)
     const end = ownersAfter(replay.opening, everything.filter(({at}) => at <= until))
     const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf, castWithin(cast, since, until), scale)
-    // A carousel's lists, of the map at the end, and of the last 3 days for most-attacked.
-    const attackedSince = Math.max(replay.since, until - ATTACKED_MS)
-    const attacks = everything.filter(({at}) => at > attackedSince && at <= until)
+    // A carousel's lists, of the map at the end, and of the last 3 days for fight-the-most.
+    const foughtSince = Math.max(replay.since, until - FOUGHT_MS)
+    const fights = everything.filter(({at}) => at > foughtSince && at <= until)
     const listGround: ListGround = {owners: end, tiles: borders.assignment.length, groundOf: groundAt, pointOf: pointAt}
-    const lists = focus !== undefined ? {ownLand: [], mostAttacked: [], farFromHome: [], biggestEmpires: []} : listsOf(listGround, attacks, scale)
+    const lists = focus !== undefined ? {fightTheMost: [], farFromHome: [], biggestEmpires: []} : listsOf(listGround, fights, scale)
     // The clip of a holding plays its flag's fighting for it, all over the place.
     const holdingReviewOf = (story: Story, look: Look): Review => {
         const changes = window.filter(({tile, from, to}) => from !== to && (from === story.attacker || to === story.attacker)
@@ -517,9 +517,7 @@ async function choose(): Promise<Chosen> {
         const entries = entriesOf(lists, told.list)
         const photos = photosOf(told.list, entries, told.ranks, told.hook)
         const aimed = entries.slice(0, LIST_LENGTH).map((entry) => {
-            const tiles = aimedTilesOf(entry, listGround, attacks)
-            const framed = "flag" in entry ? tiles : framedTilesOf(tiles, (tile) => borders.assignment[tile - 1])
-            return framingOf(framed.map(pointAt), aspect)
+            return framingOf(aimedTilesOf(entry, listGround, fights).map(pointAt), aspect)
         })
         const widest = widestZoomOf(aspect)
         const flagsZoom = flagsZoomOf(root.clientHeight, scale)
@@ -551,7 +549,7 @@ async function choose(): Promise<Chosen> {
         const countries = codes.filter((code) => Countries.has(code)).map((code) => ({code, tag: tagOf(nameOf(code))}))
         return {
             pick, frames: 0, fps, seconds: photos.length * SECONDS_PER_PHOTO,
-            since: new Date(attackedSince).toISOString(), until: new Date(until).toISOString(),
+            since: new Date(foughtSince).toISOString(), until: new Date(until).toISOString(),
             look: `carousel of ${told.list}: ${photos.length} photos, ${photos.flatMap((photo) => photo.kind === "rank" ? [`#${photo.rank} ${photo.name} ${photo.number}`] : []).join(", ")}`,
             music: undefined, place: told.list, headline: told.hook, line: "", call: "", teasers: [told.hook], fighters: [],
             clip: new Clip({
@@ -708,7 +706,7 @@ async function choose(): Promise<Chosen> {
     return {
         findings: findingsOf({
             since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, paths,
-            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(), lists, attackedSince,
+            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(), lists, foughtSince,
             continentTiles: Object.fromEntries(tally(Array.from({length: borders.assignment.length}, (_, i) => continentAt(i + 1) ?? []).flat())),
         }).toJson(),
         record,

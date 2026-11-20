@@ -4,7 +4,7 @@ import {TileChange} from "./changes.ts"
 import {Point} from "./geometry.ts"
 import {aimedTilesOf, codeOf, entriesOf, ListGround, listsOf} from "./lists.ts"
 
-// A big country is 10 tiles, and a painted flag reads from far at 1.
+// A painted flag reads from far at 1 tile.
 const SCALE: BoardScale = {length: 10, density: 0.01}
 
 const at = (latitude: number, longitude: number): Point => {
@@ -40,34 +40,21 @@ const ground: ListGround = {
 
 const change = (tile: number, from: string | undefined, to: string | undefined): TileChange => ({tile, from, to, at: 0})
 
-const attacks = [
+const fights = [
     change(1, "fr", "pw"), change(2, "fr", "pw"), change(21, "tr", "fr"), change(19, "fr", undefined), change(20, undefined, "fr"),
     change(43, "id", "hu"), change(44, "id", "hu"), change(45, "id", "tr"),
 ]
 
 describe("the carousel's lists", () => {
-    const lists = listsOf(ground, attacks, SCALE)
+    const lists = listsOf(ground, fights, SCALE)
 
-    it("ranks the countries big enough to show by the share their own flag holds, the least first, then the most taken", () => {
-        expect(lists.ownLand).toEqual([
-            {country: "at", tiles: 20, ownShare: 0, holder: "hu", holderShare: 1},
-            {country: "tr", tiles: 20, ownShare: 0, holder: "fr", holderShare: 0.6},
-            {country: "fr", tiles: 20, ownShare: 0.1, holder: "pw", holderShare: 0.8},
-            {country: "id", tiles: 20, ownShare: 0.5, holder: "hu", holderShare: 0.5},
-            {country: "hu", tiles: 20, ownShare: 1, holder: "hu", holderShare: 1},
-        ])
-    })
-
-    it("leaves out a country too small to show, and one nobody holds any of", () => {
-        expect(lists.ownLand.map(({country}) => country)).not.toContain("pw")
-        expect(lists.ownLand.map(({country}) => country)).not.toContain("aq")
-    })
-
-    it("ranks the flags by the tiles another flag took from them, with who took the most and where", () => {
-        expect(lists.mostAttacked).toEqual([
-            {flag: "id", lost: 3, takenBy: "hu", takenByTiles: 2, country: "id"},
-            {flag: "fr", lost: 2, takenBy: "pw", takenByTiles: 2, country: "fr"},
-            {flag: "tr", lost: 1, takenBy: "fr", takenByTiles: 1, country: "tr"},
+    it("ranks the flags by the tiles they took from other flags and lost to them, with who they fought the most and where", () => {
+        expect(lists.fightTheMost).toEqual([
+            {flag: "fr", fought: 3, took: 1, lost: 2, rival: "pw", rivalTiles: 2, country: "fr"},
+            {flag: "id", fought: 3, took: 0, lost: 3, rival: "hu", rivalTiles: 2, country: "id"},
+            {flag: "hu", fought: 2, took: 2, lost: 0, rival: "id", rivalTiles: 2, country: "id"},
+            {flag: "pw", fought: 2, took: 2, lost: 0, rival: "fr", rivalTiles: 2, country: "fr"},
+            {flag: "tr", fought: 2, took: 1, lost: 1, rival: "fr", rivalTiles: 1, country: "id"},
         ])
     })
 
@@ -90,14 +77,13 @@ describe("the carousel's lists", () => {
         ])
     })
 
-    it("names each entry by its country for own-land and its flag for the others", () => {
-        expect(entriesOf(lists, "own-land").map(codeOf)).toEqual(["at", "tr", "fr", "id", "hu"])
-        expect(entriesOf(lists, "most-attacked").map(codeOf)).toEqual(["id", "fr", "tr"])
+    it("names each entry by its flag", () => {
+        expect(entriesOf(lists, "fight-the-most").map(codeOf)).toEqual(["fr", "id", "hu", "pw", "tr"])
+        expect(entriesOf(lists, "far-from-home").map(codeOf)).toEqual(["pw", "hu", "fr"])
     })
 
-    it("aims each rank at its place: the country, the flag's land there, or what was taken from it there", () => {
-        expect(aimedTilesOf(lists.ownLand[0], ground, attacks)).toEqual(held("x", 83, 102).map(([tile]) => tile))
-        expect(aimedTilesOf(lists.farFromHome[0], ground, attacks)).toEqual(held("x", 1, 16).map(([tile]) => tile))
-        expect(aimedTilesOf(lists.mostAttacked[1], ground, attacks)).toEqual([1, 2])
+    it("aims each rank at its place: the flag's land there, or the tiles it fought for there", () => {
+        expect(aimedTilesOf(lists.farFromHome[0], ground, fights)).toEqual(held("x", 1, 16).map(([tile]) => tile))
+        expect(aimedTilesOf(lists.fightTheMost[0], ground, fights)).toEqual([1, 2])
     })
 })

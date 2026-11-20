@@ -17,8 +17,7 @@ export function percentOf(share: number): string {
 }
 
 export function numberOf(entry: Entry): string {
-    if ("holderShare" in entry) return percentOf(entry.holderShare)
-    if ("lost" in entry) return `${NUMBER.format(entry.lost)} ${entry.lost === 1 ? "TILE" : "TILES"}`
+    if ("fought" in entry) return `${NUMBER.format(entry.fought)} ${entry.fought === 1 ? "TILE" : "TILES"} FOUGHT`
     if ("km" in entry) return `${NUMBER.format(entry.km)} KM`
     return percentOf(entry.share)
 }
