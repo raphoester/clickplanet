@@ -161,8 +161,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
   against the clips' median of 5.3 s, 18.6% to the end against 15.3%, and saved 4.4 times per 1,000 views against 1.5.
   One post is a hint, not a finding.
   - **7 photos**, JPEGs of 1080×1920: the cover, its hook in big words over the globe; the 5 ranks from 5th to 1st,
-    each the globe aimed at its place with its rank, its flag, its name and one number ("MOSTLY AGAINST TURKEY · 5,833 TILES FOUGHT"); and
-    the whole globe last, with `clickplanet.lol`. No address before the last photo.
+    each the globe aimed at its place with its rank, its flag, its name and its numbers ("TOOK 1,887 · LOST 3,946 ·
+    MOSTLY AGAINST TURKEY"); and the whole globe last, with `clickplanet.lol`. No address before the last photo.
   - **Three lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
     **fight the most in 3 days** (for each flag, the tiles it took from other flags plus the tiles they took from it
     in the replay), **farthest from home** (each flag's land outside its country, the farthest from it, weighed by its
@@ -188,8 +188,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
       flag with no ground of its own has no home and is not ranked.
     - **In 3 days** needs a replay of 3 days: the workflow fetches 72 hours since PR 3 (it fetched 12), as much as the
       ledger keeps. The clips' stories are still searched in its last 12 hours (`newsSince`).
-    - **Each rank's one number is the generator's**, from the list (the tiles fought, the distance, the share of
-      the world), so it is true; the editor's line under the name holds no digit. The 5 are
+    - **Each rank's numbers are the generator's**, from the list (the tiles taken and the tiles lost, a line each;
+      the distance; the share of the world), so they are true; the editor's line under the name holds no digit. The 5 are
       the list's first 5, in its order, never the editor's pick.
     - **A rank is framed a little wider than its place** (0.7 of the zoom that frames it), and never closer than
       where the painted flags give way to tiles: the flag holding it reads, and its neighbours say where it is.

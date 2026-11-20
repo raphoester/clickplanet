@@ -440,11 +440,11 @@ virtual clock, `cameraOf`), drawn on a canvas in the player's browser: see [Play
 lab](../../../docs/video-lab.md), "Photos, not a video"): the same page, the same globe and the same letters, still.
 
 - **The photos** (`photosOf`): the cover, its hook in big gold words over the globe; the ranks from the 5th to the 1st,
-  each its rank, its flag, its name as people say it ("THE UK"), its one number and the editor's line under it; and the
+  each its rank, its flag, its name as people say it ("THE UK"), its numbers and the editor's line under them; and the
   logo with `clickplanet.lol` last. No address before the last photo: the clip's mark is not drawn.
-- **The number is the list's** (`numberOf`): the tiles fought of `fight-the-most` ("5,833 TILES FOUGHT"), the
-  distance of `far-from-home` ("16,000 KM"), the share of the world of
-  `biggest-empires` ("12%"); a share never more than it is, to a tenth of a point under a tenth (`percentOf`). The
+- **The numbers are the list's** (`numbersOf`): the tiles taken and lost of `fight-the-most`, a line each ("TOOK
+  1,887", "LOST 3,946"), ranked by their sum, which is not shown; the distance of `far-from-home` ("16,000 KM"); the
+  share of the world of `biggest-empires` ("12%"); a share never more than it is, to a tenth of a point under a tenth (`percentOf`). The
   editor writes the words, never a number.
 - **The ranks are the list's first 5, in its order**, or the page refuses the pick: the job checked it first.
 - **The camera** (`aimedTilesOf`, `framingOf`): the map at the window's end (`ReplayBackend.cut` past it), the cover

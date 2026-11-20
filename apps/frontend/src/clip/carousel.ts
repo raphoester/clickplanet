@@ -6,7 +6,7 @@ export type Rank = {code: string, line: string}
 // The cover over the globe, the ranks from the 5th to the 1st, and the address on the last photo alone.
 export type Photo =
     | {kind: "cover", hook: string}
-    | {kind: "rank", rank: number, code: string, name: string, number: string, line: string}
+    | {kind: "rank", rank: number, code: string, name: string, numbers: string[], line: string}
     | {kind: "last"}
 
 const NUMBER = new Intl.NumberFormat("en-US")
@@ -16,10 +16,11 @@ export function percentOf(share: number): string {
     return share >= 0.1 ? `${Math.floor(share * 100)}%` : `${(Math.floor(share * 1000) / 10).toFixed(1)}%`
 }
 
-export function numberOf(entry: Entry): string {
-    if ("fought" in entry) return `${NUMBER.format(entry.fought)} ${entry.fought === 1 ? "TILE" : "TILES"} FOUGHT`
-    if ("km" in entry) return `${NUMBER.format(entry.km)} KM`
-    return percentOf(entry.share)
+// fight-the-most ranks by the sum of the two, and shows each on its line.
+export function numbersOf(entry: Entry): string[] {
+    if ("fought" in entry) return [`TOOK ${NUMBER.format(entry.took)}`, `LOST ${NUMBER.format(entry.lost)}`]
+    if ("km" in entry) return [`${NUMBER.format(entry.km)} KM`]
+    return [percentOf(entry.share)]
 }
 
 // The editor's ranks are the list's first 5, in its order: a pick that says otherwise is refused, the job checked it.
@@ -29,7 +30,7 @@ export function photosOf(list: ListName, entries: readonly Entry[], ranks: reado
     }
     const told = ranks.map(({code, line}, i): Photo => {
         if (codeOf(entries[i]) !== code) throw new Error(`rank ${i + 1} of ${list} is "${codeOf(entries[i])}", not "${code}"`)
-        return {kind: "rank", rank: i + 1, code, name: said(nameOf(code)).toUpperCase(), number: numberOf(entries[i]), line}
+        return {kind: "rank", rank: i + 1, code, name: said(nameOf(code)).toUpperCase(), numbers: numbersOf(entries[i]), line}
     })
     return [{kind: "cover", hook}, ...told.reverse(), {kind: "last"}]
 }
@@ -67,7 +68,7 @@ export function createCarousel(root: HTMLElement, photos: readonly Photo[]): Car
             name.textContent = photo.name
             names.push(name)
             const bottom = element("footer", "carousel-bottom", card)
-            element("p", "carousel-number", bottom).textContent = photo.number
+            for (const number of photo.numbers) element("p", "carousel-number", bottom).textContent = number
             element("p", "carousel-line", bottom).textContent = photo.line
         } else {
             const mark = element("div", "carousel-mark", card)

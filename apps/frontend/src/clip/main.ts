@@ -550,7 +550,7 @@ async function choose(): Promise<Chosen> {
         return {
             pick, frames: 0, fps, seconds: photos.length * SECONDS_PER_PHOTO,
             since: new Date(foughtSince).toISOString(), until: new Date(until).toISOString(),
-            look: `carousel of ${told.list}: ${photos.length} photos, ${photos.flatMap((photo) => photo.kind === "rank" ? [`#${photo.rank} ${photo.name} ${photo.number}`] : []).join(", ")}`,
+            look: `carousel of ${told.list}: ${photos.length} photos, ${photos.flatMap((photo) => photo.kind === "rank" ? [`#${photo.rank} ${photo.name} ${photo.numbers.join(" ")}`] : []).join(", ")}`,
             music: undefined, place: told.list, headline: told.hook, line: "", call: "", teasers: [told.hook], fighters: [],
             clip: new Clip({
                 pick, title: told.hook, key: {flag: first, continent: THE_WORLD, angle: "list"}, teasers: [told.hook], teaserNames: ["editor"],

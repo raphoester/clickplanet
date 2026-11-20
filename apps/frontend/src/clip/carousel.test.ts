@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Empire, FarLand, Fighting} from "../domain/clip/lists.ts"
-import {numberOf, percentOf, photosOf} from "./carousel.ts"
+import {numbersOf, percentOf, photosOf} from "./carousel.ts"
 
 const fighting: Fighting[] = [
     {flag: "fr", fought: 41200, took: 30000, lost: 11200, rival: "pw", rivalTiles: 9000, country: "fr"},
@@ -24,9 +24,9 @@ describe("a carousel's photos", () => {
     })
 
     it("give each rank its flag, its name as people say it, its one number and the editor's words", () => {
-        expect(photos[5]).toEqual({kind: "rank", rank: 1, code: "fr", name: "FRANCE", number: "41,200 TILES FOUGHT", line: "MOSTLY AGAINST PALAU"})
-        expect(photos[4]).toMatchObject({rank: 2, name: "THE UK", number: "20,000 TILES FOUGHT"})
-        expect(photos[1]).toMatchObject({rank: 5, number: "1 TILE FOUGHT"})
+        expect(photos[5]).toEqual({kind: "rank", rank: 1, code: "fr", name: "FRANCE", numbers: ["TOOK 30,000", "LOST 11,200"], line: "MOSTLY AGAINST PALAU"})
+        expect(photos[4]).toMatchObject({rank: 2, name: "THE UK", numbers: ["TOOK 9,000", "LOST 11,000"]})
+        expect(photos[1]).toMatchObject({rank: 5, numbers: ["TOOK 1", "LOST 0"]})
     })
 
     it("say no address before the last", () => {
@@ -43,13 +43,13 @@ describe("a carousel's photos", () => {
 })
 
 describe("a rank's number", () => {
-    it("is the tiles fought, the distance, or the share of the world", () => {
+    it("is the tiles taken and those lost, a line each, the distance, or the share of the world", () => {
         const far: FarLand = {flag: "hu", country: "id", tiles: 2100, km: 10400}
         const empire: Empire = {flag: "pw", tiles: 74000, share: 0.284, country: "ru"}
 
-        expect(numberOf(fighting[0])).toBe("41,200 TILES FOUGHT")
-        expect(numberOf(far)).toBe("10,400 KM")
-        expect(numberOf(empire)).toBe("28%")
+        expect(numbersOf(fighting[0])).toEqual(["TOOK 30,000", "LOST 11,200"])
+        expect(numbersOf(far)).toEqual(["10,400 KM"])
+        expect(numbersOf(empire)).toEqual(["28%"])
     })
 
     it("never says more than it is, to a tenth of a point under a tenth", () => {
