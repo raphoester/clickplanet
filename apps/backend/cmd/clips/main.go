@@ -51,6 +51,8 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 		return schedule(ctx, parsed, out, logger)
 	case flags.Edit:
 		return edit(ctx, parsed, out, logger)
+	case flags.Bench:
+		return bench(ctx, parsed, out)
 	default:
 		return fmt.Errorf("%w: %q", errUnknownCommand, parsed.Command)
 	}
@@ -99,4 +101,12 @@ func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *s
 		return errUnsent
 	}
 	return nil
+}
+
+func bench(ctx context.Context, parsed flags.Config, out io.Writer) error {
+	round, err := clips.Bench(ctx, parsed.FindingsFile, parsed.Round)
+	if err != nil {
+		return fmt.Errorf("failed to make the bench's round: %w", err)
+	}
+	return display.Bench(parsed.BenchFile, out, round) //nolint:wrapcheck // the display already named what it could not write.
 }

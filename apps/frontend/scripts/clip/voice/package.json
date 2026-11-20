@@ -1,0 +1,12 @@
+{
+  "name": "clickplanet-clip-voice",
+  "private": true,
+  "description": "Kokoro's voice for the war report's bench (docs/video-lab.md): a package of its own, so the game's dependencies stay as they are.",
+  "type": "module",
+  "scripts": {
+    "voice": "node voice.mjs"
+  },
+  "dependencies": {
+    "kokoro-js": "1.2.1"
+  }
+}

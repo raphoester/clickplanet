@@ -1,0 +1,134 @@
+name: narration bench
+
+# The war report's bench (docs/video-lab.md, "The war report's bench"): started by hand, it posts nothing and asks no
+# backend. A clips run's findings, the editor's choice of its stories, each written in each tone by each model, and each
+# script said by each voice; the round is the artifact "bench".
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "The clips run whose findings are told (its id in the run's address); empty is the latest that succeeded"
+        required: false
+        default: ""
+      stories:
+        description: "How many stories the editor chooses"
+        required: false
+        default: "3"
+      tones:
+        description: "The tones, as their briefs are named; empty is every tone"
+        required: false
+        default: ""
+      models:
+        description: "The writers, of opus, sonnet and haiku"
+        required: false
+        default: "opus"
+      voices:
+        description: "Kokoro's voices"
+        required: false
+        default: "am_adam"
+      day:
+        description: "The season's day the scripts say; 0 is none"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: narration-bench
+
+jobs:
+  # No npm here: the Anthropic key is in no job that installs dependencies.
+  write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: find the clips run
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.run }}
+        run: |
+          if [ -z "$RUN" ]; then
+            RUN=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow clips.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "id=$RUN" >> "$GITHUB_OUTPUT"
+          echo "Findings of the clips run [$RUN]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$RUN)." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: findings
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+
+      - name: write the scripts
+        working-directory: apps/backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STORIES: ${{ inputs.stories }}
+          TONES: ${{ inputs.tones }}
+          MODELS: ${{ inputs.models }}
+          DAY: ${{ inputs.day }}
+        run: |
+          go run ./cmd/clips bench -findings "$GITHUB_WORKSPACE/findings.json" -out "$GITHUB_WORKSPACE/bench.json" \
+            -stories "$STORIES" -tones "$TONES" -models "$MODELS" -day "$DAY" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-scripts
+          path: bench.json
+          retention-days: 1
+
+  voice:
+    needs: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/frontend/scripts/clip/voice
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/scripts/clip/voice/package-lock.json
+
+      - run: npm ci
+
+      - name: install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-scripts
+          path: apps/frontend/scripts/clip/voice
+
+      # Kokoro's model comes from Hugging Face on the first call; its voices are in the package.
+      - name: say each script
+        env:
+          VOICES: ${{ inputs.voices }}
+        run: |
+          node voice.mjs bench.json bench "$VOICES"
+          for wav in bench/*.wav; do
+            ffmpeg -loglevel error -i "$wav" -codec:a libmp3lame -b:a 96k "${wav%.wav}.mp3" && rm "$wav"
+          done
+          sed -i 's/\.wav"/.mp3"/' bench/voices.json
+          cp bench.json bench/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench
+          path: apps/frontend/scripts/clip/voice/bench
+          retention-days: 30

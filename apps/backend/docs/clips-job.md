@@ -160,6 +160,29 @@ its control, and every post says which it is.
 - **What it costs**: a brief of about 1,500 characters (about 400 tokens) in the prompt and one story more in the
   answer: about $0.0002 a run, $0.05 a month at 9 runs a day.
 
+**`clips bench` is the war report's bench, since 2026-11-20** (`internal/narration/`; why and how a round goes, in the
+root's [The video lab](../../../docs/video-lab.md), "The war report's bench"). It posts nothing and asks no backend: a
+run's findings, and `ANTHROPIC_API_KEY`.
+
+- **The editor chooses the moment's stories** (`choose_clips_usecase.Edit` with `-stories` slots, the day won left out:
+  a writer never words one), told at the findings' own time, as a run would have been.
+- **The writer writes each in each tone with each model** (`narration/claude_writer`): its instructions
+  (`instructions.md`, embedded, cached) hold what every tone keeps, then the tone's brief (`narration/tones/<name>.md`),
+  then the story the editor chose and **its facts alone, as the editor read them** (`claude_editor.FactsOf`: its front,
+  tour, place or saga, the run's names, a saga's paths for its two flags), the season's day (`-day`) and the episodes
+  before (none on the bench). It answers a title, the lines in the order said, and a note on its angle, by structured
+  output, at effort `high` on every model so they compare on their writing; on Sonnet and Opus a refusal is served again
+  by Anthropic's fallback (`fallbacks: "default"`). A script that fails is an entry with why; the round goes on.
+- **The models**: Haiku 5.5, Sonnet 5.5 and Opus 5.5 (`-models haiku,sonnet,opus`, default opus), priced each at its
+  rate (`claude_writer.SpendOf`).
+- **`-out` is the round** (`display.Bench`): each story the editor chose, and each script with its id
+  (`1-deadpan-opus`), its lines and what they say together, its words, its length at a narrator's 156 words a minute,
+  the turns in it that give a machine away and the signs a voice reads badly (`Script.Tells`: a dash, a digit, more than
+  one exclamation mark), and what it cost. It refuses none: whether it sounds like a person is the owner's ear to say.
+- **The workflow** is `narration-bench.yml`, started by hand: the findings of a clips run (kept 30 days), `clips bench`
+  in a job that runs no npm, then Kokoro's voice in one that holds no key (the frontend's
+  [Clips](../../frontend/docs/clips.md), "The bench's voice").
+
 **The editor: a model makes the run's stories from the findings, and writes every word of them** (`posts/editor.go`,
 `posts/findings.go`, `posts/claude_editor/`; it picked and worded within hand-written rules from 2026-10-24, and
 makes the stories since 2026-10-27). The renderer and its camera are as they were.

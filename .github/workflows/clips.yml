@@ -94,7 +94,8 @@ jobs:
         with:
           name: findings
           path: apps/frontend/findings.json
-          retention-days: 1
+          # 15 KB a run: kept a month, so the war report's bench can write on any recent moment (docs/video-lab.md).
+          retention-days: 30
 
   # Its own job: the Anthropic key and the VPS's are in no job that installs the frontend's dependencies.
   choose:

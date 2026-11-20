@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 )
 
 func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
@@ -111,6 +112,29 @@ func TestEditTriesTheExperimentItIsNamed(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "far-invasion", parsed.Job.Experiment)
+}
+
+func TestBenchFlagsSayWhichFindingsWhereTheRoundGoesAndWhatItWrites(t *testing.T) {
+	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
+	t.Setenv(flags.HostVariable, "")
+
+	parsed, err := flags.Parse([]string{
+		"bench", "-findings", "findings.json", "-out", "bench.json", "-stories", "4",
+		"-tones", "deadpan,correspondent", "-models", "opus, sonnet", "-day", "9",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, flags.Bench, parsed.Command)
+	assert.Equal(t, "bench.json", parsed.BenchFile)
+	assert.Equal(t, "sk-ant-key", parsed.Round.Anthropic.APIKey)
+	round := parsed.Round
+	round.Anthropic = cpanthropic.Config{}
+	assert.Equal(t, clips.BenchConfig{
+		Stories: 4, Tones: []string{"deadpan", "correspondent"}, Models: []string{"opus", "sonnet"}, Day: 9,
+	}, round, "no ssh: the bench asks no backend")
+
+	_, err = flags.Parse([]string{"bench", "-findings", "findings.json"})
+	require.ErrorIs(t, err, flags.ErrArguments)
 }
 
 func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {

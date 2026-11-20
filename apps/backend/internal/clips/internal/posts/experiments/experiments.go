@@ -15,9 +15,10 @@ var briefs embed.FS
 
 var (
 	// The experiments on, in the order they started.
-	On = []string{"far-invasion", "call-to-arms"}
-	// The ones that ran and stopped: their briefs stay, so what their posts were written to can still be read.
-	Off = []string{}
+	On = []string{"far-invasion"}
+	// The ones that ran and stopped, or wait their turn (docs/video-lab.md, "The order"): their briefs stay, so what
+	// their posts were written to can still be read, and `clips edit -experiment` still tries them.
+	Off = []string{"call-to-arms"}
 )
 
 // The experiments on, each with its brief.

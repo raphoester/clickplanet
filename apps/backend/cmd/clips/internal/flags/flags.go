@@ -17,6 +17,7 @@ const usage = `usage:
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-lab on|off] [-ssh <user@host>] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+  clips bench -findings <findings.json> -out <bench.json> [-stories 3] [-tones correspondent,deadpan] [-models opus,sonnet,haiku] [-day 9]
 
 Every command asks the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh.
 fetch asks it for a replay, and the ledger keeps 72 hours in memory, so a replay cannot reach further back. With
@@ -35,7 +36,9 @@ its publishing module takes a snapshot a day. A model that cannot answer leaves 
 adds how the call went, and what it cost, to that file. edit tries the editor on saved findings, as many clips as
 -count, the told stories read from the backend when CLICKPLANET_SSH is set: -prompt prints what it would be sent,
 counted when ANTHROPIC_API_KEY is set, and asks for no answer; -experiment tries that experiment's brief at the first
-pick.`
+pick. bench is the war report's (docs/video-lab.md), and asks no backend: the editor chooses -stories of the findings
+(ANTHROPIC_API_KEY), and a writer writes each in each tone (default every tone) with each model (default opus), for
+-out; nothing is posted.`
 
 type Command string
 
@@ -44,6 +47,7 @@ const (
 	Choose   Command = "choose"
 	Schedule Command = "schedule"
 	Edit     Command = "edit"
+	Bench    Command = "bench"
 )
 
 const (
@@ -71,8 +75,11 @@ type Config struct {
 	SummaryFile string
 	// edit: print the prompt, ask for no answer.
 	PromptOnly bool
+	// bench: where the round is written.
+	BenchFile string
 
-	Job clips.Config
+	Job   clips.Config
+	Round clips.BenchConfig
 }
 
 func Parse(args []string) (Config, error) {
@@ -89,6 +96,8 @@ func Parse(args []string) (Config, error) {
 		return parseSchedule(args[1:])
 	case Edit:
 		return parseEdit(args[1:])
+	case Bench:
+		return parseBench(args[1:])
 	default:
 		return Config{}, misused(ErrArguments)
 	}
@@ -168,6 +177,28 @@ func parseEdit(args []string) (Config, error) {
 	if parsed.FindingsFile == "" {
 		return Config{}, misused(ErrArguments)
 	}
+	return parsed, nil
+}
+
+func parseBench(args []string) (Config, error) {
+	parsed := Config{Command: Bench}
+	parsed.Round.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
+
+	flags := flag.NewFlagSet(string(Bench), flag.ContinueOnError)
+	flags.StringVar(&parsed.FindingsFile, "findings", "", "the file the generator's --findings wrote")
+	flags.StringVar(&parsed.BenchFile, "out", "", "the file the round is written to")
+	flags.IntVar(&parsed.Round.Stories, "stories", 0, "how many stories the editor chooses, default 3")
+	tones := flags.String("tones", "", "the tones each story is written in, default every tone")
+	models := flags.String("models", "", "the models that write, of haiku, sonnet and opus, default opus")
+	flags.IntVar(&parsed.Round.Day, "day", 0, "the season's day the scripts say, default none")
+	if err := flags.Parse(args); err != nil {
+		return Config{}, misused(err)
+	}
+	if parsed.FindingsFile == "" || parsed.BenchFile == "" {
+		return Config{}, misused(ErrArguments)
+	}
+	parsed.Round.Tones = strings.FieldsFunc(*tones, isSeparator)
+	parsed.Round.Models = strings.FieldsFunc(*models, isSeparator)
 	return parsed, nil
 }
 
