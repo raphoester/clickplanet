@@ -11,7 +11,8 @@ Five pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/video` | `video.html` | The page that draws a player's video, in a hidden frame of the game (see [Player videos](player-videos.md)). The `pageRoutes` plugin serves it at that path in `npm run dev`. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
-| `/<flag>`, `/<flag>/<name>` | `index.html` | A player's address: its first script opens the game on the flag. |
+| `/t`, `/y`, `/r`, `/v` | `index.html` | A tracked address: its first script opens the game with the letter as the source (see [Arrivals](arrivals.md)). |
+| `/<flag>`, `/<flag>/<name>` | `index.html` | A player's old address: its first script opens the game on the flag. |
 | anything else | `index.html` | `not_found_handling` fallback. |
 
 **Why `/` is not the game.** Google's brand verification, which lets anyone
@@ -33,11 +34,20 @@ have no storage and read the home page. `homePage.test.ts` pins the key in the
 script to the constant. **`/#home` does not redirect**: it is the "Home page"
 link at the bottom of the About modal.
 
-**A flag's address opens the game, for a first visit too.** Every share a
-player makes is `clickplanet.lol/<flag>/<name>`, or `clickplanet.lol/<flag>`
-for a guest (see [Sharing the globe](sharing.md)). No file is at that path, so
+**A tracked address opens the game, for a first visit too.** `/t`, `/y`, `/r`
+and `/v`, alone, go to `/play?s=<letter>` with the query and the hash: every
+share a player makes is `clickplanet.lol/r?f=<flag>&r=<name>`, its video's
+`clickplanet.lol/v?f=…`, the bio's `clickplanet.lol/t` (see [Arrivals](arrivals.md)
+and [Sharing the globe](sharing.md)). The letter wins over a query's `s`; a
+letter the script does not know, or one with a second segment (`/t/kutza`), is
+any other path. The script holds the letters, and `homePage.test.ts` pins them
+to `SOURCES`.
+
+**A flag's old address opens the game too.** Every share made before Nov 20
+2026 is `clickplanet.lol/<flag>/<name>`, or `clickplanet.lol/<flag>` for a
+guest, and many are drawn into videos. No file is at that path, so
 the fallback serves the home page, and its first script, before anything is
-painted, sends every browser to `/play?f=<flag>&s=rc`, with `&r=<name>` when
+painted, sends every browser to `/play?f=<flag>&s=r`, with `&r=<name>` when
 the address has a name: the same query an old share link carried, which the
 game already reads (`sharedCountry`, and the landing's tag and recruiter, see
 [Arrivals](arrivals.md)). The flag and the name win over the same words in the

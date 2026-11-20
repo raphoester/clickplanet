@@ -8,8 +8,10 @@ import (
 
 const (
 	site = "https://clickplanet.lol"
-	// ?s=yt is how the game counts the players that came from YouTube.
-	youtubeSite = site + "/?s=yt"
+	// The first segment, one letter, is how the game counts where a player came from: a TikTok caption is read and
+	// typed, so it is short (see the backend's docs/arrivals.md).
+	tiktokSite  = site + "/t"
+	youtubeSite = site + "/y"
 	brand       = " | CLICKPLANET"
 
 	// The title over a TikTok carousel: TikTok strips its hashtags and links.
@@ -56,7 +58,7 @@ func (t Teaser) Words() Words {
 		tiktok = append(tiktok, t.Description)
 		youtube = append(youtube, t.Description)
 	}
-	tiktok = append(tiktok, "Swipe for the rules, then join the battle 👉 "+site, marked)
+	tiktok = append(tiktok, "Swipe for the rules, then join the battle 👉 "+tiktokSite, marked)
 	for _, card := range t.Cards {
 		rule := "• " + card.Headline
 		if card.Line != "" {

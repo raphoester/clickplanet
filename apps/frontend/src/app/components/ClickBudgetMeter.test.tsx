@@ -78,7 +78,7 @@ describe("ClickBudgetMeter", () => {
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
 
-        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/fr/Ada-Lovelace",
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/r?f=fr&r=Ada-Lovelace",
             "Season 1 starts on a blank map. Play for France on ClickPlanet!")
         expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
     })

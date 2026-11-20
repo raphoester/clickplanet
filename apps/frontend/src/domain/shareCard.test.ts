@@ -18,22 +18,27 @@ import {Race} from "../backends/standings.ts"
 import {Countries} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
 import {countryLines} from "./race.ts"
-import {recruiterNameOf} from "./landing.ts"
+import {recruiterNameOf, SOURCES} from "./landing.ts"
 
 const france = Countries.get("fr")!
 const japan = Countries.get("jp")!
 const entry = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})
 
 describe("the share link", () => {
-    it("is the flag the player is holding, by the code the atlas uses, and its username", () => {
-        expect(shareUrl({code: "pl", name: "kutza"})).toBe("https://clickplanet.lol/pl/kutza")
-        expect(shareUrl({code: "gb-sct", name: "Nessie"})).toBe("https://clickplanet.lol/gb-sct/Nessie")
+    it("is the recruit link's source first, then the flag the player is holding, by the atlas's code, and its username", () => {
+        expect(shareUrl({code: "pl", name: "kutza"})).toBe("https://clickplanet.lol/r?f=pl&r=kutza")
+        expect(shareUrl({code: "gb-sct", name: "Nessie"})).toBe("https://clickplanet.lol/r?f=gb-sct&r=Nessie")
+    })
+
+    it("names the video's own source when a video shows it, for a viewer to type", () => {
+        expect(shareUrl({code: "pl", name: "kutza"}, SOURCES.recruitVideo)).toBe("https://clickplanet.lol/v?f=pl&r=kutza")
+        expect(shareLabel({code: "pl", name: "kutza"}, SOURCES.recruitVideo)).toBe("clickplanet.lol/v?f=pl&r=kutza")
     })
 
     it("is the flag alone for a guest, who has no username", () => {
         expect(shareAddress("fr", undefined, undefined)).toEqual({code: "fr"})
-        expect(shareUrl(shareAddress("fr", undefined, undefined))).toBe("https://clickplanet.lol/fr")
-        expect(shareUrl(shareAddress("fr", "Ada", "Ada"))).toBe("https://clickplanet.lol/fr/Ada")
+        expect(shareUrl(shareAddress("fr", undefined, undefined))).toBe("https://clickplanet.lol/r?f=fr")
+        expect(shareUrl(shareAddress("fr", "Ada", "Ada"))).toBe("https://clickplanet.lol/r?f=fr&r=Ada")
     })
 
     it("carries the name only once the clips let a video show that very name", () => {
@@ -43,14 +48,14 @@ describe("the share link", () => {
     })
 
     it("writes each space of the name as a dash, keeps its case, and escapes what a link cannot carry", () => {
-        expect(shareUrl({code: "fr", name: "Ada Lovelace"})).toBe("https://clickplanet.lol/fr/Ada-Lovelace")
-        expect(shareUrl({code: "fr", name: "Émile Zola"})).toBe("https://clickplanet.lol/fr/%C3%89mile-Zola")
-        expect(shareUrl({code: "jp", name: "さくら"})).toBe("https://clickplanet.lol/jp/" + encodeURIComponent("さくら"))
+        expect(shareUrl({code: "fr", name: "Ada Lovelace"})).toBe("https://clickplanet.lol/r?f=fr&r=Ada-Lovelace")
+        expect(shareUrl({code: "fr", name: "Émile Zola"})).toBe("https://clickplanet.lol/r?f=fr&r=%C3%89mile-Zola")
+        expect(shareUrl({code: "jp", name: "さくら"})).toBe("https://clickplanet.lol/r?f=jp&r=" + encodeURIComponent("さくら"))
     })
 
     it("drops the scheme and keeps the name's letters where a person reads it", () => {
-        expect(shareLabel({code: "jp"})).toBe("clickplanet.lol/jp")
-        expect(shareLabel({code: "fr", name: "Émile Zola"})).toBe("clickplanet.lol/fr/Émile-Zola")
+        expect(shareLabel({code: "jp"})).toBe("clickplanet.lol/r?f=jp")
+        expect(shareLabel({code: "fr", name: "Émile Zola"})).toBe("clickplanet.lol/r?f=fr&r=Émile-Zola")
     })
 
     it("is read back by the game as the flag and the name it was made of", () => {

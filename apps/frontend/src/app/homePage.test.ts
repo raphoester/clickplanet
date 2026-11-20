@@ -4,7 +4,7 @@ import {CRAZYGAMES_HOST} from "../domain/crazyGames.ts"
 import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
 import {withFlagCodes} from "../flagCodes.ts"
 import {HANDED_REFERRER_KEY} from "../backends/landingStore.ts"
-import {RECRUIT_TAG, RECRUITER_PARAM, SOURCE_TAG_PARAM} from "../domain/landing.ts"
+import {RECRUIT_TAG, RECRUITER_PARAM, SOURCE_TAG_PARAM, SOURCES} from "../domain/landing.ts"
 import {SHARE_FLAG_PARAM} from "../domain/shareCard.ts"
 
 describe("the home page", () => {
@@ -35,29 +35,62 @@ describe("the home page", () => {
     })
 })
 
-describe("a flag's address", () => {
-    it("opens the game on the flag, as a recruit, for a first visit too", () => {
-        expect(destinationOf("https://clickplanet.lol/de", {})).toBe("/play?f=de&s=rc")
-        expect(destinationOf("https://clickplanet.lol/de/", "no storage")).toBe("/play?f=de&s=rc")
-        expect(destinationOf("https://clickplanet.lol/DE", {[COUNTRY_STORAGE_KEY]: "fr"})).toBe("/play?f=de&s=rc")
-        expect(destinationOf("https://clickplanet.lol/gb-sct", {})).toBe("/play?f=gb-sct&s=rc")
+describe("a tracked address", () => {
+    it("opens the game with its one letter as the source, for a first visit too", () => {
+        expect(destinationOf("https://clickplanet.lol/t", {})).toBe("/play?s=t")
+        expect(destinationOf("https://clickplanet.lol/Y/", "no storage")).toBe("/play?s=y")
+        expect(destinationOf("https://clickplanet.lol/t", {[COUNTRY_STORAGE_KEY]: "fr"})).toBe("/play?s=t")
+    })
+
+    it("carries the flag and the name of the query, and its letter wins over a query's source", () => {
+        expect(destinationOf("https://clickplanet.lol/r?f=pl&r=kutza", {})).toBe("/play?f=pl&r=kutza&s=r")
+        expect(destinationOf("https://clickplanet.lol/v?f=pl&r=Ada-Lovelace&s=yt#top", {})).toBe("/play?f=pl&r=Ada-Lovelace&s=v#top")
+    })
+
+    it("hands the game the page before", () => {
+        const handed: Record<string, string> = {}
+
+        destinationOf("https://clickplanet.lol/t", {}, {referrer: "https://www.tiktok.com/", handed})
+
+        expect(handed).toEqual({[HANDED_REFERRER_KEY]: "https://www.tiktok.com/"})
+    })
+
+    it("is only a letter it knows, alone: any other is the home page", () => {
+        for (const path of ["/p", "/x", "/t/kutza", "/tt-"]) {
+            expect(destinationOf(`https://clickplanet.lol${path}`, {}), path).toBeUndefined()
+        }
+    })
+
+    it("knows the letters the game knows", () => {
+        for (const letter of Object.values(SOURCES)) {
+            expect(destinationOf(`https://clickplanet.lol/${letter}`, {})).toBe(`/play?s=${letter}`)
+        }
+    })
+})
+
+describe("an old player's address, already shared", () => {
+    it("still opens the game on the flag, as a recruit link, for a first visit too", () => {
+        expect(destinationOf("https://clickplanet.lol/de", {})).toBe("/play?f=de&s=r")
+        expect(destinationOf("https://clickplanet.lol/de/", "no storage")).toBe("/play?f=de&s=r")
+        expect(destinationOf("https://clickplanet.lol/DE", {[COUNTRY_STORAGE_KEY]: "fr"})).toBe("/play?f=de&s=r")
+        expect(destinationOf("https://clickplanet.lol/gb-sct", {})).toBe("/play?f=gb-sct&s=r")
     })
 
     it("carries the name after the flag as it is written, its dashes and its case", () => {
-        expect(destinationOf("https://clickplanet.lol/pl/kutza", {})).toBe("/play?f=pl&s=rc&r=kutza")
-        expect(destinationOf("https://clickplanet.lol/pl/Ada-Lovelace/", {})).toBe("/play?f=pl&s=rc&r=Ada-Lovelace")
-        expect(destinationOf("https://clickplanet.lol/fr/%C3%89mile", {})).toBe(`/play?f=fr&s=rc&r=${encodeURIComponent("Émile")}`)
+        expect(destinationOf("https://clickplanet.lol/pl/kutza", {})).toBe("/play?f=pl&s=r&r=kutza")
+        expect(destinationOf("https://clickplanet.lol/pl/Ada-Lovelace/", {})).toBe("/play?f=pl&s=r&r=Ada-Lovelace")
+        expect(destinationOf("https://clickplanet.lol/fr/%C3%89mile", {})).toBe(`/play?f=fr&s=r&r=${encodeURIComponent("Émile")}`)
     })
 
     it("keeps the rest of the query and the hash, and takes the address's word over the query's", () => {
         expect(destinationOf("https://clickplanet.lol/pl/kutza?gfx=halo&s=yt&f=de&r=bob#top", {}))
-            .toBe("/play?gfx=halo&s=rc&f=pl&r=kutza#top")
-        expect(destinationOf("https://clickplanet.lol/pl?r=bob", {})).toBe("/play?f=pl&s=rc")
+            .toBe("/play?gfx=halo&s=r&f=pl&r=kutza#top")
+        expect(destinationOf("https://clickplanet.lol/pl?r=bob", {})).toBe("/play?f=pl&s=r")
     })
 
     it("still opens the game on the flag when the name is not one, or storage is refused", () => {
-        expect(destinationOf("https://clickplanet.lol/pl/%E0%A4%A", {})).toBe("/play?f=pl&s=rc")
-        expect(destinationOf("https://clickplanet.lol/pl/kutza", "no storage")).toBe("/play?f=pl&s=rc&r=kutza")
+        expect(destinationOf("https://clickplanet.lol/pl/%E0%A4%A", {})).toBe("/play?f=pl&s=r")
+        expect(destinationOf("https://clickplanet.lol/pl/kutza", "no storage")).toBe("/play?f=pl&s=r&r=kutza")
     })
 
     it("hands the game the page before, which a move to the game would otherwise lose", () => {

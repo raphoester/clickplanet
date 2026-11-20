@@ -33,8 +33,8 @@ Two things keep it from happening, and from staying:
     `sessionStorage` (`clickplanet-stale-reload`, `{at, tries}`); with no `sessionStorage` it never reloads. When it
     does not reload, `vite:preloadError` is left to throw.
 
-**Why not a 404 for a missing `/assets/` file.** The fallback cannot be turned off: a player's address
-(`/<flag>/<name>`) has no file and reaches the game through it (see [Pages and routes](routes.md)). A 404 for
+**Why not a 404 for a missing `/assets/` file.** The fallback cannot be turned off: a tracked address
+(`/t`, `/r?f=…`) or a player's old one (`/<flag>/<name>`) has no file and reaches the game through it (see [Pages and routes](routes.md)). A 404 for
 `/assets/` alone takes a Worker script run before those paths, and on Workers' free plan a day past its request limit
 fails every request that runs it: every file of the page. A 404 would also carry the `/assets/*` rule's `immutable`.
 

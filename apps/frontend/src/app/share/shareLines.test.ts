@@ -43,16 +43,16 @@ describe("what the card says", () => {
 describe("the text that rides with the image", () => {
     it("carries the standing and the link", () => {
         expect(shareText({country: france, rank: 2, tiles: 9001}, {code: "fr", name: "Ada Lovelace"}))
-            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/fr/Ada-Lovelace")
+            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/r?f=fr&r=Ada-Lovelace")
     })
 
     it("invites rather than reports when there is no rank to quote", () => {
         expect(shareText({country: japan, rank: null, tiles: 0}, {code: "jp"}))
-            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/jp")
+            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/r?f=jp")
     })
 
     it("offers no tiles to take from a country ranked with none", () => {
         expect(shareText({country: france, rank: 2, tiles: 0}, {code: "fr"}))
-            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/fr")
+            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/r?f=fr")
     })
 })

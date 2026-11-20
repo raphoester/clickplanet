@@ -65,10 +65,10 @@ clips' posts and the teasers' counted together. **A teaser takes one of TikTok's
 - the post's title, in the dashboard and in `ListPosts`, and **TikTok's title over the photos** (90 characters at most,
   no hashtag: TikTok strips them there): `BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC`, `FINAL BATTLE ON …` for a finale;
 - **TikTok's caption** below them: `Battle on Saturday 14 November at 20:00 UTC ⚔️`, the schedule's words when the
-  operator wrote some, `Swipe for the rules, then join the battle 👉 https://clickplanet.lol`, and the clips' tags with
+  operator wrote some, `Swipe for the rules, then join the battle 👉 https://clickplanet.lol/t`, and the clips' tags with
   `#battle` (and `#finalbattle`);
 - **YouTube's title**, `BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC | CLICKPLANET`, and its description: the same
-  first lines, each card as `• headline: line`, `Join the battle 👉 https://clickplanet.lol/?s=yt`, and the tags.
+  first lines, each card as `• headline: line`, `Join the battle 👉 https://clickplanet.lol/y`, and the tags.
 
 **The post** (`rpc_publishing.Schedule`): one Zernio post with a target on each platform of its slot, the video its
 media, **the photos TikTok's own media when TikTok is in the slot**, in the cards' order. Its metadata keeps

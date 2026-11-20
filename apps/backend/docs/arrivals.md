@@ -1,6 +1,6 @@
 # Arrivals (`internal/auth/internal/arrivals/`)
 
-**Every account auth makes keeps how it came: a player's link, the YouTube link, CrazyGames, or unknown, the host the
+**Every account auth makes keeps how it came: a player's link or video, TikTok, YouTube, CrazyGames, or unknown, the host the
 browser came from, and, for a player's address with a name, the account of the player who sent it.** The frontend is a Cloudflare Worker, Caddy sees only API calls, Cloudflare's free analytics see
 no query string and TikTok sends no referrer. So the server records it when it makes the account, from what the
 browser says its first page was.
@@ -13,25 +13,32 @@ browser says its first page was.
   transaction, for `CreateSession`; `signin.Admitter` records it in the sign-in's transaction when the outcome is
   `Created`. A resumed session, a sign-in to an account that exists and a link keep nothing: the account's arrival
   was kept when it was made.
-- **`arrivals.NewArrival` decides the source from the tag alone**: `rc` is `recruit`, `yt` is `youtube`, `cg` is
-  `crazygames`, anything else is `unknown`, since anybody can type a tag. The CrazyGames page sends `cg` on every
+- **`arrivals.NewArrival` decides the source from the tag alone**: `t` is `tiktok`, `y` is `youtube`, `r` is
+  `recruit` (a player's link, pressed), `v` is `recruit_video` (the address a player's video shows, typed), `cg` is
+  `crazygames`, anything else is `unknown`, since anybody can type a tag. **The one-letter tags are a tracked
+  address's first segment** (`clickplanet.lol/t`, `clickplanet.lol/r?f=pl&r=kutza`, see the frontend's
+  [Arrivals](../../frontend/docs/arrivals.md)): the ones that matter are typed off a video, so they are as short as can
+  be, and never a word like `tiktok` that reads as a tracker. **The old tags still count**: `rc` is `recruit` and `yt`
+  `youtube`, since the links and descriptions out before Nov 20 2026 carry them. The CrazyGames page sends `cg` on every
   call, whatever its link said. **Auth knows no flag**: `?f=` is the game's, and the client keeps
   it to itself.
 - **The tag itself is kept too** (`tagOf`), lower case, for every source: a link made for one streamer
   (`?f=pl&s=2poko2`, since 2026-11-11) is `unknown` and its tag names the stream. Only a short plain word is kept:
   32 at most, letters, digits, `_` and `-`; anything else is `""`, so a typed tag cannot carry a sentence or a script.
-- **What counts as a recruit**: the first page was a flag's address, `clickplanet.lol/<flag>` or
-  `clickplanet.lol/<flag>/<name>`, whose first script opens the game with `?s=rc` (see the frontend's [Pages and
-  routes](../../frontend/docs/routes.md)), or an old link with `?s=rc`. Every share a player makes is such an address
-  (`shareUrl` in `src/domain/shareCard.ts`): the recruit link, the frozen map's Invite, the text that rides with a
-  picture and the words drawn into it, so a link typed from a picture is a recruit too. An old `?f=` link with no tag
-  is `unknown`, as before.
+- **What counts as a recruit**: the first page was `clickplanet.lol/r?f=<flag>&r=<name>` (`recruit`) or
+  `clickplanet.lol/v?f=<flag>&r=<name>` (`recruit_video`), which the home page's first script opens as `?s=r` and
+  `?s=v` (see the frontend's [Pages and routes](../../frontend/docs/routes.md)). Every share a player makes is such an
+  address (`shareUrl` in `src/domain/shareCard.ts`): `/r` for the recruit link, the frozen map's Invite, the text that
+  rides with a picture and the words drawn into it, so a link typed from a picture is a `recruit` too; `/v` for the
+  video's. A flag's old address, `clickplanet.lol/<flag>` or `clickplanet.lol/<flag>/<name>`, and an old link with
+  `?s=rc` are `recruit` still. An old `?f=` link with no tag is `unknown`, as before.
 - **The recruiter is an account, never a name.** Auth asks no module, and player depends on auth, so the browser
   reads the name in the address into the account that holds it with player's public `GetPlayerByName` (see
   [Player](player.md)), and sends that account in the landing. `landingmessage.LandingOf` reads it: an id that is not
   an account is no recruiter and fails no call, since anybody can type an address. A guest's address has no name, and
   keeps no recruiter, nor does a name nobody holds.
-- **Only a recruit has a recruiter** (`Arrival.Recruitment`): a landing of another source that names one keeps none.
+- **Only a recruit has a recruiter** (`Arrival.Recruitment`), by its link or its video: a landing of another source
+  that names one keeps none.
   **It has a table of its own, `auth.recruitments`** (`arrival_id`, the arrival's id as its key, and `recruiter_id`,
   `NULL` once anonymized; migration `20261111120000_recruitments`), so no other arrival has a recruiter column to leave
   empty. `arrivals.Register` saves it after the arrival, in the same transaction, through its own store
@@ -40,12 +47,15 @@ browser says its first page was.
   most; anything else, a path or a port included, is `""`. The browser sends only the host, and the server checks
   again. It is kept for every source, `""` when the browser sent none: an in-app browser, a typed address, and the
   game's own pages.
-- **TikTok has no tag**: its bio link cannot be clicked under 1,000 followers, so people type the address, and a
-  query would cost conversion. Those arrivals are `unknown`.
-- **The YouTube link** is `https://clickplanet.lol/?s=yt`: the channel page's link, set by hand in YouTube Studio,
-  and the description of every clip the clips job posts (`youtubeSite`, see [The clips job](clips-job.md)).
+- **TikTok's address is `clickplanet.lol/t`**: its bio link cannot be clicked under 1,000 followers and TikTok sends
+  no referrer, so people type it, and one letter after the site is all a query-free address can cost. It is the bio's
+  link, set by hand, and the caption of every clip and teaser (`tiktokSite`). Before Nov 20 2026 TikTok had no tag, and
+  its arrivals are `unknown`. Someone who types the site alone is `unknown` still.
+- **The YouTube link** is `https://clickplanet.lol/y`: the channel page's link, set by hand in YouTube Studio,
+  and the description of every clip and teaser (`youtubeSite`, see [The clips job](clips-job.md)).
 - **One table, `auth.arrivals`**: `id`, `account_id` (`NULL` once anonymized), `source` (the enum `arrival_source`:
-  `recruit`, `youtube`, `unknown`, and `crazygames` since `20261031120000_crazygames`), `tag` (since
+  `recruit`, `youtube`, `unknown`, `crazygames` since `20261031120000_crazygames`, and `tiktok` and `recruit_video`
+  since `20261120063000_arrival_sources`), `tag` (since
   `20261111140000_arrival_tag`; `''` on the rows made before it), `referrer`, `arrived_at`.
   Migration `20261030120000_arrivals`. Accounts made before it have no row.
 - **An arrival outlives its account.** It is its own concept with its own store, not a column of `accounts`: auth

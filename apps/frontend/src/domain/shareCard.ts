@@ -1,5 +1,6 @@
 import {Countries, Country} from "./countries.ts";
 import {LeaderboardEntry} from "./leaderboard.ts";
+import {RECRUITER_PARAM, Source, SOURCES} from "./landing.ts";
 
 const SHARE_ORIGIN = "https://clickplanet.lol"
 
@@ -29,13 +30,16 @@ export function shareAddress(code: string, username: string | undefined, shown: 
     return username && shown === username ? {code, name: username} : {code}
 }
 
-export function shareUrl(address: ShareAddress): string {
-    return `${SHARE_ORIGIN}/${pathOf(address).map(encodeURIComponent).join("/")}`
+// The source first, as every tracked address: /r for a link that is pressed, /v for the one a video shows and a viewer
+// types. The flag and the name ride in the query, which nobody has to type short.
+export function shareUrl(address: ShareAddress, source: Source = SOURCES.recruitLink): string {
+    const query = queryOf(address).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
+    return `${SHARE_ORIGIN}/${source}?${query}`
 }
 
-function pathOf({code, name}: ShareAddress): string[] {
+function queryOf({code, name}: ShareAddress): [string, string][] {
     // A username holds no "-": each of its spaces is one, since a space would end the link in a message.
-    return name ? [code, name.replaceAll(" ", "-")] : [code]
+    return name ? [[SHARE_FLAG_PARAM, code], [RECRUITER_PARAM, name.replaceAll(" ", "-")]] : [[SHARE_FLAG_PARAM, code]]
 }
 
 export function sharedCountry(url: URL): Country | undefined {
@@ -44,8 +48,9 @@ export function sharedCountry(url: URL): Country | undefined {
 }
 
 // As a person reads and retypes it: no scheme, and the name in its own letters.
-export function shareLabel(address: ShareAddress): string {
-    return [SHARE_ORIGIN.replace(/^https?:\/\//, ""), ...pathOf(address)].join("/")
+export function shareLabel(address: ShareAddress, source: Source = SOURCES.recruitLink): string {
+    const query = queryOf(address).map(([key, value]) => `${key}=${value}`).join("&")
+    return `${SHARE_ORIGIN.replace(/^https?:\/\//, "")}/${source}?${query}`
 }
 
 export type LinkPlacement = {beside: boolean, scale: number}

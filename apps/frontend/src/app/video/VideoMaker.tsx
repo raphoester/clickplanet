@@ -2,6 +2,7 @@ import {useEffect, useState} from "react"
 import {ShownNamesBackend} from "../../backends/clips.ts"
 import {RecentHistorySource} from "../../backends/recentHistory.ts"
 import {shareAddress, shareLabel, shareUrl} from "../../domain/shareCard.ts"
+import {SOURCES} from "../../domain/landing.ts"
 import {headlineOf, storyOf} from "../../domain/video/story.ts"
 import {nameOf, said} from "../../clip/names.ts"
 import {TIKTOK_HANDLE} from "../../links.ts"
@@ -57,12 +58,12 @@ export default function VideoMaker({source, names, flag, accountId, username, on
             })
             const address = shareAddress(flag, username, maker)
             const headline = headlineOf(story, {nameOf, said})
-            const job: VideoJob = {history: read.history, story, headline, maker, address: shareLabel(address)}
+            const job: VideoJob = {history: read.history, story, headline, maker, address: shareLabel(address, SOURCES.recruitVideo)}
             set({kind: "making", share: 0})
             const {video} = await makeVideo(job, (share) => set({kind: "making", share}), signal)
             const file = new File([video], `clickplanet-${flag}.mp4`, {type: "video/mp4"})
             url = URL.createObjectURL(file)
-            set({kind: "ready", file, url, text: `${videoHeadline(story)} ${shareUrl(address)}`})
+            set({kind: "ready", file, url, text: `${videoHeadline(story)} ${shareUrl(address, SOURCES.recruitVideo)}`})
         })().catch((e) => {
             if (signal.aborted) return
             console.error("could not make the video", e)

@@ -21,8 +21,9 @@ sheet first, so the globe is what the preview shows the player framed.
 player's address (`shareLabel`), and one button. A newcomer who opens it plays
 for that country.
 
-**Every share carries the player's address**: `clickplanet.lol/<flag>/<name>`
-for a player with a username, `clickplanet.lol/<flag>` for a guest. The recruit
+**Every share carries the player's address**: `clickplanet.lol/r?f=<flag>&r=<name>`
+for a player with a username, `clickplanet.lol/r?f=<flag>` for a guest. `/r` is
+the recruit link's source; a video's address is `/v` instead (see [Arrivals](arrivals.md)). The recruit
 link, the frozen dock's Invite, the text that rides with a picture and the words
 drawn into it all read one `ShareAddress` (`src/domain/shareCard.ts`), which
 `PlayScreen` makes with `shareAddress` from the flag played, the username and the name
@@ -114,7 +115,9 @@ than over the badge, so a long country name never has to share a width with it.
 of its own under it when not** (`linkPlacement`), shrunk only if even that line
 is too short. Measured in hundredths of a portrait card's width (Nov 2026):
 the room beside the wordmark is 49, a line of its own 92; `clickplanet.lol/fr`
-is 26 and `clickplanet.lol/pl/kutza` 37, beside it; a name of 15 characters is
+is 26 and `clickplanet.lol/pl/kutza` 37, beside it (the old address: since Nov 20
+2026 it is `clickplanet.lol/r?f=pl&r=kutza`, six characters longer, about 46 by
+the same width per character, not measured again); a name of 15 characters is
 54 (`Ada-Lovelace-Jr`) to 75 (`gb-sct` and 15 `W`) or 77 (15 CJK characters),
 under it at its full size.
 

@@ -34,7 +34,7 @@ func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, ""), 0)
 
 	assert.Equal(t, "ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET\n"+
-		"Join the battle now 👉 https://clickplanet.lol\n"+
+		"Join the battle now 👉 https://clickplanet.lol/t\n"+
 		"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral "+
 		"#europe #italy #portugal #portugaltiktok🇵🇹", post.TikTok.Caption)
 	assert.Equal(t, "join-the-battle", post.CallToAction)
@@ -43,14 +43,14 @@ func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
 func TestTheTeaserAndTheCallAreTheDicesPick(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, ""), 3)
 
-	assert.Contains(t, post.TikTok.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 https://clickplanet.lol\n")
+	assert.Contains(t, post.TikTok.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 https://clickplanet.lol/t\n")
 	assert.Equal(t, "free", post.CallToAction)
 }
 
 func TestTheCreditOfTheMusicComesBeforeTheTags(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0"), 0)
 
-	assert.Contains(t, post.TikTok.Caption, "https://clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
+	assert.Contains(t, post.TikTok.Caption, "https://clickplanet.lol/t\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
 }
 
 func TestOnlyTheFlagTheClipIsAboutGetsItsTikTokTag(t *testing.T) {
@@ -96,7 +96,7 @@ func TestTheFightersAClipNamesFollowItsTeaser(t *testing.T) {
 
 	assert.True(t, strings.HasPrefix(post.TikTok.Caption, "WAR FOR TURKEY | CLICKPLANET\n"+
 		"⚔️ Top fighters: BraveFox42 🇫🇷, Ankara 55 🇹🇷, Kosovar\n"+
-		"Join the battle now 👉 https://clickplanet.lol\n"), post.TikTok.Caption)
+		"Join the battle now 👉 https://clickplanet.lol/t\n"), post.TikTok.Caption)
 	assert.True(t, strings.HasPrefix(post.YouTube.Description, "⚔️ Top fighters: BraveFox42 🇫🇷, Ankara 55 🇹🇷, Kosovar\n"+
 		"Join the battle now"), post.YouTube.Description)
 }

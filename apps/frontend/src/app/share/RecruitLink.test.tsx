@@ -42,13 +42,13 @@ describe("RecruitLink", () => {
         setup()
 
         expect(screen.getByText("Recruit for France")).toBeDefined()
-        expect(screen.getByText("clickplanet.lol/fr")).toBeDefined()
+        expect(screen.getByText("clickplanet.lol/r?f=fr")).toBeDefined()
     })
 
     it("shows a player's link with its name", () => {
         setup("copy", {code: "fr", name: "Ada Lovelace"})
 
-        expect(screen.getByText("clickplanet.lol/fr/Ada-Lovelace")).toBeDefined()
+        expect(screen.getByText("clickplanet.lol/r?f=fr&r=Ada-Lovelace")).toBeDefined()
     })
 
     it("follows the country when the player changes it", () => {
@@ -57,7 +57,7 @@ describe("RecruitLink", () => {
         rerender(<RecruitLink stats={JAPAN} address={{code: "jp"}}/>)
 
         expect(screen.getByText("Recruit for Japan")).toBeDefined()
-        expect(screen.getByText("clickplanet.lol/jp")).toBeDefined()
+        expect(screen.getByText("clickplanet.lol/r?f=jp")).toBeDefined()
     })
 
     it("copies the link, and says so on the button", async () => {
@@ -66,7 +66,7 @@ describe("RecruitLink", () => {
 
         await user.click(button("Copy link"))
 
-        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/fr/Ada-Lovelace",
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/r?f=fr&r=Ada-Lovelace",
             "France is #2 on ClickPlanet with 1,500 tiles. Come and take them.")
         await waitFor(() => expect(button("Copied!")).toBeDefined())
     })

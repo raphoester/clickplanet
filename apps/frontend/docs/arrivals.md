@@ -4,13 +4,24 @@
 reads its query and where the player came from, keeps them, and the game sends them with every call that can make
 an account. The backend decides what they mean: see the backend's [Arrivals](../../backend/docs/arrivals.md).
 
-- **The landing is the first page's `?s=` and the referrer's host** (`landingOf` in `src/domain/landing.ts`). `rc`
-  is a player's link, `yt` the YouTube link, `https://clickplanet.lol/?s=yt`. `?f=` is not sent: it picks the flag
-  played, and the backend has no use for it.
-- **A flag's address is a player's link.** `clickplanet.lol/<flag>` and `clickplanet.lol/<flag>/<name>`, which every
-  share now carries (see [Sharing the globe](sharing.md)), are opened by the home page's first script as
-  `/play?f=<flag>&s=rc`, and `&r=<name>` when the address has a name (see [Pages and routes](routes.md)). An old link
-  with `?f=` and `?s=rc` still counts; one with `?f=` alone is no recruit, as before.
+- **The landing is the first page's `?s=` and the referrer's host** (`landingOf` in `src/domain/landing.ts`). `?f=`
+  is not sent: it picks the flag played, and the backend has no use for it.
+- **A tracked address starts with its source, one letter** (`SOURCES` in `src/domain/landing.ts`), because the ones
+  that matter are typed by hand off a video, and every letter typed costs arrivals:
+  - `clickplanet.lol/t`: TikTok, the bio and what the TikTok videos say. TikTok sends no referrer and its bio link
+    cannot be clicked under 1,000 followers, so this is the only way to tell a TikTok viewer.
+  - `clickplanet.lol/y`: YouTube, the channel's link and every description.
+  - `clickplanet.lol/r?f=<flag>&r=<name>`: a player's recruit link, which is pressed (the link, Invite, the picture).
+  - `clickplanet.lol/v?f=<flag>&r=<name>`: the address a player's video shows, which a viewer types.
+
+  **Only the first segment is the source; everything else is in the query**, which a pressed link carries for free.
+  Not `/tiktok` or `/youtube`: a word typed in full reads as a tracker, and it is longer. The home page's first script
+  opens each as `/play?s=<letter>` with the rest of the query (see [Pages and routes](routes.md)). One letter can never
+  be a flag (two letters or more) nor a page.
+- **Old addresses keep counting.** `clickplanet.lol/<flag>` and `clickplanet.lol/<flag>/<name>`, shared and drawn
+  into videos before Nov 20 2026, still open as `/play?f=<flag>&s=r` and `&r=<name>`. `?s=rc` and `?s=yt`, in the
+  descriptions already posted, reach the game as they are, and the backend reads them as before. A `?f=` link with no
+  tag is no recruit, as before.
 - **The recruiter is an account, read from the name** (`recruiterNameOf`, then `firstLanding`). The address writes
   each space of a username as `-`, which no username holds, so the page turns each `-` back into a space, and asks
   player's `GetPlayerByName` which account holds that name (`nameHolder` in `src/backends/playerBackend.ts`; no session,

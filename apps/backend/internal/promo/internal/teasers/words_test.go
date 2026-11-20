@@ -18,7 +18,7 @@ func TestATeaserSaysWhenItsBattleStartsAndItsRulesOnEachPlatform(t *testing.T) {
 			Title: "BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC",
 			Caption: "Battle on Saturday 14 November at 20:00 UTC ⚔️\n" +
 				"Close a ring around any land.\n" +
-				"Swipe for the rules, then join the battle 👉 https://clickplanet.lol\n" +
+				"Swipe for the rules, then join the battle 👉 https://clickplanet.lol/t\n" +
 				"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #battle",
 		},
 		YouTube: teasers.YouTubeWords{
@@ -27,7 +27,7 @@ func TestATeaserSaysWhenItsBattleStartsAndItsRulesOnEachPlatform(t *testing.T) {
 				"Close a ring around any land.\n" +
 				"• Circle any land with your flag: Every click can close a ring.\n" +
 				"• Gain the most land\n" +
-				"Join the battle 👉 https://clickplanet.lol/?s=yt\n" +
+				"Join the battle 👉 https://clickplanet.lol/y\n" +
 				"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #battle",
 			Tags: []string{
 				"clickplanet", "rplace", "wplace", "pixelwar", "map", "geographygame", "conquestgame", "videogame",

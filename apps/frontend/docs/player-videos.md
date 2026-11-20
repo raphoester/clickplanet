@@ -63,7 +63,9 @@ All of it is pure and tested, in `src/domain/video/story.ts`:
 ## The address
 
 `shareAddress` (`src/domain/shareCard.ts`) puts the username in the address only when `GetShownNames` answers that very
-name for the player: `clickplanet.lol/pl/kutza`, else `clickplanet.lol/pl`. The recruit link, the picture and the
+name for the player. **The video's address has a source of its own, `/v`** (`shareLabel(address, SOURCES.recruitVideo)`):
+`clickplanet.lol/v?f=pl&r=kutza`, else `clickplanet.lol/v?f=pl`, drawn on the video and in the text that goes with it,
+so an arrival typed off a video is told from one by a pressed link (`/r`, see [Arrivals](arrivals.md)). The recruit link, the picture and the
 video all follow it. `useShownName` reads it, and once more 30 s later when the name is not shown yet: a new name is
 judged within seconds.
 
