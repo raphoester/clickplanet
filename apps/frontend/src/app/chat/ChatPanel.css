@@ -446,7 +446,7 @@
     overflow-wrap: anywhere;
 }
 
-@media (max-height: 600px) and (orientation: landscape) {
+@media (min-width: 481px) and (max-height: 600px) and (orientation: landscape) {
     .chat-sheet {
         height: auto;
     }

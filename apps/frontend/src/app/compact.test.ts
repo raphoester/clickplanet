@@ -1,7 +1,7 @@
 import {readdirSync, readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {COMPACT, LANDSCAPE} from "./compact.ts"
+import {COMPACT, LANDSCAPE, NARROW_PHONE} from "./compact.ts"
 
 const SRC = fileURLToPath(new URL("..", import.meta.url))
 
@@ -28,5 +28,10 @@ describe("the compact layout", () => {
     it("held sideways is a compact screen", () => {
         expect(LANDSCAPE).toContain("(max-height: 600px)")
         expect(COMPACT.split(", ")).toContain("(max-height: 600px)")
+    })
+
+    it("held sideways is wider than a phone held upright with its keyboard open", () => {
+        expect(NARROW_PHONE).toBe("(max-width: 480px)")
+        expect(LANDSCAPE).toContain("(min-width: 481px)")
     })
 })

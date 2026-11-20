@@ -71,7 +71,7 @@
 
 /* Held sideways there is no bar across the top: the lead and the season's chip are two pills over the globe, right of
    the rail, and a sheet out of the rail covers the lead. */
-@media (max-height: 600px) and (orientation: landscape) {
+@media (min-width: 481px) and (max-height: 600px) and (orientation: landscape) {
     .status-bar.panel {
         left: var(--rail-room);
         right: env(safe-area-inset-right, 0px);
