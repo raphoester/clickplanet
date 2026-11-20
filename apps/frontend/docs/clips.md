@@ -234,7 +234,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half, darkening only that half: the map
   pulled back out stays in sight under it. The call
   shows the flags the editor names it with (`callFlags`): a country's, or a continent's own flag (Europe's alone,
-  `static/countries/svg/eu.svg`, from the same set as the others).
+  `static/countries/svg/eu.svg`, from the same set as the others). **Each flag is drawn in its own shape, the frame
+  round the flag itself**: one height for all, 120px, and each as wide as its flag, the UK 240px and Colombia 180px
+  (`.clip-ending-flag`). Until 2026-11-20 each had a width of 180px alone, the row stretched every one to the tallest's
+  height, and a 2:1 flag floated in a 3:2 frame. A row wider than the card is drawn lower, every flag at the same height
+  (`fit`, once the pictures are in): two Union Jacks at 105px. Nepal's pennant gets a rectangle round it.
 - **The end card names the top fighters** the pick names: "TOP FIGHTERS" under the call, then each side's players
   (`sidesOf`), two sides and 3 a side at most, a row each with the side's flag, the name and the tiles it took in what
   the clip plays, counted again from the cast on the story's tiles in the stretch the clip is cut to

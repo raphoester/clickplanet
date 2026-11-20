@@ -192,8 +192,14 @@ html, body {
     gap: 16px;
 }
 
+/* One height for every flag and each its own width, so the frame is round the flag: a width alone let the row stretch a
+   flag to the tallest one's height, and a 2:1 flag floated in a 3:2 frame. fit() lowers the height where the row is
+   wider than the card. */
 .clip-ending-flag {
-    width: 180px;
+    flex: none;
+    box-sizing: content-box;
+    height: var(--clip-flag-height, 120px);
+    width: auto;
     border: 4px solid var(--ink);
     border-radius: 10px;
 }
