@@ -9,9 +9,9 @@ the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a 
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
 (the knock-out, fixed capital shields and the cut-off). **Capital Siege is one rule set**: `arena.on` on `siege-1`
 (`arena.board`), the capitals seed, the reach, the knock-out, fixed capital shields and the cut-off, no bombs (`charges.bomb.off`), no enclosures
-(`charges.enclose.off`), no spread (`charges.spread.off`), no rally (`charges.rally.off`), and urf's speed (see
-[Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
-used in another mode or on the world's map.
+(`charges.enclose.off`), no spread (`charges.spread.off`), no rally (`charges.rally.off`), and tempo 1, the default
+speed (see [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule
+could not be used in another mode or on the world's map.
 
 Planet calls the fresh map an **arena**; the gamemaster calls the battle an **arena battle**. Planet never learns the
 word battle: it opens and closes arenas by the ids it is given.
@@ -196,12 +196,16 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 
 ## Capital Siege's set
 
-`capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
-welcome values, flags locked), plus `arena {on, freeze 8s, board siege-1}`, `seed.capitals.shields` 50, `reach`,
-`capitals {knockOut, fixedShields, cutOff}`, `charges.bomb.off`, `charges.enclose.off`, `charges.spread.off` and
-`charges.rally.off`. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×, 0.5 → 4×). The offers' set of the same
-name grants no spread clicks, no enclosures, no bombs and no rally (`kinds.spreadClicks`, `kinds.encloseClicks`,
-`kinds.bomb` and `kinds.rally` 0, since a box of them would pay nothing), and the boxes offer one every 20 to 40 s.
+`capital-siege` in production (saved by hand, not scheduled): tempo 1, the default speed, and urf's other values (boxes
+and quizzes, its shield and welcome values, flags locked), plus `arena {on, freeze 8s, board siege-1}`,
+`seed.capitals.shields` 50, `reach`, `capitals {knockOut, fixedShields, cutOff}`, `charges.bomb.off`,
+`charges.enclose.off`, `charges.spread.off` and `charges.rally.off`. Its toll starts at 30% of the map (0.3 → 1.5×,
+0.4 → 2.5×, 0.5 → 4×). The offers' set of the same name grants no spread clicks, no enclosures, no bombs and no rally
+(`kinds.spreadClicks`, `kinds.encloseClicks`, `kinds.bomb` and `kinds.rally` 0, since a box of them would pay nothing),
+and the boxes offer one every 20 to 40 s.
+
+**Tempo 1, the default speed** (the owner, 2026-11-21): a check before that day's battle found production playing tempo
+1 while this doc said urf's tempo 3, and the owner kept tempo 1.
 
 **On `siege-1`, with no spread** (PR 5 of [Boards](../../../docs/boards.md), the owner, 2026-11-17). On 260,503 tiles the
 unlimited spread of 2 rings (19 tiles a click) was inflation on purpose, to fill the map fast, and its animation spammed
@@ -231,7 +235,7 @@ the set, so a change carries the whole set; `capital-siege` does not play betwee
 the map, and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`:
 
 ```json
-{"clicks":{"tempo":3},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
+{"clicks":{"tempo":1},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
  "allegianceLocked":true,"arena":{"on":true,"freeze":"8s","board":"siege-1"},"seed":{"capitals":{"shields":50}},
  "reach":true,"capitals":{"knockOut":true,"fixedShields":true,"cutOff":true},
  "charges":{"spread":{"off":true},"bomb":{"rings":8,"off":true},"enclose":{"maxTiles":500,"held":8,"off":true},"shield":{"held":75},
@@ -248,7 +252,8 @@ The offers' `capital-siege` (`bonuses_save_rule_set`), which weighs `spreadClick
 
 The boxes' and the quizzes' sets of the same name need no change: they hold nothing of the spread or the rally. A
 newcomer's welcome box is a spread, so in the battle it pays nothing, as it did since 2026-11-13. The antibot's set and
-the teaser's cards name neither.
+the teaser's cards name neither. A virus or a mine a player brought from the world still plays in the battle: neither has
+an `off` knob, and the offers weigh both 0.
 
 **Capitals start with 50 shields** (saved in production on 2026-11-13). A simulation with production's battle numbers
 let the first knock-out wait 20 to 36 minutes with 100, and knocked a flag out after 1 to 4 minutes with 25.
