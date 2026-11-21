@@ -234,7 +234,11 @@ set's 4th card is now "Cut off : land is lost", over a still of the real globe o
 Germany's road to Brittany, the land past it tinted red), and the "Bring your friends" card went into the points card, a
 set showing 5 at most. As the job teases a battle once, the rule went out as a post of its own at 14:00 UTC that day,
 on Zernio by hand (`teaserRule: capitals.cutOff` in its metadata): three cards in the teaser's frame, before, the cut and
-after, rendered with `npm run teaser`.
+after, rendered with `npm run teaser`. The same day the other cards' pictures moved to `siege-1` too (the owner: the
+map is less dense than before, and they no longer matched): the seed, each capital a crowned 50; Italy's front rung
+across the bridges to Corsica and Sicily; Germany taking Paris, France's land tinted red. Each is the real globe on the
+fake backend with a staged map. The `earth-1` ones (named "… 744 bridges") stay in the library, shown by no card. The
+points card is a podium and kept its picture.
 
 **Saved on 2026-11-19**, once the cut-off was deployed (#907), and read back with `planet_get_rules` and
 `bonuses_get_rules`. Until then planet's set still held the `spread` overrides (`clicks` 50, `rings` 2, `unlimited`) and
