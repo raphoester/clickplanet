@@ -9,8 +9,8 @@ the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a 
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
 (the knock-out, fixed capital shields and the cut-off). **Capital Siege is one rule set**: `arena.on` on `siege-1`
 (`arena.board`), the capitals seed, the reach, the knock-out, fixed capital shields and the cut-off, no bombs (`charges.bomb.off`), no enclosures
-(`charges.enclose.off`), no spread (`charges.spread.off`), no rally (`charges.rally.off`), and urf's speed (see
-[Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
+(`charges.enclose.off`), no spread (`charges.spread.off`), no rally (`charges.rally.off`), urf's boxes and quizzes,
+and the normal click speed since 2026-11-21 (see [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
 used in another mode or on the world's map.
 
 Planet calls the fresh map an **arena**; the gamemaster calls the battle an **arena battle**. Planet never learns the
@@ -196,8 +196,8 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 
 ## Capital Siege's set
 
-`capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
-welcome values, flags locked), plus `arena {on, freeze 8s, board siege-1}`, `seed.capitals.shields` 50, `reach`,
+`capital-siege` in production (saved by hand, not scheduled): urf's values (boxes and quizzes, its shield and welcome
+values, flags locked) but `default`'s click speed (`clicks.tempo` 1, see below), plus `arena {on, freeze 8s, board siege-1}`, `seed.capitals.shields` 50, `reach`,
 `capitals {knockOut, fixedShields, cutOff}`, `charges.bomb.off`, `charges.enclose.off`, `charges.spread.off` and
 `charges.rally.off`. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×, 0.5 → 4×). The offers' set of the same
 name grants no spread clicks, no enclosures, no bombs and no rally (`kinds.spreadClicks`, `kinds.encloseClicks`,
@@ -223,15 +223,29 @@ after the battle ([Spreads off](spread.md#spreads-off-chargesspreadoff)); withou
 flag holds one land around its capital, joined over its bridges (see [The cut-off](capitals.md#the-cut-off-capitalscutoff)).
 With the reach, a march on a capital is a corridor the enemy can cut behind it.
 
+**The normal click speed** (the owner, 2026-11-21, the day of the second battle): `clicks.tempo` 1, `default`'s, where
+it was urf's 3. The capitals of `siege-1` are a few tiles apart, and at 3 times the refill the first battle snowballed:
+at the normal speed the battle should last its hours and end in a close race, and the new map is the draw on its own.
+Saved with the rest of the set unchanged and read back. The boxes and the quizzes still come at urf's pace (a box every
+20 to 40 s, half of them a refill), which the owner did not change.
+
+**Its teaser explains the cut-off** (2026-11-21): the battle of 2026-11-21 was teased the day before without it. The
+set's 4th card is now "Cut off : land is lost", over a still of the real globe on `siege-1` (France takes the one tile of
+Germany's road to Brittany, the land past it tinted red), and the "Bring your friends" card went into the points card, a
+set showing 5 at most. As the job teases a battle once, the rule went out as a post of its own at 14:00 UTC that day,
+on Zernio by hand (`teaserRule: capitals.cutOff` in its metadata): three cards in the teaser's frame, before, the cut and
+after, rendered with `npm run teaser`.
+
 **Saved on 2026-11-19**, once the cut-off was deployed (#907), and read back with `planet_get_rules` and
 `bonuses_get_rules`. Until then planet's set still held the `spread` overrides (`clicks` 50, `rings` 2, `unlimited`) and
 no `arena.board`, `charges.spread.off` or `charges.rally.off`, and the offers' set no `kinds.rally`, so the battle
 would have played the world's board with the unlimited spread. `SaveRuleSet` has no dry run and replaces every value of
 the set, so a change carries the whole set; `capital-siege` does not play between battles, so a save changes nothing on
-the map, and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`:
+the map, and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`, its
+tempo 1 since 2026-11-21:
 
 ```json
-{"clicks":{"tempo":3},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
+{"clicks":{"tempo":1},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
  "allegianceLocked":true,"arena":{"on":true,"freeze":"8s","board":"siege-1"},"seed":{"capitals":{"shields":50}},
  "reach":true,"capitals":{"knockOut":true,"fixedShields":true,"cutOff":true},
  "charges":{"spread":{"off":true},"bomb":{"rings":8,"off":true},"enclose":{"maxTiles":500,"held":8,"off":true},"shield":{"held":75},
