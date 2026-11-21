@@ -238,7 +238,10 @@ after, rendered with `npm run teaser`. The same day the other cards' pictures mo
 map is less dense than before, and they no longer matched): the seed, each capital a crowned 50; Italy's front rung
 across the bridges to Corsica and Sicily; Germany taking Paris, France's land tinted red. Each is the real globe on the
 fake backend with a staged map. The `earth-1` ones (named "… 744 bridges") stay in the library, shown by no card. The
-points card is a podium and kept its picture.
+points card is a podium and kept its picture. **The new map is explained** (the owner: it changed "out of the blue"):
+the first card is "A new map, just for this battle" ("Bigger tiles, all blank : each country on its capital, 50 shields.
+Your world map comes back after."), and the battle's description, which the start moment shows as the page reloads on
+`siege-1`, opens with "Capital Siege is fought on a map of its own, with bigger tiles".
 
 **Saved on 2026-11-19**, once the cut-off was deployed (#907), and read back with `planet_get_rules` and
 `bonuses_get_rules`. Until then planet's set still held the `spread` overrides (`clicks` 50, `rings` 2, `unlimited`) and
