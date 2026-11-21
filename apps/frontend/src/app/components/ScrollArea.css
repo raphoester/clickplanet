@@ -24,7 +24,10 @@
     opacity: 1;
 }
 
+/* The containing block of what is absolutely positioned inside: an `.sr-only` span in each of the board's rows, held
+   by `.scroll-area` instead, was neither clipped nor scrolled by this body, and stretched the scroller around it. */
 .scroll-area-body {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;

@@ -88,6 +88,15 @@ each content added `padding-bottom: 36px` to escape it (the leaderboard in
 panel that missed the padding hid its last line: the sign-in modals' "Privacy
 policy" (Oct 30 2026).
 
+**The scrolling body is `position: relative`**, so what is absolutely positioned
+inside it is placed, clipped and scrolled by it. Without it, the board's rows'
+`.sr-only` spans (the "points today" read aloud) took `.scroll-area` for their
+containing block: the table did not clip them, and they stretched the panel's
+own scroller, `.menu-body`, to the whole list's height. At the table's end the
+wheel moved on to that scroller, which slid the leader's frame away over a blank
+panel, then back (Nov 21 2026). Something meant to stay put over a body that
+scrolls goes outside the `ScrollArea`, not on `.scroll-area`.
+
 **A modal has `--space-5` on every side**, and its × sits in the corner at that
 distance. Its scrollbar sits in that padding, so the text has as much room on
 the right as on the left. The panel is 376px wide: a 328px column of text. A `Modal` given no `onClose` has no ×,
