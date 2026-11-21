@@ -26,7 +26,7 @@ made again a minute later, and planet's swap goes on meanwhile:
 | when | who | what | waits for |
 |---|---|---|---|
 | T1 | play_schedule | the antibot's `PlayRuleSet` of the arena battle's set; planet and the offers keep the set before | the clock |
-| T1 | judge_battles | judges the battle once: `GetRuleSet(set).arena.on` → `battle_modes` | the clock |
+| T1 | judge_battles | judges the battle once: `GetRuleSet(set).arena.on` and `capitals.knockOut` → `battle_modes` | the clock |
 | T1 | play_scoring | `CloseRound` day K: scoring scores it on the real map → `scored_rounds` | the clock |
 | ~T1+1 s | play_arenas | `OpenArena{arena_id, ends_at, rule_set}` → `opened_arenas` | day K answered (`scored_rounds` or `missed_rounds`), no arena before it still open |
 | | planet | saves what changed to the world's map, keeps the arena, then plays the arena's empty map: new epoch, every stream cut | — |
@@ -45,7 +45,7 @@ next arena (`ArenasDueAt`). **Each wait is on the answer to a close, and every c
 as a reconciler](gamemaster-reconciler.md)): a round scoring never opened is answered missed, and an arena planet never
 opened closes all the same, so nothing waits for ever. A battle's round opens only once the battle is judged, in the same tick (`Plan.Judged`
 hands the judgement to the steps after the judge), and an arena battle's only once planet answered its arena opened
-(`opened_arenas`): it counts from nothing, and it places only the countries whose players fought in it, by the tiles held on the arena when it ends and the tiles taken ([Scoring](scoring.md#the-rules)). A plan built with no arena battles (the zero
+(`opened_arenas`): it counts from nothing, and it places only the countries whose players fought in it, by the tiles held on the arena when it ends and the tiles taken, or, when its set plays the knock-out, the flags still standing first ([Scoring](scoring.md#the-rules)). A plan built with no arena battles (the zero
 `Arenas`, as `turn_query` builds it) waits for nothing.
 
 **The battle's set plays on planet only once its arena opened** (`Plan.SetWaits`, asked by `play_schedule_usecase`; the
@@ -74,8 +74,8 @@ round waits for it. At its end its `CloseRound` is answered missed, the arena cl
 and the battle scores nothing. Until 2026-11-10 its round opened at T1 with `from_nothing` all the same, so it was scored
 from nothing on the world's map, and each country gained its whole land.
 
-**An arena battle is judged once, as it starts, and kept** (`battle_modes`, enum `battle_mode`): a set edited during the
-battle changes no judgement. **A battle that opens its book is plain** (`Plan.Judge`): the season's reset blanked the
+**An arena battle is judged once, as it starts, and kept** (`battle_modes`, enum `battle_mode`, with `knock_out`, whether
+its set plays the knock-out, which picks its round's ranking): a set edited during the battle changes no judgement. **A battle that opens its book is plain** (`Plan.Judge`): the season's reset blanked the
 map already, and an arena opened then would keep the old season's map aside. NotFound from planet is plain.
 
 ## Planet: the arena (`internal/planet/internal/arenas/`)

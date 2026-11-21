@@ -28,23 +28,30 @@ func (m Mode) String() string {
 	return "unknown"
 }
 
-// Judgement is a battle's mode, judged once from its rule set as it starts, and kept: a set edited later changes it no
-// more.
+// Judgement is a battle's mode and whether its set plays the knock-out, judged once from its rule set as it starts, and
+// kept: a set edited later changes it no more.
 type Judgement struct {
-	Round RoundID
-	Mode  Mode
+	Round    RoundID
+	Mode     Mode
+	KnockOut bool
+}
+
+// SetPlays is what a battle's rule set plays that the gamemaster judges the battle by.
+type SetPlays struct {
+	Arena    bool
+	KnockOut bool
 }
 
 // Judged is the plan that knows these battles judged too; a plan that knows no arena battles stays so.
 func (p Plan) Judged(judgements ...Judgement) Plan {
-	if p.known.modes == nil || len(judgements) == 0 {
+	if p.known.judged == nil || len(judgements) == 0 {
 		return p
 	}
-	modes := maps.Clone(p.known.modes)
+	judged := maps.Clone(p.known.judged)
 	for _, judgement := range judgements {
-		modes[judgement.Round] = judgement.Mode
+		judged[judgement.Round] = judgement
 	}
-	p.known.modes = modes
+	p.known.judged = judged
 	return p
 }
 
@@ -53,15 +60,15 @@ func (p Plan) Judged(judgements ...Judgement) Plan {
 // it. A turn of no battle of the plan, and a plan that knows no arena battles, wait for nothing.
 func (p Plan) SetWaits(turn schedule.TurnSnapshot, at time.Time) bool {
 	battle, ok := p.battleOf(turn, at)
-	if !ok || p.known.modes == nil {
+	if !ok || p.known.judged == nil {
 		return false
 	}
 	round := battle.Round()
-	mode, judged := p.known.modes[round]
+	judgement, judged := p.known.judged[round]
 	if !judged {
 		return true
 	}
-	return mode == Arena && !p.known.opened.Contains(round) && !p.known.closed.Contains(round)
+	return judgement.Mode == Arena && !p.known.opened.Contains(round) && !p.known.closed.Contains(round)
 }
 
 func (p Plan) battleOf(turn schedule.TurnSnapshot, at time.Time) (Battle, bool) {
@@ -84,7 +91,7 @@ func (p Plan) Waits(at time.Time) bool {
 	for _, book := range p.books {
 		for _, battle := range book.Battles {
 			round := battle.Round()
-			if p.known.modes[round] == Arena && !battle.EndsAt.After(at) && !p.known.closed.Contains(round) {
+			if p.known.judged[round].Mode == Arena && !battle.EndsAt.After(at) && !p.known.closed.Contains(round) {
 				return true
 			}
 		}
@@ -95,17 +102,17 @@ func (p Plan) Waits(at time.Time) bool {
 // Unjudged is the battle that runs at a time and has no mode yet.
 func (p Plan) Unjudged(at time.Time) (Battle, bool) {
 	battle, ok := p.BattleAt(at)
-	if !ok || p.known.modes[battle.Round()] != 0 {
+	if _, judged := p.known.judged[battle.Round()]; !ok || judged {
 		return Battle{}, false
 	}
 	return battle, true
 }
 
-// Judge is a battle's mode: an arena battle when its set says so, unless it opens its book, on the map the season's reset
-// blanked already.
-func (p Plan) Judge(battle Battle, arena bool) Judgement {
-	judgement := Judgement{Round: battle.Round(), Mode: Plain}
-	if _, ok := p.roundBefore(battle); arena && ok {
+// Judge is a battle's mode and its knock-out: an arena battle when its set says so, unless it opens its book, on the map
+// the season's reset blanked already.
+func (p Plan) Judge(battle Battle, plays SetPlays) Judgement {
+	judgement := Judgement{Round: battle.Round(), Mode: Plain, KnockOut: plays.KnockOut}
+	if _, ok := p.roundBefore(battle); plays.Arena && ok {
 		judgement.Mode = Arena
 	}
 	return judgement
@@ -171,7 +178,7 @@ func (p Plan) ArenasDueAt(now time.Time) []ArenaCommand {
 	for _, book := range p.books {
 		for _, battle := range book.Battles {
 			round := battle.Round()
-			if p.known.modes[round] != Arena || p.known.closed.Contains(round) {
+			if p.known.judged[round].Mode != Arena || p.known.closed.Contains(round) {
 				continue
 			}
 			switch {

@@ -90,11 +90,14 @@ type round struct {
 	battle   bool
 }
 
-func (r round) ranking() Ranking {
-	if r.battle {
-		return RankedByFighters
+func (r round) rankedBy(judgement Judgement) Ranking {
+	if !r.battle {
+		return RankedByHeldAndGain
 	}
-	return RankedByHeldAndGain
+	if judgement.KnockOut {
+		return RankedByKnockOut
+	}
+	return RankedByFighters
 }
 
 func (b Book) rounds() []round {
@@ -268,15 +271,17 @@ func (p Plan) DueAt(now time.Time) []Command {
 }
 
 func (p Plan) opening(book Book, r round) (Command, bool) {
-	open := Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt, Ranking: r.ranking()}
-	if p.known.modes == nil {
+	judgement, judged := p.known.judged[r.id]
+	open := Command{
+		Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt, Ranking: r.rankedBy(judgement),
+	}
+	if p.known.judged == nil {
 		return open, true
 	}
-	mode := p.known.modes[r.id]
-	if (r.battle && mode == 0) || (mode == Arena && !p.known.opened.Contains(r.id)) || p.Waits(r.startsAt) {
+	if (r.battle && !judged) || (judgement.Mode == Arena && !p.known.opened.Contains(r.id)) || p.Waits(r.startsAt) {
 		return Command{}, false
 	}
-	open.FromNothing = mode == Arena
+	open.FromNothing = judgement.Mode == Arena
 	return open, true
 }
 

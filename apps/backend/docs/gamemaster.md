@@ -413,8 +413,12 @@ action and ids) in memory, and each close's answer in postgres.
   (`RankedByHeldAndGain`), so holding ground pays; a battle, the finale and an arena battle included, on the countries
   whose players fought in it, by the ground held and the tiles taken (`RankedByFighters`, from 2026-11-12): a country
   that held its capital and never fought scores nothing, and one eliminated after fighting still scores (see
-  [Scoring](scoring.md#the-rules)). `rpc_scoring_books` says it in scoring's words, `scoring.v1.Ranking`, and an open
-  with no ranking it knows is an error that calls nothing.
+  [Scoring](scoring.md#the-rules)). **A battle whose set plays the knock-out** (`capitals.knockOut`, today Capital
+  Siege) is placed on survival first (`RankedByKnockOut`, from 2026-11-21): the flags still standing at its end, then
+  the ones knocked out, the last one out first. The judge reads it from the set as the battle starts, with its mode,
+  and keeps it in the judgement (`Judgement.KnockOut`, `battle_modes.knock_out`), so the round opens with the same
+  ranking after a boot or an edit of the set. A battle judged before keeps `false`. `rpc_scoring_books` says it in
+  scoring's words, `scoring.v1.Ranking`, and an open with no ranking it knows is an error that calls nothing.
 - **An open is only called while what it opens has not ended**: a round that already ended is never opened, since
   scoring would score it from today's map. **A close is due for every ended round and book scoring has not answered**:
   scored or missed for a round, closed or missed for a book, and every round of an answered book (`Plan.settled`). So a

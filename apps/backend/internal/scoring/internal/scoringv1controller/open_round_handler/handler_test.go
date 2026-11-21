@@ -54,6 +54,10 @@ func TestTheRoundAskedReachesTheUseCase(t *testing.T) {
 	gain.Ranking = scoringv1.Ranking_RANKING_GAIN
 	require.NoError(t, open(t, useCase, gain))
 	assert.Equal(t, books.GainRanking{}, useCase.command.Ranking)
+	knockOut := request()
+	knockOut.Ranking = scoringv1.Ranking_RANKING_KNOCK_OUT
+	require.NoError(t, open(t, useCase, knockOut))
+	assert.Equal(t, books.KnockOutRanking{}, useCase.command.Ranking)
 }
 
 func TestABadIDNoStartOrNoRankingIsInvalid(t *testing.T) {

@@ -20,42 +20,23 @@ type Scored struct {
 
 var points = []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1}
 
-// Results places the countries by the round's ranking: those holding tiles at the end, or, for a fighting ranking, those
-// whose players took a tile in the round, eliminated ones included. A shared place shares its points.
+// Results places the countries by the round's ranking. A shared place shares its points.
 func (r Round) Results(start Start, end Snapshot) []Result {
-	held, gains := map[Country]int64{}, map[Country]int64{}
-	if r.Ranking.fighting() {
-		for country, taken := range end.Fights {
-			if taken > 0 {
-				held[country], gains[country] = int64(end.Held[country]), int64(taken)
-			}
-		}
-	} else {
-		for country, tiles := range end.Held {
-			if tiles > 0 {
-				held[country], gains[country] = int64(tiles), int64(tiles)-int64(start[country])
-			}
-		}
-	}
-	heldRanks, gainRanks := ranksOf(held), ranksOf(gains)
-	places := make(map[Country]place, len(held))
-	for country := range held {
-		places[country] = r.Ranking.place(heldRanks[country], gainRanks[country])
-	}
+	places := r.Ranking.places(start, end)
 	countries := slices.Collect(maps.Keys(places))
 	slices.SortFunc(countries, func(a, b Country) int {
-		first, second := places[a], places[b]
+		first, second := places[a].keys, places[b].keys
 		return cmp.Or(slices.Compare(first[:], second[:]), cmp.Compare(a, b))
 	})
 
 	results := make([]Result, 0, len(countries))
 	for i, country := range countries {
 		rank := uint32(i + 1) //nolint:gosec // a few hundred countries at most.
-		if i > 0 && places[country] == places[countries[i-1]] {
+		if i > 0 && places[country].keys == places[countries[i-1]].keys {
 			rank = results[i-1].Rank
 		}
 		won := uint32(0)
-		if r.Ranking.scores(gains[country]) {
+		if places[country].scores {
 			won = pointsAt(rank, r.Times)
 		}
 		results = append(results, Result{Country: country, Rank: rank, Points: won, Share: float64(end.Held[country]) / float64(end.Tiles)})

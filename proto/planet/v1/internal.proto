@@ -196,6 +196,13 @@ message GetTerritoriesResponse {
   repeated Territory territories = 2;
   // The board the map in play plays, as /map/boards names it: the tiles are counted on it.
   string board = 3;
+  // The flags knocked out of the map in play, by flag: each lost its capital to another flag.
+  repeated KnockedOutFlag knocked_out = 4;
+}
+
+message KnockedOutFlag {
+  string country_id = 1;
+  google.protobuf.Timestamp knocked_out_at = 2;
 }
 
 message Territory {

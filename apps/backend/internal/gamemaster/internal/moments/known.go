@@ -27,7 +27,7 @@ type ArenasKept struct {
 // and each arena planet opened and closed. The zero Known knows none: a plan with it opens every round on time and waits for
 // nothing, as a read of the plan needs.
 type Known struct {
-	modes map[RoundID]Mode
+	judged map[RoundID]Judgement
 	// settled are the rounds scoring scored or missed.
 	settled *cpcolls.Set[RoundID]
 	// books are the books scoring closed or missed.
@@ -39,7 +39,7 @@ type Known struct {
 
 func NewKnown(kept Kept, arenas ArenasKept) Known {
 	known := Known{
-		modes:   map[RoundID]Mode{},
+		judged:  map[RoundID]Judgement{},
 		settled: cpcolls.NewSet(append(append([]RoundID{}, kept.Scored...), kept.MissedRounds...)...),
 		books:   cpcolls.NewSet(append(append([]BookID{}, kept.Closed...), kept.MissedBooks...)...),
 		reset:   cpcolls.NewSet(kept.Reset...),
@@ -47,7 +47,7 @@ func NewKnown(kept Kept, arenas ArenasKept) Known {
 		closed:  cpcolls.NewSet(arenas.Closed...),
 	}
 	for _, judgement := range arenas.Judged {
-		known.modes[judgement.Round] = judgement.Mode
+		known.judged[judgement.Round] = judgement
 	}
 	return known
 }

@@ -18,7 +18,7 @@ func (s *testSuite) worldBeforeASwitch() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2, 3),
 		[]inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "fr"}},
-		[]inmemory_tile_storage.OutFlag{{Flag: "pl", By: "de", At: time.Date(2026, 11, 21, 20, 0, 0, 0, time.UTC)}}))
+		[]clicks.OutFlag{{Flag: "pl", By: "de", At: time.Date(2026, 11, 21, 20, 0, 0, 0, time.UTC)}}))
 	s.Require().NoError(s.store.SaveMines(ctx, clicks.WorldStage, []clicks.MineSnapshot{mineOn(1, "fr")}, nil))
 	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{
 		virusOf("0192f5a0-7c00-7000-8000-000000000001", 1),
@@ -51,8 +51,8 @@ func (s *testSuite) TestACarryMovesTheMapOntoTheNewBoardInTheEraStartsTransactio
 	locks := map[clicks.ProvinceID]string{}
 	s.Require().NoError(s.store.LoadProvinces(ctx, clicks.World, "provinces.bin", func(id clicks.ProvinceID, by string) { locks[id] = by }))
 	s.Empty(locks, "the old board's locks are dropped")
-	var out []inmemory_tile_storage.OutFlag
-	s.Require().NoError(s.store.LoadOutFlags(ctx, clicks.World, func(flag inmemory_tile_storage.OutFlag) { out = append(out, flag) }))
+	var out []clicks.OutFlag
+	s.Require().NoError(s.store.LoadOutFlags(ctx, clicks.World, func(flag clicks.OutFlag) { out = append(out, flag) }))
 	s.Len(out, 1, "a flag out names no tile, and stays")
 	era, err := kept.Latest(ctx, clicks.World)
 	s.Require().NoError(err)

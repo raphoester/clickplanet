@@ -69,6 +69,12 @@ func TestEachCommandIsOneCallInScoringsWords(t *testing.T) {
 			},
 		},
 		{
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true, Ranking: moments.RankedByKnockOut},
+			&scoringv1.OpenRoundRequest{
+				RoundId: entry, BookId: "season-0", Times: 2, StartsAt: at, FromNothing: true, Ranking: scoringv1.Ranking_RANKING_KNOCK_OUT,
+			},
+		},
+		{
 			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: finale, Ranking: moments.RankedByHeldAndGain},
 			&scoringv1.OpenRoundRequest{
 				RoundId: "season-0/day-24", BookId: "season-0", Times: 1, StartsAt: at, Ranking: scoringv1.Ranking_RANKING_HELD_AND_GAIN,

@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"slices"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -16,6 +18,10 @@ type ShieldTally interface {
 	ShieldTally() []clicks.FlagShields
 }
 
+type OutFlags interface {
+	OutFlags() []clicks.OutFlag
+}
+
 // Board is the board in play: its name, its tile count, and whose ground each landmass is.
 type Board interface {
 	Name() clicks.BoardName
@@ -23,13 +29,14 @@ type Board interface {
 	CountryOfLandmass(landmass clicks.LandmassID) string
 }
 
-func NewMemoryQuery(tally Tally, shields ShieldTally, board Board) *MemoryQuery {
-	return &MemoryQuery{tally: tally, shields: shields, board: board}
+func NewMemoryQuery(tally Tally, shields ShieldTally, out OutFlags, board Board) *MemoryQuery {
+	return &MemoryQuery{tally: tally, shields: shields, out: out, board: board}
 }
 
 type MemoryQuery struct {
 	tally   Tally
 	shields ShieldTally
+	out     OutFlags
 	board   Board
 }
 
@@ -66,7 +73,15 @@ func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
 		return cmp.Compare(a.GetCountryId(), b.GetCountryId())
 	})
 
-	return &planetv1.GetTerritoriesResponse{Tiles: q.board.Tiles(), Territories: territories, Board: string(q.board.Name())}
+	out := q.out.OutFlags()
+	knockedOut := make([]*planetv1.KnockedOutFlag, 0, len(out))
+	for _, flag := range out {
+		knockedOut = append(knockedOut, &planetv1.KnockedOutFlag{CountryId: flag.Flag, KnockedOutAt: timestamppb.New(flag.At)})
+	}
+
+	return &planetv1.GetTerritoriesResponse{
+		Tiles: q.board.Tiles(), Territories: territories, Board: string(q.board.Name()), KnockedOut: knockedOut,
+	}
 }
 
 func groundsOf(held map[string]uint32) []*planetv1.Ground {

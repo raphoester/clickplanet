@@ -25,8 +25,8 @@ func (s *Store) KeepJudged(ctx context.Context, judgement moments.Judgement) (bo
 		return false, err
 	}
 	res, err := s.db.On(ctx).ExecContext(ctx,
-		`INSERT INTO battle_modes (round_id, mode) VALUES ($1, $2::battle_mode) ON CONFLICT (round_id) DO NOTHING`,
-		string(judgement.Round), mode)
+		`INSERT INTO battle_modes (round_id, mode, knock_out) VALUES ($1, $2::battle_mode, $3) ON CONFLICT (round_id) DO NOTHING`,
+		string(judgement.Round), mode, judgement.KnockOut)
 	if err != nil {
 		return false, fmt.Errorf("failed to keep battle %s judged: %w", judgement.Round, err)
 	}
@@ -53,11 +53,11 @@ func (s *Store) KeepClosed(ctx context.Context, arena moments.RoundID) (bool, er
 
 func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT 'judged', round_id, mode::text FROM battle_modes
+		SELECT 'judged', round_id, mode::text, knock_out FROM battle_modes
 		UNION ALL
-		SELECT 'opened', round_id, '' FROM opened_arenas
+		SELECT 'opened', round_id, '', false FROM opened_arenas
 		UNION ALL
-		SELECT 'closed', round_id, '' FROM closed_arenas
+		SELECT 'closed', round_id, '', false FROM closed_arenas
 	`)
 	if err != nil {
 		return moments.ArenasKept{}, fmt.Errorf("failed to read the arena battles: %w", err)
@@ -66,8 +66,11 @@ func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
 
 	var kept moments.ArenasKept
 	for rows.Next() {
-		var kind, round, mode string
-		if err := rows.Scan(&kind, &round, &mode); err != nil {
+		var (
+			kind, round, mode string
+			knockOut          bool
+		)
+		if err := rows.Scan(&kind, &round, &mode, &knockOut); err != nil {
 			return moments.ArenasKept{}, fmt.Errorf("failed to read an arena battle: %w", err)
 		}
 		switch kind {
@@ -76,7 +79,7 @@ func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
 			if err != nil {
 				return moments.ArenasKept{}, err
 			}
-			kept.Judged = append(kept.Judged, moments.Judgement{Round: moments.RoundID(round), Mode: judged})
+			kept.Judged = append(kept.Judged, moments.Judgement{Round: moments.RoundID(round), Mode: judged, KnockOut: knockOut})
 		case "opened":
 			kept.Opened = append(kept.Opened, moments.RoundID(round))
 		case "closed":

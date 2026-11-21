@@ -169,6 +169,16 @@ func (s *RoundsContractSuite) TestARoundOpenedIsFoundOpenAndOpeningItAgainChange
 	s.Equal(contractDay, round)
 }
 
+func (s *RoundsContractSuite) TestARoundKeepsEachRanking() {
+	for _, ranking := range []Ranking{GainRanking{}, HeldAndGainRanking{}, FightersRanking{}, KnockOutRanking{}} {
+		round := Round{ID: RoundID(ranking.Name()), Book: contractBook.ID, Times: 2, Ranking: ranking, StartsAt: contractEnd}
+		s.open(round)
+
+		found, _ := s.find(round.ID)
+		s.Equal(round, found)
+	}
+}
+
 func (s *RoundsContractSuite) startOf(id RoundID) Start {
 	start, err := s.rounds.StartOf(s.T().Context(), id)
 	s.Require().NoError(err)

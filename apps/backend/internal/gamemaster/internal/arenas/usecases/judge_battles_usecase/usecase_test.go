@@ -28,14 +28,14 @@ var (
 )
 
 type planet struct {
-	arenas map[schedule.SetName]bool
-	asked  int
-	err    error
+	plays map[schedule.SetName]moments.SetPlays
+	asked int
+	err   error
 }
 
-func (p *planet) Arena(_ context.Context, set schedule.SetName) (bool, error) {
+func (p *planet) Plays(_ context.Context, set schedule.SetName) (moments.SetPlays, error) {
 	p.asked++
-	return p.arenas[set], p.err
+	return p.plays[set], p.err
 }
 
 type harness struct {
@@ -57,7 +57,9 @@ func newHarness(t *testing.T, set schedule.SetName) *harness {
 	}.Restore()))
 	h := &harness{
 		clock: cptime.NewFixedClock(starts), judged: inmemory_arena_store.New(),
-		planet: &planet{arenas: map[schedule.SetName]bool{"arena-battle": true}},
+		planet: &planet{plays: map[schedule.SetName]moments.SetPlays{
+			"arena-battle": {Arena: true}, "capital-siege": {Arena: true, KnockOut: true},
+		}},
 	}
 	h.planner = moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), h.judged, season.Cutoff(21*time.Hour), h.clock)
 	h.useCase = judge_battles_usecase.New(h.judged, h.planet, h.clock)
@@ -78,7 +80,7 @@ func TestTheBattleThatRunsIsJudgedOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Arena}}, judged)
 
-	h.planet.arenas["arena-battle"] = false
+	h.planet.plays["arena-battle"] = moments.SetPlays{KnockOut: true}
 	h.clock.Advance(time.Minute)
 	judged, err = h.execute(t)
 	require.NoError(t, err)
@@ -93,6 +95,18 @@ func TestABattleWhoseSetPlaysNoArenaIsPlain(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Plain}}, judged)
+}
+
+func TestABattleWhoseSetPlaysTheKnockOutIsJudgedSo(t *testing.T) {
+	h := newHarness(t, "capital-siege")
+
+	judged, err := h.execute(t)
+
+	require.NoError(t, err)
+	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Arena, KnockOut: true}}, judged)
+	kept, err := h.judged.ArenasKept(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, judged, kept.Judged)
 }
 
 func TestAPlanetThatCannotSayJudgesNothingAndIsAskedAgain(t *testing.T) {

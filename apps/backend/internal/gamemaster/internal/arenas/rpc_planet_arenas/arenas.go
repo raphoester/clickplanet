@@ -33,24 +33,25 @@ func New(planet Planet) *Arenas {
 	return &Arenas{planet: planet}
 }
 
-// Arenas reads whether a set makes an arena battle, and opens and closes arenas, over planet's internal service.
+// Arenas reads what a set plays that a battle is judged by, and opens and closes arenas, over planet's internal service.
 type Arenas struct {
 	planet Planet
 }
 
-// Arena is false for a set planet keeps none of: planet refuses it and plays on, on the map as it is.
-func (s *Arenas) Arena(ctx context.Context, set schedule.SetName) (bool, error) {
+// Plays is nothing for a set planet keeps none of: planet refuses it and plays on, on the map as it is.
+func (s *Arenas) Plays(ctx context.Context, set schedule.SetName) (moments.SetPlays, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
 	res, err := s.planet.GetRuleSet(ctx, connect.NewRequest(&planetv1.GetRuleSetRequest{Name: string(set)}))
 	switch {
 	case connect.CodeOf(err) == connect.CodeNotFound:
-		return false, nil
+		return moments.SetPlays{}, nil
 	case err != nil:
-		return false, fmt.Errorf("failed to ask planet whether %q is fought in an arena: %w", set, err)
+		return moments.SetPlays{}, fmt.Errorf("failed to ask planet what %q plays: %w", set, err)
 	}
-	return res.Msg.GetPlayed().GetArena().GetOn(), nil
+	played := res.Msg.GetPlayed()
+	return moments.SetPlays{Arena: played.GetArena().GetOn(), KnockOut: played.GetCapitals().GetKnockOut()}, nil
 }
 
 func (s *Arenas) Ask(ctx context.Context, command moments.ArenaCommand) error {

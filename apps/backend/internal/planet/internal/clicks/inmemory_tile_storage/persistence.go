@@ -26,10 +26,10 @@ type Persistence interface {
 	// LoadProvinces reads the locks of the provinces of that provinces file alone: another cut numbers them again.
 	LoadProvinces(ctx context.Context, played clicks.MapID, asset string,
 		visit func(province clicks.ProvinceID, fortifiedBy string)) error
-	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
+	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
-	Save(ctx context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []OutFlag) error
+	Save(ctx context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []clicks.OutFlag) error
 	// SaveViruses keeps a map's live viruses in place of the ones it kept before.
 	SaveViruses(ctx context.Context, played clicks.Stage, live []clicks.VirusSnapshot) error
 	// SaveMines keeps each mine laid, in place of what its tile kept, and deletes the mine of each tile gone.
@@ -110,7 +110,7 @@ type Rows interface {
 	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
 	LoadProvinces(ctx context.Context, played clicks.MapID, asset string,
 		visit func(province clicks.ProvinceID, fortifiedBy string)) error
-	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
+	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
 }
@@ -259,7 +259,7 @@ func (s *Storage) flushLocked(ctx context.Context) error {
 type unsaved struct {
 	tiles     []Tile
 	provinces []Province
-	out       []OutFlag
+	out       []clicks.OutFlag
 	viruses   Viruses
 	mines     Mines
 	placed    []clicks.PlacementID

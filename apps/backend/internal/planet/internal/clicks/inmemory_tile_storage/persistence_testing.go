@@ -26,7 +26,7 @@ type memoryMap struct {
 	shields   map[uint32]int
 	holders   map[uint32]cpsession.AccountID
 	provinces map[string]map[clicks.ProvinceID]string
-	out       map[string]OutFlag
+	out       map[string]clicks.OutFlag
 	viruses   []clicks.VirusSnapshot
 	mines     map[uint32]clicks.MineSnapshot
 }
@@ -35,7 +35,7 @@ func newMemoryMap() *memoryMap {
 	return &memoryMap{
 		board: clicks.TestBoard,
 		rows:  map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
-		provinces: map[string]map[clicks.ProvinceID]string{}, out: map[string]OutFlag{},
+		provinces: map[string]map[clicks.ProvinceID]string{}, out: map[string]clicks.OutFlag{},
 		mines: map[uint32]clicks.MineSnapshot{},
 	}
 }
@@ -233,7 +233,7 @@ func (m *MemoryPersistence) Load(_ context.Context, played clicks.MapID, visit f
 	return nil
 }
 
-func (m *MemoryPersistence) LoadOutFlags(_ context.Context, played clicks.MapID, visit func(out OutFlag)) error {
+func (m *MemoryPersistence) LoadOutFlags(_ context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -247,7 +247,7 @@ func (m *MemoryPersistence) LoadOutFlags(_ context.Context, played clicks.MapID,
 }
 
 // StoredOutFlagsOn is a map's flags out, by flag.
-func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]OutFlag {
+func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]clicks.OutFlag {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -255,7 +255,7 @@ func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]Out
 }
 
 func (m *MemoryPersistence) Save(
-	_ context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []OutFlag,
+	_ context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []clicks.OutFlag,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

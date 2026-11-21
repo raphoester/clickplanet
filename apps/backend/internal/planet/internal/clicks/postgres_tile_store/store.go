@@ -112,7 +112,7 @@ func (s *Store) LoadProvinces(
 
 func (s *Store) Save(
 	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, provinces []inmemory_tile_storage.Province,
-	out []inmemory_tile_storage.OutFlag,
+	out []clicks.OutFlag,
 ) error {
 	var (
 		taken, freed     []int64
@@ -153,7 +153,7 @@ func (s *Store) Save(
 	})
 }
 
-func saveOutFlags(ctx context.Context, tx cppg.Querier, played clicks.MapID, out []inmemory_tile_storage.OutFlag) error {
+func saveOutFlags(ctx context.Context, tx cppg.Querier, played clicks.MapID, out []clicks.OutFlag) error {
 	if len(out) == 0 {
 		return nil
 	}
@@ -176,7 +176,7 @@ func saveOutFlags(ctx context.Context, tx cppg.Querier, played clicks.MapID, out
 	return nil
 }
 
-func (s *Store) LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out inmemory_tile_storage.OutFlag)) error {
+func (s *Store) LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx,
 		`SELECT flag, by_flag, knocked_out_at FROM knockouts WHERE map = $1`, string(played))
 	if err != nil {
@@ -185,7 +185,7 @@ func (s *Store) LoadOutFlags(ctx context.Context, played clicks.MapID, visit fun
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
-		var out inmemory_tile_storage.OutFlag
+		var out clicks.OutFlag
 		if err := rows.Scan(&out.Flag, &out.By, &out.At); err != nil {
 			return fmt.Errorf("failed to read a flag out: %w", err)
 		}

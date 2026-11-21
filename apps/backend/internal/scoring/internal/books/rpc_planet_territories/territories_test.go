@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
@@ -49,7 +51,34 @@ func TestTheSnapshotIsWhatThePlanetModuleSaysEachCountryHolds(t *testing.T) {
 	snapshot, err := territories(t, planet).Snapshot(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, books.Snapshot{Tiles: 100, Held: map[books.Country]uint32{"bg": 7, "fr": 3}}, snapshot)
+	assert.Equal(t, books.Snapshot{Tiles: 100, Held: map[books.Country]uint32{"bg": 7, "fr": 3}, Out: map[books.Country]time.Time{}}, snapshot)
+}
+
+func TestTheSnapshotSaysWhenEachFlagWasKnockedOut(t *testing.T) {
+	at := time.Date(2026, 11, 21, 21, 40, 0, 0, time.UTC)
+	planet := stubPlanet{answer: &planetv1.GetTerritoriesResponse{
+		Tiles:       100,
+		Territories: []*planetv1.Territory{{CountryId: "kp", Tiles: 14}},
+		KnockedOut: []*planetv1.KnockedOutFlag{
+			{CountryId: "ie", KnockedOutAt: timestamppb.New(at)},
+			{CountryId: "pl", KnockedOutAt: timestamppb.New(at.Add(-time.Minute))},
+		},
+	}}
+
+	snapshot, err := territories(t, planet).Snapshot(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, map[books.Country]time.Time{"ie": at, "pl": at.Add(-time.Minute)}, snapshot.Out)
+}
+
+func TestAKnockOutOfNoCountryIsAnError(t *testing.T) {
+	planet := stubPlanet{answer: &planetv1.GetTerritoriesResponse{
+		Tiles: 100, KnockedOut: []*planetv1.KnockedOutFlag{{KnockedOutAt: timestamppb.Now()}},
+	}}
+
+	_, err := territories(t, planet).Snapshot(t.Context())
+
+	assert.ErrorIs(t, err, rpc_planet_territories.ErrNoCountry)
 }
 
 func TestTilesHeldByNoCountryAreAnError(t *testing.T) {

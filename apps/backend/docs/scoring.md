@@ -6,7 +6,7 @@ open at its time. Scoring knows no season, day, battle, finale,
 clock, calendar, cutoff or rule set, and never names the gamemaster. **The gamemaster owns time and the game's words**
 (see [The gamemaster](gamemaster.md)): it calls scoring's `InternalService`, and each call answers what scoring did.
 Missions grants points by a command on Redis, and scoring never learns the word mission. Planet never
-imports, calls or hears scoring: scoring asks planet what each country holds
+imports, calls or hears scoring: scoring asks planet what each country holds and which flags are knocked out
 (`planet.v1.InternalService/GetTerritories`), when a round opens, when it closes and for an open round's live standings.
 
 Until 2026-10-28 scoring kept a calendar (seasons, daily cutoff), rule sets (`scoring.v1.PlayRuleSet`, a round of its
@@ -17,7 +17,8 @@ gamemaster sends the moments, and scoring has no rule set any more.
 internal/scoring/internal/
   books/                          BookID, RoundID, GrantID (ParseBookID, ParseRoundID, ParseGrantID: 1 to 64 characters),
                                   Book (NewBook, Holds, ClosedAt, Table), Round (NewRound, Holds, ScoredAt, Results),
-                                  Ranking (GainRanking, HeldAndGainRanking, RankingNamed), Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take,
+                                  Ranking (GainRanking, HeldAndGainRanking, FightersRanking, KnockOutRanking,
+                                  RankingNamed), Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take,
                                   TakeMark (Uncounted), MissedRound, MissedBook, Ending (what a close answers),
                                   ErrRefused, ErrMissed; the Books, Rounds, Grants and Takes ports and their contract
                                   suites
@@ -27,7 +28,7 @@ internal/scoring/internal/
     postgres_round_store/         Rounds and Takes over rounds, scored_rounds, round_results, round_takes,
                                   round_players, missed_rounds; Lock, per round id
     inmemory_book_store/  inmemory_round_store/  inmemory_grant_store/   the same ports in maps, behind the testing tag
-    rpc_planet_territories/       the map now, from planet.v1.InternalService/GetTerritories
+    rpc_planet_territories/       the map now and the flags out, from planet.v1.InternalService/GetTerritories
     usecases/open_book_usecase/   open_round_usecase/   close_round_usecase/   close_book_usecase/
     usecases/grant_points_usecase/
     usecases/count_take_usecase/  forget_account_usecase/   a round's numbers
@@ -81,8 +82,8 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
 - **`OpenBook{book_id, starts_at}`**: a book kept is left as it is (its first start stays). A book kept missed is
   refused (`books.ErrMissed`).
 - **`OpenRound{round_id, book_id, times, starts_at, from_nothing, ranking}`**: a round kept is left as it is, its
-  ranking too. `times` is 1 to `books.MaxTimes` (10) and `ranking` is `RANKING_GAIN` or `RANKING_HELD_AND_GAIN` (see
-  [The rules](#the-rules)), or the call is `InvalidArgument`. A round whose book is not open (never opened, or closed) is
+  ranking too. `times` is 1 to `books.MaxTimes` (10) and `ranking` is `RANKING_GAIN`, `RANKING_HELD_AND_GAIN`, `RANKING_FIGHTERS`
+  or `RANKING_KNOCK_OUT` (see [The rules](#the-rules)), or the call is `InvalidArgument`. A round whose book is not open (never opened, or closed) is
   refused (`open_round_usecase.ErrBookNotOpen`), and so is a round kept missed. Else `open_round_usecase` reads the map
   (`GetTerritories`) and keeps what each country holds then with the round, in one transaction: its **start**
   (`books.Start`, `round_starts`). A failure to read the map opens nothing, and the next call opens it. **A round told
@@ -123,26 +124,40 @@ end: day 24 closed at 21:00, the battle ×3 from 21:00 to 23:00 as the tiebreak,
 scores and ranks nothing again and answers the same. The use cases' tests also pin a close of a round or a book never
 opened kept missed and answered with the first close's end at each close, a round and a book closed again answered with
 the end they closed at, an open of a round or book kept missed refused, a map that cannot be read scored or opened by the
-next call, and a day ranked on the ground held and gained scored on both ranks. The handlers' tests pin each code: a bad
+next call, a day ranked on the ground held and gained scored on both ranks, and a knock-out battle scored on the flag
+still standing first. `books`' `ranking_test.go` pins the knock-out on the Capital Siege of 2026-11-21, the flags out
+by their time and their takes, and the flags standing ranked among themselves. The handlers' tests pin each code: a bad
 id, no time, no ranking or times outside 1 to 10 `InvalidArgument`, a refusal `FailedPrecondition`. The postgres stores'
 tests pin the race under the lock: an open that waits for the close that holds the book finds it missed, and a close
 that waits for the open that holds the round finds it open.
 
 ## The rules
 
-- **`Round.Results` places the countries that hold tiles at a round's end by the round's `books.Ranking`**, from two
-  ranks: on the tiles each holds then, and on its **gain**, those tiles minus what it held at the start. Equal values
-  share a rank, and the next rank skips them (1, 1, 3). Countries in the same place share its rank and its points. The
-  top 10 places score 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's `times`. The gamemaster names the ranking
-  of each round it opens; the round keeps it (`rounds.ranking`, the enum `round_ranking`), and a ranking is an object
-  with its rule (`books.GainRanking`, `books.HeldAndGainRanking`; `RankingNamed` reads one back):
+- **`Round.Results` places a round's countries from the map at its end by the round's `books.Ranking`**, each ranking
+  from ranks: on the tiles each holds then, on its **gain** (those tiles minus what it held at the start), on the tiles
+  its players took, on when it was knocked out. Equal values share a rank, and the next rank skips them (1, 1, 3).
+  Countries in the same place share its rank and its points. The top 10 places score 25, 18, 15, 12, 10, 8, 6, 4, 2, 1,
+  times the round's `times`. The gamemaster names the ranking of each round it opens; the round keeps it
+  (`rounds.ranking`, the enum `round_ranking`), and a ranking is an object with its rule (`books.GainRanking`,
+  `books.HeldAndGainRanking`, `books.FightersRanking`, `books.KnockOutRanking`; `RankingNamed` reads one back):
   - **`FightersRanking`, a battle's** (2026-11-12): only the countries whose players took a tile in the round are placed
     (`round_takes`, read as `Rounds.Fights` and kept in `Snapshot.Fights`), eliminated ones included. They are placed by
     the sum of their ranks on the tiles each holds at the end and on the tiles its players took in the round, the takes'
     rank breaking a tie, and every one placed scores. A battle counts from nothing, so the ground held is the ground won.
     Before this, a battle was `GainRanking`, which placed every country holding a tile: a capital that survived untouched
     scored by its 1-tile hold, and an eliminated country (no tile) scored nothing. The gamemaster ranks every battle this
-    way from 2026-11-12; a round opened before keeps its stored ranking.
+    way from 2026-11-12, but a battle whose set plays the knock-out; a round opened before keeps its stored ranking.
+  - **`KnockOutRanking`, a knock-out battle's: survival decides** (the owner, 2026-11-21). The fighters are the same as
+    `FightersRanking`'s, and every one placed scores. **The flags still standing at the round's end come first**, placed
+    among themselves by `FightersRanking`'s rule: the ranks are counted among them alone. **Then the flags knocked out,
+    the last one out first**; two out at the same time, the one whose players took more tiles first, and a tie of both
+    shares the place. A flag is out when planet's map read names it (`GetTerritoriesResponse.knocked_out`, each with
+    its `knocked_out_at`, read as `Snapshot.Out`): the close reads it with the tiles, once, so no event can come late.
+    On the Capital Siege of 2026-11-21 (×2), North Korea alone stood, with 13.6% of the map; every other flag was out.
+    Ireland had taken 11,226 tiles, Poland 4,586 and North Korea 4,411, so `FightersRanking`'s sums were 3, 4 and 4:
+    Ireland won 50 points and North Korea came third. The knock-out places North Korea first. The gamemaster ranks
+    each battle whose set plays `capitals.knockOut` this way (see [The gamemaster](gamemaster.md#calling-scoring));
+    migration `20261121204456_knock_out_ranking` adds the value. That round keeps its stored ranking.
   - **`GainRanking`, the old battle rule: the gain's rank alone, and only a gain scores**: a country that kept its ground, or
     lost some, scores nothing even in the top 10, so a round where nobody gained scores nobody. A battle shuffles the
     cards, so holding ground pays nothing there; a win is worth the same at +100 tiles as at +10,000 (the owner,

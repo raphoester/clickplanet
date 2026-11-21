@@ -4,27 +4,19 @@ import (
 	"context"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// OutFlag is a flag the arena in play knocked out: kept with the map's tiles, saved by the same flush.
-type OutFlag struct {
-	Flag string
-	By   string
-	At   time.Time
-}
-
 // The flags out of the map in play, and the ones no flush saved yet.
 type outFlags struct {
-	out     map[string]OutFlag
-	unsaved []OutFlag
+	out     map[string]clicks.OutFlag
+	unsaved []clicks.OutFlag
 }
 
 func newOutFlags() *outFlags {
-	return &outFlags{out: map[string]OutFlag{}}
+	return &outFlags{out: map[string]clicks.OutFlag{}}
 }
 
 func (o *outFlags) has(flag string) bool {
@@ -32,19 +24,19 @@ func (o *outFlags) has(flag string) bool {
 	return ok
 }
 
-func (o *outFlags) add(out OutFlag) {
+func (o *outFlags) add(out clicks.OutFlag) {
 	o.out[out.Flag] = out
 	o.unsaved = append(o.unsaved, out)
 }
 
 // A stored flag put back at boot: nothing to flush.
-func (o *outFlags) restore(out OutFlag) {
+func (o *outFlags) restore(out clicks.OutFlag) {
 	o.out[out.Flag] = out
 }
 
 // kept is every flag out, as a map's rows keep them.
-func (o *outFlags) kept() []OutFlag {
-	kept := make([]OutFlag, 0, len(o.out))
+func (o *outFlags) kept() []clicks.OutFlag {
+	kept := make([]clicks.OutFlag, 0, len(o.out))
 	for _, flag := range o.flags() {
 		kept = append(kept, o.out[flag])
 	}
@@ -55,13 +47,13 @@ func (o *outFlags) flags() []string {
 	return slices.Sorted(maps.Keys(o.out))
 }
 
-func (o *outFlags) drainUnsaved() []OutFlag {
+func (o *outFlags) drainUnsaved() []clicks.OutFlag {
 	unsaved := o.unsaved
 	o.unsaved = nil
 	return unsaved
 }
 
-func (o *outFlags) markUnsaved(out []OutFlag) {
+func (o *outFlags) markUnsaved(out []clicks.OutFlag) {
 	o.unsaved = append(o.unsaved, out...)
 }
 
@@ -87,11 +79,19 @@ func (s *Storage) knockOutLocked(ctx context.Context, tile uint32, flag string) 
 
 	s.mines.dropTripped(country)
 	at := s.clock.Now().UTC()
-	s.out.add(OutFlag{Flag: country, By: flag, At: at})
+	s.out.add(clicks.OutFlag{Flag: country, By: flag, At: at})
 
 	return clicks.KnockOut{
 		Country: country, By: flag, Tile: tile, Account: cpctx.GetAccount(ctx), At: at, Cleared: cleared,
 	}, nil
+}
+
+// OutFlags is every flag out of the map in play, by flag.
+func (s *Storage) OutFlags() []clicks.OutFlag {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.out.kept()
 }
 
 // Stands says whether the flag is still in the game: always while the knock-out does not play, and while it does,

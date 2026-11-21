@@ -117,8 +117,8 @@ type planet struct {
 	closed  *cpcolls.Set[moments.RoundID]
 }
 
-func (p *planet) Arena(_ context.Context, set schedule.SetName) (bool, error) {
-	return set == "arena-battle", nil
+func (p *planet) Plays(_ context.Context, set schedule.SetName) (moments.SetPlays, error) {
+	return moments.SetPlays{Arena: set == "arena-battle"}, nil
 }
 
 func (p *planet) Ask(_ context.Context, command moments.ArenaCommand) error {

@@ -127,6 +127,10 @@ enum Ranking {
   // holds at the round's end and on the tiles its players took during it, smallest first, the takes' rank breaking a
   // tie; every country placed scores. A battle's: a country that held its capital and never fought scores nothing.
   RANKING_FIGHTERS = 3;
+  // A battle that plays the knock-out's: only the countries whose players took a tile in the round are placed. The flags
+  // still standing at its end come first, placed among themselves as RANKING_FIGHTERS places them; then the flags
+  // knocked out, the last one out first, the more tiles taken breaking a tie of two out at once. Every one placed scores.
+  RANKING_KNOCK_OUT = 4;
 }
 
 // The round is open.

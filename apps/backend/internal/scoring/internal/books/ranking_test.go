@@ -2,6 +2,7 @@ package books_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,8 +71,109 @@ func TestTheTakesRankBreaksATieOfTheSumOfFighters(t *testing.T) {
 	}, results)
 }
 
+var knockOutBattle = books.Round{ID: "siege", Book: "season-1", Times: 1, Ranking: books.KnockOutRanking{}, StartsAt: utc(15, 21)}
+
+func outAt(minute int) time.Time {
+	return utc(15, 21).Add(time.Duration(minute) * time.Minute)
+}
+
+func TestTheLastFlagStandingWinsTheCapitalSiegeOf21November(t *testing.T) {
+	siege := books.Round{ID: "01a1cb6d-9922-7ceb-be56-2a44390f3d40", Times: 2, Ranking: books.KnockOutRanking{}, StartsAt: utc(15, 21)}
+	end := books.Snapshot{
+		Tiles:  27_259,
+		Held:   map[books.Country]uint32{"kp": 3_707, "ie": 0, "pl": 0},
+		Fights: map[books.Country]uint32{"ie": 11_226, "pl": 4_586, "kp": 4_411},
+	}
+	share := 3_707.0 / 27_259
+
+	for _, out := range []map[books.Country]time.Time{{"pl": outAt(30), "ie": outAt(50)}, {"ie": outAt(30), "pl": outAt(50)}} {
+		end.Out = out
+		last, first := books.Country("ie"), books.Country("pl")
+		if out["pl"].After(out["ie"]) {
+			last, first = first, last
+		}
+
+		assert.Equal(t, []books.Result{
+			{Country: "kp", Rank: 1, Points: 50, Share: share},
+			{Country: last, Rank: 2, Points: 36, Share: 0},
+			{Country: first, Rank: 3, Points: 30, Share: 0},
+		}, siege.Results(books.Start{}, end))
+	}
+
+	siege.Ranking = books.FightersRanking{}
+	assert.Equal(t, []books.Result{
+		{Country: "ie", Rank: 1, Points: 50, Share: 0},
+		{Country: "pl", Rank: 2, Points: 36, Share: 0},
+		{Country: "kp", Rank: 3, Points: 30, Share: share},
+	}, siege.Results(books.Start{}, end), "the fighters' sum placed Ireland first and North Korea third")
+}
+
+func TestTheFlagsKnockedOutPlaceTheLastOneOutFirst(t *testing.T) {
+	end := books.Snapshot{
+		Tiles:  10,
+		Held:   map[books.Country]uint32{"fr": 10},
+		Fights: map[books.Country]uint32{"fr": 1, "de": 9, "it": 5, "es": 7},
+		Out:    map[books.Country]time.Time{"de": outAt(10), "it": outAt(40), "es": outAt(20)},
+	}
+
+	assert.Equal(t, []books.Result{
+		{Country: "fr", Rank: 1, Points: 25, Share: 1},
+		{Country: "it", Rank: 2, Points: 18, Share: 0},
+		{Country: "es", Rank: 3, Points: 15, Share: 0},
+		{Country: "de", Rank: 4, Points: 12, Share: 0},
+	}, knockOutBattle.Results(books.Start{}, end))
+}
+
+func TestOfTwoFlagsOutAtOnceTheOneThatTookMoreGoesFirst(t *testing.T) {
+	end := books.Snapshot{
+		Tiles:  10,
+		Held:   map[books.Country]uint32{"fr": 10},
+		Fights: map[books.Country]uint32{"fr": 1, "de": 3, "it": 8, "es": 3},
+		Out:    map[books.Country]time.Time{"de": outAt(10), "it": outAt(10), "es": outAt(10)},
+	}
+
+	assert.Equal(t, []books.Result{
+		{Country: "fr", Rank: 1, Points: 25, Share: 1},
+		{Country: "it", Rank: 2, Points: 18, Share: 0},
+		{Country: "de", Rank: 3, Points: 15, Share: 0},
+		{Country: "es", Rank: 3, Points: 15, Share: 0},
+	}, knockOutBattle.Results(books.Start{}, end), "out at once with the same takes, they share the place")
+}
+
+func TestTheFlagsStillStandingArePlacedAmongThemselvesAsFighters(t *testing.T) {
+	// Ranked with es, fr and de would tie on the sum, and de would go first on the takes.
+	end := books.Snapshot{
+		Tiles:  100,
+		Held:   map[books.Country]uint32{"fr": 30, "de": 10, "it": 20},
+		Fights: map[books.Country]uint32{"fr": 10, "de": 30, "it": 40, "es": 20},
+		Out:    map[books.Country]time.Time{"es": outAt(10)},
+	}
+
+	assert.Equal(t, []books.Result{
+		{Country: "it", Rank: 1, Points: 25, Share: 0.2},
+		{Country: "fr", Rank: 2, Points: 18, Share: 0.3},
+		{Country: "de", Rank: 3, Points: 15, Share: 0.1},
+		{Country: "es", Rank: 4, Points: 12, Share: 0},
+	}, knockOutBattle.Results(books.Start{}, end))
+}
+
+func TestAFlagThatNeverFoughtIsNotPlacedInAKnockOut(t *testing.T) {
+	end := books.Snapshot{
+		Tiles:  10,
+		Held:   map[books.Country]uint32{"fr": 5, "it": 1},
+		Fights: map[books.Country]uint32{"fr": 5},
+		Out:    map[books.Country]time.Time{"de": outAt(10)},
+	}
+
+	assert.Equal(t, []books.Result{
+		{Country: "fr", Rank: 1, Points: 25, Share: 0.5},
+	}, knockOutBattle.Results(books.Start{}, end), "it held its capital and de was out, neither took a tile")
+}
+
 func TestARankingIsFoundByItsName(t *testing.T) {
-	for _, ranking := range []books.Ranking{books.GainRanking{}, books.HeldAndGainRanking{}, books.FightersRanking{}} {
+	for _, ranking := range []books.Ranking{
+		books.GainRanking{}, books.HeldAndGainRanking{}, books.FightersRanking{}, books.KnockOutRanking{},
+	} {
 		found, err := books.RankingNamed(ranking.Name())
 		require.NoError(t, err)
 		assert.Equal(t, ranking, found)

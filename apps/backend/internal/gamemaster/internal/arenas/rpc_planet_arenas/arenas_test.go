@@ -48,22 +48,25 @@ func (p *planet) GetRuleSet(_ context.Context, req *connect.Request[planetv1.Get
 	return connect.NewResponse(&planetv1.GetRuleSetResponse{Played: played}), nil
 }
 
-func TestASetPlaysAnArenaBattleWhenPlanetSaysSo(t *testing.T) {
+func TestASetPlaysAnArenaBattleAndTheKnockOutWhenPlanetSaysSo(t *testing.T) {
 	arenas := rpc_planet_arenas.New(&planet{played: map[string]*planetv1.Rules{
-		"arena-battle": {Arena: &planetv1.ArenaRules{On: new(true)}},
-		"urf":          {Arena: &planetv1.ArenaRules{On: new(false)}},
+		"arena-battle":  {Arena: &planetv1.ArenaRules{On: new(true)}},
+		"capital-siege": {Arena: &planetv1.ArenaRules{On: new(true)}, Capitals: &planetv1.CapitalRules{KnockOut: new(true)}},
+		"urf":           {Arena: &planetv1.ArenaRules{On: new(false)}, Capitals: &planetv1.CapitalRules{KnockOut: new(false)}},
 	}})
 
-	for set, want := range map[string]bool{"arena-battle": true, "urf": false, "gone": false} {
-		inArena, err := arenas.Arena(t.Context(), schedule.SetName(set))
+	for set, want := range map[string]moments.SetPlays{
+		"arena-battle": {Arena: true}, "capital-siege": {Arena: true, KnockOut: true}, "urf": {}, "gone": {},
+	} {
+		plays, err := arenas.Plays(t.Context(), schedule.SetName(set))
 		require.NoError(t, err, set)
-		assert.Equal(t, want, inArena, set)
+		assert.Equal(t, want, plays, set)
 	}
 }
 
 func TestPlanetDownIsAnError(t *testing.T) {
 	_, err := rpc_planet_arenas.New(&planet{err: connect.NewError(connect.CodeUnavailable, errors.New("down"))}).
-		Arena(t.Context(), "arena-battle")
+		Plays(t.Context(), "arena-battle")
 
 	require.Error(t, err)
 }
