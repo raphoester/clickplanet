@@ -11,7 +11,8 @@ import (
 )
 
 type Encloser interface {
-	Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error
+	// Enclose answers the traps its takes sprang, the ones before a failure too.
+	Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) ([]clicks.TrapSnapshot, error)
 }
 
 type Spender interface {
@@ -27,24 +28,26 @@ func NewAnnexer(encloser Encloser, spender Spender) Annexer {
 	return Annexer{encloser: encloser, spender: spender}
 }
 
+// Annex answers the traps the pocket's takes sprang.
 func (a Annexer) Annex(ctx context.Context, holder charges.Holder, closing click_usecase.In, pocket charges.Pocket,
 	rules charges.EncloseRules,
-) error {
+) ([]clicks.TrapSnapshot, error) {
 	if pocket.Empty() {
-		return nil
+		return nil, nil
 	}
 	if !rules.Unlimited {
 		if err := a.spender.Spend(ctx, holder, charges.Held.AfterEnclose); err != nil {
 			if errors.Is(err, charges.ErrNotHeld) {
-				return nil
+				return nil, nil
 			}
-			return err
+			return nil, err
 		}
 	}
 
-	if err := a.encloser.Enclose(ctx, pocket.Enclosure(closing.CountryID, closing.TileID), pocket.Inside()); err != nil {
-		return fmt.Errorf("failed to take the pocket closed at tile %d: %w", closing.TileID, err)
+	sprung, err := a.encloser.Enclose(ctx, pocket.Enclosure(closing.CountryID, closing.TileID), pocket.Inside())
+	if err != nil {
+		return sprung, fmt.Errorf("failed to take the pocket closed at tile %d: %w", closing.TileID, err)
 	}
 
-	return nil
+	return sprung, nil
 }

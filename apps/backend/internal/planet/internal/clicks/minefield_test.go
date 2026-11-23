@@ -17,12 +17,12 @@ var miner = cpsession.AccountID{0x01, 0x92, 0x6c, 0x6e, 0x7a, 0x4b, 0x7c, 0x3d, 
 const twoRings = 2
 
 func minefield(tiles *inmemory_tile_storage.Storage) clicks.Minefield {
-	return clicks.NewMinefield(tiles, line{}, tenAShield)
+	return clicks.NewMinefield(tiles, line{}, tenAShield, clicks.NewSnareLog())
 }
 
 func laid(t *testing.T, tiles *inmemory_tile_storage.Storage, flag string, tile uint32) {
 	t.Helper()
-	_, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", flag, tile))
+	_, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, flag, tile))
 	require.NoError(t, err)
 }
 
@@ -30,7 +30,7 @@ func laid(t *testing.T, tiles *inmemory_tile_storage.Storage, flag string, tile 
 func enemyTakes(t *testing.T, tiles *inmemory_tile_storage.Storage, tile uint32, flag string) {
 	t.Helper()
 	ctx := cpctx.AddAccountToContext(t.Context(), "0192f5a0-7c00-7000-8000-0000000000aa")
-	impact, err := clicks.NewClaiming(tiles, tenAShield).Click(ctx, tile, flag)
+	impact, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Click(ctx, tile, flag)
 	require.NoError(t, err)
 	require.Equal(t, clicks.Taken, impact.Outcome)
 }
@@ -55,7 +55,7 @@ func TestAMineIsLaidOnATileOfItsFlagWithNoMineAndChangesNoTile(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{5: "fr", 6: "de"})
 	changes := infections(t, tiles)
 
-	version, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", "fr", 5))
+	version, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, "fr", 5))
 	require.NoError(t, err)
 
 	mined, at := tiles.MinesOf("fr")
@@ -71,7 +71,7 @@ func TestAMineOnATileNotItsFlagsOrMinedAlreadyChangesNothing(t *testing.T) {
 	laid(t, tiles, "fr", 5)
 
 	for _, tile := range []uint32{5, 6, 7} {
-		_, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", "fr", tile))
+		_, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, "fr", tile))
 		require.ErrorIs(t, err, clicks.ErrNotMineable, "tile %d", tile)
 	}
 
@@ -184,18 +184,18 @@ func TestEveryTakeSetsAMineOffASpreadsAnEnclosuresAndAVirussToo(t *testing.T) {
 	takes := map[string]func(t *testing.T, tiles *inmemory_tile_storage.Storage){
 		"a spread's": func(t *testing.T, tiles *inmemory_tile_storage.Storage) {
 			t.Helper()
-			_, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 5, "de")
+			_, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Claim(t.Context(), 5, "de")
 			require.NoError(t, err)
 		},
 		"an enclosure's": func(t *testing.T, tiles *inmemory_tile_storage.Storage) {
 			t.Helper()
-			_, err := clicks.NewClaiming(tiles, tenAShield).Enclose(t.Context(), clicks.Enclosure{Country: "de"}, []uint32{5})
+			_, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Enclose(t.Context(), clicks.Enclosure{Country: "de"}, []uint32{5})
 			require.NoError(t, err)
 		},
 		"a virus's": func(t *testing.T, tiles *inmemory_tile_storage.Storage) {
 			t.Helper()
-			_, _, err := clicks.NewContagion(tiles, line{}, first, tenAShield).
-				Start(t.Context(), clicks.NewVirus("v-1", carrier, "203.0.113.7", "de", 5), 32, noon)
+			_, _, err := clicks.NewContagion(tiles, line{}, first, tenAShield, clicks.NewSnareLog()).
+				Start(t.Context(), clicks.NewVirus("v-1", carrier, "203.0.113.7", false, "de", 5), 32, noon)
 			require.NoError(t, err)
 		},
 	}

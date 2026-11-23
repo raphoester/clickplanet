@@ -92,7 +92,7 @@ func (s *testSuite) TestEveryAnswerTellsWhatEachKindOfMissionPays() {
 func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
 	unlocks := s.level(ada).GetUnlocks()
 
-	s.Require().Len(unlocks, 7)
+	s.Require().Len(unlocks, 8)
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, Level: 2}, unlocks[0]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_SHIELDS, Level: 3}, unlocks[1]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, Level: 5}, unlocks[2]))
@@ -100,6 +100,7 @@ func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_VIRUS, Level: 10}, unlocks[4]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_MINE, Level: 13}, unlocks[5]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_RALLY, Level: 15}, unlocks[6]))
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_TRAP, Level: 20}, unlocks[7]))
 }
 
 func (s *testSuite) TestEveryAnswerTellsWhatEachSourceOfXPPaysAGuestToo() {

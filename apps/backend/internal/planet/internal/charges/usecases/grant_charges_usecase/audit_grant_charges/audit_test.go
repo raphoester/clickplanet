@@ -37,8 +37,8 @@ func TestAGrantIsLoggedWithWhatTheAccountHolds(t *testing.T) {
 
 	assert.Equal(t, want, out)
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin charge grant" asked=acc-1 refills=0 bombs=1 enclosures=0 spreadClicks=4 shields=0 viruses=0 mines=0 rallies=0 account=acc-1`)
-	assert.Contains(t, logs.String(), "after=\"{Refills:0 Bombs:1 Enclosures:0 SpreadClicks:4 Shields:0 Viruses:0 Mines:0 Rallies:0}\"")
+		`level=WARN msg="admin charge grant" asked=acc-1 refills=0 bombs=1 enclosures=0 spreadClicks=4 shields=0 viruses=0 mines=0 rallies=0 traps=0 account=acc-1`)
+	assert.Contains(t, logs.String(), "after=\"{Refills:0 Bombs:1 Enclosures:0 SpreadClicks:4 Shields:0 Viruses:0 Mines:0 Rallies:0 Traps:0}\"")
 }
 
 func TestARefusedGrantIsLoggedToo(t *testing.T) {

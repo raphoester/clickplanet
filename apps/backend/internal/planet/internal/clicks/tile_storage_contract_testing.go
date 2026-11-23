@@ -74,7 +74,7 @@ func (s *TileStorageContractSuite) fortify(ctx context.Context, tile uint32, fla
 }
 
 func (s *TileStorageContractSuite) claim(ctx context.Context, tile uint32, flag string) Impact {
-	impact, err := NewClaiming(s.storage, func() int { return 10 }).Click(ctx, tile, flag)
+	impact, err := NewClaiming(s.storage, func() int { return 10 }, NewSnareLog()).Click(ctx, tile, flag)
 	s.Require().NoError(err)
 	return impact
 }

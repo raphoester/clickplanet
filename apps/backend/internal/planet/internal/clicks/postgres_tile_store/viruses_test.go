@@ -28,6 +28,7 @@ func virusOf(id clicks.VirusID, infected ...uint32) clicks.VirusSnapshot {
 func (s *testSuite) TestTheLiveVirusesOfAMapAreKeptAsAWholeAndReadBack() {
 	ctx := context.Background()
 	first := virusOf("0192f5a0-7c00-7000-8000-000000000001", 5, 4, 6)
+	first.Linked = true
 	second := virusOf("0192f5a0-7c00-7000-8000-000000000002", 9)
 
 	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{first, second}))

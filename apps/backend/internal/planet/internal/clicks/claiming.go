@@ -16,6 +16,8 @@ type Impact struct {
 	KnockedOut *KnockOut
 	// Set on the last take of a write from a flag when the write cut land of that flag from its capital.
 	CutOff *CutOff
+	// Set when this take sprang a trap: the take's player loses the trap's clicks.
+	Sprung *TrapSnapshot
 }
 
 // The tiles under the lock of one claim: nothing else reads or writes them until it ends.
@@ -27,8 +29,9 @@ type Claimable interface {
 	KnockOut(ctx context.Context, tile uint32, flag string) (KnockOut, error)
 	// CutOff clears the land of the flag its losses cut from its capital.
 	CutOff(losses Losses) (CutOff, error)
-	// Trip sets off the tile's mine, if it holds one: a take by another flag is landing on it.
-	Trip(tile uint32)
+	// Trip sets off the tile's mine or springs its trap, if it holds one: a take by another flag is landing on it. A trap
+	// sprung leaves the map, and is answered.
+	Trip(tile uint32) (Trap, bool)
 }
 
 type ClaimableTiles interface {
@@ -36,13 +39,14 @@ type ClaimableTiles interface {
 	Enclose(ctx context.Context, enclosure Enclosure, write func(tiles Claimable) error) error
 }
 
-func NewClaiming(tiles ClaimableTiles, shieldsPerTile func() int) Claiming {
-	return Claiming{tiles: tiles, shieldsPerTile: shieldsPerTile}
+func NewClaiming(tiles ClaimableTiles, shieldsPerTile func() int, snare Snare) Claiming {
+	return Claiming{tiles: tiles, shieldsPerTile: shieldsPerTile, snare: snare}
 }
 
 type Claiming struct {
 	tiles          ClaimableTiles
 	shieldsPerTile func() int
+	snare          Snare
 }
 
 func (c Claiming) Click(ctx context.Context, tile uint32, flag string) (Impact, error) {
@@ -58,11 +62,12 @@ func (c Claiming) Claim(ctx context.Context, tile uint32, flag string) (Impact, 
 // after.
 func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uint32) ([]Impact, error) {
 	enclosure.By = PayerOf(ctx)
+	by := taker{payer: enclosure.By, snare: c.snare}
 	most := c.shieldsPerTile()
 	impacts := make([]Impact, 0, len(inside))
 	err := c.tiles.Enclose(ctx, enclosure, func(tiles Claimable) error {
 		for _, tile := range inside {
-			impact, err := claim(ctx, tiles, tile, enclosure.Country, Claimable.Set, most)
+			impact, err := claim(ctx, tiles, tile, enclosure.Country, Claimable.Set, most, by)
 			if err != nil {
 				return err
 			}
@@ -84,9 +89,10 @@ func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uin
 
 func (c Claiming) claimOne(ctx context.Context, tile uint32, flag string, write writing) (Impact, error) {
 	most := c.shieldsPerTile()
+	by := taker{payer: PayerOf(ctx), snare: c.snare}
 	var impact Impact
 	err := c.tiles.Claim(ctx, func(tiles Claimable) error {
-		taken, err := claim(ctx, tiles, tile, flag, write, most)
+		taken, err := claim(ctx, tiles, tile, flag, write, most, by)
 		if err != nil {
 			return err
 		}
@@ -105,7 +111,7 @@ func (c Claiming) claimOne(ctx context.Context, tile uint32, flag string, write 
 
 type writing func(tiles Claimable, ctx context.Context, tile Tile) error
 
-func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write writing, most int) (Impact, error) {
+func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write writing, most int, by taker) (Impact, error) {
 	tile, err := tiles.Tile(id)
 	if err != nil {
 		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
@@ -113,7 +119,7 @@ func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write w
 
 	claimed, impact := tile.Claimed(flag, holderOf(ctx))
 	if impact.Outcome == Taken {
-		tiles.Trip(id)
+		impact = by.tripped(tiles, impact)
 	}
 	if err := write(tiles, ctx, claimed); err != nil {
 		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.

@@ -349,6 +349,31 @@ func TestASinkFramesAMineLaidWithTheVersionItWasLaidAt(t *testing.T) {
 	}, stream.sent[0].GetMineLaid()), "%v", stream.sent[0])
 }
 
+func TestASinkFramesATrapLaidWithTheVersionItWasLaidAt(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		TrapLaid: &notices.TrapLaid{Flag: "fr", Tile: 9, Version: clicks.MapVersion{Epoch: 7, Seq: 3}},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.TrapLaid{
+		CountryId: "fr", TileId: 9, Version: &planetv1.MapVersion{Epoch: 7, Seq: 3},
+	}, stream.sent[0].GetTrapLaid()), "%v", stream.sent[0])
+}
+
+func TestASinkFramesATrapSprungWithWhatLeftTheBankAndNoAccount(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Sprung: &notices.TrapSprung{Tile: 9, Flag: "fr", Clicks: 7.5, Taker: "an-account", Yours: true},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.TrapSprung{TileId: 9, CountryId: "fr", Clicks: 7.5, Yours: true},
+		stream.sent[0].GetTrapSprung()), "%v", stream.sent[0])
+}
+
 func TestASinkFramesARallyWithTheTimeItHasLeft(t *testing.T) {
 	stream := &recorder{}
 	at := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)

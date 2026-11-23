@@ -65,6 +65,10 @@ const (
 	ClickServiceLayMineProcedure = "/planet.v1.ClickService/LayMine"
 	// ClickServiceGetMinesProcedure is the fully-qualified name of the ClickService's GetMines RPC.
 	ClickServiceGetMinesProcedure = "/planet.v1.ClickService/GetMines"
+	// ClickServiceLayTrapProcedure is the fully-qualified name of the ClickService's LayTrap RPC.
+	ClickServiceLayTrapProcedure = "/planet.v1.ClickService/LayTrap"
+	// ClickServiceGetTrapsProcedure is the fully-qualified name of the ClickService's GetTraps RPC.
+	ClickServiceGetTrapsProcedure = "/planet.v1.ClickService/GetTraps"
 	// ClickServiceCallRallyProcedure is the fully-qualified name of the ClickService's CallRally RPC.
 	ClickServiceCallRallyProcedure = "/planet.v1.ClickService/CallRally"
 	// ClickServiceGetRalliesProcedure is the fully-qualified name of the ClickService's GetRallies RPC.
@@ -115,6 +119,12 @@ type ClickServiceClient interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
+	// Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
+	// loses clicks from its bank.
+	LayTrap(context.Context, *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error)
+	// The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+	// now, and a cached one lies.
+	GetTraps(context.Context, *connect.Request[v1.GetTrapsRequest]) (*connect.Response[v1.GetTrapsResponse], error)
 	// Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
 	// ring costs less.
 	CallRally(context.Context, *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error)
@@ -233,6 +243,18 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("GetMines")),
 			connect.WithClientOptions(opts...),
 		),
+		layTrap: connect.NewClient[v1.LayTrapRequest, v1.LayTrapResponse](
+			httpClient,
+			baseURL+ClickServiceLayTrapProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("LayTrap")),
+			connect.WithClientOptions(opts...),
+		),
+		getTraps: connect.NewClient[v1.GetTrapsRequest, v1.GetTrapsResponse](
+			httpClient,
+			baseURL+ClickServiceGetTrapsProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetTraps")),
+			connect.WithClientOptions(opts...),
+		),
 		callRally: connect.NewClient[v1.CallRallyRequest, v1.CallRallyResponse](
 			httpClient,
 			baseURL+ClickServiceCallRallyProcedure,
@@ -311,6 +333,8 @@ type clickServiceClient struct {
 	useVirus            *connect.Client[v1.UseVirusRequest, v1.UseVirusResponse]
 	layMine             *connect.Client[v1.LayMineRequest, v1.LayMineResponse]
 	getMines            *connect.Client[v1.GetMinesRequest, v1.GetMinesResponse]
+	layTrap             *connect.Client[v1.LayTrapRequest, v1.LayTrapResponse]
+	getTraps            *connect.Client[v1.GetTrapsRequest, v1.GetTrapsResponse]
 	callRally           *connect.Client[v1.CallRallyRequest, v1.CallRallyResponse]
 	getRallies          *connect.Client[v1.GetRalliesRequest, v1.GetRalliesResponse]
 	getFortresses       *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
@@ -392,6 +416,16 @@ func (c *clickServiceClient) GetMines(ctx context.Context, req *connect.Request[
 	return c.getMines.CallUnary(ctx, req)
 }
 
+// LayTrap calls planet.v1.ClickService.LayTrap.
+func (c *clickServiceClient) LayTrap(ctx context.Context, req *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error) {
+	return c.layTrap.CallUnary(ctx, req)
+}
+
+// GetTraps calls planet.v1.ClickService.GetTraps.
+func (c *clickServiceClient) GetTraps(ctx context.Context, req *connect.Request[v1.GetTrapsRequest]) (*connect.Response[v1.GetTrapsResponse], error) {
+	return c.getTraps.CallUnary(ctx, req)
+}
+
 // CallRally calls planet.v1.ClickService.CallRally.
 func (c *clickServiceClient) CallRally(ctx context.Context, req *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error) {
 	return c.callRally.CallUnary(ctx, req)
@@ -460,6 +494,12 @@ type ClickServiceHandler interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
+	// Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
+	// loses clicks from its bank.
+	LayTrap(context.Context, *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error)
+	// The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+	// now, and a cached one lies.
+	GetTraps(context.Context, *connect.Request[v1.GetTrapsRequest]) (*connect.Response[v1.GetTrapsResponse], error)
 	// Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
 	// ring costs less.
 	CallRally(context.Context, *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error)
@@ -574,6 +614,18 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("GetMines")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceLayTrapHandler := connect.NewUnaryHandler(
+		ClickServiceLayTrapProcedure,
+		svc.LayTrap,
+		connect.WithSchema(clickServiceMethods.ByName("LayTrap")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetTrapsHandler := connect.NewUnaryHandler(
+		ClickServiceGetTrapsProcedure,
+		svc.GetTraps,
+		connect.WithSchema(clickServiceMethods.ByName("GetTraps")),
+		connect.WithHandlerOptions(opts...),
+	)
 	clickServiceCallRallyHandler := connect.NewUnaryHandler(
 		ClickServiceCallRallyProcedure,
 		svc.CallRally,
@@ -663,6 +715,10 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceLayMineHandler.ServeHTTP(w, r)
 		case ClickServiceGetMinesProcedure:
 			clickServiceGetMinesHandler.ServeHTTP(w, r)
+		case ClickServiceLayTrapProcedure:
+			clickServiceLayTrapHandler.ServeHTTP(w, r)
+		case ClickServiceGetTrapsProcedure:
+			clickServiceGetTrapsHandler.ServeHTTP(w, r)
 		case ClickServiceCallRallyProcedure:
 			clickServiceCallRallyHandler.ServeHTTP(w, r)
 		case ClickServiceGetRalliesProcedure:
@@ -744,6 +800,14 @@ func (UnimplementedClickServiceHandler) LayMine(context.Context, *connect.Reques
 
 func (UnimplementedClickServiceHandler) GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetMines is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) LayTrap(context.Context, *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.LayTrap is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetTraps(context.Context, *connect.Request[v1.GetTrapsRequest]) (*connect.Response[v1.GetTrapsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetTraps is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) CallRally(context.Context, *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error) {

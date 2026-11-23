@@ -23,6 +23,8 @@ type TileStorage interface {
 	Explode(ctx context.Context, write func(tiles Exploding) error) error
 	// The tiles the flag's mines are on, and the map's version as they were read.
 	MinesOf(flag string) ([]uint32, MapVersion)
+	// The tiles the flag's traps are on, and the map's version as they were read.
+	TrapsOf(flag string) ([]uint32, MapVersion)
 	// A value each time a take sets a mine off: the explosion waits for Explode.
 	Fuse() <-chan struct{}
 	Fortresses() map[ProvinceID]string

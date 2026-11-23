@@ -53,6 +53,8 @@ type Event struct {
 	Spread   *notices.Spread
 	Granted  *charges.Gain
 	MineLaid *notices.MineLaid
+	TrapLaid *notices.TrapLaid
+	Sprung   *notices.TrapSprung
 	Rally    *notices.RallyCalled
 }
 
@@ -124,7 +126,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	payer := clicks.PayerOf(ctx)
 	caller := clicks.CallerOf(payer)
 
-	// A flag that could not be read hears no mine until the next pledge: the page reads them with GetMines.
+	// A flag that could not be read hears no mine and no trap until the next pledge: the page reads them with GetMines
+	// and GetTraps.
 	flag, _ := u.flags.FlagOf(ctx, payer)
 	news, stopHearing := u.notices.Attend(charges.HolderOf(payer), flag)
 	defer stopHearing()
@@ -173,6 +176,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		case notice := <-news:
 			if err := sink.Send(Event{
 				Spread: notice.Spread, Granted: notice.Granted, MineLaid: notice.MineLaid, Rally: notice.Rally,
+				TrapLaid: notice.TrapLaid, Sprung: notice.TrapSprung,
 			}); err != nil {
 				return err
 			}

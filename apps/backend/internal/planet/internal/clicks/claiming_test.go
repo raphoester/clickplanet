@@ -40,7 +40,7 @@ func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 	ctx := t.Context()
 	shield(t, tiles, 7, "de", 2)
 
-	impact, err := clicks.NewClaiming(tiles, tenAShield).Click(ctx, 7, "fr")
+	impact, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Click(ctx, 7, "fr")
 	require.NoError(t, err)
 
 	assert.Equal(t, clicks.Impact{Tile: 7, Owner: "de", Outcome: clicks.Shielded, Shields: 1}, impact)
@@ -51,7 +51,7 @@ func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 func TestAClaimThatMakesAProvinceWholeFortifiesIt(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{20: "fr", 21: "fr", 22: "de"})
 
-	impact, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 22, "fr")
+	impact, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Claim(t.Context(), 22, "fr")
 	require.NoError(t, err)
 
 	require.NotNil(t, impact.Fortified)
@@ -65,7 +65,7 @@ func TestAClaimThatMakesAProvinceWholeFortifiesIt(t *testing.T) {
 func TestAClaimOfATileTheFlagHoldsDoesNotFortify(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{20: "fr", 21: "fr", 22: "fr"})
 
-	_, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 22, "fr")
+	_, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Claim(t.Context(), 22, "fr")
 	require.NoError(t, err)
 
 	assert.Zero(t, tiles.Shields(20))
@@ -87,7 +87,7 @@ func atOnce(n int, do func(i int)) {
 func TestClaimsOfOneTileForOneFlagAtOnceTakeItOnce(t *testing.T) {
 	for range 300 {
 		tiles := claimable(t, map[uint32]string{7: "de"})
-		claiming := clicks.NewClaiming(tiles, tenAShield)
+		claiming := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog())
 
 		outcomes := make([]clicks.Outcome, 8)
 		atOnce(len(outcomes), func(i int) {
@@ -111,7 +111,7 @@ func tally(outcomes []clicks.Outcome) map[clicks.Outcome]int {
 func TestAShieldPlacedDuringAForeignClaimIsStruckOrRefusedButNeverLost(t *testing.T) {
 	for range 1_000 {
 		tiles := claimable(t, map[uint32]string{7: "de"})
-		claiming := clicks.NewClaiming(tiles, tenAShield)
+		claiming := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog())
 
 		var impact clicks.Impact
 		placements := make([]error, 4)
@@ -153,7 +153,7 @@ func TestAnEnclosureClaimsItsTilesAsOneChangeNamingWhoClosedIt(t *testing.T) {
 	require.NoError(t, err)
 	ctx := cpctx.AddAccountToContext(t.Context(), "a-player")
 
-	impacts, err := clicks.NewClaiming(tiles, tenAShield).Enclose(ctx, clicks.Enclosure{Country: "fr", ClosingTile: 6}, []uint32{7, 8, 20, 21, 22})
+	impacts, err := clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Enclose(ctx, clicks.Enclosure{Country: "fr", ClosingTile: 6}, []uint32{7, 8, 20, 21, 22})
 	require.NoError(t, err)
 
 	require.Len(t, impacts, 5)

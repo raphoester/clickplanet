@@ -6,11 +6,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// Laying is the tiles under the lock of a mine laid: nothing else reads or writes them until it ends.
+// Laying is the tiles under the lock of a mine or a trap laid: nothing else reads or writes them until it ends.
 type Laying interface {
 	Tile(id uint32) (Tile, error)
-	Mined(tile uint32) bool
+	// Armed is a tile that holds a mine or a trap: one of the two a tile at most.
+	Armed(tile uint32) bool
 	Put(mine Mine)
+	PutTrap(trap Trap)
 }
 
 // Exploding is the tiles under the lock of the mines a take set off: nothing else reads or writes them until it ends.
@@ -32,8 +34,8 @@ type MinableTiles interface {
 	Explode(ctx context.Context, write func(tiles Exploding) error) error
 }
 
-func NewMinefield(tiles MinableTiles, ground Neighbourhood, shieldsPerTile func() int) Minefield {
-	return Minefield{tiles: tiles, ground: ground, shieldsPerTile: shieldsPerTile}
+func NewMinefield(tiles MinableTiles, ground Neighbourhood, shieldsPerTile func() int, snare Snare) Minefield {
+	return Minefield{tiles: tiles, ground: ground, shieldsPerTile: shieldsPerTile, snare: snare}
 }
 
 // Minefield plays the mines on the map: one laid, and the ones a take set off, each under one lock of the tiles.
@@ -41,16 +43,17 @@ type Minefield struct {
 	tiles          MinableTiles
 	ground         Neighbourhood
 	shieldsPerTile func() int
+	snare          Snare
 }
 
-// Lay puts the mine on its tile, which must be its flag's and hold no mine, and answers the map's version.
+// Lay puts the mine on its tile, which must be its flag's and hold no mine and no trap, and answers the map's version.
 func (f Minefield) Lay(ctx context.Context, mine Mine) (MapVersion, error) {
 	return f.tiles.Lay(ctx, func(tiles Laying) error { //nolint:wrapcheck // a pure delegation: the storage names it.
 		tile, err := tiles.Tile(mine.tile)
 		if err != nil {
 			return err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		laid, err := mine.Laid(tile, tiles.Mined(mine.tile))
+		laid, err := mine.Laid(tile, tiles.Armed(mine.tile))
 		if err != nil {
 			return err
 		}
@@ -139,6 +142,7 @@ func (f Minefield) blast(ctx context.Context, tiles Exploding, mine Mine, rings 
 			struck = append(struck, TileShields{Tile: id, Shields: impact.Shields})
 		case Taken:
 			taken = append(taken, id)
+			impact = taker{payer: mine.TakeSnapshot().Payer(), snare: f.snare}.tripped(tiles, impact)
 		}
 		if err := tiles.Set(ctx, blasted); err != nil {
 			return Detonation{}, nil, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.

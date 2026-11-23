@@ -15,7 +15,7 @@ func (s *testSuite) mined(storage *inmemory_tile_storage.Storage, flag string, t
 	ctx := context.Background()
 	for _, tile := range tiles {
 		s.Require().NoError(storage.Set(ctx, tile, flag))
-		_, err := clicks.NewMinefield(storage, line{}, tenShields).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", flag, tile))
+		_, err := clicks.NewMinefield(storage, line{}, tenShields, clicks.NewSnareLog()).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", false, flag, tile))
 		s.Require().NoError(err)
 	}
 }
@@ -126,14 +126,14 @@ func (s *testSuite) TestADeletedAccountsMinesLeaveEveryMapWithNoBlast() {
 func (s *testSuite) TestAFlagKnockedOutLosesItsMinesWithItsLandAndNoneGoesOff() {
 	ctx := context.Background()
 	storage := s.arenaWithFrance(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
-	_, err := clicks.NewMinefield(storage, line{}, tenShields).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", "fr", 5))
+	_, err := clicks.NewMinefield(storage, line{}, tenShields, clicks.NewSnareLog()).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", false, "fr", 5))
 	s.Require().NoError(err)
 
-	_, err = clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	_, err = clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 
 	s.Empty(s.minesOf(storage, "fr"))
-	detonations, err := clicks.NewMinefield(storage, line{}, tenShields).Detonate(ctx, 2)
+	detonations, err := clicks.NewMinefield(storage, line{}, tenShields, clicks.NewSnareLog()).Detonate(ctx, 2)
 	s.Require().NoError(err)
 	s.Empty(detonations)
 }
@@ -141,13 +141,13 @@ func (s *testSuite) TestAFlagKnockedOutLosesItsMinesWithItsLandAndNoneGoesOff() 
 func (s *testSuite) TestAMineAKnockedOutFlagsTakeTrippedGoesOffNoMore() {
 	ctx := context.Background()
 	storage := s.arenaWithFrance(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
-	_, err := clicks.NewMinefield(storage, line{}, tenShields).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", "fr", 5))
+	_, err := clicks.NewMinefield(storage, line{}, tenShields, clicks.NewSnareLog()).Lay(ctx, clicks.NewMine(sapper, "203.0.113.9", false, "fr", 5))
 	s.Require().NoError(err)
 
-	_, err = clicks.NewClaiming(storage, tenShields).Enclose(ctx, clicks.Enclosure{Country: "de"}, []uint32{5, island[0]})
+	_, err = clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Enclose(ctx, clicks.Enclosure{Country: "de"}, []uint32{5, island[0]})
 	s.Require().NoError(err)
 
-	detonations, err := clicks.NewMinefield(storage, line{}, tenShields).Detonate(ctx, 2)
+	detonations, err := clicks.NewMinefield(storage, line{}, tenShields, clicks.NewSnareLog()).Detonate(ctx, 2)
 	s.Require().NoError(err)
 	s.Empty(detonations, "France is out: none of its land comes back")
 	s.Zero(storage.Held("fr"))

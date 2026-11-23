@@ -25,10 +25,14 @@ internal/planet/internal/
     usecases/
   mines/                          a mine's way from the hand to the map, and the runner that sets off the ones a take tripped
     usecases/
+  traps/                          a trap's way from the hand to the map, and the Snare that drains a taker's bank
+    log_snare/
+    usecases/
   rallies/                        a rally's way from the hand to the globe, the account's last one, and what a click inside costs
     postgres_rally_store/
     usecases/
-  notices/                        a spread and a rally to every stream, a grant to the account's own, a mine laid to its flag's
+  notices/                        a spread, a rally and a trap sprung to every stream, a grant to the account's own, a mine or a
+                                  trap laid to its flag's
   placements/                     a shield between the hand it left and the map's flush, and the boot that gives it back
     postgres_placement_store/
     usecases/
@@ -138,12 +142,17 @@ internal/planet/internal/
 - **`mines/`** — a mine's way from the hand to the map (`Gate`, `Blasting`), the lay and the runner that sets off the
   mines a take tripped, woken by the storage's fuse. Its rules are `clicks.Mine` and `clicks.Minefield`, since the tile
   storage keeps every mine with its map. See [The mine](mine.md).
+- **`traps/`** — a trap's way from the hand to the map (`Gate`), the lay, and the `Snare` the claim calls when a take
+  springs a trap: it drains the take's player's bank and tells every stream. Its rules are `clicks.Trap` and
+  `clicks.Trapline`, and the spring is `clicks.claim`'s, since the tile storage keeps every trap with its map. See
+  [The trap](trap.md).
 - **`rallies/`** — a rally's way from the hand to the globe (`Gate`, `Muster`), the call, the account's last rally in
   postgres (not map state: a ring is a place and a time), and the `Discount` the throttle asks what a click costs. See
   [The rally](rally.md).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread and a rally to every one, all a
-  signed-in account holds after a grant to its own, a mine laid to the streams of its flag's players alone (each stream
-  knows its caller's flag, and every pledge moves it). `ListenForEvents` merges it with the tile feed.
+  signed-in account holds after a grant to its own, a mine or a trap laid to the streams of its flag's players alone
+  (each stream knows its caller's flag, and every pledge moves it), and a trap sprung to every one, the taker's own with
+  `yours`. `ListenForEvents` merges it with the tile feed.
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs

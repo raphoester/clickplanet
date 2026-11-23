@@ -18,10 +18,15 @@ import (
 )
 
 type fakeLimiter struct {
-	allow bool
-	state cpratelimit.State
-	keys  [][]cpratelimit.Key
-	spent []float64
+	allow  bool
+	state  cpratelimit.State
+	peeked cpratelimit.State
+	keys   [][]cpratelimit.Key
+	spent  []float64
+}
+
+func (l *fakeLimiter) Peek(cpratelimit.Key) cpratelimit.State {
+	return l.peeked
 }
 
 func (l *fakeLimiter) TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State) {
@@ -73,14 +78,15 @@ func (r aRally) Cost(_ context.Context, flag string, tile uint32) (float64, erro
 var buckets = clicks.NewBuckets(clicks.TestThrottle, cptime.NewFixedClock(time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)))
 
 type fakeClick struct {
-	err error
-	ran bool
-	in  click_usecase.In
+	err    error
+	ran    bool
+	in     click_usecase.In
+	sprung []clicks.TrapSnapshot
 }
 
 func (c *fakeClick) Execute(_ context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	c.ran, c.in = true, in
-	return click_usecase.Out{}, c.err
+	return click_usecase.Out{Sprung: c.sprung}, c.err
 }
 
 func TestThrottleClick(t *testing.T) {
@@ -96,6 +102,18 @@ func TestThrottleClick(t *testing.T) {
 		require.True(t, inner.ran)
 		assert.True(t, out.Limited)
 		assert.Equal(t, state, out.Budget.State)
+	})
+
+	t.Run("answers the bank a trap the click sprang left", func(t *testing.T) {
+		drained := cpratelimit.State{Tokens: -6, Capacity: 5, PerSecond: 2}
+		inner := &fakeClick{sprung: []clicks.TrapSnapshot{{Tile: 1, Flag: "de"}}}
+
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state, peeked: drained}, onePrice(),
+			wholeClicks{}, buckets).Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
+
+		require.NoError(t, err)
+		assert.Equal(t, drained, out.Budget.State, "read again after the click, below zero")
+		assert.InDelta(t, 1.0, out.Budget.Spent, 1e-9)
 	})
 
 	t.Run("refuses a click over the limit without touching the map", func(t *testing.T) {

@@ -43,6 +43,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			Cost:  m.GetRally().GetCost(),
 			Off:   m.GetRally().GetOff(),
 		},
+		Trap: TrapRules{Held: int(m.GetTrap().GetHeld()), Clicks: int(m.GetTrap().GetClicks())},
 	}
 }
 
@@ -57,6 +58,7 @@ var kinds = map[Kind]planetv1.BonusKind{
 	KindVirus:         planetv1.BonusKind_BONUS_KIND_VIRUS,
 	KindMine:          planetv1.BonusKind_BONUS_KIND_MINE,
 	KindRally:         planetv1.BonusKind_BONUS_KIND_RALLY,
+	KindTrap:          planetv1.BonusKind_BONUS_KIND_TRAP,
 }
 
 // KindOf is the wallet's kind for planet.v1's word for it.

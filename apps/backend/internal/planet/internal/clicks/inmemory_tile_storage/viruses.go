@@ -186,8 +186,8 @@ func (i *insideInfection) put(tile clicks.Tile) error {
 	return err
 }
 
-func (i *insideInfection) Trip(tile uint32) {
-	i.storage.tripLocked(tile)
+func (i *insideInfection) Trip(tile uint32) (clicks.Trap, bool) {
+	return i.storage.tripLocked(tile)
 }
 
 func (i *insideInfection) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {

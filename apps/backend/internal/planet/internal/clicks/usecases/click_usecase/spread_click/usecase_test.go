@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
@@ -48,8 +49,9 @@ func (s *stubNeighbours) Around(_ string, tile uint32, rings int) []uint32 {
 }
 
 type recordingStorage struct {
-	tiles map[uint32]string
-	err   error
+	tiles  map[uint32]string
+	sprung []clicks.TrapSnapshot
+	err    error
 }
 
 func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) error {
@@ -57,14 +59,14 @@ func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) err
 	return nil
 }
 
-func (r *recordingStorage) Spread(_ context.Context, _ uint32, flag string, neighbours []uint32) error {
+func (r *recordingStorage) Spread(_ context.Context, _ uint32, flag string, neighbours []uint32) ([]clicks.TrapSnapshot, error) {
 	if r.err != nil {
-		return r.err
+		return r.sprung, r.err
 	}
 	for _, neighbour := range neighbours {
 		r.tiles[neighbour] = flag
 	}
-	return nil
+	return r.sprung, nil
 }
 
 type recordingPublisher struct{ spreads []notices.Spread }
@@ -140,6 +142,19 @@ func TestASpreadTheWriterFailsIsAnErrorAndIsNotAnnounced(t *testing.T) {
 
 	require.ErrorIs(t, err, f.storage.err)
 	assert.Empty(t, f.publisher.spreads)
+}
+
+func TestTheTrapsASpreadSprangAreInTheAnswerAFailedOnesToo(t *testing.T) {
+	for name, failed := range map[string]error{"a spread": nil, "a failed spread": errors.New("out of range")} {
+		t.Run(name, func(t *testing.T) {
+			f := setup(t, 8, nil, charges.TestRules)
+			f.storage.sprung, f.storage.err = []clicks.TrapSnapshot{{Tile: 91, Flag: "de"}}, failed
+
+			out, _ := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+
+			assert.Equal(t, []clicks.TrapSnapshot{{Tile: 91, Flag: "de"}}, out.Sprung, "its player pays for them")
+		})
+	}
 }
 
 func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {

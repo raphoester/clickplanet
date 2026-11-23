@@ -37,9 +37,9 @@ The admin page is `apps/backoffice` (its [`CLAUDE.md`](../../backoffice/CLAUDE.m
 
 ## `GrantCharges`
 
-`GrantCharges(account_id, refills, bombs, enclosures, spread_clicks, shields, viruses, mines, rallies)`, each a count, runs `charges/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the eight charges, as a box would. It is the one way to give a virus, a mine or a rally while no box draws one ([The virus](virus.md), [The mine](mine.md), [The rally](rally.md)).
+`GrantCharges(account_id, refills, bombs, enclosures, spread_clicks, shields, viruses, mines, rallies, traps)`, each a count, runs `charges/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the nine charges, as a box would. It is the one way to give a virus, a mine, a rally or a trap while no box draws one ([The trap](trap.md), [The virus](virus.md), [The mine](mine.md), [The rally](rally.md)).
 
-- **The caps hold**: `Held.Granted` is the rule, so each kind stops at the rule set's size for it (`charges.refill.held`, `charges.bomb.held`, `charges.virus.held`, `charges.enclose.held`, `charges.spread.clicks`, `charges.shield.held`, `charges.mine.held`, `charges.rally.held`), and none of a kind the rules turn off is kept (a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`). The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **The caps hold**: `Held.Granted` is the rule, so each kind stops at the rule set's size for it (`charges.refill.held`, `charges.bomb.held`, `charges.virus.held`, `charges.enclose.held`, `charges.spread.clicks`, `charges.shield.held`, `charges.mine.held`, `charges.rally.held`, `charges.trap.held`), and none of a kind the rules turn off is kept (a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`). The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`charges.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 
@@ -103,7 +103,7 @@ rules page calls both.
 ## `SwitchBoard`
 
 Moves the world's map onto another board, its land carried over, once: each new tile takes the flag and holder of the
-old tile it comes from, the shields are split across the new tiles, the mines move, live viruses end, and every page
+old tile it comes from, the shields are split across the new tiles, the mines and traps move, live viruses end, and every page
 reloads onto the new board. Refused while an arena is open, for a board this build does not carry or has no carry-over
 to, for the board the world plays, and for any map but `world`. `dry_run` answers the same counts and changes nothing.
 No take: nobody gains tiles, XP or a mission's progress. See [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard),

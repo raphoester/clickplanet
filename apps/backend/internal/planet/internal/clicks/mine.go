@@ -6,8 +6,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// ErrNotMineable is a mine laid on a tile that is not its flag's, or holds a mine already: it stays in the hand.
-var ErrNotMineable = errors.New("a mine is laid only on a tile of its flag with no mine")
+// ErrNotMineable is a mine laid on a tile that is not its flag's, or holds a mine or a trap: it stays in the hand.
+var ErrNotMineable = errors.New("a mine is laid only on a tile of its flag with no mine and no trap")
 
 // Mine waits on a tile of its flag. A take by another flag sets it off: its blast takes the tiles around it for the
 // flag, and every mine the blast reaches goes off too. Any other change of owner takes it off the map with no blast.
@@ -16,6 +16,7 @@ type Mine struct {
 	flag    string
 	account cpsession.AccountID
 	scope   string
+	linked  bool
 }
 
 type MineSnapshot struct {
@@ -24,24 +25,31 @@ type MineSnapshot struct {
 	Flag    string
 	Account cpsession.AccountID
 	Scope   string
+	// Whether its player was signed in as it laid it: a trap its blast springs drains a guest's network's guest bank too.
+	Linked bool
 }
 
 func (s MineSnapshot) Restore() Mine {
-	return Mine{tile: s.Tile, flag: s.Flag, account: s.Account, scope: s.Scope}
+	return Mine{tile: s.Tile, flag: s.Flag, account: s.Account, scope: s.Scope, linked: s.Linked}
 }
 
 func (m Mine) TakeSnapshot() MineSnapshot {
-	return MineSnapshot{Tile: m.tile, Flag: m.flag, Account: m.account, Scope: m.scope}
+	return MineSnapshot{Tile: m.tile, Flag: m.flag, Account: m.account, Scope: m.scope, Linked: m.linked}
 }
 
 // NewMine is a mine a player of the flag lays on the tile, which is not on the map yet.
-func NewMine(account cpsession.AccountID, scope, flag string, tile uint32) Mine {
-	return Mine{tile: tile, flag: flag, account: account, scope: scope}
+func NewMine(account cpsession.AccountID, scope string, linked bool, flag string, tile uint32) Mine {
+	return Mine{tile: tile, flag: flag, account: account, scope: scope, linked: linked}
 }
 
-// Laid is the mine on its tile, which must be its flag's and hold no mine.
-func (m Mine) Laid(tile Tile, mined bool) (Mine, error) {
-	if tile.id != m.tile || tile.owner != m.flag || mined {
+// Payer is who pays for what its blast's takes spring: the mine's player, as it laid it.
+func (s MineSnapshot) Payer() Payer {
+	return Payer{Scope: s.Scope, Account: s.Account.String(), Linked: s.Linked}
+}
+
+// Laid is the mine on its tile, which must be its flag's and hold no mine and no trap.
+func (m Mine) Laid(tile Tile, armed bool) (Mine, error) {
+	if tile.id != m.tile || tile.owner != m.flag || armed {
 		return Mine{}, ErrNotMineable
 	}
 

@@ -29,6 +29,7 @@ type memoryMap struct {
 	out       map[string]clicks.OutFlag
 	viruses   []clicks.VirusSnapshot
 	mines     map[uint32]clicks.MineSnapshot
+	traps     map[uint32]clicks.TrapSnapshot
 }
 
 func newMemoryMap() *memoryMap {
@@ -36,7 +37,7 @@ func newMemoryMap() *memoryMap {
 		board: clicks.TestBoard,
 		rows:  map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
 		provinces: map[string]map[clicks.ProvinceID]string{}, out: map[string]clicks.OutFlag{},
-		mines: map[uint32]clicks.MineSnapshot{},
+		mines: map[uint32]clicks.MineSnapshot{}, traps: map[uint32]clicks.TrapSnapshot{},
 	}
 }
 
@@ -81,6 +82,49 @@ func (m *MemoryPersistence) StoredMinesOn(played clicks.MapID) []clicks.MineSnap
 		mines = append(mines, kept[tile])
 	}
 	return mines
+}
+
+func (m *MemoryPersistence) LoadTraps(_ context.Context, played clicks.MapID, visit func(trap clicks.TrapSnapshot)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	for _, tile := range slices.Sorted(maps.Keys(m.mapLocked(played).traps)) {
+		visit(m.mapLocked(played).traps[tile])
+	}
+	return nil
+}
+
+func (m *MemoryPersistence) SaveTraps(_ context.Context, played clicks.Stage, laid []clicks.TrapSnapshot, gone []uint32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	kept := m.writeLocked(played).traps
+	for _, trap := range laid {
+		kept[trap.Tile] = trap
+	}
+	for _, tile := range gone {
+		delete(kept, tile)
+	}
+	return nil
+}
+
+// StoredTrapsOn is a map's traps, in tile order, as the last flush kept them.
+func (m *MemoryPersistence) StoredTrapsOn(played clicks.MapID) []clicks.TrapSnapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	kept := m.mapLocked(played).traps
+	traps := make([]clicks.TrapSnapshot, 0, len(kept))
+	for _, tile := range slices.Sorted(maps.Keys(kept)) {
+		traps = append(traps, kept[tile])
+	}
+	return traps
 }
 
 func (m *MemoryPersistence) LoadViruses(_ context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error {
@@ -145,7 +189,8 @@ func (m *MemoryPersistence) Boards(_ context.Context, played clicks.MapID) ([]cl
 		return nil, m.failing
 	}
 	kept := m.mapLocked(played)
-	if len(kept.rows) == 0 && len(kept.provinces) == 0 && len(kept.mines) == 0 && len(kept.viruses) == 0 {
+	if len(kept.rows) == 0 && len(kept.provinces) == 0 && len(kept.mines) == 0 && len(kept.traps) == 0 &&
+		len(kept.viruses) == 0 {
 		return nil, nil
 	}
 	return []clicks.BoardID{kept.board}, nil
@@ -301,7 +346,8 @@ func (m *MemoryPersistence) Save(
 }
 
 func (m *MemoryPersistence) Carry(
-	ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot, keep func(ctx context.Context) (bool, error),
+	ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot, traps []clicks.TrapSnapshot,
+	keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -327,6 +373,9 @@ func (m *MemoryPersistence) Carry(
 	}
 	for _, mine := range mines {
 		carried.mines[mine.Tile] = mine
+	}
+	for _, trap := range traps {
+		carried.traps[trap.Tile] = trap
 	}
 	m.maps[onto.Map] = carried
 	return true, nil
@@ -387,6 +436,11 @@ func (m *MemoryPersistence) ForgetHolder(_ context.Context, account cpsession.Ac
 		for tile, mine := range kept.mines {
 			if mine.Account == account {
 				delete(kept.mines, tile)
+			}
+		}
+		for tile, trap := range kept.traps {
+			if trap.Account == account {
+				delete(kept.traps, tile)
 			}
 		}
 		for tile, holder := range kept.holders {

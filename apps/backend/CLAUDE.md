@@ -124,6 +124,11 @@ and says what is in it. Read the doc before you change its area.
   its 2-ring blast takes the tiles for the flag, every mine reached going off too; a bomb clears it; dormant (weighed 0),
   level 13; map state flushed with the tiles; one `mines_exploded`, `mine_laid` to the flag's streams alone; ledger kind
   `mine`, whose takes reach `TilesTaken`.
+- [Trap](docs/trap.md) — the mine's sibling: a charge laid on a flag's own tile that only its players see; any enemy
+  take springs it and the taker loses `charges.trap.clicks` (10) from its bank, to nobody, down to minus one bank
+  (`Limiter.Drain`), a guest's network's guest bank too; the click's answer shows the debt; a bomb clears it; dormant
+  (weighed 0), level 20; map state flushed with the tiles; `trap_laid` to the flag's streams, `trap_sprung` to every
+  stream; no ledger kind.
 - [Rally](docs/rally.md) — a charge that calls a ring on any point of the globe, seen by every player: for 3 minutes a
   click of its flag inside costs half a click (`charges.rally.cost`, from every bucket, `ClickBudget.spent`); one on at a
   time, a stack of 3; dormant (weighed 0), level 15; a row in postgres, not map state, that a remap keeps;
