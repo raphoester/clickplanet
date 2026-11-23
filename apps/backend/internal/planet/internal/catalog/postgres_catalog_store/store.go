@@ -1,4 +1,4 @@
-package cpflags
+package postgres_catalog_store
 
 import (
 	"context"
@@ -6,31 +6,36 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
 const heardLock = 0x666c6167
 
-// PostgresStore keeps each flag heard as one row of heard_flags, in the schema db opens.
-func NewPostgresStore(db cppg.Conn) *PostgresStore {
-	return &PostgresStore{db: db}
+// Store keeps each flag heard as one row of planet.heard_flags.
+func New(db cppg.Conn) *Store {
+	return &Store{db: db}
 }
 
-type PostgresStore struct {
+type Store struct {
 	db cppg.Conn
 }
 
-var _ Store = (*PostgresStore)(nil)
+var _ catalog.Store = (*Store)(nil)
 
-func (s *PostgresStore) Heard(ctx context.Context, flag string) (Heard, error) {
+func (s *Store) Heard(ctx context.Context, flag string) (catalog.Heard, error) {
 	kept, err := keptOf(ctx, s.db.On(ctx), flag)
 	if err != nil {
-		return Heard{}, err
+		return catalog.Heard{}, err
 	}
-	return kept.Restore()
+	heard, err := kept.Restore()
+	if err != nil {
+		return catalog.Heard{}, fmt.Errorf("failed to restore the flag heard: %w", err)
+	}
+	return heard, nil
 }
 
-func (s *PostgresStore) Change(ctx context.Context, flag string, change func(Heard) Heard) error {
+func (s *Store) Change(ctx context.Context, flag string, change func(catalog.Heard) catalog.Heard) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, heardLock, flag); err != nil {
@@ -42,7 +47,7 @@ func (s *PostgresStore) Change(ctx context.Context, flag string, change func(Hea
 		}
 		heard, err := before.Restore()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to restore the flag heard: %w", err)
 		}
 		after := change(heard).TakeSnapshot()
 		if after == before {
@@ -58,16 +63,16 @@ func (s *PostgresStore) Change(ctx context.Context, flag string, change func(Hea
 	})
 }
 
-func keptOf(ctx context.Context, db cppg.Querier, flag string) (HeardSnapshot, error) {
+func keptOf(ctx context.Context, db cppg.Querier, flag string) (catalog.HeardSnapshot, error) {
 	var state string
-	var kept HeardSnapshot
+	var kept catalog.HeardSnapshot
 	err := db.QueryRowContext(ctx, `SELECT state::text, decided_at FROM heard_flags WHERE flag = $1`, flag).
 		Scan(&state, &kept.DecidedAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return HeardSnapshot{}, nil
+		return catalog.HeardSnapshot{}, nil
 	case err != nil:
-		return HeardSnapshot{}, fmt.Errorf("failed to read the flag heard: %w", err)
+		return catalog.HeardSnapshot{}, fmt.Errorf("failed to read the flag heard: %w", err)
 	}
-	return HeardSnapshot{State: State(state), DecidedAt: kept.DecidedAt.UTC()}, nil
+	return catalog.HeardSnapshot{State: catalog.State(state), DecidedAt: kept.DecidedAt.UTC()}, nil
 }

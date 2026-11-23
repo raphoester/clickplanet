@@ -75,16 +75,9 @@ func newFeeds() feeds {
 
 func serve(t *testing.T, feeds feeds, heartbeat time.Duration) scoringv1connect.ScoringServiceClient {
 	t.Helper()
-	return serveWith(t, feeds, heartbeat, cpflags.NewOpenCatalog())
-}
-
-func serveWith(
-	t *testing.T, feeds feeds, heartbeat time.Duration, catalog cpflags.Catalog,
-) scoringv1connect.ScoringServiceClient {
-	t.Helper()
 	handler := listen_for_events_handler.New(listen_for_events_handler.Feeds{
 		Boards: feeds.boards, Scores: feeds.scores, Rounds: feeds.rounds,
-	}, catalog, heartbeat)
+	}, cpflags.Codes{}, heartbeat)
 	mux := http.NewServeMux()
 	mux.Handle(scoringv1connect.ScoringServiceListenForEventsProcedure, connect.NewServerStreamHandler(
 		scoringv1connect.ScoringServiceListenForEventsProcedure, handler.ListenForEvents,
@@ -199,27 +192,4 @@ func TestTheViewIsLeftWhenTheStreamCloses(t *testing.T) {
 
 	_, followed := feeds.boards.subscribed()
 	require.Eventually(t, func() bool { return followed.Err() != nil }, 2*time.Second, time.Millisecond)
-}
-
-func TestTheBoardOfAFlagOpenedWhileTheServerRunsIsSent(t *testing.T) {
-	const rennes = "r-k3p9x2ma0b"
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
-	feeds := newFeeds()
-	view := board_query.View{Book: "season-0", Country: rennes}
-	feeds.boards.of(view) <- board("Ana")
-	client := serveWith(t, feeds, time.Hour, catalog)
-	ask := &scoringv1.ListenForEventsRequest{BookId: "season-0", CountryId: rennes}
-
-	refused, err := client.ListenForEvents(t.Context(), connect.NewRequest(ask))
-	require.NoError(t, err)
-	assert.False(t, refused.Receive())
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(refused.Err()))
-	_ = refused.Close()
-
-	require.NoError(t, catalog.Open(t.Context(), rennes, time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)))
-	stream, err := client.ListenForEvents(t.Context(), connect.NewRequest(ask))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = stream.Close() })
-	require.True(t, stream.Receive(), stream.Err())
-	assert.Len(t, stream.Msg().GetBoard().GetStandings(), 1)
 }

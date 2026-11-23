@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -17,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -47,10 +47,10 @@ func setup(t *testing.T, shields int) fixture {
 		clock, slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpflags.NewOpenCatalog(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{}, clock,
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), catalog.NewOpenCatalog(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{}, clock,
 		&allegiances.RecordedPledges{})
 	require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(caller)}, "fr"))
-	gate := placements.NewGate(tiles, cpflags.NewOpenCatalog(), book, twoATile)
+	gate := placements.NewGate(tiles, catalog.NewOpenCatalog(), book, twoATile)
 
 	return fixture{
 		wallet: wallet, kept: kept, tiles: tiles, gate: gate, escrow: escrow,

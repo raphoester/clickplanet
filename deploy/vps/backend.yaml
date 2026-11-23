@@ -345,7 +345,7 @@ missions:
     password: env://REDIS_PASSWORD
 
 # The catalog of flags: the ones the game ships with are in the code, the ones opened since in this schema. Each
-# flag opened or closed is told to planet, the chat, scoring and player, which keep what they heard in their own schema.
+# flag opened or closed is told to planet, which keeps what it heard in its own schema, and to the pages on its stream.
 flags:
   database:
     host: postgres

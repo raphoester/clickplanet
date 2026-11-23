@@ -23,7 +23,7 @@ type failingIDs struct{}
 func (failingIDs) NewID() (messages.MessageID, error) { return "", errors.New("no entropy") }
 
 func drafts(ids messages.IDProvider) messages.Drafts {
-	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpflags.NewOpenCatalog(),
+	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpflags.Codes{},
 		messages.NewRooms(messages.FakeFlags{ada: "fr"}))
 }
 
@@ -83,24 +83,4 @@ func TestAGifOfNoSizeOrAHugeOneIsRefused(t *testing.T) {
 			require.ErrorIs(t, err, messages.ErrInvalidMessage)
 		})
 	}
-}
-
-func TestAMessageInTheRoomOfAFlagOpenedWhileTheServerRunsIsDrafted(t *testing.T) {
-	const rennes = "r-k3p9x2ma0b"
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
-	drafts := messages.NewDrafts(&messages.SequentialIDs{}, cptime.NewFixedClock(draftedAt), limits, catalog,
-		messages.NewRooms(messages.FakeFlags{ada: rennes}))
-	room := messages.FlagRoom(rennes)
-
-	_, err := drafts.Draft(t.Context(), ada, room, rennes, "kenavo", messages.Gif{})
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-
-	require.NoError(t, catalog.Open(t.Context(), rennes, draftedAt.Add(-time.Hour)))
-	message, err := drafts.Draft(t.Context(), ada, room, rennes, "kenavo", messages.Gif{})
-	require.NoError(t, err)
-	assert.Equal(t, room, message.TakeSnapshot().Room)
-
-	require.NoError(t, catalog.Close(t.Context(), rennes, draftedAt))
-	_, err = drafts.Draft(t.Context(), ada, room, rennes, "kenavo", messages.Gif{})
-	require.NoError(t, err, "a closed flag is known: what its room does at a close is the next step's")
 }

@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
@@ -31,7 +32,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -179,7 +179,7 @@ func newGame(t testing.TB, w world) *game {
 	rules := charges.Rules{Enclose: charges.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
 	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), takings, cptime.SystemClock{})
 	terrain := charges.NewTerrain(w.geography, tiles)
-	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, cpflags.NewOpenCatalog())
+	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, catalog.NewOpenCatalog())
 	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() charges.Rules { return rules })
 
 	return &game{world: w, tiles: tiles, ledger: takings, click: chain, terrain: terrain, rules: rules}

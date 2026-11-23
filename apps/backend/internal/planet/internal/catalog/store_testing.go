@@ -1,6 +1,6 @@
 //go:build testing
 
-package cpflags
+package catalog
 
 import (
 	"context"

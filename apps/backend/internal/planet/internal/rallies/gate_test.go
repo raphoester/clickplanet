@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -44,7 +44,7 @@ func newGateParts() gateParts {
 
 func (p gateParts) call(t *testing.T, country string) error {
 	t.Helper()
-	gate := rallies.NewGate(cpflags.NewOpenCatalog(), p.flags, p.refusals, p.store, p.clock)
+	gate := rallies.NewGate(catalog.NewOpenCatalog(), p.flags, p.refusals, p.store, p.clock)
 	return gate.Call(t.Context(), clicks.Payer{Account: alice.String()}, alice, country) //nolint:wrapcheck // the test reads the gate's own error.
 }
 

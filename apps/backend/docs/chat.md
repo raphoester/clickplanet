@@ -1,6 +1,6 @@
 # Chat (`internal/chat/`)
 
-Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the catalog of flags (`shared/cpflags`, each module its own), and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the flags the game ships with (`shared/cpflags`), and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
@@ -47,7 +47,7 @@ costs nothing. It was built after a raid spammed Nazi slogans in Nov 2026.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
-The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way each module builds its own catalog of flags), not a second list to write.
+The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpflags` already is), not a second list to write.
 
 **Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `room` (see [Rooms](#rooms)), `country`, `ip`, `user_agent`, `text`, `reply_to` (the id of the message a reply answers). **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 

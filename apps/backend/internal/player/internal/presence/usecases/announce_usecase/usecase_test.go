@@ -42,7 +42,7 @@ func setup(t *testing.T) fixture {
 	return fixture{
 		store:   store,
 		visits:  visits,
-		useCase: announce_usecase.New(introducer, visits, cpflags.NewOpenCatalog(), clock, "pepper"),
+		useCase: announce_usecase.New(introducer, visits, cpflags.Codes{}, clock, "pepper"),
 	}
 }
 

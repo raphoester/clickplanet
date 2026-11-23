@@ -1,9 +1,11 @@
-package cpflags
+package catalog
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
 type Store interface {
@@ -19,7 +21,7 @@ func NewCatalog(store Store) Catalog {
 	return Catalog{store: store}
 }
 
-// Catalog is the flags one module knows: the ones the game ships with, and the ones it heard opened or closed since
+// Catalog is the flags planet knows: the ones the game ships with, and the ones it heard opened or closed since
 // (flags.v1.FlagOpened, FlagClosed), kept in its own schema.
 type Catalog struct {
 	store Store
@@ -27,7 +29,7 @@ type Catalog struct {
 
 // A player may play for a flag the game ships with, or for one opened and not closed since.
 func (c Catalog) Playable(ctx context.Context, flag string) (bool, error) {
-	if IsBuiltIn(flag) {
+	if cpflags.IsBuiltIn(flag) {
 		return true, nil
 	}
 	heard, err := c.heard(ctx, flag)
@@ -39,7 +41,7 @@ func (c Catalog) Playable(ctx context.Context, flag string) (bool, error) {
 
 // A closed flag is known: history still names it.
 func (c Catalog) Known(ctx context.Context, flag string) (bool, error) {
-	if IsBuiltIn(flag) {
+	if cpflags.IsBuiltIn(flag) {
 		return true, nil
 	}
 	heard, err := c.heard(ctx, flag)

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
@@ -23,7 +23,7 @@ type testSuite struct {
 	suite.Suite
 
 	storage *inmemory_tile_storage.Storage
-	catalog cpflags.Catalog
+	flags   catalog.Catalog
 	useCase *click_usecase.UseCase
 }
 
@@ -38,8 +38,8 @@ func (s *testSuite) SetupTest() {
 	)
 
 	tileChecker := clicks.PlayedOf(maxIndex)
-	s.catalog = cpflags.NewCatalog(cpflags.NewMemoryStore())
-	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), s.catalog)
+	s.flags = catalog.NewCatalog(catalog.NewMemoryStore())
+	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), s.flags)
 }
 
 func (s *testSuite) TestAFlagOpenedWhileTheServerRunsIsPlayedAndAClosedOneIsRefused() {
@@ -47,12 +47,12 @@ func (s *testSuite) TestAFlagOpenedWhileTheServerRunsIsPlayedAndAClosedOneIsRefu
 	opened := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
 	s.ErrorIs(s.execute(5, rennes), clicks.ErrUnknownCountry)
 
-	s.Require().NoError(s.catalog.Open(s.T().Context(), rennes, opened))
+	s.Require().NoError(s.flags.Open(s.T().Context(), rennes, opened))
 	s.Require().NoError(s.execute(5, rennes))
 	owner, _ := s.storage.Owner(5)
 	s.Equal(rennes, owner)
 
-	s.Require().NoError(s.catalog.Close(s.T().Context(), rennes, opened.Add(time.Hour)))
+	s.Require().NoError(s.flags.Close(s.T().Context(), rennes, opened.Add(time.Hour)))
 	s.ErrorIs(s.execute(6, rennes), clicks.ErrUnknownCountry)
 	owner, _ = s.storage.Owner(5)
 	s.Equal(rennes, owner, "its land stays")

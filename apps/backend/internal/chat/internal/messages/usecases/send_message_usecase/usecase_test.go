@@ -54,7 +54,7 @@ func (s *testSuite) SetupTest() {
 		s.appender,
 		s.publisher,
 		s.authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpflags.NewOpenCatalog(),
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpflags.Codes{},
 			messages.NewRooms(messages.FakeFlags{guest: "fr"})),
 		s.thread,
 	)
@@ -367,7 +367,7 @@ func (s *testSuite) TestAMessageToTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsA
 func (s *testSuite) TestABannedPhraseIsRefusedAsAnInvalidMessageAndNeitherKeptNorPublished() {
 	s.useCase = send_message_usecase.New(s.appender, s.publisher, s.authors,
 		messages.NewDrafts(&messages.SequentialIDs{}, s.clock,
-			messages.NewLimits(0).WithBanned(messages.NewBanned(messages.DefaultBannedPhrases...)), cpflags.NewOpenCatalog(),
+			messages.NewLimits(0).WithBanned(messages.NewBanned(messages.DefaultBannedPhrases...)), cpflags.Codes{},
 			messages.NewRooms(messages.FakeFlags{})),
 		s.thread)
 	in := validIn()

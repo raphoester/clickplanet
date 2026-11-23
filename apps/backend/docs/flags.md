@@ -21,7 +21,7 @@ flag is opened yet, and players see no change.
 ## What it tells
 
 `flags.v1.FlagOpened{flag, name, opened_at}` and `flags.v1.FlagClosed{flag, closed_at}`, through its outbox (a lost one
-would leave a module refusing a flag for good), in the transaction that opens or closes the flag.
+would leave planet refusing a flag for good), in the transaction that opens or closes the flag.
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
 (`bans.Book.Restate`): an open flag as `FlagOpened`, a closed one as `FlagClosed` alone. A module that subscribes after a
@@ -30,30 +30,39 @@ flag was told hears it at the next boot, with no hand migration. With no flag op
 **Of one flag, the fact with the latest time holds.** The two facts go on two streams, so a listener may hear a close
 before the opening it follows; it keeps the later one, and a fact told again changes nothing.
 
-## Who keeps a catalog
+## Planet keeps a catalog, the others check a code's shape
 
-Planet, the chat, scoring and player each keep **what they heard** in their own schema (`heard_flags`: `flag`, `state`
-as `heard_flag_state`, `decided_at`), through `shared/cpflags`:
+**Planet alone keeps what it heard**, in its own schema (`planet.heard_flags`: `flag`, `state` as `heard_flag_state`,
+`decided_at`), because it plays the flags: whether one is open is a rule of the click.
 
-- **`cpflags.Catalog`** answers two questions. `Playable`: a flag the game ships with, or one heard open. `Known`: the
-  same, or one heard closed. A flag the game ships with is never read from postgres, so today's clicks cost nothing
-  more.
-- **`cpflags.NewOpenedHandler` and `NewClosedHandler`** hear the facts (`<module>-flags-opened`, `<module>-flags-closed`).
-  `cpflags.PostgresStore` keeps one row per flag under an advisory lock, and only when a fact changes it.
+- **`catalog.Catalog`** (`internal/planet/internal/catalog`) answers two questions. `Playable`: a flag the game ships
+  with, or one heard open. `Known`: the same, or one heard closed. A flag the game ships with is never read from
+  postgres, so today's clicks cost nothing more.
+- **`flag_opened_subscriber` and `flag_closed_subscriber`** hear the facts (`planet-flags-opened`,
+  `planet-flags-closed`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
+  changes it.
 - **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
+- **Not an RPC to the flags module**: a click for a flag opened since is one read of planet's own postgres, not a call
+  on every click, as planet keeps the antibot's bans (`refused_callers`).
 
-| module | asks | for |
-|---|---|---|
-| planet | `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a rally |
-| planet | `Known` | the operator's `FindPlayers`, a flag and an area |
-| chat | `Known` | the flag a message is sent under, in the world and in the flag's room |
-| scoring | `Known` | a board, a tally and a stream asked for one flag |
-| player | `Known` | the flag a player is announced under (who is playing) |
+| asks | for |
+|---|---|
+| `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a rally |
+| `Known` | the operator's `FindPlayers`, a flag and an area |
+
+**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): a flag the game ships with, or `r-` and
+ten letters or digits (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by
+one: the flag a message is sent under, a board or a tally asked for one flag, the flag a player is announced under. A
+made-up `r-` code there shows as its code with a grey flag on the page, and a board of it is empty. Their code is
+`main`'s, with `cpflags.Codes{}` in place of `cpcountries.New()`.
+
+**`shared/cpflags` holds what more than one module needs**: the flags the game ships with (planet, the flags module,
+the alerts, the chat, scoring and player) and the shape of a code opened since.
 
 **A closed flag is refused as an unknown one** (`clicks.ErrUnknownCountry`) for a click, a pledge and every charge. Its
 land stays, shields too, and its players keep it as their flag. Step 2 builds what a close does to its players (pick
-another flag) and to its chat room (read-only): planet's and chat's `flags-closed` subscribers are where it goes, a use
-case of the module in place of the bare catalog (`cpflags.Facts`).
+another flag) and to its chat room (read-only): planet's `flag_closed_subscriber` is where it goes, a use case in place
+of the bare catalog.
 
 ## The stream
 

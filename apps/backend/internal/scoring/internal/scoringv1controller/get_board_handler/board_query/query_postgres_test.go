@@ -79,7 +79,7 @@ const (
 )
 
 func (s *testSuite) query() *board_query.PostgresQuery {
-	return board_query.NewPostgresQuery(s.db, cpflags.NewOpenCatalog())
+	return board_query.NewPostgresQuery(s.db, cpflags.Codes{})
 }
 
 func (s *testSuite) standings(country string) *scoringv1.GetBoardResponse {

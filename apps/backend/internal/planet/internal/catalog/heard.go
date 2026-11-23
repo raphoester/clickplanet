@@ -1,4 +1,4 @@
-package cpflags
+package catalog
 
 import (
 	"fmt"

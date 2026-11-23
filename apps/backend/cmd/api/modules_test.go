@@ -187,7 +187,8 @@ func TestTheModulesThatPlayHearOrReadTheQuizzesSpeakTheirLanguage(t *testing.T) 
 	}
 }
 
-// The flags module hears no module and calls none: every module that checks a flag keeps a catalog fed by its facts.
+// The flags module hears no module and calls none: planet keeps a catalog fed by its facts, and the others read the
+// flags the game ships with and the shape of a code opened since (cpflags).
 func TestTheFlagsSpeakNoModulesLanguageAndTheModulesThatCheckAFlagSpeakTheirs(t *testing.T) {
 	edges := moduleEdges(t)
 

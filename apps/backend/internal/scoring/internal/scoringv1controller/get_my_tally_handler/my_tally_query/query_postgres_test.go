@@ -71,7 +71,7 @@ func (s *testSuite) leaves(n int) {
 }
 
 func (s *testSuite) query() *my_tally_query.PostgresQuery {
-	return my_tally_query.NewPostgresQuery(s.db, cpflags.NewOpenCatalog())
+	return my_tally_query.NewPostgresQuery(s.db, cpflags.Codes{})
 }
 
 func (s *testSuite) mySeason(n int, country string) *scoringv1.GetMyTallyResponse {
