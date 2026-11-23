@@ -56,6 +56,28 @@ func (s *testSuite) TestAFlagOpenedWhileTheServerRunsIsPlayedAndAClosedOneIsRefu
 	s.ErrorIs(s.execute(6, rennes), clicks.ErrUnknownCountry)
 	owner, _ = s.storage.Owner(5)
 	s.Equal(rennes, owner, "its land stays")
+
+	s.Require().NoError(s.execute(5, "fr"))
+	owner, _ = s.storage.Owner(5)
+	s.Equal("fr", owner, "another flag takes it as any land")
+}
+
+func (s *testSuite) TestAFlagClosedDuringABattlesLockIsPlayedUntilTheLockLifts() {
+	const rennes = "r-k3p9x2ma0b"
+	opened := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+	locked := true
+	s.flags = catalog.NewCatalog(catalog.NewMemoryStore(), func() bool { return locked })
+	s.useCase = click_usecase.New(clicks.PlayedOf(250_000),
+		clicks.NewClaiming(s.storage, func() int { return 10 }, clicks.NewSnareLog()), s.flags)
+	s.Require().NoError(s.flags.Open(s.T().Context(), rennes, opened))
+	s.Require().NoError(s.flags.Close(s.T().Context(), rennes, opened.Add(time.Hour)))
+
+	s.Require().NoError(s.execute(5, rennes))
+
+	locked = false
+	s.ErrorIs(s.execute(6, rennes), clicks.ErrUnknownCountry)
+	owner, _ := s.storage.Owner(5)
+	s.Equal(rennes, owner)
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
