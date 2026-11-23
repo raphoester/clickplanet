@@ -35,7 +35,8 @@ and a fortify change no owner.
 - **The map before the ledger**, as `GetReplay`: a change made between the two reads is in the rows, and rewound.
 - **The rows from the ledger's head**: the head (`ledger_head`, the oldest position memory keeps, 72 hours back) bounds
   a range of the primary key. The read is `position >= head`, ordered by position; `plan_test.go` pins the primary key
-  and no sort. The rows before the window are read for the rewind to see through a drawing a revert forgot (below).
+  and no sort. The rows before the window are read for the rewind to see through a drawing a revert forgot (below), and
+  the erasure of the rows before the head is kept apart.
   `ledger.retention` must keep at least 24.5 hours: `ledger.Config.Validate` refuses less at boot.
 - **Postgres, not the ledger in memory.** Memory holds the same 72 hours, and `GetReplay` reads it. It is kept for the
   operator's tools and as the relay's outbox ([Durability](durability.md)); only the map is meant to live in memory,
@@ -44,6 +45,10 @@ and a fortify change no owner.
   it opens on what was under it, and a take back to that is none. Until then it was left out (`NOT forgotten`), and a
   drawing painted over before its revert opened whole on the first frame. See [A revert erases the takes it
   forgot](revert-erasure.md).
+- **Before the head too**: the rewind starts from the erasure of every row before the head (`world_replay.Erasures`,
+  since 2026-11-23), read from the last reset once and moved on with the head. Until then it started empty at the head,
+  and a drawing forgotten more than 72 hours before the window, painted over inside it, opened on its paint. See [The
+  erasure before the head](revert-erasure.md#the-erasure-before-the-head).
 - **A reset in the window** starts the history at the first step at or after it (`Recent.Wiped`), on the blank map:
   the map before the reset is gone. A reset after `until` leaves no frame at all.
 - **A switch of the world's board in the window** starts it the same way, at the first step at or after the start of
@@ -66,7 +71,8 @@ them all along. **The last second**, not flushed yet: a tile changed only in it 
 `recent_history_query.PostgresQuery` keeps the last answer with its step and what the reverts forgot
 (`forgetting.Forgetting`, read at each call), and builds the next one at the first call after a step or a revert: one
 build for every caller (`singleflight`; a caller that leaves does not stop it, 2 minutes at most). A
-failed build keeps nothing, and the next call builds again. The answer says `Cache-Control: public, max-age=N,
+failed build keeps nothing, and the next call builds again. The erasure before the head is kept apart, by the forgetting
+too: each build moves it on to the head, and the first build after a revert or a restart reads it from the reset. The answer says `Cache-Control: public, max-age=N,
 s-maxage=N`, N the seconds to the next step, so a browser asks again only once the next frame exists. A restart builds
 it again at the first call.
 
@@ -87,14 +93,17 @@ opened on, and that the frames played after it are the map now. The test fails a
 The changes did not grow with the board: they count clicks. With an account on each change it was 6.6 MB and 833 KB on
 `earth-1`. Kept with the accounts, the answer held ~34 MB of heap; a whole frame is now one `bytes` of 2 MB on
 `earth-2` in place of a million messages. Each call marshals it again: ~0.1-0.2 s on a laptop. A build over 470,000
-rows from the head (330,000 of them before the window) took 0.7 s.
+rows from the head (330,000 of them before the window) took 0.7 s. The erasure before the head costs 4 to 16 ms a build,
+and 3.6 to 15 s on the first one after a revert or a restart (a season of 3 million rows; see [the
+cost](revert-erasure.md#cost)).
 
 ## Tests
 
 `ledger/rewind_test.go` (the opening, the payloads of a spread, an enclose and a bomb, a tile changed twice and changed
 back, the step a change lands in, an arena), `ledger/recent_test.go` (the window on the UTC clock, a reset in it, the
 retention), `recent_history_query`'s postgres suite (the rewind from the rows and the map, a forgotten take, a drawing forgotten
-before the day and painted over in it, the step built again after a revert, a reset, a
+before the day and painted over in it, one forgotten before the head, the step built again after a revert, a revert that
+reads before the head again, a reset, a
 switch of the world's board in the day and after it, an arena that plays, one build per step for concurrent callers),
 `planetmessage`'s `history_test.go` (a whole map's bytes, one with nothing held, a whole frame and a frame of changes),
 `plan_test.go`, `size_test.go` on both boards and the handler's test (the header).

@@ -12,8 +12,8 @@ export const LIST_NAMES: readonly ListName[] = ["fight-the-most", "far-from-home
 // The ranks a carousel tells, between its cover and its last photo.
 export const LIST_LENGTH = 5
 
-// fought: the tiles it took from other flags and those they took from it. rival: the flag it fought the most tiles with.
-export type Fighting = {flag: string, fought: number, took: number, lost: number, rival: string, rivalTiles: number, country: string}
+// Ranked by took: a tile lost is no fight. rival: the flag it fought the most tiles with, both ways.
+export type Fighting = {flag: string, took: number, lost: number, rival: string, rivalTiles: number, country: string}
 
 export type FarLand = {flag: string, country: string, tiles: number, km: number}
 
@@ -71,14 +71,11 @@ function fightTheMostOf(fights: readonly TileChange[], groundOf: (tile: number) 
     const fought = foughtOf(fights)
     const took = tally(fought.map(({to}) => to))
     const lost = tally(fought.map(({from}) => from))
-    return ranked(tally(fought.flatMap(({from, to}) => [from, to]))).slice(0, LIST_LENGTH).map(([flag, tiles]) => {
+    return ranked(took).slice(0, LIST_LENGTH).map(([flag, tiles]) => {
         const its = fought.filter(({from, to}) => from === flag || to === flag)
         const [rival] = ranked(tally(its.map(({from, to}) => from === flag ? to : from)))
         const [where] = ranked(tally(its.flatMap(({tile}) => groundOf(tile) ?? [])))
-        return {
-            flag, fought: tiles, took: took.get(flag) ?? 0, lost: lost.get(flag) ?? 0, rival: rival[0], rivalTiles: rival[1],
-            country: where?.[0] ?? "",
-        }
+        return {flag, took: tiles, lost: lost.get(flag) ?? 0, rival: rival[0], rivalTiles: rival[1], country: where?.[0] ?? ""}
     })
 }
 
@@ -137,6 +134,6 @@ export function codeOf(entry: Entry): string {
 // The flag's tiles on the entry's country, or those it fought for there.
 export function aimedTilesOf(entry: Entry, ground: ListGround, fights: readonly TileChange[]): number[] {
     const there = (tile: number) => entry.country === "" || ground.groundOf(tile) === entry.country
-    if ("fought" in entry) return foughtOf(fights).flatMap(({tile, from, to}) => (from === entry.flag || to === entry.flag) && there(tile) ? [tile] : [])
+    if ("took" in entry) return foughtOf(fights).flatMap(({tile, from, to}) => (from === entry.flag || to === entry.flag) && there(tile) ? [tile] : [])
     return [...ground.owners].flatMap(([tile, owner]) => owner === entry.flag && there(tile) ? [tile] : [])
 }

@@ -108,9 +108,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     its time**: the cast's times are postgres's, the replay's the stream's.
   - **`lists`**, a carousel's (`domain/clip/lists.ts`, `listsOf`; the root's [The video lab](../../../docs/video-lab.md),
     "Photos, not a video"), each ranked, 5 entries at most: **`fightTheMost`**, the flags by the tiles they took from
-    other flags plus the tiles other flags took from them since `foughtSince` (3 days before the window's end, or the
-    replay's start), each with the flag it fought the most tiles with, both ways, and on which country's ground it
-    fought the most; **`farFromHome`**, each flag's land on another
+    other flags since `foughtSince` (3 days before the window's end, or the replay's start), alone: a tile lost is no
+    fight, so a flag that only lost is not ranked; each with the tiles it lost, the flag it fought the most tiles with,
+    both ways, and on which country's ground it fought the most; **`farFromHome`**, each flag's land on another
     country's ground, from its middle to the nearest ground of its own country (its ground read at 2,000 tiles at
     most), to the nearest 100 km, its farthest holding of `readableFlipTiles` at least each, ranked by that distance,
     the number its photo shows; and

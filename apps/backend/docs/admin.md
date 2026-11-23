@@ -79,10 +79,11 @@ eras](boards-and-eras.md)): the acts of the world's map on the board it plays, a
 - **`ledger.Footage` rewinds the map**: each tile opens on what it held before its first scene at or after `since`,
   owner and shields apart, and every other tile on the map now. It reads the scenes past `until` too, to rewind
   across them. The use case reads the map before the ledger, so a change made between the two reads is rewound.
-- **What a revert forgot is seen through**: memory's `Replay` reads the ledger as if the reverted caller never played
-  (`ledger.Erasure`), so a tile painted over a reverted drawing opens on what was under it, and the take back to that is
-  no scene. A revert writes no event: a tile it gave back opens as it is now. See [A revert erases the takes it
-  forgot](revert-erasure.md).
+- **What a revert forgot is seen through**: memory's `ReplayThrough` reads the ledger as if the reverted caller never
+  played (`ledger.Erasure`), from the erasure of every event before its head (`world_replay.KeptReplay`, since
+  2026-11-23), so a tile painted over a reverted drawing opens on what was under it, even when the drawing is older than
+  the 72 hours memory keeps, and the take back to that is no scene. A revert writes no event: a tile it gave back opens
+  as it is now. See [A revert erases the takes it forgot](revert-erasure.md#the-erasure-before-the-head).
 - **It is the world's map**: an act made while an arena's map played is left out, and each stretch of the window that
   played one is in `asides`. While an arena plays, it rewinds from the world's map as postgres keeps it. See [Arena
   battles](arenas.md#the-ledgers-readers).

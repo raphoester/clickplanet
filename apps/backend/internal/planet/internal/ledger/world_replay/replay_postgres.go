@@ -81,13 +81,25 @@ const events = `
 // Replay plays the plan's events, resets and cuts up to until on replayed, on the stage of its first era, and answers
 // the position after the last event it played.
 func (q *PostgresReplay) Replay(ctx context.Context, plan Plan, until time.Time, replayed ledger.Replayed) (ledger.Position, error) {
-	rows, err := q.db.On(ctx).QueryContext(ctx, events, plan.blank)
+	read, resets, cuts, err := q.play(ctx, replayed, plan.resets, plan.cuts, events, plan.blank)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read the ledger: %w", err)
+		return 0, err
+	}
+	changesUpTo(replayed, resets, cuts, until)
+	return read, nil
+}
+
+// play answers the position after the last event it played, and the resets and cuts after that event.
+func (q *PostgresReplay) play(
+	ctx context.Context, replayed ledger.Replayed, resets []time.Time, cuts []cut, query string, args ...any,
+) (ledger.Position, []time.Time, []cut, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, query, args...)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	resets, cuts, read := plan.resets, plan.cuts, ledger.Position(0)
+	read := ledger.Position(0)
 	for rows.Next() {
 		var (
 			position int64
@@ -95,7 +107,7 @@ func (q *PostgresReplay) Replay(ctx context.Context, plan Plan, until time.Time,
 		)
 		if err := rows.Scan(&position, &entry.Stage.Map, &entry.Stage.Board, &entry.Kind, &entry.Tile, &entry.Scope,
 			&entry.Account, &entry.Country, &entry.Previous, &entry.At, &entry.Payload, &entry.Forgotten); err != nil {
-			return 0, fmt.Errorf("failed to scan an event: %w", err)
+			return 0, nil, nil, fmt.Errorf("failed to scan an event: %w", err)
 		}
 		entry.At = entry.At.UTC()
 		if replayed.Done(entry) {
@@ -103,15 +115,14 @@ func (q *PostgresReplay) Replay(ctx context.Context, plan Plan, until time.Time,
 		}
 		resets, cuts = changesUpTo(replayed, resets, cuts, entry.At)
 		if err := replayed.Record(entry); err != nil {
-			return 0, fmt.Errorf("failed to replay an event: %w", err)
+			return 0, nil, nil, fmt.Errorf("failed to replay an event: %w", err)
 		}
 		read = ledger.Position(position) + 1 //nolint:gosec // CHECK (position >= 0).
 	}
 	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("failed to read the ledger: %w", err)
+		return 0, nil, nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}
-	changesUpTo(replayed, resets, cuts, until)
-	return read, nil
+	return read, resets, cuts, nil
 }
 
 func (q *PostgresReplay) cutsOf(all []eras.Era) ([]cut, error) {
