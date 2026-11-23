@@ -363,13 +363,25 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 }
 
 func (s *Storage) Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position {
+	end, _ := s.ReplayThrough(func(ledger.Position) (*ledger.Erasure, error) { return ledger.NewErasure(), nil }, see)
+	return end
+}
+
+// ReplayThrough reads the events from the head on through erased(head): the erasure of every event before the head.
+func (s *Storage) ReplayThrough(
+	erased func(head ledger.Position) (*ledger.Erasure, error), see func(on clicks.Stage, event ledger.Event),
+) (ledger.Position, error) {
 	s.mu.Lock()
-	views := s.viewsLocked(0)
+	head := s.headPositionLocked()
+	views := s.viewsLocked(head)
 	end := s.next
 	forgotten := maps.Clone(s.forgotten)
 	s.mu.Unlock()
 
-	erasure := ledger.NewErasure()
+	erasure, err := erased(head)
+	if err != nil {
+		return 0, err
+	}
 	for _, v := range views {
 		payloads := v.payloads
 		for i := range v.records {
@@ -389,7 +401,7 @@ func (s *Storage) Replay(see func(on clicks.Stage, event ledger.Event)) ledger.P
 		}
 	}
 
-	return end
+	return end, nil
 }
 
 // Only what postgres holds, so a take a hard kill loses is never told; answers the position to read from next.

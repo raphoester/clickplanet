@@ -387,7 +387,7 @@ func TestAPromptOver100KTokensIsBilledFiveTimesOver(t *testing.T) {
 func carouselOffer() posts.Offer {
 	listed := offer
 	listed.Findings.Lists = posts.Lists{
-		FightTheMost:   []posts.FightEntry{{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"}},
+		FightTheMost:   []posts.FightEntry{{Flag: "fr", Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"}},
 		FarFromHome:    []posts.FarLandEntry{{Flag: "hu", Country: "id", Tiles: 2100, Km: 10400}},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
 		FoughtSince:    time.Date(2026, 10, 23, 20, 29, 0, 0, time.UTC),
@@ -410,7 +410,7 @@ func TestACarouselsPromptGivesTheListsAndEachCarouselToldWithItsListAndRanks(t *
 	assert.Equal(t, "carousel", written["lab"].(map[string]any)["format"])
 	assert.Equal(t, map[string]any{
 		"fight-the-most": []any{map[string]any{
-			"flag": "fr", "fought": float64(41200), "took": float64(30000), "lost": float64(11200), "rival": "pw", "rivalTiles": float64(9000),
+			"flag": "fr", "took": float64(30000), "lost": float64(11200), "rival": "pw", "rivalTiles": float64(9000),
 			"country": "fr",
 		}},
 		"far-from-home":   []any{map[string]any{"flag": "hu", "country": "id", "tiles": float64(2100), "km": float64(10400)}},

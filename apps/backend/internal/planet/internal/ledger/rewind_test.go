@@ -19,7 +19,7 @@ const (
 
 func rewind(t *testing.T, world clicks.Stage, events ...ledger.Event) *ledger.Rewind {
 	t.Helper()
-	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, world)
+	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, world, ledger.NewErasure())
 	require.NoError(t, err)
 	for _, event := range events {
 		recordAt(t, rewound, world, event)
@@ -162,7 +162,7 @@ func TestARewindLeavesOutWhatWasPlayedOnAnArenasMapOrAnotherBoard(t *testing.T) 
 }
 
 func TestARewindOfNoTimeIsTheMapAlone(t *testing.T) {
-	rewound, err := ledger.NewRewind(historySince, historySince, time.Hour, clicks.WorldStage)
+	rewound, err := ledger.NewRewind(historySince, historySince, time.Hour, clicks.WorldStage, ledger.NewErasure())
 	require.NoError(t, err)
 	recordAt(t, rewound, clicks.WorldStage, takeBy(ada, 1, "fr", "de", historySince))
 
@@ -171,14 +171,14 @@ func TestARewindOfNoTimeIsTheMapAlone(t *testing.T) {
 }
 
 func TestARewindStartsNoLaterThanItEndsAndMovesByAStep(t *testing.T) {
-	_, err := ledger.NewRewind(historyUntil, historySince, time.Hour, clicks.WorldStage)
+	_, err := ledger.NewRewind(historyUntil, historySince, time.Hour, clicks.WorldStage, ledger.NewErasure())
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
-	_, err = ledger.NewRewind(historySince, historyUntil, 0, clicks.WorldStage)
+	_, err = ledger.NewRewind(historySince, historyUntil, 0, clicks.WorldStage, ledger.NewErasure())
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
 }
 
 func TestARewindOpensATilePaintedOverAForgottenDrawingOnWhatItShowedBeneath(t *testing.T) {
-	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, clicks.WorldStage, ledger.NewErasure())
 	require.NoError(t, err)
 	for _, entry := range []ledger.Entry{
 		forgottenEntry(t, takeBy(vandal, 1, "ie", "cn", historySince.Add(-time.Hour))),
@@ -198,4 +198,24 @@ func TestARewindOpensATilePaintedOverAForgottenDrawingOnWhatItShowedBeneath(t *t
 		2: {Country: "fr", At: historySince.Add(10 * time.Minute)}, 3: {Country: "fr", At: historySince.Add(10 * time.Minute)},
 	}, frames[1].Owners)
 	assert.Equal(t, map[uint32]uint32{2: 1, 3: 1}, rewound.Hits())
+}
+
+func TestARewindFromAnErasureSeesThroughADrawingForgottenBeforeItsFirstEntry(t *testing.T) {
+	erased := ledger.NewErasure()
+	readThrough(t, erased,
+		forgottenEntry(t, takeBy(vandal, 1, "ie", "cn", historySince.Add(-80*time.Hour))),
+		forgottenEntry(t, takeBy(vandal, 2, "ie", "cn", historySince.Add(-80*time.Hour))),
+	)
+	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, clicks.WorldStage, erased)
+	require.NoError(t, err)
+	recordAt(t, rewound, clicks.WorldStage,
+		takeBy(ada, 1, "cn", "ie", historySince.Add(10*time.Minute)),
+		takeBy(bob, 2, "cn", "fr", historySince.Add(10*time.Minute)),
+	)
+
+	frames := rewound.Frames(mapNow("ie", "fr"))
+	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "ie"}, 2: {Country: "ie"}}, frames[0].Owners,
+		"the drawing the head left behind opens on what was under it")
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "fr", At: historySince.Add(10 * time.Minute)}}, frames[1].Owners)
+	assert.Equal(t, map[uint32]uint32{2: 1}, rewound.Hits())
 }

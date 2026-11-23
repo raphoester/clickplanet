@@ -43,7 +43,6 @@ type Lists struct {
 
 type FightEntry struct {
 	Flag       string
-	Fought     int
 	Took       int
 	Lost       int
 	Rival      string
@@ -86,11 +85,11 @@ func (l Lists) codesOf(list ListName) ([]string, error) {
 	}
 }
 
-// What each entry is ranked by, the top first: the number its photo shows, or for fight-the-most the sum of its two.
+// What each entry is ranked by, the top first: the number its photo shows, for fight-the-most the first of its two.
 func (l Lists) measuresOf(list ListName) ([]float64, error) {
 	switch list {
 	case FightTheMost:
-		return eachOf(l.FightTheMost, func(entry FightEntry) float64 { return float64(entry.Took + entry.Lost) }), nil
+		return eachOf(l.FightTheMost, func(entry FightEntry) float64 { return float64(entry.Took) }), nil
 	case FarFromHome:
 		return eachOf(l.FarFromHome, func(entry FarLandEntry) float64 { return float64(entry.Km) }), nil
 	case BiggestEmpires:
