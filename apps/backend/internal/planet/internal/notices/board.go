@@ -31,14 +31,13 @@ type RallyCalled struct {
 	Left  time.Duration
 }
 
-// Event is one notice: a spread, what a grant added to an account's hand and all it holds after, a mine laid, a
-// rally called, or a flag opened or closed.
+// Event is one notice: a spread, what a grant added to an account's hand and all it holds after, a mine laid, or a
+// rally called.
 type Event struct {
-	Spread       *Spread
-	Granted      *charges.Gain
-	MineLaid     *MineLaid
-	Rally        *RallyCalled
-	FlagsChanged bool
+	Spread   *Spread
+	Granted  *charges.Gain
+	MineLaid *MineLaid
+	Rally    *RallyCalled
 }
 
 const buffer = 32
@@ -117,11 +116,6 @@ func (b *Board) PublishGranted(holder charges.Holder, gain charges.Gain) {
 // A rally reaches every stream: every flag sees the ring.
 func (b *Board) PublishRally(called RallyCalled) {
 	b.send(func(stream) bool { return true }, Event{Rally: &called})
-}
-
-// A flag opened or closed reaches every stream: each page reads the list of flags again.
-func (b *Board) PublishFlagsChanged() {
-	b.send(func(stream) bool { return true }, Event{FlagsChanged: true})
 }
 
 // A mine laid reaches only the streams of the players of its flag: the others never learn of it.

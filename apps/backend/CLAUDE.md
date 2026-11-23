@@ -181,7 +181,7 @@ and says what is in it. Read the doc before you change its area.
 - [The flags module](docs/flags.md) — the catalog: the flags the game ships with (the page's file, `make flags`) and the
   ones opened since (`r-` ids, closed never deleted); `FlagOpened` and `FlagClosed` through its outbox and again at
   each boot; the catalog planet, the chat, scoring and player keep from them (`cpflags`, playable or known), a closed
-  flag refused for a click and a pledge, planet's `FlagsChanged` to the page, the alerts' roles for built-in flags alone,
+  flag refused for a click and a pledge, its own stream to the page (`flag_changed`), the alerts' roles for built-in flags alone,
   `ListFlags`; the open and close use cases only tests call until step 2.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal

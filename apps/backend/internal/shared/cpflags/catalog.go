@@ -13,27 +13,16 @@ type Store interface {
 	Change(ctx context.Context, flag string, change func(Heard) Heard) error
 }
 
-// Teller is told each time a fact changed what the catalog holds: a fact told again tells nothing.
-type Teller interface {
-	FlagsChanged()
-}
-
-// Quiet tells nobody.
-type Quiet struct{}
-
-func (Quiet) FlagsChanged() {}
-
 const readTimeout = time.Second
 
-func NewCatalog(store Store, teller Teller) Catalog {
-	return Catalog{store: store, teller: teller}
+func NewCatalog(store Store) Catalog {
+	return Catalog{store: store}
 }
 
 // Catalog is the flags one module knows: the ones the game ships with, and the ones it heard opened or closed since
 // (flags.v1.FlagOpened, FlagClosed), kept in its own schema.
 type Catalog struct {
-	store  Store
-	teller Teller
+	store Store
 }
 
 // A player may play for a flag the game ships with, or for one opened and not closed since.
@@ -79,16 +68,8 @@ func (c Catalog) Close(ctx context.Context, flag string, at time.Time) error {
 }
 
 func (c Catalog) change(ctx context.Context, flag string, change func(Heard) Heard) error {
-	changed := false
-	if err := c.store.Change(ctx, flag, func(before Heard) Heard {
-		after := change(before)
-		changed = after != before
-		return after
-	}); err != nil {
+	if err := c.store.Change(ctx, flag, change); err != nil {
 		return fmt.Errorf("failed to keep what was heard of the flag %q: %w", flag, err)
-	}
-	if changed {
-		c.teller.FlagsChanged()
 	}
 	return nil
 }

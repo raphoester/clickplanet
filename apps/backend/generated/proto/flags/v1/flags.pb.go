@@ -102,6 +102,161 @@ func (x *ListFlagsResponse) GetFlags() []*Flag {
 	return nil
 }
 
+type ListenForEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
+	mi := &file_flags_v1_flags_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForEventsRequest) ProtoMessage() {}
+
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{2}
+}
+
+type FlagEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*FlagEvent_Heartbeat
+	//	*FlagEvent_FlagChanged
+	Event         isFlagEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlagEvent) Reset() {
+	*x = FlagEvent{}
+	mi := &file_flags_v1_flags_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlagEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlagEvent) ProtoMessage() {}
+
+func (x *FlagEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlagEvent.ProtoReflect.Descriptor instead.
+func (*FlagEvent) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FlagEvent) GetEvent() isFlagEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *FlagEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*FlagEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+func (x *FlagEvent) GetFlagChanged() *Flag {
+	if x != nil {
+		if x, ok := x.Event.(*FlagEvent_FlagChanged); ok {
+			return x.FlagChanged
+		}
+	}
+	return nil
+}
+
+type isFlagEvent_Event interface {
+	isFlagEvent_Event()
+}
+
+type FlagEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,1,opt,name=heartbeat,proto3,oneof"`
+}
+
+type FlagEvent_FlagChanged struct {
+	// A flag opened or closed, as the catalog holds it now.
+	FlagChanged *Flag `protobuf:"bytes,2,opt,name=flag_changed,json=flagChanged,proto3,oneof"`
+}
+
+func (*FlagEvent_Heartbeat) isFlagEvent_Event() {}
+
+func (*FlagEvent_FlagChanged) isFlagEvent_Event() {}
+
+type Heartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Heartbeat) Reset() {
+	*x = Heartbeat{}
+	mi := &file_flags_v1_flags_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Heartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Heartbeat) ProtoMessage() {}
+
+func (x *Heartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
+func (*Heartbeat) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{4}
+}
+
 type Flag struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
@@ -117,7 +272,7 @@ type Flag struct {
 
 func (x *Flag) Reset() {
 	*x = Flag{}
-	mi := &file_flags_v1_flags_proto_msgTypes[2]
+	mi := &file_flags_v1_flags_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -129,7 +284,7 @@ func (x *Flag) String() string {
 func (*Flag) ProtoMessage() {}
 
 func (x *Flag) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_flags_proto_msgTypes[2]
+	mi := &file_flags_v1_flags_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -142,7 +297,7 @@ func (x *Flag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Flag.ProtoReflect.Descriptor instead.
 func (*Flag) Descriptor() ([]byte, []int) {
-	return file_flags_v1_flags_proto_rawDescGZIP(), []int{2}
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Flag) GetCode() string {
@@ -173,13 +328,20 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\x14flags/v1/flags.proto\x12\bflags.v1\"\x12\n" +
 	"\x10ListFlagsRequest\"9\n" +
 	"\x11ListFlagsResponse\x12$\n" +
-	"\x05flags\x18\x01 \x03(\v2\x0e.flags.v1.FlagR\x05flags\"F\n" +
+	"\x05flags\x18\x01 \x03(\v2\x0e.flags.v1.FlagR\x05flags\"\x18\n" +
+	"\x16ListenForEventsRequest\"~\n" +
+	"\tFlagEvent\x123\n" +
+	"\theartbeat\x18\x01 \x01(\v2\x13.flags.v1.HeartbeatH\x00R\theartbeat\x123\n" +
+	"\fflag_changed\x18\x02 \x01(\v2\x0e.flags.v1.FlagH\x00R\vflagChangedB\a\n" +
+	"\x05event\"\v\n" +
+	"\tHeartbeat\"F\n" +
 	"\x04Flag\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06closed\x18\x03 \x01(\bR\x06closed2X\n" +
+	"\x06closed\x18\x03 \x01(\bR\x06closed2\xa4\x01\n" +
 	"\vFlagService\x12I\n" +
-	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01B\xab\x01\n" +
+	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01\x12J\n" +
+	"\x0fListenForEvents\x12 .flags.v1.ListenForEventsRequest\x1a\x13.flags.v1.FlagEvent0\x01B\xab\x01\n" +
 	"\fcom.flags.v1B\n" +
 	"FlagsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
@@ -195,21 +357,28 @@ func file_flags_v1_flags_proto_rawDescGZIP() []byte {
 	return file_flags_v1_flags_proto_rawDescData
 }
 
-var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_flags_v1_flags_proto_goTypes = []any{
-	(*ListFlagsRequest)(nil),  // 0: flags.v1.ListFlagsRequest
-	(*ListFlagsResponse)(nil), // 1: flags.v1.ListFlagsResponse
-	(*Flag)(nil),              // 2: flags.v1.Flag
+	(*ListFlagsRequest)(nil),       // 0: flags.v1.ListFlagsRequest
+	(*ListFlagsResponse)(nil),      // 1: flags.v1.ListFlagsResponse
+	(*ListenForEventsRequest)(nil), // 2: flags.v1.ListenForEventsRequest
+	(*FlagEvent)(nil),              // 3: flags.v1.FlagEvent
+	(*Heartbeat)(nil),              // 4: flags.v1.Heartbeat
+	(*Flag)(nil),                   // 5: flags.v1.Flag
 }
 var file_flags_v1_flags_proto_depIdxs = []int32{
-	2, // 0: flags.v1.ListFlagsResponse.flags:type_name -> flags.v1.Flag
-	0, // 1: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	1, // 2: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 0: flags.v1.ListFlagsResponse.flags:type_name -> flags.v1.Flag
+	4, // 1: flags.v1.FlagEvent.heartbeat:type_name -> flags.v1.Heartbeat
+	5, // 2: flags.v1.FlagEvent.flag_changed:type_name -> flags.v1.Flag
+	0, // 3: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	2, // 4: flags.v1.FlagService.ListenForEvents:input_type -> flags.v1.ListenForEventsRequest
+	1, // 5: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	3, // 6: flags.v1.FlagService.ListenForEvents:output_type -> flags.v1.FlagEvent
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_flags_proto_init() }
@@ -217,13 +386,17 @@ func file_flags_v1_flags_proto_init() {
 	if File_flags_v1_flags_proto != nil {
 		return
 	}
+	file_flags_v1_flags_proto_msgTypes[3].OneofWrappers = []any{
+		(*FlagEvent_Heartbeat)(nil),
+		(*FlagEvent_FlagChanged)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_flags_proto_rawDesc), len(file_flags_v1_flags_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

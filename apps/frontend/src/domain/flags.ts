@@ -18,13 +18,14 @@ export class FlagCatalog {
     ) {
     }
 
-    // A flag the game ships with keeps the page's own names.
-    withList(listed: readonly ListedFlag[]): FlagCatalog {
-        const opened = new Map<string, string>()
-        const closed = new Set<string>()
-        for (const {code, name, closed: shut} of listed) {
+    // Each flag as it is now, in order, over the catalog. A flag the game ships with keeps the page's own names.
+    withFlags(flags: readonly ListedFlag[]): FlagCatalog {
+        const opened = new Map(this.opened)
+        const closed = new Set(this.closed)
+        for (const {code, name, closed: shut} of flags) {
             if (!Countries.has(code)) opened.set(code, name)
             if (shut) closed.add(code)
+            else closed.delete(code)
         }
         return new FlagCatalog(opened, closed)
     }

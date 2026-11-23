@@ -448,7 +448,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shownNames: new FakeShownNames(fakeNameplates),
         landings: localLandingStore(),
         flags: fakeFlags,
-        flagChanges: fakeFlags,
     })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config), boards)
@@ -518,6 +517,5 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shownNames: clips,
         landings: localLandingStore(),
         flags: new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true)),
-        flagChanges: backend,
     })
 }

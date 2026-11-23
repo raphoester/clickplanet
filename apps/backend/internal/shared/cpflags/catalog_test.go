@@ -33,7 +33,7 @@ func answersOf(t *testing.T, catalog cpflags.Catalog, flag string) answers {
 }
 
 func TestAFlagTheGameShipsWithIsPlayable(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	for _, flag := range []string{"fr", "xb", "gb-eng"} {
 		assert.Equal(t, answers{playable: true, known: true}, answersOf(t, catalog, flag), flag)
@@ -41,14 +41,14 @@ func TestAFlagTheGameShipsWithIsPlayable(t *testing.T) {
 }
 
 func TestAFlagNoFactNamedIsUnknown(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	assert.Equal(t, answers{}, answersOf(t, catalog, brittanyCity))
 	assert.Equal(t, answers{}, answersOf(t, catalog, "zz"))
 }
 
 func TestAFlagHeardOpenedIsPlayable(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened))
 
@@ -56,7 +56,7 @@ func TestAFlagHeardOpenedIsPlayable(t *testing.T) {
 }
 
 func TestAFlagHeardClosedIsKnownAndNotPlayable(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened))
 	require.NoError(t, catalog.Close(t.Context(), brittanyCity, closed))
@@ -65,7 +65,7 @@ func TestAFlagHeardClosedIsKnownAndNotPlayable(t *testing.T) {
 }
 
 func TestTheLatestFactHoldsWhateverOrderTheyAreHeardIn(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.NoError(t, catalog.Close(t.Context(), brittanyCity, closed))
 	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened))
@@ -75,7 +75,7 @@ func TestTheLatestFactHoldsWhateverOrderTheyAreHeardIn(t *testing.T) {
 }
 
 func TestAFlagOpenedAgainAfterItsCloseIsPlayable(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened))
 	require.NoError(t, catalog.Close(t.Context(), brittanyCity, closed))
@@ -84,23 +84,11 @@ func TestAFlagOpenedAgainAfterItsCloseIsPlayable(t *testing.T) {
 	assert.Equal(t, answers{playable: true, known: true}, answersOf(t, catalog, brittanyCity))
 }
 
-func TestOnlyAFactThatChangesTheCatalogIsTold(t *testing.T) {
-	told := &cpflags.Recorder{}
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), told)
-
-	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened))
-	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened), "told again, at each boot")
-	require.NoError(t, catalog.Close(t.Context(), brittanyCity, closed))
-	require.NoError(t, catalog.Open(t.Context(), brittanyCity, opened), "older than the close")
-
-	assert.Equal(t, 2, told.Told())
-}
-
 func TestAStoreThatCannotBeReadAnswersNothing(t *testing.T) {
 	store := cpflags.NewMemoryStore()
 	broken := errors.New("postgres is down")
 	store.FailWith(broken)
-	catalog := cpflags.NewCatalog(store, cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(store)
 
 	_, err := catalog.Playable(t.Context(), brittanyCity)
 	require.ErrorIs(t, err, broken)

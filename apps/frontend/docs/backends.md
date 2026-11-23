@@ -31,10 +31,8 @@ two halves of a public card side by side (see [Who is playing](who-is-playing.md
 `support.ts` is what a player sends the operator —
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
 clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's Discord server, which a Discord sign-in joins — see [Discord pings](discord-alerts.md).
-`flags.ts` is the list of flags: `FlagLister` and `FlagChanges`, what says it changed. `flagsBackend.ts` implements
-`FlagLister` against `flags.v1.FlagService` with two clients, one past the browser's cache; `PlanetBackend` implements
-`FlagChanges` (`flags_changed`, and each stream that comes back), and `FakeFlagsBackend` both in fake mode (see [The
-list of flags](flag-catalog.md)).
+`flags.ts` is the list of flags: `FlagLister` and `FlagStream`. `flagsBackend.ts` implements both against
+`flags.v1.FlagService`, and `FakeFlagsBackend` both in fake mode (see [The flags stream](#the-flags-stream)).
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
 stream's notice that another account played from the connection, and `NoticeAcknowledger`.
@@ -88,8 +86,7 @@ the meantime is gone. So `openStream` calls `onResumed` on the first message of
 a connection when an earlier one had been live, and the chat reads its history
 again there. The planet's first message on each connection is a heartbeat with
 the map's version, which `listenForOpenings` hands the globe (see below), and on a resumed one the planet reads
-`GetBudget` and `GetChargeRules` again and tells its flags' listeners, since a `rulesChanged` or a `flagsChanged` may
-have fallen in the gap. The roster and the board need
+`GetBudget` and `GetChargeRules` again, since a `rulesChanged` may have fallen in the gap. The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 
@@ -357,6 +354,28 @@ construction through `openStream`, as the boxes'.
   takes the first after a right answer as its reward ([Quizzes](quizzes.md)).
 - **One more stream on the page**, which the bonuses module's, gone on 2026-11-15, offsets. Fine in production on
   HTTP/2; locally, on plain HTTP/1.1, the browser's six connections are already full.
+
+## The flags stream
+
+**The flags come on a stream of the flags module's** (2026-11-23): `flags.v1.FlagService/ListenForEvents`, which sends
+`FlagEvent`: a heartbeat at once and every 30 s, and `flag_changed`, a flag opened or closed while the stream is open, as
+the catalog holds it now. `ConnectFlagsBackend.listenForFlags` opens it through `openStream` while the flags store
+listens (`useFlagsFeed`). It carries no token: it is the same for every page.
+
+- **Each connection's first message says the stream opened** (`onOpened`), the first connection's included. The store
+  then reads `ListFlags` again past the cache: nothing told before the stream opened is sent again, so a read covers
+  what changed while it was closed, and the race between the load read and the stream's opening.
+- **`flag_changed` goes into the catalog with no read** (`flagChangedOf`, `onChanged`). Any other case is a heartbeat, or
+  one this build does not know, and is dropped.
+- **A server with no flags module** answers `Unimplemented`: the stream stops for good (`stopsOn`), and `ListFlags`
+  lists none.
+- **One more stream on the page: seven for a guest.** Fine in production on HTTP/2. Locally, on plain HTTP/1.1, a guest
+  page already held six, which fill Chrome's six connections to a host: the flags stream waits for one, and so does
+  every unary call.
+- **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, and tells each `openFlag(name)` and
+  `closeFlag(code)` as `flag_changed`. The archive page opens no stream: it reads the list once.
+
+See [The list of flags](flag-catalog.md).
 
 ## Connection health
 

@@ -56,7 +56,6 @@ import {
     PlanetEvent,
     ReachRefusal,
     RulesChanged,
-    FlagsChanged,
     SharedWith,
     TilesEnclosed,
     TileHolder as TileHolderMessage,
@@ -721,39 +720,6 @@ describe("PlanetBackend click budget", () => {
         await vi.waitFor(() => expect(sizes.at(-1)).toBe(35))
         expect(listenForEvents).toHaveBeenCalledTimes(2)
         stop()
-        backend.close()
-    })
-
-    it("tells the flags' listeners on flagsChanged, and on a stream that comes back", async () => {
-        const heartbeat = new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
-        let open: (() => void) | undefined
-        let drop: (() => void) | undefined
-        const listenForEvents = vi.fn()
-            .mockImplementationOnce(async function* () {
-                yield heartbeat
-                await new Promise<void>(resolve => open = resolve)
-                yield new PlanetEvent({event: {case: "flagsChanged", value: new FlagsChanged()}})
-                await new Promise<void>(resolve => drop = resolve)
-            })
-            .mockImplementationOnce(async function* () {
-                yield heartbeat
-                await new Promise(() => {})
-            })
-        const backend = new PlanetBackend(
-            {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents} as never,
-            1_000)
-        const changed = vi.fn()
-        backend.listenForFlagChanges(changed)
-        await vi.waitFor(() => expect(open).toBeDefined())
-        expect(changed).not.toHaveBeenCalled()
-
-        open?.()
-        await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1))
-
-        await vi.waitFor(() => expect(drop).toBeDefined())
-        drop?.()
-        await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(2), {timeout: 3_000})
-        expect(listenForEvents).toHaveBeenCalledTimes(2)
         backend.close()
     })
 

@@ -12,7 +12,7 @@ import (
 )
 
 func TestAFlagOpenedIsPlayableOnceHeard(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.NoError(t, cpflags.NewOpenedHandler(catalog).Handle(t.Context(),
 		&flagsv1.FlagOpened{Flag: brittanyCity, Name: "Rennes", OpenedAt: timestamppb.New(opened)}))
@@ -30,7 +30,7 @@ func TestAFlagClosedIsNoLongerPlayableOnceHeard(t *testing.T) {
 }
 
 func TestAFactThatNamesNoFlagIsRefused(t *testing.T) {
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 
 	require.ErrorIs(t, cpflags.NewOpenedHandler(catalog).Handle(t.Context(), &flagsv1.FlagOpened{}), cpflags.ErrNoFlag)
 	require.ErrorIs(t, cpflags.NewClosedHandler(catalog).Handle(t.Context(), &flagsv1.FlagClosed{}), cpflags.ErrNoFlag)

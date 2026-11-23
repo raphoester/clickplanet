@@ -184,7 +184,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 	limits := messages.NewLimits(config.Service.MaxTextLength).WithBanned(
 		messages.NewBanned(slices.Concat(messages.DefaultBannedPhrases, config.Service.BannedPhrases)...))
-	catalog := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewPostgresStore(db))
 	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, catalog, rooms)
 	thread := messages.NewThread(messageStore, cptime.SystemClock{}, window)
 

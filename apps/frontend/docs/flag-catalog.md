@@ -14,23 +14,25 @@ is `r-` and ten letters or digits (`isOpenedCode`). None is opened yet (2026-11-
 - **A closed flag stays known**: history and the boards still name it. But no player may play for it, so it is not in
   `playableCodes`, and the backend refuses a click or a pledge for it as for an unknown flag.
 - **The store** (`useFlags`, `app/flags/flagsStore.ts`) holds the catalog. `useFlagsFeed`, which `PlayScreen` calls,
-  serves it `Backends.flags` (`ConnectFlagsBackend`, or `FakeFlagsBackend` in fake mode) and listens to
-  `Backends.flagChanges` (planet's stream). The archive page serves it alone: it reads the list once, with no stream.
+  serves it `Backends.flags` (`ConnectFlagsBackend`, or `FakeFlagsBackend` in fake mode) and listens to the flags
+  module's stream through it (see [backends.md](backends.md#the-flags-stream)). The archive page serves it alone: it
+  reads the list once, with no stream.
 
 ## When the page reads the list
 
 - **At load**, once.
-- **On `flags_changed`**, planet's `FlagsChanged` event, and **when planet's stream comes back after a gap**, as for
-  `rulesChanged`: a gap may hide one.
+- **Each time the flags stream opens**, the first time included: nothing told before it opened is sent again.
+- **Not on `flag_changed`**: the stream tells the flag as it is now, and the store merges it with no read. A flag told
+  during a read is merged again over that read's answer, which may predate it.
 - **When a lookup meets a code the catalog does not know**: the name of an opened code (`translator().country`), a
   `CountryFlag` with no picture, and `knowsFlag`.
-- **At most one read is in flight.** A change during a read queues one more read after it, never two. A code missed
+- **At most one read is in flight.** A stream opening during a read queues one more read after it, never two. A code missed
   during a read waits for that read.
 - **A code reads the list once.** A code still unknown after its read never starts another one. On 2026-10-31 a new
   enum value made old tabs reconnect every 500 ms, so an unknown flag must not loop like that (see
   [backends.md](backends.md)).
 - **The load read may come from the browser's cache. Every later read goes past it** (a second client, with
-  `cache: "no-cache"`): it reads because the list changed.
+  `cache: "no-cache"`): it reads because the list may have changed.
 - **A read that fails keeps the flags the page knows**, and logs. A server with no flags module answers
   `Unimplemented`, which lists none: the built-in flags stay.
 
@@ -63,7 +65,7 @@ Each place that looks up a flag by its code survives a code it does not know.
 
 ## In fake mode
 
-`openFlag("Bavaria")` on the console opens a flag and `closeFlag(code)` closes it. Each tells the store as planet's
+`openFlag("Bavaria")` on the console opens a flag and `closeFlag(code)` closes it. Each tells the store as the flags
 stream would.
 
 ## Not built yet

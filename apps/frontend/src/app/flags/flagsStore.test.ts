@@ -72,7 +72,7 @@ describe("the flags store", () => {
         expect(lister.listFlags).toHaveBeenCalledTimes(1)
     })
 
-    it("reads again past the cache when the list changes, once more behind a read in flight, and no more", async () => {
+    it("reads again past the cache each time the stream opens, once more behind a read in flight, and no more", async () => {
         const lister = listOnHold()
         useFlags.getState().serve(lister)
 
@@ -118,19 +118,55 @@ describe("the flags store", () => {
         expect(useFlags.getState().read).toBe(false)
     })
 
-    it("follows the fake's flags as planet's stream would tell them", async () => {
+    it("takes a flag the stream tells with no read", async () => {
+        const lister = listOnHold()
+        useFlags.getState().serve(lister)
+        await lister.answer([])
+
+        useFlags.getState().told(BAVARIA)
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
+        expect(ENGLISH_TRANSLATOR.country(BAVARIA.code)).toBe("Bavaria")
+
+        useFlags.getState().told({...BAVARIA, closed: true})
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(false)
+        expect(flagCatalog().knows(BAVARIA.code)).toBe(true)
+        expect(lister.listFlags).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps what the stream told during a read over that read's answer, which may predate it", async () => {
+        const lister = listOnHold()
+        useFlags.getState().serve(lister)
+        await lister.answer([])
+
+        useFlags.getState().changed()
+        useFlags.getState().told(BAVARIA)
+        await lister.answer([])
+
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
+
+        useFlags.getState().changed()
+        useFlags.getState().told({...BAVARIA, closed: true})
+        await lister.answer([BAVARIA])
+
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(false)
+    })
+
+    it("follows the fake's flags as the flags' stream would tell them, reading once more as it opens", async () => {
         const fake = new FakeFlagsBackend()
-        useFlags.getState().serve(fake)
-        const stop = fake.listenForFlagChanges(useFlags.getState().changed)
-        await vi.waitFor(() => expect(useFlags.getState().read).toBe(true))
+        const listFlags = vi.spyOn(fake, "listFlags")
+        const {serve, changed, told} = useFlags.getState()
+        serve(fake)
+        const stop = fake.listenForFlags({onOpened: changed, onChanged: told})
+        await vi.waitFor(() => expect(listFlags.mock.calls).toEqual([[false], [true]]))
 
         const code = fake.open("Bavaria")
-        await vi.waitFor(() => expect(flagCatalog().playable(code)).toBe(true))
+        expect(flagCatalog().playable(code)).toBe(true)
         expect(ENGLISH_TRANSLATOR.country(code)).toBe("Bavaria")
 
         fake.close(code)
-        await vi.waitFor(() => expect(flagCatalog().playable(code)).toBe(false))
+        expect(flagCatalog().playable(code)).toBe(false)
         expect(flagCatalog().knows(code)).toBe(true)
+        expect(listFlags).toHaveBeenCalledTimes(2)
         stop()
     })
 })

@@ -203,7 +203,7 @@ func TestTheViewIsLeftWhenTheStreamCloses(t *testing.T) {
 
 func TestTheBoardOfAFlagOpenedWhileTheServerRunsIsSent(t *testing.T) {
 	const rennes = "r-k3p9x2ma0b"
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 	feeds := newFeeds()
 	view := board_query.View{Book: "season-0", Country: rennes}
 	feeds.boards.of(view) <- board("Ana")

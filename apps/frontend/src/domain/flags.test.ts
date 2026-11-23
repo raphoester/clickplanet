@@ -25,7 +25,7 @@ describe("FlagCatalog", () => {
     })
 
     it("learns an opened flag and its English name from the list, after the built-in ones", () => {
-        const catalog = FlagCatalog.BUILT_IN.withList([{code: "fr", name: "France", closed: false}, BAVARIA])
+        const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "fr", name: "France", closed: false}, BAVARIA])
 
         expect(catalog.knows(BAVARIA.code)).toBe(true)
         expect(catalog.playable(BAVARIA.code)).toBe(true)
@@ -35,12 +35,12 @@ describe("FlagCatalog", () => {
     })
 
     it("leaves a built-in flag's name to the page's language", () => {
-        const catalog = FlagCatalog.BUILT_IN.withList([{code: "fr", name: "Frankreich", closed: false}])
+        const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "fr", name: "Frankreich", closed: false}])
         expect(catalog.openedName("fr")).toBeUndefined()
     })
 
     it("knows a closed flag, which history names, but lets nobody play it", () => {
-        const catalog = FlagCatalog.BUILT_IN.withList([{code: "de", name: "Germany", closed: true}, SAVOY])
+        const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "de", name: "Germany", closed: true}, SAVOY])
 
         for (const code of ["de", SAVOY.code]) {
             expect(catalog.knows(code)).toBe(true)
@@ -51,7 +51,21 @@ describe("FlagCatalog", () => {
     })
 
     it("keeps every built-in flag when the list is empty, as a server from before the flags module answers", () => {
-        expect(FlagCatalog.BUILT_IN.withList([]).playableCodes()).toEqual([...Countries.keys()])
+        expect(FlagCatalog.BUILT_IN.withFlags([]).playableCodes()).toEqual([...Countries.keys()])
+    })
+
+    it("takes a flag the stream tells over the catalog, in the order told, with no other flag lost", () => {
+        const catalog = FlagCatalog.BUILT_IN.withFlags([BAVARIA])
+            .withFlags([SAVOY])
+            .withFlags([{...BAVARIA, closed: true}])
+
+        expect(catalog.knows(SAVOY.code)).toBe(true)
+        expect(catalog.playable(BAVARIA.code)).toBe(false)
+        expect(catalog.knows(BAVARIA.code)).toBe(true)
+
+        const reopened = catalog.withFlags([{...BAVARIA, name: "Bayern"}, {...SAVOY, closed: false}])
+        expect(reopened.playableCodes().slice(-2)).toEqual([BAVARIA.code, SAVOY.code])
+        expect(reopened.openedName(BAVARIA.code)).toBe("Bayern")
     })
 })
 

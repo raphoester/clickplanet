@@ -212,7 +212,7 @@ func TestEveryTellerHearsEachPledge(t *testing.T) {
 
 func TestAFlagOpenedWhileTheServerRunsIsPledgedAndAClosedOneIsRefused(t *testing.T) {
 	const rennes = "r-k3p9x2ma0b"
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 	store := allegiances.NewMemoryStore()
 	b := allegiances.NewBook(store, catalog, unlocked, allegiances.EveryFlagStands{}, cptime.NewFixedClock(at),
 		&allegiances.RecordedPledges{})

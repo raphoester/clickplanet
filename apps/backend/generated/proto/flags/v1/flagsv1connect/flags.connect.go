@@ -35,12 +35,18 @@ const (
 const (
 	// FlagServiceListFlagsProcedure is the fully-qualified name of the FlagService's ListFlags RPC.
 	FlagServiceListFlagsProcedure = "/flags.v1.FlagService/ListFlags"
+	// FlagServiceListenForEventsProcedure is the fully-qualified name of the FlagService's
+	// ListenForEvents RPC.
+	FlagServiceListenForEventsProcedure = "/flags.v1.FlagService/ListenForEvents"
 )
 
 // FlagServiceClient is a client for the flags.v1.FlagService service.
 type FlagServiceClient interface {
-	// Every flag of the catalog, the closed ones too: history still names them. A cached GET.
+	// Every flag of the catalog, the closed ones too: history still names them. A GET.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
+	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.FlagEvent], error)
 }
 
 // NewFlagServiceClient constructs a client for the flags.v1.FlagService service. By default, it
@@ -61,12 +67,19 @@ func NewFlagServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.FlagEvent](
+			httpClient,
+			baseURL+FlagServiceListenForEventsProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("ListenForEvents")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // flagServiceClient implements FlagServiceClient.
 type flagServiceClient struct {
-	listFlags *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	listFlags       *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.FlagEvent]
 }
 
 // ListFlags calls flags.v1.FlagService.ListFlags.
@@ -74,10 +87,18 @@ func (c *flagServiceClient) ListFlags(ctx context.Context, req *connect.Request[
 	return c.listFlags.CallUnary(ctx, req)
 }
 
+// ListenForEvents calls flags.v1.FlagService.ListenForEvents.
+func (c *flagServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.FlagEvent], error) {
+	return c.listenForEvents.CallServerStream(ctx, req)
+}
+
 // FlagServiceHandler is an implementation of the flags.v1.FlagService service.
 type FlagServiceHandler interface {
-	// Every flag of the catalog, the closed ones too: history still names them. A cached GET.
+	// Every flag of the catalog, the closed ones too: history still names them. A GET.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
+	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.FlagEvent]) error
 }
 
 // NewFlagServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -94,10 +115,18 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	flagServiceListenForEventsHandler := connect.NewServerStreamHandler(
+		FlagServiceListenForEventsProcedure,
+		svc.ListenForEvents,
+		connect.WithSchema(flagServiceMethods.ByName("ListenForEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.FlagService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlagServiceListFlagsProcedure:
 			flagServiceListFlagsHandler.ServeHTTP(w, r)
+		case FlagServiceListenForEventsProcedure:
+			flagServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,4 +138,8 @@ type UnimplementedFlagServiceHandler struct{}
 
 func (UnimplementedFlagServiceHandler) ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.ListFlags is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.FlagEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.ListenForEvents is not implemented"))
 }

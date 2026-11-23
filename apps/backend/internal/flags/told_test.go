@@ -8,13 +8,17 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
@@ -46,7 +50,8 @@ func playable(t *testing.T, listener cpflags.Catalog, flag catalog.FlagID) func(
 	}
 }
 
-// What planet, the chat, scoring and player do: a catalog of their own, fed by what the flags module tells.
+// What planet, the chat, scoring and player do: a catalog of their own, fed by what the flags module tells. And what
+// an open page hears on the flags module's own stream.
 func TestAFlagOpenedIsPlayableInAnotherModuleWithNoRestartAndAClosedOneIsNot(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
 	redis := cpredistest.StartServer(t).Config()
@@ -59,20 +64,28 @@ func TestAFlagOpenedIsPlayableInAnotherModuleWithNoRestartAndAClosedOneIsNot(t *
 	require.NoError(t, hearer.ConnectCtx(t.Context()))
 	t.Cleanup(func() { _ = hearer.Close() })
 
-	listener := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	listener := cpflags.NewCatalog(cpflags.NewMemoryStore())
 	opened, err := cpredis.Subscribe(t.Context(), hearer, "planet-flags-opened", cpflags.NewOpenedHandler(listener))
 	require.NoError(t, err)
 	closed, err := cpredis.Subscribe(t.Context(), hearer, "planet-flags-closed", cpflags.NewClosedHandler(listener))
 	require.NoError(t, err)
-	running(t, opened, closed, cpoutbox.NewRelay("flags-outbox", db, teller, logger))
-
 	store := postgres_flag_store.New(db)
 	clock := cptime.NewFixedClock(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC))
+	board := feed.NewBoard(8)
+	page, leave := board.Attend()
+	t.Cleanup(leave)
+	tell := tell_streams_usecase.New(feed.NewsSince(clock.Now()), store, board)
+	streamsOpened, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-opened", told_subscriber.NewOpened(tell))
+	require.NoError(t, err)
+	streamsClosed, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-closed", told_subscriber.NewClosed(tell))
+	require.NoError(t, err)
+	running(t, opened, closed, streamsOpened, streamsClosed, cpoutbox.NewRelay("flags-outbox", db, teller, logger))
 	out, err := open_flag_usecase.New(&catalog.Sequence{}, clock, db, store, cpoutbox.New(db)).
 		Execute(t.Context(), open_flag_usecase.In{Name: "Rennes"})
 	require.NoError(t, err)
 
 	require.Eventually(t, playable(t, listener, out.Flag), 10*time.Second, 20*time.Millisecond)
+	assert.Equal(t, catalog.Open, (<-page).State, "the page hears it opened")
 
 	clock.Advance(time.Hour)
 	require.NoError(t, close_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
@@ -82,4 +95,5 @@ func TestAFlagOpenedIsPlayableInAnotherModuleWithNoRestartAndAClosedOneIsNot(t *
 	known, err := listener.Known(t.Context(), out.Flag.String())
 	require.NoError(t, err)
 	require.True(t, known, "closed, never forgotten")
+	assert.Equal(t, catalog.Closed, (<-page).State, "the page hears it closed")
 }

@@ -119,7 +119,7 @@ import Moments from "../announcements/Moments.tsx";
 import {runningSeason, useSchedule} from "../battle/scheduleStore.ts";
 import {useScheduleFeed} from "../battle/useScheduleFeed.ts";
 import {useTeaserCardsFeed} from "../battle/useTeaserCardsFeed.ts";
-import {FlagChanges, FlagLister} from "../../backends/flags.ts";
+import {FlagLister, FlagStream} from "../../backends/flags.ts";
 import {useFlagsFeed} from "../flags/flagsStore.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
@@ -202,9 +202,8 @@ export type Backends = {
     // Which names a player's video, and its address, may show.
     shownNames: ShownNamesBackend
     landings: LandingStore
-    // The list of flags, and what says it changed: planet's stream.
-    flags: FlagLister
-    flagChanges: FlagChanges
+    // The list of flags, and the flags module's stream.
+    flags: FlagLister & FlagStream
 }
 
 export type PlayScreenProps = {
@@ -274,7 +273,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const crowd = useRoster(onlineCount)
     useScheduleFeed(backends.turn, backends.standings)
     useTeaserCardsFeed(backends.promo)
-    useFlagsFeed(backends.flags, backends.flagChanges)
+    useFlagsFeed(backends.flags)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
     const seasons = useSchedule((schedule) => schedule.seasons)

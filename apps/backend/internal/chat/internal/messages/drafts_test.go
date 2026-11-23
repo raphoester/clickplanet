@@ -87,7 +87,7 @@ func TestAGifOfNoSizeOrAHugeOneIsRefused(t *testing.T) {
 
 func TestAMessageInTheRoomOfAFlagOpenedWhileTheServerRunsIsDrafted(t *testing.T) {
 	const rennes = "r-k3p9x2ma0b"
-	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	catalog := cpflags.NewCatalog(cpflags.NewMemoryStore())
 	drafts := messages.NewDrafts(&messages.SequentialIDs{}, cptime.NewFixedClock(draftedAt), limits, catalog,
 		messages.NewRooms(messages.FakeFlags{ada: rennes}))
 	room := messages.FlagRoom(rennes)

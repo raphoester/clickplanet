@@ -174,7 +174,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe scoring to who may be ranked: %w", subscribeErr)
 	}
 
-	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db))
 	flagsOpened, err := cpredis.Subscribe(ctx, streams, "scoring-flags-opened",
 		log_subscriber.New(cpflags.NewOpenedHandler(countries), props.Logger))
 	if err != nil {

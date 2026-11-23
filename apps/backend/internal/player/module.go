@@ -237,7 +237,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the past names to player.v1.PlayerForgotten: %w", err)
 	}
-	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db))
 	flagsOpened, err := cpredis.Subscribe(ctx, streams, "player-flags-opened",
 		log_subscriber.New(cpflags.NewOpenedHandler(countries), props.Logger))
 	if err != nil {

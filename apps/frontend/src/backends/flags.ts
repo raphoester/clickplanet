@@ -5,7 +5,13 @@ export interface FlagLister {
     listFlags(fresh: boolean): Promise<ListedFlag[]>
 }
 
-// Planet's stream: a flag opened or closed, or a gap in which one may have been.
-export interface FlagChanges {
-    listenForFlagChanges(onChanged: () => void): () => void
+export type FlagHandlers = {
+    // Each connection's first message: what changed while the stream was closed is only in a read of the list.
+    onOpened: () => void
+    onChanged: (flag: ListedFlag) => void
+}
+
+// The flags module's stream, open while it is listened to.
+export interface FlagStream {
+    listenForFlags(handlers: FlagHandlers): () => void
 }

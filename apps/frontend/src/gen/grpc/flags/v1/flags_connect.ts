@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
+import { FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,7 +15,7 @@ export const FlagService = {
   typeName: "flags.v1.FlagService",
   methods: {
     /**
-     * Every flag of the catalog, the closed ones too: history still names them. A cached GET.
+     * Every flag of the catalog, the closed ones too: history still names them. A GET.
      *
      * @generated from rpc flags.v1.FlagService.ListFlags
      */
@@ -25,6 +25,18 @@ export const FlagService = {
       O: ListFlagsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+     * httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
+     *
+     * @generated from rpc flags.v1.FlagService.ListenForEvents
+     */
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: FlagEvent,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

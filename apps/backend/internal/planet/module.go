@@ -85,7 +85,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/detonate_mines_usecase/log_detonate_mines"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/lay_mine_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices/flag_streams"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/postgres_placement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase"
@@ -344,7 +343,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			refusing := log_refusals.New(refusalBook, props.Logger)
 
-			catalog := cpflags.NewCatalog(cpflags.NewPostgresStore(db), flag_streams.New(board))
+			catalog := cpflags.NewCatalog(cpflags.NewPostgresStore(db))
 			flagsOpened, err := cpredis.Subscribe(ctx, streams, "planet-flags-opened",
 				log_subscriber.New(cpflags.NewOpenedHandler(catalog), props.Logger))
 			if err != nil {

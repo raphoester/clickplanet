@@ -38,7 +38,7 @@ func (s *testSuite) SetupTest() {
 	)
 
 	tileChecker := clicks.PlayedOf(maxIndex)
-	s.catalog = cpflags.NewCatalog(cpflags.NewMemoryStore(), cpflags.Quiet{})
+	s.catalog = cpflags.NewCatalog(cpflags.NewMemoryStore())
 	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), s.catalog)
 }
 

@@ -55,8 +55,23 @@ land stays, shields too, and its players keep it as their flag. Step 2 builds wh
 another flag) and to its chat room (read-only): planet's and chat's `flags-closed` subscribers are where it goes, a use
 case of the module in place of the bare catalog (`cpflags.Facts`).
 
-**Planet tells the page.** When its catalog changes (a fact told again does not), planet's notice board sends
-`planet.v1.FlagsChanged {}` on every open stream (`notices.Board.PublishFlagsChanged`), and the page reads the list again.
+## The stream
+
+**The flags module tells the pages itself**, on a stream of its own: `flags.v1.FlagService/ListenForEvents`, a
+`heartbeat` at once and every `httpServer.streamHeartbeat`, and `flag_changed`, each flag opened or closed while the
+stream is open, as the catalog holds it now (`Flag{code, name, closed}`). It reads no token: every page hears the same.
+
+- **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`) and tells each to the open streams
+  (`tell_streams_usecase`), the flag read from its table, so a close heard before its opening still tells the flag
+  closed. A fact told again (the restatement at each boot) changes nothing for a page, so it is skipped: only a fact
+  decided since this process started is news (`feed.News`). A page reads `ListFlags` each time its stream opens, so it
+  misses nothing told while the stream was down.
+- **A stream that falls 32 flags behind is closed, not skipped** (`feed.Board`), as the roster's: its page opens it
+  again and reads the list.
+- **A page holds one more stream for it.** A guest page held six before (planet, quizzes, boxes, player, gamemaster,
+  chat): over HTTP/2 in production they share one connection, but a plain-HTTP/1.1 local stack has 6 connections per
+  host, and its unary calls wait.
+
 See the frontend's [flag catalog](../../frontend/docs/flag-catalog.md).
 
 **The alerts keep the flags the game ships with.** A Discord role is made per built-in flag; a flag opened since has
@@ -68,8 +83,8 @@ step.
 
 `flags.v1.FlagService/ListFlags`, public, and `flags.v1.AdminService/ListFlags`, for the backoffice and Claude
 (`flags_list_flags`): every flag the game ships with, in the page's order, then the flags opened since, by name, the
-closed ones with `closed`. One query (`flags_query`), no cache header: the page reads it again right after a
-`FlagsChanged`, and a cached answer would not hold the new flag.
+closed ones with `closed`. One query (`flags_query`), no cache header: the page reads it again each time its stream
+opens, and a cached answer would not hold a flag opened while it was down.
 
 ## Open and close
 

@@ -4,10 +4,14 @@ package flags.v1;
 
 // The catalog of flags: the ones the game ships with, and the ones opened since.
 service FlagService {
-  // Every flag of the catalog, the closed ones too: history still names them. A cached GET.
+  // Every flag of the catalog, the closed ones too: history still names them. A GET.
   rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+  // httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream FlagEvent);
 }
 
 message ListFlagsRequest {}
@@ -16,6 +20,19 @@ message ListFlagsResponse {
   // The flags the game ships with first, in their order, then the ones opened since, by name.
   repeated Flag flags = 1;
 }
+
+message ListenForEventsRequest {}
+
+message FlagEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+
+    // A flag opened or closed, as the catalog holds it now.
+    Flag flag_changed = 2;
+  }
+}
+
+message Heartbeat {}
 
 message Flag {
   // An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one

@@ -59,23 +59,5 @@ func NewOpenCatalog(flags ...string) Catalog {
 	for _, flag := range flags {
 		store.rows[flag] = HeardSnapshot{State: Open, DecidedAt: at}
 	}
-	return NewCatalog(store, Quiet{})
-}
-
-// Recorder counts the changes it was told of.
-type Recorder struct {
-	mu   sync.Mutex
-	told int
-}
-
-func (r *Recorder) FlagsChanged() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.told++
-}
-
-func (r *Recorder) Told() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.told
+	return NewCatalog(store)
 }

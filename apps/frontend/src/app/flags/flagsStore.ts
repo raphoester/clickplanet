@@ -1,7 +1,7 @@
 import {useEffect} from "react"
 import {create} from "zustand"
-import {FlagCatalog, FlagReads} from "../../domain/flags.ts"
-import {FlagChanges, FlagLister} from "../../backends/flags.ts"
+import {FlagCatalog, FlagReads, ListedFlag} from "../../domain/flags.ts"
+import {FlagLister, FlagStream} from "../../backends/flags.ts"
 import {nameOpenedFlags} from "../../i18n/translator.ts"
 
 type FlagsStore = {
@@ -10,7 +10,10 @@ type FlagsStore = {
     read: boolean
     // None stops reading and forgets the list.
     serve: (lister: FlagLister | undefined) => void
+    // The list may have changed unheard: the stream opened.
     changed: () => void
+    // A flag opened or closed, as the stream tells it: no read.
+    told: (flag: ListedFlag) => void
     missed: (code: string) => void
 }
 
@@ -18,15 +21,18 @@ export const useFlags = create<FlagsStore>()((set, get) => {
     let lister: FlagLister | undefined
     let served = 0
     let reads = new FlagReads()
+    // What the stream told during the read in flight, which its answer may predate.
+    let heard: ListedFlag[] = []
 
     const read = (fresh: boolean) => {
         const from = lister
         if (from === undefined) return
         const generation = served
         const current = () => generation === served
+        heard = []
         from.listFlags(fresh).then(
             (listed) => {
-                if (current()) set({catalog: FlagCatalog.BUILT_IN.withList(listed)})
+                if (current()) set({catalog: FlagCatalog.BUILT_IN.withFlags(listed).withFlags(heard)})
             },
             (e: unknown) => console.error("could not read the list of flags: the page keeps the flags it knows", e),
         ).finally(() => {
@@ -43,11 +49,17 @@ export const useFlags = create<FlagsStore>()((set, get) => {
             lister = next
             served += 1
             reads = new FlagReads()
+            heard = []
             set({catalog: FlagCatalog.BUILT_IN, read: false})
             if (next !== undefined && reads.changed()) read(false)
         },
         changed: () => {
             if (lister !== undefined && reads.changed()) read(true)
+        },
+        told: (flag) => {
+            if (lister === undefined) return
+            heard.push(flag)
+            set({catalog: get().catalog.withFlags([flag])})
         },
         missed: (code) => {
             if (lister !== undefined && reads.missed(code)) read(true)
@@ -85,15 +97,15 @@ export function afterFirstRead(then: (catalog: FlagCatalog) => void): void {
     })
 }
 
-// Reads the list at load and on each change planet tells, and forgets it once it stops.
-export function useFlagsFeed(lister: FlagLister, changes: FlagChanges): void {
+// Reads the list at load and each time the flags' stream opens, takes each flag it tells, and forgets them once it stops.
+export function useFlagsFeed(flags: FlagLister & FlagStream): void {
     useEffect(() => {
-        const {serve, changed} = useFlags.getState()
-        serve(lister)
-        const stop = changes.listenForFlagChanges(changed)
+        const {serve, changed, told} = useFlags.getState()
+        serve(flags)
+        const stop = flags.listenForFlags({onOpened: changed, onChanged: told})
         return () => {
             stop()
             serve(undefined)
         }
-    }, [lister, changes])
+    }, [flags])
 }

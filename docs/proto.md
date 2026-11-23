@@ -46,8 +46,9 @@
 - `proto/flags/v1/flags.proto` — the catalog of flags (`FlagService/ListFlags`, public: every flag the game ships with,
   then the ones opened since, the closed ones too, each `Flag{code, name, closed}`). A flag opened since is `r-` and ten
   letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet, the chat, scoring and
-  player keep in a catalog of their own, and `admin.proto` the operator's `ListFlags` (`flags_list_flags`). Planet's
-  stream says `FlagsChanged {}` when its catalog changed: the page reads the list again (see the backend's
+  player keep in a catalog of their own, and `admin.proto` the operator's `ListFlags` (`flags_list_flags`).
+  `FlagService/ListenForEvents` is its stream: a heartbeat, and each flag opened or closed while it is open
+  (`flag_changed`), and a page reads `ListFlags` as it opens (see the backend's
   [The flags module](../apps/backend/docs/flags.md))
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`
