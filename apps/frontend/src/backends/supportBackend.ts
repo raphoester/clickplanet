@@ -1,7 +1,7 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
-import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
+import {NoteRefusal, NoteRefusalReason, ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
 import {putFile, PutFile} from "./putFile.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
@@ -11,6 +11,8 @@ import {
     PlayerReport,
     ReportReason,
     SupportBackend,
+    SupportInvalidReplyAddressError,
+    SupportNoReplyAddressError,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
@@ -35,6 +37,11 @@ const REASONS: Record<ReportReason, ReportReasonPb> = {
     "other": ReportReasonPb.OTHER,
 }
 
+const NOTE_REFUSALS: Partial<Record<NoteRefusalReason, new (options: {cause: unknown}) => Error>> = {
+    [NoteRefusalReason.NO_REPLY_ADDRESS]: SupportNoReplyAddressError,
+    [NoteRefusalReason.INVALID_REPLY_ADDRESS]: SupportInvalidReplyAddressError,
+}
+
 export class ConnectSupportBackend implements SupportBackend {
     constructor(
         private client: PromiseClient<typeof SupportService>,
@@ -43,12 +50,12 @@ export class ConnectSupportBackend implements SupportBackend {
     ) {
     }
 
-    public async suggestFeature(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
-        await this.send((headers) => this.client.suggestFeature({text, context, attachmentIds}, {headers}))
+    public async suggestFeature(text: string, context: PageContext, attachmentIds: string[] = [], replyAddress?: string): Promise<void> {
+        await this.send((headers) => this.client.suggestFeature({text, context, attachmentIds, replyAddress}, {headers}))
     }
 
-    public async reportBug(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
-        await this.send((headers) => this.client.reportBug({text, context, attachmentIds}, {headers}))
+    public async reportBug(text: string, context: PageContext, attachmentIds: string[] = [], replyAddress?: string): Promise<void> {
+        await this.send((headers) => this.client.reportBug({text, context, attachmentIds, replyAddress}, {headers}))
     }
 
     // A server from before attachments has no such procedure: it takes none.
@@ -118,6 +125,10 @@ export class ConnectSupportBackend implements SupportBackend {
 
 function translate(e: unknown): unknown {
     if (!(e instanceof ConnectError)) return e
+
+    const refusal = e.findDetails(NoteRefusal)[0]
+    const Refused = refusal && NOTE_REFUSALS[refusal.reason]
+    if (Refused) return new Refused({cause: e})
 
     switch (e.code) {
         case Code.ResourceExhausted:

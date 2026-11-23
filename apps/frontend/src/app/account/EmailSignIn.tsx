@@ -1,5 +1,6 @@
 import {FormEvent, useId, useState} from "react"
 import {CODE_LENGTH, Intent} from "../../backends/account.ts"
+import {looksLikeAnAddress} from "../../domain/emailAddress.ts"
 import {AccountState, AccountStore, PendingCode} from "./accountStore.ts"
 import {t} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
@@ -11,10 +12,6 @@ export type EmailSignInProps = {
     state: Ready
     store: AccountStore
     intent: Intent
-}
-
-function looksLikeAnAddress(address: string): boolean {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim())
 }
 
 export default function EmailSignIn({state, store, intent}: EmailSignInProps) {

@@ -2,6 +2,7 @@ import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {countRunes} from "../../backends/chat.ts"
 import {AttachmentRulesReader, AttachmentUploader, MAX_NOTE_LENGTH, NO_ATTACHMENTS} from "../../backends/support.ts"
 import {Refusal, withPicked} from "../../domain/attachments.ts"
+import {looksLikeAnAddress} from "../../domain/emailAddress.ts"
 import {t} from "../../i18n/page.ts"
 import Modal from "../components/Modal.tsx"
 import {AttachmentPicker, Going} from "./Attachments.tsx"
@@ -21,8 +22,10 @@ export type NoteModalProps = {
     optional?: boolean
     // Without it the form takes no file.
     files?: NoteFiles
+    // Asks for an email to answer at, as a "no-reply-address" refusal does.
+    asksAddress?: boolean
     // Called once every file is up, with the id of each, in order.
-    onSend: (text: string, attachmentIds: string[]) => Promise<void>
+    onSend: (text: string, attachmentIds: string[], replyAddress?: string) => Promise<void>
     onClose: () => void
 }
 
@@ -40,12 +43,17 @@ export default function NoteModal(props: NoteModalProps) {
     const [rules, setRules] = useState(NO_ATTACHMENTS)
     const [files, setFiles] = useState<File[]>([])
     const [refusal, setRefusal] = useState<Refusal>()
+    const [address, setAddress] = useState("")
+    const [addressAsked, setAddressAsked] = useState(false)
     const uploaded = useRef(new Map<File, string>())
     const closing = useRef<AbortController>()
     const form = useRef<HTMLFormElement>(null)
     const formId = useId()
     const fieldId = useId()
+    const addressId = useId()
+    const addressFailureId = useId()
     const source = props.files
+    const asksAddress = props.asksAddress === true || addressAsked
 
     useEffect(() => {
         form.current?.querySelector<HTMLElement>("button, textarea")?.focus()
@@ -71,7 +79,11 @@ export default function NoteModal(props: NoteModalProps) {
     const length = countRunes(text.trim())
     const busy = state.kind === "uploading" || state.kind === "sending"
     const answered = (props.optional === true || length > 0) && (props.asked === undefined || props.ready === true)
+        && (!asksAddress || looksLikeAnAddress(address))
     const canSend = !busy && answered && length <= MAX_NOTE_LENGTH
+    const failure = state.kind === "writing" ? state.failure : undefined
+    const addressFailure = asksAddress && (failure === "no-reply-address" || failure === "invalid-reply-address") ? failure : undefined
+    const formFailure = addressFailure ? undefined : failure
 
     const pick = (picked: File[]) => {
         const choice = withPicked(files, picked, rules)
@@ -119,11 +131,12 @@ export default function NoteModal(props: NoteModalProps) {
 
         setState({kind: "sending"})
         try {
-            await props.onSend(text.trim(), ids)
+            await props.onSend(text.trim(), ids, asksAddress ? address.trim() : undefined)
             setState({kind: "sent"})
         } catch (e) {
             const failure = sendFailureOf(e)
             if (failure === "failed") console.error("could not send to the support service", e)
+            if (failure === "no-reply-address") setAddressAsked(true)
             setState({kind: "writing", failure})
         }
     }
@@ -137,7 +150,7 @@ export default function NoteModal(props: NoteModalProps) {
     }
 
     return <Modal title={props.title}
-                  stayOnBackdropClick={busy || length > 0 || files.length > 0}
+                  stayOnBackdropClick={busy || length > 0 || files.length > 0 || address.length > 0}
                   footer={<button type="submit"
                                   form={formId}
                                   className="button button-action support-wide"
@@ -166,6 +179,23 @@ export default function NoteModal(props: NoteModalProps) {
                 <span className={length > MAX_NOTE_LENGTH ? "menu-label support-counter support-counter-over" : "menu-label support-counter"}>
                     {MAX_NOTE_LENGTH - length}
                 </span>}
+            {asksAddress && <>
+                <label className="menu-label" htmlFor={addressId}>{t("support.email")}</label>
+                <input id={addressId}
+                       className="field support-wide"
+                       type="email"
+                       inputMode="email"
+                       autoComplete="email"
+                       autoCapitalize="off"
+                       spellCheck={false}
+                       placeholder={t("signIn.emailPlaceholder")}
+                       value={address}
+                       readOnly={busy}
+                       aria-describedby={addressFailure ? addressFailureId : undefined}
+                       onChange={(e) => setAddress(e.target.value)}/>
+            </>}
+            {addressFailure &&
+                <p id={addressFailureId} className="support-notice" role="alert">{t(SEND_FAILURES[addressFailure])}</p>}
             {rules.maxPerNote > 0 && <AttachmentPicker rules={rules}
                                                        files={files}
                                                        disabled={busy}
@@ -179,8 +209,7 @@ export default function NoteModal(props: NoteModalProps) {
             {refusal && <p className="support-notice" role="alert">{refusalLine(refusal)}</p>}
             {state.kind === "writing" && state.notUploaded &&
                 <p className="support-notice" role="alert">{t("support.notUploaded", {file: state.notUploaded})}</p>}
-            {state.kind === "writing" && state.failure &&
-                <p className="support-notice" role="alert">{t(SEND_FAILURES[state.failure])}</p>}
+            {formFailure && <p className="support-notice" role="alert">{t(SEND_FAILURES[formFailure])}</p>}
         </form>
     </Modal>
 }

@@ -843,6 +843,7 @@
   "report.reason.badName": "Urážlivé jméno",
   "report.reason.other": "Něco jiného",
   "support.sent": "Odesláno. Díky!",
+  "support.email": "Tvůj e-mail, ať ti můžeme odpovědět",
   "support.uploadingCount": "Nahrávám {place} z {count}…",
   "support.notUploaded": "Soubor {file} se nepodařilo nahrát. Zkus to znovu.",
   "support.attachedFiles": "Přiložené soubory",
@@ -860,5 +861,7 @@
   "support.failure.rejected": "Tohle bylo odmítnuto.",
   "support.failure.noSession": "Nepodařilo se spustit relaci. Zkus to za chvíli znovu.",
   "support.failure.reportedAlready": "Tohoto hráče máš dnes už nahlášeného.",
+  "support.failure.noReplyAddress": "Přidej svůj e-mail.",
+  "support.failure.invalidReplyAddress": "Tohle není e-mailová adresa.",
   "support.failure.failed": "Nepodařilo se to odeslat. Zkus to znovu."
 }
