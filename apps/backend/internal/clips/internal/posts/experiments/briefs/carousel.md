@@ -6,8 +6,8 @@ format: a list, a question, and the name on the last photo alone.
 
 - **Pick one of the facts' three `lists`** and tell its first 5, in its order, the 1st first: each list is ranked
   already, so the ranks are the facts', never yours.
-  - `fight-the-most`: the flags that took the most tiles from other flags and lost the most to them since
-    `foughtSince`, ranked by the two together. A rank's numbers are the tiles it `took` and those it `lost`, a line
+  - `fight-the-most`: the flags that took the most tiles from other flags since `foughtSince`, ranked by the tiles
+    taken alone: a tile lost is no fight. A rank's numbers are the tiles it `took` and those it `lost`, a line
     each: the line under them says its `rival` ("MOSTLY AGAINST FRANCE").
   - `far-from-home`: the flags whose land is the farthest from their own country. A rank's number is its `km`: the
     line says where it is ("FIGHTING IN INDONESIA").
