@@ -517,7 +517,6 @@
   "knockout.pickFailed": "Não deu para trocar sua bandeira. Tente de novo.",
   "knockout.confirmTitle": "Jogar por {country}?",
   "knockout.keepLocked": "Você não vai poder trocar de bandeira de novo, a não ser que esta também fique fora.",
-  "knockout.keepHour": "Você pode trocar de bandeira de novo em uma hora, ou na hora se esta também ficar fora.",
   "archive.title": "Arquivo",
   "archive.backToGame": "Voltar ao jogo",
   "archive.seasonPicker": "Temporada",

@@ -101,7 +101,7 @@ function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standi
                   </div>}>
         <div className="out-confirm" aria-busy={sending || undefined}>
             <p className="out-confirm-flag"><CountryFlag code={choice.country.code}/><span>{chosen}</span></p>
-            {allegiance && <p className="country-picker-rule">{t(allegiance.locked ? "knockout.keepLocked" : "knockout.keepHour")}</p>}
+            {allegiance?.locked && <p className="country-picker-rule">{t("knockout.keepLocked")}</p>}
             {failed && <p className="country-picker-failed" role="alert">{t("knockout.pickFailed")}</p>}
         </div>
     </Modal>

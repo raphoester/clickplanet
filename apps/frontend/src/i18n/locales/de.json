@@ -517,7 +517,6 @@
   "knockout.pickFailed": "Flagge konnte nicht gewechselt werden. Versuch es nochmal.",
   "knockout.confirmTitle": "Ins Team {country}?",
   "knockout.keepLocked": "Du kannst die Flagge nicht mehr wechseln, außer diese fliegt auch raus.",
-  "knockout.keepHour": "Du kannst die Flagge in einer Stunde wieder wechseln, oder sofort, wenn diese auch rausfliegt.",
   "archive.title": "Archiv",
   "archive.backToGame": "Zurück zum Spiel",
   "archive.seasonPicker": "Saison",

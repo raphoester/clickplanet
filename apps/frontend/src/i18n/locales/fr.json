@@ -517,7 +517,6 @@
   "knockout.pickFailed": "Impossible de changer de drapeau. Réessaie.",
   "knockout.confirmTitle": "Jouer pour {country} ?",
   "knockout.keepLocked": "Tu ne pourras plus changer de drapeau, sauf si celui-ci est mis hors jeu à son tour.",
-  "knockout.keepHour": "Tu pourras changer de drapeau dans une heure, ou tout de suite si celui-ci est mis hors jeu à son tour.",
   "archive.title": "Archives",
   "archive.backToGame": "Retour au jeu",
   "archive.seasonPicker": "Saison",

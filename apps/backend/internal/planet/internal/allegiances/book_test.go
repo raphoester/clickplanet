@@ -177,7 +177,7 @@ func TestInAnArenaAnAccountWhoseFlagIsOutPicksAFlagStillInAtOnce(t *testing.T) {
 	require.ErrorIs(t, arena.Pledge(t.Context(), payer, "it"), allegiances.ErrDown)
 	require.NoError(t, arena.Pledge(t.Context(), payer, "de"))
 
-	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, store.Kept(alice))
 	assert.Equal(t, []allegiances.RecordedPledge{{Account: alice, Flag: "de", Previous: "fr"}}, told.Told())
 }
 
