@@ -48,13 +48,12 @@ const fights = [
 describe("the carousel's lists", () => {
     const lists = listsOf(ground, fights, SCALE)
 
-    it("ranks the flags by the tiles they took from other flags and lost to them, with who they fought the most and where", () => {
+    it("ranks the flags by the tiles they took from other flags alone, a flag that only lost left out", () => {
         expect(lists.fightTheMost).toEqual([
-            {flag: "fr", fought: 3, took: 1, lost: 2, rival: "pw", rivalTiles: 2, country: "fr"},
-            {flag: "id", fought: 3, took: 0, lost: 3, rival: "hu", rivalTiles: 2, country: "id"},
-            {flag: "hu", fought: 2, took: 2, lost: 0, rival: "id", rivalTiles: 2, country: "id"},
-            {flag: "pw", fought: 2, took: 2, lost: 0, rival: "fr", rivalTiles: 2, country: "fr"},
-            {flag: "tr", fought: 2, took: 1, lost: 1, rival: "fr", rivalTiles: 1, country: "id"},
+            {flag: "hu", took: 2, lost: 0, rival: "id", rivalTiles: 2, country: "id"},
+            {flag: "pw", took: 2, lost: 0, rival: "fr", rivalTiles: 2, country: "fr"},
+            {flag: "fr", took: 1, lost: 2, rival: "pw", rivalTiles: 2, country: "fr"},
+            {flag: "tr", took: 1, lost: 1, rival: "fr", rivalTiles: 1, country: "id"},
         ])
     })
 
@@ -92,12 +91,12 @@ describe("the carousel's lists", () => {
     })
 
     it("names each entry by its flag", () => {
-        expect(entriesOf(lists, "fight-the-most").map(codeOf)).toEqual(["fr", "id", "hu", "pw", "tr"])
+        expect(entriesOf(lists, "fight-the-most").map(codeOf)).toEqual(["hu", "pw", "fr", "tr"])
         expect(entriesOf(lists, "far-from-home").map(codeOf)).toEqual(["pw", "hu", "fr"])
     })
 
     it("aims each rank at its place: the flag's land there, or the tiles it fought for there", () => {
         expect(aimedTilesOf(lists.farFromHome[0], ground, fights)).toEqual(held("x", 1, 16).map(([tile]) => tile))
-        expect(aimedTilesOf(lists.fightTheMost[0], ground, fights)).toEqual([1, 2])
+        expect(aimedTilesOf(lists.fightTheMost[2], ground, fights)).toEqual([1, 2])
     })
 })

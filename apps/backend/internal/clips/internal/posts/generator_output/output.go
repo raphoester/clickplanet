@@ -130,7 +130,7 @@ func listsOf(written *clipsv1.Lists) posts.Lists {
 	lists := posts.Lists{FoughtSince: timeOf(written.GetFoughtSince())}
 	for _, entry := range written.GetFightTheMost() {
 		lists.FightTheMost = append(lists.FightTheMost, posts.FightEntry{
-			Flag: entry.GetFlag(), Fought: int(entry.GetFought()), Took: int(entry.GetTook()), Lost: int(entry.GetLost()),
+			Flag: entry.GetFlag(), Took: int(entry.GetTook()), Lost: int(entry.GetLost()),
 			Rival: entry.GetRival(), RivalTiles: int(entry.GetRivalTiles()), Country: entry.GetCountry(),
 		})
 	}

@@ -6,7 +6,9 @@ know the name in every spelling, say plainly what the game is, and show one site
 ## What Google reads
 
 - **Titles.** `/` is `ClickPlanet · Paint the planet with your flag`, `/play` is
-  `Play ClickPlanet · The live flag war on a world map`, `/archive` is `ClickPlanet archive`.
+  `Play ClickPlanet · The live flag war on a world map`, `/archive` is `ClickPlanet archive`. `og:title` and
+  `twitter:title` are the same title, never the bare `og:site_name`: Telegram drops a title equal to the site name and
+  showed the old `meta name=author` in its place. No page has that tag.
 - **One description** in `meta name=description`, `og:description` and `twitter:description` of `index.html`,
   `play.html` and `archive.html`, and in the JSON-LD's `VideoGame`: what the game is, and why it is not an idle
   clicker (land taken from other countries, on one live map). Change all of them together. Plain words: a poetic line

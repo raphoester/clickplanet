@@ -40,14 +40,14 @@ message Lists {
   repeated Empire biggest_empires = 4;
   // When the stretch fight_the_most counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
   google.protobuf.Timestamp fought_since = 5;
-  // The flags that took and lost the most tiles to other flags since fought_since, the most first.
+  // The flags that took the most tiles from other flags since fought_since, the most first: a tile lost is no fight.
   repeated FightingFlag fight_the_most = 6;
 }
 
 message FightingFlag {
+  reserved 2;
+  reserved "fought";
   string flag = 1;
-  // Tiles it took from other flags plus tiles other flags took from it.
-  uint32 fought = 2;
   uint32 took = 3;
   uint32 lost = 4;
   // The flag it fought the most tiles with, both ways, and how many.
