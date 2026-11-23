@@ -39,7 +39,9 @@ func (s *stubClearer) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast
 
 type countries struct{}
 
-func (countries) CheckCountry(country string) bool { return country == "fr" }
+func (countries) Playable(_ context.Context, country string) (bool, error) {
+	return country == "fr", nil
+}
 
 var inForce = func() func() charges.Rules {
 	rules := charges.TestRules()

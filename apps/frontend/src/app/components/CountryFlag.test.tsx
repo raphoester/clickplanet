@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render} from "@testing-library/react"
 import CountryFlag from "./CountryFlag.tsx"
 import {regions} from "../viewer/atlas.ts"
 import {ATLAS_SIZE, ATLAS_URL} from "../viewer/atlasAsset.ts"
 import {Countries} from "../../domain/countries.ts"
+import {useFlags} from "../flags/flagsStore.ts"
 
 const BOX = {width: 1, height: 0.716}
 
@@ -68,8 +69,28 @@ describe("CountryFlag", () => {
         expect(em(drawn.marginTop)).toBeCloseTo((BOX.height - em(drawn.height)) / 2, 5)
     })
 
-    it("draws nothing for a code the atlas does not cover", () => {
-        const {container} = render(<CountryFlag code="zz"/>)
+    it("draws a plain grey flag for a code the atlas does not cover, and asks for the list once", async () => {
+        const lister = {listFlags: vi.fn(async () => [])}
+        useFlags.getState().serve(lister)
+        await vi.waitFor(() => expect(useFlags.getState().read).toBe(true))
+        lister.listFlags.mockClear()
+        try {
+            const {container, rerender} = render(<CountryFlag code="r-k3p9x2ma0b"/>)
+            rerender(<CountryFlag code="r-k3p9x2ma0b"/>)
+
+            const drawn = sprite(container)!
+            expect(drawn.classList).toContain("country-flag-blank")
+            expect(drawn.style.backgroundImage).toBe("")
+            expect(em(drawn.style.width)).toBeGreaterThan(em(drawn.style.height))
+            expect(lister.listFlags).toHaveBeenCalledTimes(1)
+            expect(lister.listFlags).toHaveBeenCalledWith(true)
+        } finally {
+            useFlags.getState().serve(undefined)
+        }
+    })
+
+    it("draws nothing for no code", () => {
+        const {container} = render(<CountryFlag code=""/>)
         expect(flag(container)).toBeNull()
     })
 

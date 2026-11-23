@@ -221,8 +221,9 @@ import {
     SaveRulesResponse,
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
+import {Flag, ListFlagsRequest, ListFlagsResponse} from "./gen/grpc/flags/v1/flags_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin,
+    AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
     PlanetAdmin, PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
 } from "./clients.ts"
 
@@ -252,6 +253,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly missions: FakeMissions = new FakeMissions(this)
     readonly promo: FakePromo = new FakePromo(this)
     readonly vandalsquad: FakeVandalsquad = new FakeVandalsquad(this)
+    readonly flags: FakeFlags = new FakeFlags(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -514,7 +516,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return {
             alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, boxes: this.boxes, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
-            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad, auth: this,
+            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad, auth: this, flags: this.flags,
         }
     }
 
@@ -750,6 +752,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, and no flag opened.
+export class FakeFlags implements FlagsAdmin {
+    listed = [["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
+        .map(([code, name]) => new Flag({code, name}))
+
+    constructor(private readonly admin: FakeAdmin) {}
+
+    listFlags(request: PartialMessage<ListFlagsRequest>): Promise<ListFlagsResponse> {
+        return this.admin.answer("listFlags", request, new ListFlagsResponse({flags: this.listed}))
     }
 }
 

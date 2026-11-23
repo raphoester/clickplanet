@@ -9,7 +9,7 @@ and says what is in it. Read the doc before you change its area.
 ## Working on it
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
-  `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
+  `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`, `flags`,
   `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`,
   `cmd/clips`, `cmd/teasers` and `cmd/translations`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
@@ -24,7 +24,7 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Eighteen bounded contexts, one process](docs/bounded-contexts.md) — planet, boxes, bonuses, quizzes, chat, auth, player,
+- [Nineteen bounded contexts, one process](docs/bounded-contexts.md) — flags, planet, boxes, bonuses, quizzes, chat, auth, player,
   progression, scoring, support, missions, antibot, gamemaster, alerts, clips, promo, publishing and vandalsquad. A module publishes its root package and hides the rest; the
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
@@ -185,6 +185,11 @@ and says what is in it. Read the doc before you change its area.
 
 ## The other contexts
 
+- [The flags module](docs/flags.md) — the catalog: the flags the game ships with (the page's file, `make flags`) and the
+  ones opened since (`r-` ids, closed never deleted); `FlagOpened` and `FlagClosed` through its outbox and again at
+  each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
+  (`cpflags`); a closed flag refused for a click and a pledge, its own stream to the page (`flag_changed`), the alerts'
+  roles for built-in flags alone, `ListFlags`; the open and close use cases only tests call until step 2.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
   with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the

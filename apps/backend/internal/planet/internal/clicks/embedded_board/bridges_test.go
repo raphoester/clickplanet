@@ -12,7 +12,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
 func TestTheShippedBridgesLandOnCoastsAndJoinEveryPieceOfLand(t *testing.T) {
@@ -76,7 +76,7 @@ func TestTheShippedCapitalsAreEachCountrysTileNearestItsCapitalCity(t *testing.T
 	assert.Equal(t, "capitals-3938708b.json", manifest.Files.Capitals)
 
 	assert.Len(t, capitals.All(), 239, "every country on the map")
-	flags := capitals.Flags(cpcountries.New().CheckCountry).All()
+	flags := capitals.Flags(cpflags.IsBuiltIn).All()
 	assert.Len(t, flags, 235, "hm, nc, pm and sh have ground and no flag")
 
 	paris := slices.IndexFunc(flags, func(capital clicks.Capital) bool { return capital.Country == "fr" })

@@ -43,6 +43,9 @@ and so is one from an account that pledged none.
   the rule is right above it. The knock-out's out window has one, since it opens under a player still clicking
   (see [The capitals](capitals.md)). A pick that failed for another reason says so, and
   the picker stays open.
+- **The picker lists the flags a player may play for** (`playableCodes`, see [The list of flags](flag-catalog.md)): no
+  closed flag, and an opened one by its English name. **The held flag the server tells is set as it is**, even one the
+  page does not know yet.
 - **The picker's search ignores case and accents** (`foldForSearch`, `app/components/visibleOptions.ts`): "nep" finds
   "Népal", "cote d'iv" finds "Côte d’Ivoire", and the letters NFD leaves whole fold too (ł, ø, ı, æ, œ, ß…). It
   matches a part of the name in the page's language, and keeps the selected flag in the list.

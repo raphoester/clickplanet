@@ -112,7 +112,8 @@ click by hand (it answers them); the fake fortifies as the server does, and ever
 landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.unlockFlag()` ends the
 wait for another flag; `lockFlags()` locks the flags as a battle's rule set does, and `openFlags()` opens them (see
-[The flag played for](flag.md)), and `fakeBackend.shareClicks()` as the
+[The flag played for](flag.md)); `openFlag("Bavaria")` opens a new flag and `closeFlag(code)` closes it (see [The list
+of flags](flag-catalog.md)), and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `unlimitEnclosures()` plays a set with unlimited enclosures (enclose on, ∞, nothing spent), and

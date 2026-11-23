@@ -26,8 +26,9 @@ type Refusals interface {
 	Refusals(ctx context.Context, payers []clicks.Payer) (map[clicks.Payer]clicks.Refusal, error)
 }
 
-type CountryChecker interface {
-	CheckCountry(country string) bool
+// A flag closed is known: its players are still found.
+type Flags interface {
+	Known(ctx context.Context, flag string) (bool, error)
 }
 
 type In struct {
@@ -41,7 +42,7 @@ type Out struct {
 	Total   int
 }
 
-func New(ledger Ledger, owners Owners, borders Borders, refusals Refusals, countries CountryChecker) *UseCase {
+func New(ledger Ledger, owners Owners, borders Borders, refusals Refusals, countries Flags) *UseCase {
 	return &UseCase{ledger: ledger, owners: owners, borders: borders, refusals: refusals, countries: countries}
 }
 
@@ -50,15 +51,17 @@ type UseCase struct {
 	owners    Owners
 	borders   Borders
 	refusals  Refusals
-	countries CountryChecker
+	countries Flags
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	if !u.countries.CheckCountry(in.Flag) {
-		return Out{}, fmt.Errorf("%w: flag %q", clicks.ErrUnknownCountry, in.Flag)
+	if err := u.check(ctx, "flag", in.Flag); err != nil {
+		return Out{}, err
 	}
-	if in.Area != "" && !u.countries.CheckCountry(in.Area) {
-		return Out{}, fmt.Errorf("%w: area %q", clicks.ErrUnknownCountry, in.Area)
+	if in.Area != "" {
+		if err := u.check(ctx, "area", in.Area); err != nil {
+			return Out{}, err
+		}
 	}
 
 	tally := ledger.NewTally(func(taking ledger.Taking) bool {
@@ -84,4 +87,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	return out, nil
+}
+
+func (u *UseCase) check(ctx context.Context, what string, flag string) error {
+	known, err := u.countries.Known(ctx, flag)
+	if err != nil {
+		return fmt.Errorf("failed to read whether the %s %q is a flag: %w", what, flag, err)
+	}
+	if !known {
+		return fmt.Errorf("%w: %s %q", clicks.ErrUnknownCountry, what, flag)
+	}
+	return nil
 }

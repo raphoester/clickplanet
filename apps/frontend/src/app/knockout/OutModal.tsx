@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react"
 import {Allegiance} from "../../domain/allegiance.ts"
-import {Countries, Country} from "../../domain/countries.ts"
+import {Country} from "../../domain/countries.ts"
+import {useFlags} from "../flags/flagsStore.ts"
 import {Standing, stands} from "../../domain/standing.ts"
 import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -41,12 +42,13 @@ function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standi
     const picks = useRef(0)
     const [sending, setSending] = useState(false)
     const [failed, setFailed] = useState(false)
+    const catalog = useFlags((store) => store.catalog)
     const stillIn = useMemo(
-        () => Array.from(Countries.keys())
+        () => catalog.playableCodes()
             .filter((code) => stands(standing, code))
             .map((code) => ({code, name: translator().country(code)}))
             .sort((a, b) => translator().compare(a.name, b.name)),
-        [standing],
+        [standing, catalog],
     )
 
     useEffect(() => {
@@ -83,7 +85,7 @@ function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standi
                       onClose={close}>
             <p className="country-picker-rule">{t("knockout.pickStillIn")}</p>
             <div className="country-picker-list">
-                <SelectWithSearch values={stillIn} onChange={(value) => choose(Countries.get(value.code) ?? {code: value.code})}/>
+                <SelectWithSearch values={stillIn} onChange={(value) => choose({code: value.code})}/>
             </div>
         </Modal>
     }

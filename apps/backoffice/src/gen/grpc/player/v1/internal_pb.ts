@@ -278,3 +278,79 @@ export class Account extends Message<Account> {
   }
 }
 
+/**
+ * @generated from message player.v1.GetEmailRequest
+ */
+export class GetEmailRequest extends Message<GetEmailRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetEmailRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetEmailRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetEmailRequest {
+    return new GetEmailRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetEmailRequest {
+    return new GetEmailRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetEmailRequest {
+    return new GetEmailRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetEmailRequest | PlainMessage<GetEmailRequest> | undefined, b: GetEmailRequest | PlainMessage<GetEmailRequest> | undefined): boolean {
+    return proto3.util.equals(GetEmailRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetEmailResponse
+ */
+export class GetEmailResponse extends Message<GetEmailResponse> {
+  /**
+   * Unset: the account holds no verified address, a guest's.
+   *
+   * @generated from field: optional string email = 1;
+   */
+  email?: string;
+
+  constructor(data?: PartialMessage<GetEmailResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetEmailResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetEmailResponse {
+    return new GetEmailResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetEmailResponse {
+    return new GetEmailResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetEmailResponse {
+    return new GetEmailResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetEmailResponse | PlainMessage<GetEmailResponse> | undefined, b: GetEmailResponse | PlainMessage<GetEmailResponse> | undefined): boolean {
+    return proto3.util.equals(GetEmailResponse, a, b);
+  }
+}
+

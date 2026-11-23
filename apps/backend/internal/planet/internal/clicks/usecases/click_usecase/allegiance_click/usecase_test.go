@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -42,7 +42,7 @@ func setupOn(t *testing.T) (*allegiance_click.UseCase, *countingClicks, allegian
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	inner := &countingClicks{}
 	store := allegiances.NewMemoryStore()
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false },
+	book := allegiances.NewBook(store, catalog.NewOpenCatalog(), func() allegiances.Lock { return false },
 		allegiances.EveryFlagStands{}, clock, &allegiances.RecordedPledges{})
 
 	return allegiance_click.New(inner, book), inner, book, clock, store

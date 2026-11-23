@@ -9,14 +9,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 )
 
-func TestAFlagIsAFlagTheGameKnows(t *testing.T) {
-	flag, err := nations.FlagOf("ie")
-	require.NoError(t, err)
+func TestAFlagWithARoleIsAFlagTheGameShipsWith(t *testing.T) {
+	flag, ok := nations.FlagOf("ie")
+	require.True(t, ok)
 	assert.Equal(t, nations.Flag("ie"), flag)
 
-	for _, code := range []string{"", "IE", "zz", "ireland"} {
-		_, err := nations.FlagOf(code)
-		assert.ErrorIs(t, err, nations.ErrUnknownFlag, code)
+	for _, code := range []string{"", "IE", "zz", "ireland", "r-k3p9x2ma0b"} {
+		_, ok := nations.FlagOf(code)
+		assert.False(t, ok, code)
 	}
 }
 

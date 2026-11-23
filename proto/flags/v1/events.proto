@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package flags.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the flags module tells the other modules, over Redis Streams, from its outbox: in the transaction that opens or
+// closes a flag, and again for every flag at each boot. Of one flag, the fact with the latest time is the one that holds.
+
+// Players may play for the flag from opened_at.
+message FlagOpened {
+  string flag = 1;
+  // In English.
+  string name = 2;
+  google.protobuf.Timestamp opened_at = 3;
+}
+
+// No player may play for the flag from closed_at. It stays in the catalog: history still names it.
+message FlagClosed {
+  string flag = 1;
+  google.protobuf.Timestamp closed_at = 2;
+}

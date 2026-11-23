@@ -42,9 +42,14 @@ function queryOf({code, name}: ShareAddress): [string, string][] {
     return name ? [[SHARE_FLAG_PARAM, code], [RECRUITER_PARAM, name.replaceAll(" ", "-")]] : [[SHARE_FLAG_PARAM, code]]
 }
 
+// The flag a link names, as typed. One opened since the build is known only once the page reads the list.
+export function sharedFlagCode(url: URL): string | undefined {
+    return url.searchParams.get(SHARE_FLAG_PARAM)?.trim().toLowerCase() || undefined
+}
+
 export function sharedCountry(url: URL): Country | undefined {
-    const code = url.searchParams.get(SHARE_FLAG_PARAM)
-    return code ? Countries.get(code.trim().toLowerCase()) : undefined
+    const code = sharedFlagCode(url)
+    return code ? Countries.get(code) : undefined
 }
 
 // As a person reads and retypes it: no scheme, and the name in its own letters.

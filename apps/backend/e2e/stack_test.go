@@ -25,6 +25,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
@@ -129,6 +130,8 @@ func startGame(t *testing.T) gameStack {
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
 
+	flagsConfig := flags.Config{Database: postgres.ConfigFor("flags"), Redis: redis}
+
 	promoConfig := promo.Config{Database: postgres.ConfigFor("promo")}
 	promoConfig.Backgrounds.Enabled = true
 	promoConfig.Backgrounds.PublicBaseURL = mediaOrigin
@@ -147,7 +150,7 @@ func startGame(t *testing.T) gameStack {
 			Server: server,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
-				authModule, planet.NewModule(planetConfig), boxes.NewModule(boxesConfig), bonuses.NewModule(bonusesConfig),
+				authModule, flags.NewModule(flagsConfig), planet.NewModule(planetConfig), boxes.NewModule(boxesConfig), bonuses.NewModule(bonusesConfig),
 				quizzes.NewModule(quizzesConfig),
 				antibot.NewModule(antibotConfig),
 				player.NewModule(playerConfig),

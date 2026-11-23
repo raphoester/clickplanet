@@ -17,7 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/listen_for_events_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
 type stubFeed[K comparable, V any] struct {
@@ -77,7 +77,7 @@ func serve(t *testing.T, feeds feeds, heartbeat time.Duration) scoringv1connect.
 	t.Helper()
 	handler := listen_for_events_handler.New(listen_for_events_handler.Feeds{
 		Boards: feeds.boards, Scores: feeds.scores, Rounds: feeds.rounds,
-	}, cpcountries.New(), heartbeat)
+	}, cpflags.Codes{}, heartbeat)
 	mux := http.NewServeMux()
 	mux.Handle(scoringv1connect.ScoringServiceListenForEventsProcedure, connect.NewServerStreamHandler(
 		scoringv1connect.ScoringServiceListenForEventsProcedure, handler.ListenForEvents,

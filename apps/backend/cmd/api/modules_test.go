@@ -17,8 +17,13 @@ import (
 
 var protoPackage = regexp.MustCompile(`/generated/proto/([a-z]+)/v1(?:/|$)`)
 
+// cpflags hears the flags module's facts for the module that keeps a catalog.
+var sharedPackage = regexp.MustCompile(`/internal/shared/(cpflags)$`)
+
+var sharedOwners = map[string]string{"cpflags": "flags"}
+
 // A module depends on another when its code speaks the other's proto package: it calls it, hears its events or sends
-// it commands. The deprecated mint's package is auth's.
+// it commands, itself or through a shared package. The deprecated mint's package is auth's.
 func moduleEdges(t *testing.T) map[string][]string {
 	t.Helper()
 
@@ -42,11 +47,15 @@ func moduleEdges(t *testing.T) map[string][]string {
 				return err //nolint:wrapcheck // the test reads it.
 			}
 			for _, imported := range file.Imports {
-				match := protoPackage.FindStringSubmatch(strings.Trim(imported.Path.Value, `"`))
-				if match == nil {
+				importPath := strings.Trim(imported.Path.Value, `"`)
+				var owner string
+				if match := protoPackage.FindStringSubmatch(importPath); match != nil {
+					owner = match[1]
+				} else if match := sharedPackage.FindStringSubmatch(importPath); match != nil {
+					owner = sharedOwners[match[1]]
+				} else {
 					continue
 				}
-				owner := match[1]
 				if alias, ok := owners[owner]; ok {
 					owner = alias
 				}
@@ -175,5 +184,16 @@ func TestTheModulesThatPlayHearOrReadTheQuizzesSpeakTheirLanguage(t *testing.T) 
 
 	for _, module := range []string{"gamemaster", "promo", "missions", "progression", "bonuses"} {
 		assert.Contains(t, edges[module], "quizzes", module)
+	}
+}
+
+// The flags module hears no module and calls none: planet keeps a catalog fed by its facts, and the others read the
+// flags the game ships with and the shape of a code opened since (cpflags).
+func TestTheFlagsSpeakNoModulesLanguageAndTheModulesThatCheckAFlagSpeakTheirs(t *testing.T) {
+	edges := moduleEdges(t)
+
+	assert.Empty(t, edges["flags"])
+	for _, module := range []string{"planet", "chat", "scoring", "player", "alerts"} {
+		assert.Contains(t, edges[module], "flags", module)
 	}
 }

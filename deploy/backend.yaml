@@ -145,6 +145,18 @@ missions:
   redis:
     address: redis:6379
 
+flags:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: flags
+  redis:
+    address: redis:6379
+
 support:
   database:
     host: postgres

@@ -33,10 +33,13 @@ describe("rankCountries", () => {
         expect(codes({fr: 2, jp: 0, de: -1})).toEqual(["fr"])
     })
 
-    it("leaves out a code with no matching country and says so once", () => {
-        expect(codes({fr: 2, zz: 99})).toEqual(["fr"])
-        rankCountries(counts({zz: 99}))
-        expect(console.warn).toHaveBeenCalledTimes(1)
+    it("ranks a flag the page does not know by its code, as the server counted it", () => {
+        expect(codes({fr: 2, "r-k3p9x2ma0b": 99})).toEqual(["r-k3p9x2ma0b", "fr"])
+        expect(console.warn).not.toHaveBeenCalled()
+    })
+
+    it("leaves out tiles that name no flag", () => {
+        expect(codes({fr: 2, "": 99})).toEqual(["fr"])
     })
 
     it("does not mutate the counts it was given", () => {

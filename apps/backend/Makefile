@@ -1,4 +1,4 @@
-.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz flags moderation test lint lint-ci tidy check-format check-quiz check-flags check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -33,6 +33,21 @@ quiz:
 check-quiz:
 	@cmp -s $(QUIZ_DIR)/bank.json $(QUIZ_ASSET_DIR)/bank.json || { \
 		echo "$(QUIZ_ASSET_DIR)/bank.json is not $(QUIZ_DIR)/bank.json. Run 'make quiz'." >&2; \
+		exit 1; \
+	}
+
+FLAGS_FILE := ../frontend/static/countries/countries.json
+FLAGS_ASSET_DIR := generated/flags
+
+# The flags the game ships with are the page's: the backend embeds a copy of its file.
+flags:
+	@test -f $(FLAGS_FILE) || { echo "flags: no $(FLAGS_FILE)" >&2; exit 1; }
+	@cp $(FLAGS_FILE) $(FLAGS_ASSET_DIR)/countries.json
+	@ls $(FLAGS_ASSET_DIR)/countries.json
+
+check-flags:
+	@cmp -s $(FLAGS_FILE) $(FLAGS_ASSET_DIR)/countries.json || { \
+		echo "$(FLAGS_ASSET_DIR)/countries.json is not $(FLAGS_FILE). Run 'make flags'." >&2; \
 		exit 1; \
 	}
 
