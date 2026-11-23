@@ -57,8 +57,8 @@ says: it asks Discord for no member count.
 
 **In the phone's sheet the log gives way, never the composer**: its minimum is 0 there, since with the keyboard up
 the sheet is short and a log held at 96px ran out of its shell and under the reply line. **While the field has the
-focus the Discord bar is hidden** (`.chat-sheet:has(.chat-input:focus)`), to leave the log some lines over the
-keyboard. The bar with the arrows and the check mark over the keyboard is Safari's own form bar: no page can hide it.
+focus, or the GIFs are open, the Discord bar is hidden** (`.chat-sheet:has(.chat-input:focus)`,
+`.chat-sheet:has(.gif-picker)`), to leave the log some lines over the keyboard and the GIFs their room. The bar with the arrows and the check mark over the keyboard is Safari's own form bar: no page can hide it.
 
 **The open panel has one left edge, 12px in**: the tabs, the Discord bar, the
 messages and the composer all start there, on a desktop (`.chat`'s 8px and the
@@ -294,6 +294,10 @@ and leaves what was typed in the box. Escape or the cross closes it.
   peek, the toast, a report) it reads "GIF" (`wordsOf`, `app/chat/wordsOf.ts`). A removed GIF is a removed message:
   `withRemoved` drops it from the message and every quote.
 - **In a short panel the grid gives way, never the log**: the log keeps its 120 px and the grid shrinks to one row.
+  **In the phone's sheet it is the other way: the log gives way**, down to nothing. Held sideways the sheet is 390 px
+  high, and a log held at 120 px pressed the picker down to its search field while the grid ran on under the composer
+  and off the screen (a player's report, Nov 22 2026). **The picker never draws past its own box**
+  (`overflow: hidden`), so a grid with no room is cut inside it, never under the field.
 - In fake mode `FakeGifs` draws coloured SVGs; "nothing" finds nothing and "fail" fails.
 
 ## Reactions

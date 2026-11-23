@@ -399,8 +399,17 @@
 }
 
 /* While the player types, the Discord bar steps aside so the keyboard leaves the log some lines. */
-.chat-sheet:has(.chat-input:focus) .chat-discord {
+.chat-sheet:has(.chat-input:focus) .chat-discord,
+.chat-sheet:has(.gif-picker) .chat-discord {
     display: none;
+}
+
+/* In the sheet the log gives way to the GIFs: held sideways it is 390px high, and a log held at 120px pressed the
+   picker down to its search field while the grid ran on under the composer. */
+.chat-sheet .chat-log-shell:has(+ .chat-composer .gif-picker) {
+    flex-basis: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .chat-toast {
