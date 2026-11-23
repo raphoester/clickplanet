@@ -1856,14 +1856,14 @@ Cloudflare, two secrets, and one order.
 2. **The secret the Worker posts the replies with**, the same on both sides. `gh` asks for nothing: it is drawn here.
 
    ```bash
-   s=$(openssl rand -hex 32) && printf '%s' "$s" | gh secret set MAILROOM_SECRET --repo raphoester/clickplanet && (cd apps/mailroom && npm ci && printf '%s' "$s" | npx wrangler secret put MAILROOM_SECRET) && unset s
+   s=$(openssl rand -hex 32) && printf '%s' "$s" | gh secret set MAILROOM_SECRET --repo raphoester/clickplanet && (cd apps/mailroom && printf '%s' "$s" | npx wrangler@4 secret put MAILROOM_SECRET) && unset s
    ```
 
    **Before the backend deploy that reads it**: `env://MAILROOM_SECRET` unset refuses the boot.
 3. **The Worker**, from `apps/mailroom` ([The mailroom](../../apps/mailroom/docs/mailroom.md)):
 
    ```bash
-   cd apps/mailroom && npm ci && npm run deploy
+   cd apps/mailroom && make deploy
    ```
 
 4. **Email Routing on `clickplanet.lol`** (Compute, Email Service, Email Routing): **Subaddressing** on in Settings, so

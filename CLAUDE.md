@@ -16,7 +16,7 @@ A monorepo with four independent apps. Each app's `CLAUDE.md` is the index of it
 - [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) — React/Three.js client (npm)
 - [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) — Go API (Go modules)
 - [`apps/backoffice/CLAUDE.md`](apps/backoffice/CLAUDE.md) — the operator's page at `backoffice.clickplanet.lol`, React (npm)
-- [`apps/mailroom/CLAUDE.md`](apps/mailroom/CLAUDE.md) — the Cloudflare Worker that posts the players' email replies to the backend (npm)
+- [`apps/mailroom/CLAUDE.md`](apps/mailroom/CLAUDE.md) — the Cloudflare Worker that posts the players' email replies to the backend (Go, built to WebAssembly)
 
 Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file only covers what's shared.
 
