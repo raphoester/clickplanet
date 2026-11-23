@@ -305,6 +305,19 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tripMine: () => fake.tripMine()
             ? "an enemy took one of your mines"
             : "lay a mine first",
+        giveTrap: () => {
+            const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
+            if (!globe) return "the globe is not loaded yet"
+            globe.takeReward(fake.grantBonus("trap"))
+            return "a trap in your inventory — lay it on a tile of your flag"
+        },
+        tripTrap: () => fake.tripTrap()
+            ? "an enemy took one of your traps, and lost 10 clicks"
+            : "lay a trap first",
+        enemyTrap: () => {
+            const tile = fake.enemyTrap()
+            return tile === undefined ? "the map is not read yet" : `another flag laid a trap on tile ${tile}: take it`
+        },
         giveBox: () => {
             fake.offerBox()
             return "a box is flying round the globe — catch it"
@@ -417,6 +430,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shielder: fake,
         infector: fake,
         miner: fake,
+        trapper: fake,
         rallier: fake,
         allegiance: fake,
         clickBudgetSource: fake,
@@ -486,6 +500,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shielder: backend,
         infector: backend,
         miner: backend,
+        trapper: backend,
         rallier: backend,
         allegiance: backend,
         clickBudgetSource: backend,

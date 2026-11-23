@@ -75,6 +75,19 @@ const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
         <circle className="bonus-icon-spark" cx="24" cy="26" r="3.5"/>
     </>,
 
+    trap: <>
+        <circle className="bonus-icon-ink" cx={24} cy={24} r={16}/>
+        <circle className="bonus-icon-dark" cx={24} cy={24} r={9.5}/>
+        {around(24, 24, 9.5, 10).map(([x, y]) =>
+            <path key={`${x},${y}`} className="bonus-icon-ink"
+                  d={`M${24 + 1.5 * (x - 24) / 9.5 * 2.2 + (y - 24) / 9.5 * 2.2} ${24 + 1.5 * (y - 24) / 9.5 * 2.2 - (x - 24) / 9.5 * 2.2}`
+                      + ` L${24 + (x - 24) * 0.5} ${24 + (y - 24) * 0.5}`
+                      + ` L${24 + 1.5 * (x - 24) / 9.5 * 2.2 - (y - 24) / 9.5 * 2.2} ${24 + 1.5 * (y - 24) / 9.5 * 2.2 + (x - 24) / 9.5 * 2.2} Z`}/>)}
+        <rect className="bonus-icon-dark" x={3} y={20.5} width={7} height={7} rx={1.5}/>
+        <rect className="bonus-icon-dark" x={38} y={20.5} width={7} height={7} rx={1.5}/>
+        <circle className="bonus-icon-spark" cx={24} cy={24} r={3.5}/>
+    </>,
+
     rally: <>
         <ellipse className="bonus-icon-line" cx={24} cy={38} rx={17} ry={5.5}/>
         <path className="bonus-icon-fuse" d="M18 38 V6"/>

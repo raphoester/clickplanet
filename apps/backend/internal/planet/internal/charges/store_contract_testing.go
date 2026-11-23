@@ -33,7 +33,7 @@ func (s *StoreContractSuite) held(holder Holder) Held {
 }
 
 func (s *StoreContractSuite) TestEveryChargeIsKeptAndEachHolderHasItsOwn() {
-	full := Held{Refills: 2, Bombs: 3, Enclosures: 3, SpreadClicks: 8, Shields: 30, Viruses: 2, Mines: 3, Rallies: 1}
+	full := Held{Refills: 2, Bombs: 3, Enclosures: 3, SpreadClicks: 8, Shields: 30, Viruses: 2, Mines: 3, Rallies: 1, Traps: 2}
 	s.keep(s.Holder(1), full)
 	s.keep(s.Holder(2), Held{Shields: 1})
 

@@ -16,7 +16,7 @@ var (
 )
 
 func aimedAt(tile uint32) clicks.Virus {
-	return clicks.NewVirus("v-1", carrier, "203.0.113.7", "fr", tile)
+	return clicks.NewVirus("v-1", carrier, "203.0.113.7", false, "fr", tile)
 }
 
 func TestAVirusEndsWhenItInfectedNothingHoldsNoTileOrMadeItsMostInfections(t *testing.T) {

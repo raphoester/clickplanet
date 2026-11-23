@@ -151,7 +151,7 @@ describe("a replay", () => {
         backend.listenForBombs((drop: BombDrop) => seen.push(`bomb ${drop.cleared.join(",")}`))
         backend.listenForBonuses({
             onSpread: (click: SpreadClick) => seen.push(`spread ${click.tile}`),
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onCharges: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onTraps: () => {}, onTrapLaid: () => {}, onTrapSprung: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         backend.advanceTo(SINCE + 3_000)
@@ -176,7 +176,7 @@ describe("a replay", () => {
         const backend = replay(enclosure(1, [1, 2, 3], [{tileId: 2, shields: 2}]))
         const seen: {seq: number, filled: number[]}[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onMinesExploded: () => {}, onEnclosed: ({version, filled}) => seen.push({seq: version.seq, filled}),
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onTraps: () => {}, onTrapLaid: () => {}, onTrapSprung: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onMinesExploded: () => {}, onEnclosed: ({version, filled}) => seen.push({seq: version.seq, filled}),
             onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 

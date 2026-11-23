@@ -54,6 +54,11 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(planetmessage.RallyCalled(event.Rally.Rally, event.Rally.Left))
 	case event.MineLaid != nil:
 		return s.stream.Send(planetmessage.MineLaid(event.MineLaid.Flag, event.MineLaid.Tile, event.MineLaid.Version))
+	case event.TrapLaid != nil:
+		return s.stream.Send(planetmessage.TrapLaid(event.TrapLaid.Flag, event.TrapLaid.Tile, event.TrapLaid.Version))
+	case event.Sprung != nil:
+		return s.stream.Send(planetmessage.TrapSprung(event.Sprung.Tile, event.Sprung.Flag, event.Sprung.Clicks,
+			event.Sprung.Yours))
 	case event.Enclosure != nil:
 		return s.stream.Send(planetmessage.TilesEnclosed(event.Enclosure, event.Version, event.Yours))
 	case event.Spread != nil:

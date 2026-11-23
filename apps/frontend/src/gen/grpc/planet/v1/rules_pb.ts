@@ -25,8 +25,8 @@ export class Rules extends Message<Rules> {
   toll?: TollRules;
 
   /**
-   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally are refused, no
-   * virus spreads, and GetFreeze answers frozen. The map still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, LayTrap and CallRally are
+   * refused, no virus spreads, and GetFreeze answers frozen. The map still loads and streams.
    *
    * @generated from field: optional bool frozen = 4;
    */
@@ -487,6 +487,11 @@ export class ChargeRules extends Message<ChargeRules> {
    */
   refill?: RefillRules;
 
+  /**
+   * @generated from field: planet.v1.TrapRules trap = 9;
+   */
+  trap?: TrapRules;
+
   constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -503,6 +508,7 @@ export class ChargeRules extends Message<ChargeRules> {
     { no: 6, name: "mine", kind: "message", T: MineRules },
     { no: 7, name: "rally", kind: "message", T: RallyRules },
     { no: 8, name: "refill", kind: "message", T: RefillRules },
+    { no: 9, name: "trap", kind: "message", T: TrapRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
@@ -889,6 +895,54 @@ export class MineRules extends Message<MineRules> {
 
   static equals(a: MineRules | PlainMessage<MineRules> | undefined, b: MineRules | PlainMessage<MineRules> | undefined): boolean {
     return proto3.util.equals(MineRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.TrapRules
+ */
+export class TrapRules extends Message<TrapRules> {
+  /**
+   * How many traps a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 1;
+   */
+  held?: number;
+
+  /**
+   * How many clicks a trap takes from the bank of the player whose take sprang it, to nobody. The bank goes down to minus
+   * one bank at most. At least 1.
+   *
+   * @generated from field: optional uint32 clicks = 2;
+   */
+  clicks?: number;
+
+  constructor(data?: PartialMessage<TrapRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TrapRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TrapRules {
+    return new TrapRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TrapRules {
+    return new TrapRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TrapRules {
+    return new TrapRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TrapRules | PlainMessage<TrapRules> | undefined, b: TrapRules | PlainMessage<TrapRules> | undefined): boolean {
+    return proto3.util.equals(TrapRules, a, b);
   }
 }
 

@@ -31,6 +31,8 @@ type Out struct {
 	Outcome clicks.Outcome
 	// The flag the tile wore before the click.
 	Owner string
+	// The traps the click's takes sprang: its tile's, and its spread's and enclosure's.
+	Sprung []clicks.TrapSnapshot
 }
 
 type IUseCase interface {
@@ -65,5 +67,5 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)
 	}
 
-	return Out{Outcome: impact.Outcome, Owner: impact.Owner}, nil
+	return Out{Outcome: impact.Outcome, Owner: impact.Owner, Sprung: clicks.Sprung([]clicks.Impact{impact})}, nil
 }

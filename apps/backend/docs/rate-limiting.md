@@ -56,6 +56,15 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
+## A trap leaves a debt
+
+**A trap sprung drains the taker's bank below 0, down to minus one bank** (`Limiter.Drain`, see [The trap](trap.md)):
+the account's own bucket and, for a guest, its network's guest bucket; never the network's. A bank in debt refuses
+every take (`tokens < n`) and refills from its debt at its own pace, so −10 in a guest's 5 s a click is 55 s of nothing.
+Each reading says the debt as it is: `ClickBudget.tokens` is negative, and the client replays the refill from it. The
+click that sprang a trap reads the bank again after its takes (`throttle_click`), so its answer shows the debt; a
+refill charge (`Fill`) pays the whole debt. A restart forgets every debt, as it fills every bank.
+
 ## A big country refills slower (`clicks.Toll`)
 
 **Every click costs one token.** What the map share changes is how fast the

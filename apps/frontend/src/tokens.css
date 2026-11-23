@@ -104,6 +104,8 @@
     --mine-light: #CFDF94;
     --rally: #0FA3B1;
     --rally-light: #7FE3EC;
+    --trap: #E8862A;
+    --trap-light: #FFC48A;
 
     --war: #FF5A1F;
     --tape: repeating-linear-gradient(45deg, var(--war) 0 12px, var(--ink) 12px 24px);

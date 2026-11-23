@@ -105,6 +105,9 @@ message SwitchBoardResponse {
   // The mines moved to a new tile, and the ones on an old tile dropped.
   uint32 mines_moved = 12;
   uint32 mines_lost = 13;
+  // The traps moved to a new tile, and the ones on an old tile dropped.
+  uint32 traps_moved = 17;
+  uint32 traps_lost = 18;
   // Live viruses, which end.
   uint32 viruses_ended = 14;
   // Provinces locked on the old board, whose locks are dropped; the new board settles its own.
@@ -170,6 +173,9 @@ message GrantChargesRequest {
 
   // Rallies, up to what a hand holds.
   uint32 rallies = 9;
+
+  // Traps, up to what a hand holds.
+  uint32 traps = 13;
 }
 
 message GrantChargesResponse {

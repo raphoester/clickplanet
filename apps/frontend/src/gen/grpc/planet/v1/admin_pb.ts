@@ -147,6 +147,18 @@ export class SwitchBoardResponse extends Message<SwitchBoardResponse> {
   minesLost = 0;
 
   /**
+   * The traps moved to a new tile, and the ones on an old tile dropped.
+   *
+   * @generated from field: uint32 traps_moved = 17;
+   */
+  trapsMoved = 0;
+
+  /**
+   * @generated from field: uint32 traps_lost = 18;
+   */
+  trapsLost = 0;
+
+  /**
    * Live viruses, which end.
    *
    * @generated from field: uint32 viruses_ended = 14;
@@ -188,6 +200,8 @@ export class SwitchBoardResponse extends Message<SwitchBoardResponse> {
     { no: 11, name: "shields_after", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 12, name: "mines_moved", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 13, name: "mines_lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 17, name: "traps_moved", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 18, name: "traps_lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 14, name: "viruses_ended", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 15, name: "locks_dropped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 16, name: "switched_at", kind: "message", T: Timestamp },
@@ -481,6 +495,13 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
    */
   rallies = 0;
 
+  /**
+   * Traps, up to what a hand holds.
+   *
+   * @generated from field: uint32 traps = 13;
+   */
+  traps = 0;
+
   constructor(data?: PartialMessage<GrantChargesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -498,6 +519,7 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
     { no: 12, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "traps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargesRequest {

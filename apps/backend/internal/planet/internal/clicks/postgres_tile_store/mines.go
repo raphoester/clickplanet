@@ -13,7 +13,7 @@ import (
 
 func (s *Store) LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT tile, flag, account, scope FROM mines WHERE map = $1 ORDER BY tile
+		SELECT tile, flag, account, scope, linked FROM mines WHERE map = $1 ORDER BY tile
 	`, string(played))
 	if err != nil {
 		return fmt.Errorf("failed to read the mines: %w", err)
@@ -25,7 +25,7 @@ func (s *Store) LoadMines(ctx context.Context, played clicks.MapID, visit func(m
 			mine    clicks.MineSnapshot
 			account uuid.UUID
 		)
-		if err := rows.Scan(&mine.Tile, &mine.Flag, &account, &mine.Scope); err != nil {
+		if err := rows.Scan(&mine.Tile, &mine.Flag, &account, &mine.Scope, &mine.Linked); err != nil {
 			return fmt.Errorf("failed to read a mine: %w", err)
 		}
 		mine.Account = cpsession.AccountID(account)
@@ -53,10 +53,11 @@ func (s *Store) SaveMines(ctx context.Context, played clicks.Stage, laid []click
 		}
 		for _, mine := range laid {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mines (map, board, tile, flag, account, scope) VALUES ($1, $2, $3, $4, $5, $6)
+				INSERT INTO mines (map, board, tile, flag, account, scope, linked) VALUES ($1, $2, $3, $4, $5, $6, $7)
 				ON CONFLICT (map, tile) DO UPDATE SET board = EXCLUDED.board, flag = EXCLUDED.flag,
-					account = EXCLUDED.account, scope = EXCLUDED.scope
-			`, string(played.Map), played.Board, mine.Tile, mine.Flag, mine.Account.String(), mine.Scope); err != nil {
+					account = EXCLUDED.account, scope = EXCLUDED.scope, linked = EXCLUDED.linked
+			`, string(played.Map), played.Board, mine.Tile, mine.Flag, mine.Account.String(), mine.Scope,
+				mine.Linked); err != nil {
 				return fmt.Errorf("failed to keep the mine on tile %d: %w", mine.Tile, err)
 			}
 		}

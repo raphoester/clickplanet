@@ -17,8 +17,9 @@ func TestEveryKindWeighedIsDrawn(t *testing.T) {
 	weights[KindVirus] = 1
 	weights[KindMine] = 1
 	weights[KindRally] = 1
+	weights[KindTrap] = 1
 	seen := cpcolls.NewSet[Kind]()
-	for range 500 {
+	for range 600 {
 		seen.Add(drawKind(everyKind(), weights))
 	}
 
@@ -67,6 +68,14 @@ func TestAMineWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	assert.True(t, rules.drawable(Unlocked{KindMine}).Contains(KindMine))
 }
 
+func TestATrapWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
+	rules := TestGated()
+	rules.Kinds[KindTrap] = 1
+
+	assert.False(t, rules.drawable(Unlocked{KindEncloseClicks, KindBomb, KindVirus, KindMine, KindRally}).Contains(KindTrap))
+	assert.True(t, rules.drawable(Unlocked{KindTrap}).Contains(KindTrap))
+}
+
 func TestARallyWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindRally] = 1
@@ -91,4 +100,5 @@ func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRefill])
 	assert.Equal(t, cpcolls.NewSet(1, 2), seen[KindMine], "1 or 2 mines")
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRally], "one rally")
+	assert.Equal(t, cpcolls.NewSet(1, 2), seen[KindTrap], "1 or 2 traps")
 }

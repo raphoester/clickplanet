@@ -18,6 +18,7 @@ type Rules struct {
 	Virus   VirusRules
 	Mine    MineRules
 	Rally   RallyRules
+	Trap    TrapRules
 }
 
 // Size is how many of the kind a hand holds at most.
@@ -39,6 +40,8 @@ func (r Rules) Size(kind Kind) int {
 		return r.Mine.Held
 	case KindRally:
 		return r.Rally.Held
+	case KindTrap:
+		return r.Trap.Held
 	}
 
 	return 0
@@ -55,7 +58,7 @@ func (r Rules) Off(kind Kind) bool {
 		return r.Spread.Off
 	case KindRally:
 		return r.Rally.Off
-	case KindRefill, KindShields, KindVirus, KindMine:
+	case KindRefill, KindShields, KindVirus, KindMine, KindTrap:
 	}
 
 	return false
@@ -112,6 +115,8 @@ func (r Rules) Validate() error {
 		rules.AtMost("rally.lasts", r.Rally.Lasts, "thirty minutes", longestRally),
 		rules.AtLeast("rally.cost", r.Rally.Cost, "a tenth of a click", cheapestRallyClick),
 		rules.AtMost("rally.cost", r.Rally.Cost, "a whole click", 1),
+		rules.Positive("trap.held", r.Trap.Held),
+		rules.AtLeast("trap.clicks", r.Trap.Clicks, "one click", 1),
 	)
 }
 
@@ -169,6 +174,13 @@ type VirusRules struct {
 type MineRules struct {
 	Held  int
 	Rings int
+}
+
+// TrapRules: a hand holds Held traps at most, and a trap sprung takes Clicks from the bank of the player whose take
+// sprang it, to nobody, down to minus one bank.
+type TrapRules struct {
+	Held   int
+	Clicks int
 }
 
 // RallyRules: a hand holds Held rallies at most. A rally's ring is Rings tile spacings wide and lasts Lasts, and a click

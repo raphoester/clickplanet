@@ -38,6 +38,7 @@ func (h GrantChargesHandler) GrantCharges(
 			Shields:      int(req.Msg.GetShields()),
 			Viruses:      int(req.Msg.GetViruses()),
 			Mines:        int(req.Msg.GetMines()),
+			Traps:        int(req.Msg.GetTraps()),
 			Rallies:      int(req.Msg.GetRallies()),
 		},
 	})

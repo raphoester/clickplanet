@@ -86,6 +86,8 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"charges.rally.lasts is 30m1s": func(r *planetv1.Rules) {
 			r.Charges.Rally.Lasts = d(30*time.Minute + time.Second)
 		},
+		"charges.trap.held":          func(r *planetv1.Rules) { r.Charges.Trap.Held = proto.Uint32(0) },
+		"charges.trap.clicks":        func(r *planetv1.Rules) { r.Charges.Trap.Clicks = proto.Uint32(0) },
 		"charges.rally.cost is 0.09": func(r *planetv1.Rules) { r.Charges.Rally.Cost = proto.Float64(0.09) },
 		"charges.rally.cost is 1.5":  func(r *planetv1.Rules) { r.Charges.Rally.Cost = proto.Float64(1.5) },
 		"charges.enclose.off is on with enclose.unlimited": func(r *planetv1.Rules) {

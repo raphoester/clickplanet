@@ -39,7 +39,7 @@ func (s *testSuite) SetupTest() {
 
 	tileChecker := clicks.PlayedOf(maxIndex)
 	s.flags = catalog.NewCatalog(catalog.NewMemoryStore())
-	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), s.flags)
+	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }, clicks.NewSnareLog()), s.flags)
 }
 
 func (s *testSuite) TestAFlagOpenedWhileTheServerRunsIsPlayedAndAClosedOneIsRefused() {

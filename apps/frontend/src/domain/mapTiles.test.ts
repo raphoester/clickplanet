@@ -10,7 +10,7 @@ const at = (seq: number, epoch = START): MapVersion => ({epoch, seq})
 // Two ranges: tiles 1 to 4, and 5 to 6.
 const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
-const changes = (): TileChanges => ({owners: [], shields: [], infections: [], mines: []})
+const changes = (): TileChanges => ({owners: [], shields: [], infections: [], mines: [], traps: []})
 
 const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = []): Ownerships => ({
     range: {start, end},
@@ -191,7 +191,7 @@ describe("a server that started again", () => {
         const tiles = tilesOf()
         tiles.opened(at(10, START + 60))
 
-        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: [], infections: [], mines: []})
+        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: [], infections: [], mines: [], traps: []})
         expect(live(tiles, update(2, "fr", at(901))).owners).toEqual([])
     })
 
@@ -393,11 +393,11 @@ describe("the flag's mines", () => {
 
         const first = changes()
         tiles.readMines({countryId: "fr", tiles: [1, 2], version: at(10)}, first)
-        expect(first.mines).toEqual([{tile: 1, mined: true}, {tile: 2, mined: true}])
+        expect(first.mines).toEqual([{tile: 1, marked: true}, {tile: 2, marked: true}])
 
         const second = changes()
         tiles.readMines({countryId: "fr", tiles: [2, 3], version: at(11)}, second)
-        expect(second.mines).toEqual([{tile: 1, mined: false}, {tile: 3, mined: true}])
+        expect(second.mines).toEqual([{tile: 1, marked: false}, {tile: 3, marked: true}])
         expect(mines(tiles)).toEqual([2, 3])
     })
 
@@ -418,11 +418,11 @@ describe("the flag's mines", () => {
         const taken = live(tiles,
             {...update(1, "de", at(11)), previousCountry: "fr"},
             {...update(2, "fr", at(12), 3), previousCountry: "fr", clicked: false})
-        expect(taken.mines).toEqual([{tile: 1, mined: false}])
+        expect(taken.mines).toEqual([{tile: 1, marked: false}])
 
         const bombed = changes()
         tiles.applyBlast([], [{tile: 3, shields: 0}], at(13), bombed)
-        expect(bombed.mines).toEqual([{tile: 3, mined: false}])
+        expect(bombed.mines).toEqual([{tile: 3, marked: false}])
         expect(mines(tiles)).toEqual([2])
     })
 
@@ -468,6 +468,51 @@ describe("the flag's mines", () => {
         const restarted = changes()
         tiles.applyMineLaid({countryId: "fr", tile: 2, version: at(0, START + 1)}, restarted)
 
-        expect(restarted.mines).toEqual([{tile: 1, mined: false}, {tile: 2, mined: true}])
+        expect(restarted.mines).toEqual([{tile: 1, marked: false}, {tile: 2, marked: true}])
+    })
+
+    const traps = (tiles: MapTiles) => tiles.traps.tiles().sort()
+
+    it("reads the flag's traps beside its mines, and a read of either leaves the other", () => {
+        const tiles = opened()
+        tiles.readMines({countryId: "fr", tiles: [1], version: at(10)}, changes())
+
+        const read = changes()
+        tiles.readTraps({countryId: "fr", tiles: [2, 3], version: at(10)}, read)
+        tiles.readTraps({countryId: "fr", tiles: [3], version: at(11)}, read)
+
+        expect(read.traps).toEqual([{tile: 2, marked: true}, {tile: 3, marked: true}, {tile: 2, marked: false}])
+        expect(read.mines).toEqual([])
+        expect(traps(tiles)).toEqual([3])
+        expect(mines(tiles)).toEqual([1])
+    })
+
+    it("keeps a trap laid only while its tile has not changed since, and takes it off at a take or a bomb", () => {
+        const tiles = opened()
+        live(tiles, {...update(2, "fr", at(12), 1), previousCountry: "fr"})
+        tiles.applyTrapLaid({countryId: "fr", tile: 1, version: at(11)}, changes())
+        tiles.applyTrapLaid({countryId: "fr", tile: 2, version: at(11)}, changes())
+        tiles.applyTrapLaid({countryId: "fr", tile: 3, version: at(12)}, changes())
+        expect(traps(tiles)).toEqual([1, 3])
+
+        const taken = live(tiles, {...update(1, "de", at(13)), previousCountry: "fr"})
+        expect(taken.traps).toEqual([{tile: 1, marked: false}])
+
+        const bombed = changes()
+        tiles.applyBlast([], [{tile: 3, shields: 0}], at(14), bombed)
+        expect(bombed.traps).toEqual([{tile: 3, marked: false}])
+        expect(traps(tiles)).toEqual([])
+    })
+
+    it("forgets the mines and the traps when the page plays for another flag", () => {
+        const tiles = opened()
+        tiles.readMines({countryId: "fr", tiles: [1], version: at(10)}, changes())
+        tiles.readTraps({countryId: "fr", tiles: [2], version: at(10)}, changes())
+
+        const forgotten = changes()
+        tiles.forgetMarks(forgotten)
+
+        expect(forgotten.mines).toEqual([{tile: 1, marked: false}])
+        expect(forgotten.traps).toEqual([{tile: 2, marked: false}])
     })
 })

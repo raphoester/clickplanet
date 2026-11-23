@@ -24,8 +24,8 @@ func (s *testSuite) infected(storage *inmemory_tile_storage.Storage) clicks.Cont
 	for _, tile := range []uint32{3, 4, 5, 6, 7} {
 		s.Require().NoError(storage.Set(ctx, tile, "de"))
 	}
-	contagion := clicks.NewContagion(storage, line{}, func(int) int { return 0 }, func() int { return 10 })
-	_, _, err := contagion.Start(ctx, clicks.NewVirus("v-1", carrier, "203.0.113.7", "fr", 5), 32, noon)
+	contagion := clicks.NewContagion(storage, line{}, func(int) int { return 0 }, func() int { return 10 }, clicks.NewSnareLog())
+	_, _, err := contagion.Start(ctx, clicks.NewVirus("v-1", carrier, "203.0.113.7", false, "fr", 5), 32, noon)
 	s.Require().NoError(err)
 	return contagion
 }

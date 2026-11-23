@@ -15,6 +15,7 @@ import {
     Shielder,
     Infector,
     Miner,
+    Trapper,
     Rallier,
     TileClicker,
     TileHolders,
@@ -170,6 +171,7 @@ export type Backends = {
     shielder: Shielder
     infector: Infector
     miner: Miner
+    trapper: Trapper
     rallier: Rallier
     allegiance: AllegianceSource
     chatBackend: ChatRooms
@@ -324,6 +326,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         toggleBomb,
         toggleVirus,
         toggleMine,
+        toggleTrap,
         toggleRally,
         toggleSwitch,
         pointing,
@@ -347,6 +350,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         shielder: backends.shielder,
         infector: backends.infector,
         miner: backends.miner,
+        trapper: backends.trapper,
         rallier: backends.rallier,
         playSound: sound.play,
         onClickAccepted: accepted.record,
@@ -520,6 +524,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                        onToggleBomb={toggleBomb}
                        onToggleVirus={toggleVirus}
                        onToggleMine={toggleMine}
+                       onToggleTrap={toggleTrap}
                        onToggleRally={toggleRally}
                        onUseRefill={spendRefill}
                        onToggleShield={() => toggleSwitch("shield")}/>

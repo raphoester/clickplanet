@@ -1,6 +1,6 @@
 export const SOUNDS = [
     "click", "refused", "bonusSpawn", "bonusCaught", "spread", "enclose", "bomb", "chat",
-    "quiz", "quizRight", "quizWrong", "title", "fortify",
+    "quiz", "quizRight", "quizWrong", "title", "fortify", "trap",
 ] as const
 
 export type SoundName = typeof SOUNDS[number]
@@ -17,6 +17,8 @@ export function switchOf(name: SoundName): SwitchName {
         case "quizRight":
         case "quizWrong":
             return "quiz"
+        case "trap":
+            return "bomb"
         default:
             return name
     }

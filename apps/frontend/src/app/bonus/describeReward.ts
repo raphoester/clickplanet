@@ -46,5 +46,10 @@ export function describeReward(reward: BonusReward): {
                 title: reward.rallies > 0 ? t("reward.rallies", {rallies: reward.rallies}) : t("bonus.rally"),
                 detail: t("reward.rallies.detail"),
             }
+        case "trap":
+            return {
+                title: reward.traps > 0 ? t("reward.traps", {traps: reward.traps}) : t("bonus.trap"),
+                detail: t("reward.traps.detail"),
+            }
     }
 }

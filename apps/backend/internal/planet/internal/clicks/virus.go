@@ -23,6 +23,7 @@ type Virus struct {
 	id         VirusID
 	account    cpsession.AccountID
 	scope      string
+	linked     bool
 	flag       string
 	victim     string
 	tile       uint32
@@ -36,6 +37,8 @@ type VirusSnapshot struct {
 	ID      VirusID
 	Account cpsession.AccountID
 	Scope   string
+	// Whether its player was signed in as it used it: a trap it springs drains a guest's network's guest bank too.
+	Linked bool
 	// The flag it takes tiles for, and the flag of the tile it was used on.
 	Flag   string
 	Victim string
@@ -50,21 +53,26 @@ type VirusSnapshot struct {
 
 func (s VirusSnapshot) Restore() Virus {
 	return Virus{
-		id: s.ID, account: s.Account, scope: s.Scope, flag: s.Flag, victim: s.Victim, tile: s.Tile,
+		id: s.ID, account: s.Account, scope: s.Scope, linked: s.Linked, flag: s.Flag, victim: s.Victim, tile: s.Tile,
 		infected: slices.Clone(s.Infected), infections: s.Infections, next: s.Next, ended: s.Ended,
 	}
 }
 
 func (v Virus) TakeSnapshot() VirusSnapshot {
 	return VirusSnapshot{
-		ID: v.id, Account: v.account, Scope: v.scope, Flag: v.flag, Victim: v.victim, Tile: v.tile,
+		ID: v.id, Account: v.account, Scope: v.scope, Linked: v.linked, Flag: v.flag, Victim: v.victim, Tile: v.tile,
 		Infected: slices.Clone(v.infected), Infections: v.infections, Next: v.next, Ended: v.ended,
 	}
 }
 
 // NewVirus is a virus aimed at a tile, which has hit no flag yet.
-func NewVirus(id VirusID, account cpsession.AccountID, scope, flag string, tile uint32) Virus {
-	return Virus{id: id, account: account, scope: scope, flag: flag, tile: tile}
+func NewVirus(id VirusID, account cpsession.AccountID, scope string, linked bool, flag string, tile uint32) Virus {
+	return Virus{id: id, account: account, scope: scope, linked: linked, flag: flag, tile: tile}
+}
+
+// Payer is who pays for what its takes spring: the virus's player, as it used it.
+func (s VirusSnapshot) Payer() Payer {
+	return Payer{Scope: s.Scope, Account: s.Account.String(), Linked: s.Linked}
 }
 
 // Aimed is the virus with the flag its tile wears as the one it hits.

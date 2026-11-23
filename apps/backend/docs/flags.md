@@ -47,7 +47,7 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 
 | asks | for |
 |---|---|
-| `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a rally |
+| `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a trap, a rally |
 | `Known` | the operator's `FindPlayers`, a flag and an area |
 
 **The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): a flag the game ships with, or `r-` and

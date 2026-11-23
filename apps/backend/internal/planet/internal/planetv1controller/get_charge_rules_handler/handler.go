@@ -72,6 +72,9 @@ func (h GetChargeRulesHandler) GetChargeRules(
 		Mines:     uint32(rules.Mine.Held),
 		MineRings: uint32(rules.Mine.Rings),
 
+		Traps:      uint32(rules.Trap.Held),
+		TrapClicks: uint32(rules.Trap.Clicks),
+
 		Rallies:      uint32(rules.Rally.Held),
 		RallyRadius:  h.ring.Radius(),
 		RallyLastsMs: uint32(rules.Rally.Lasts.Milliseconds()),
