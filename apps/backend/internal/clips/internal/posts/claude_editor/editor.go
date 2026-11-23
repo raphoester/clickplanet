@@ -29,8 +29,8 @@ const (
 	// The cheapest model, at $0.10 and $0.50 a million tokens in and out while a prompt stays at 100K or fewer.
 	DefaultModel = "claude-haiku-5-5"
 
-	// Room for its thinking, which counts, and a few stories with their headlines.
-	maxTokens = 8000
+	// Its thinking counts: with the lab's story a run used 8,000 and more; 16,000 is about 80 s, inside the timeout.
+	maxTokens = 16000
 	// One call a run, in a job of 10 minutes: a model that does not answer in 2 leaves the run quiet.
 	timeout = 2 * time.Minute
 	retries = 1
