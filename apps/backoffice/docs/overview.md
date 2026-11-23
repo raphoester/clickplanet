@@ -14,7 +14,8 @@ burger menu (see [The menu](menu.md)), by group:
   swastikas the vandal squad flagged, drawn, with their painter's ban and revert (see [Graffiti](graffiti.md)).
 - **Map**: Download a replay (see [The map tools](map-tools.md)).
 - **Clips**: Clip stats, the daily numbers of every post the game made, the clips' among them, and a CSV of them (see
-  [Clip stats](clip-stats.md)), and Videos, the season-end videos to post by hand, with their captions (see
+  [Clip stats](clip-stats.md)), the Lab, each experiment of the video lab against the control of the same days, and
+  each day's arrivals by platform (see [The Lab](lab.md)), and Videos, the season-end videos to post by hand, with their captions (see
   [Videos](videos.md)).
 - **Ops**: Timeline, what the gamemaster does next, as blocks and a list; Reconcile titles, the run after a deploy; Link Discord members, the players in the Discord server whom no sign-in linked; Game rules, the rule sets the game plays by; Box & quiz rules, the rule sets the boxes are offered by and the quizzes asked by; Anti-bot rules,
   the rule sets the antibot judges with; Mission rules, the numbers a flag mission is drawn with; Rule schedule, which set planet, the antibot, the boxes, the bonuses and the quizzes play and when, and a battle's points' times; Seasons, each season's window (see [Ops](ops.md)); and Promo, the backgrounds and each rule set's cards a battle is teased with in the game (see [Promo](promo.md)).

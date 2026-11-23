@@ -6,7 +6,7 @@ src/
   clients.ts        the narrow client types every page takes, and CLIENTS
   fakeAdmin.ts      FakeAdmin, every admin method for the tests
   demo/             npm run demo: api.ts, the clients over DemoAdmin (demoAdmin.ts) and a made-up bucket, served in
-                    place of ../api.ts
+                    place of ../api.ts; demoLab.ts (ten made-up days of the lab)
   refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf),
                     the server's UTC times in the operator's own (localized)
   useCall.ts        one call's state, run on mount
@@ -45,7 +45,9 @@ src/
                     (a patch of a board's lattice, for the tests)
   map/              Download a replay, actions.ts (the file, and the eras it is on); download.ts (a file saved from
                     memory)
-  clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
+  clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file, every row of a window), table.ts (its columns)
+  lab/              The Lab: LabPage over readout.ts (each post at 7 days, each experiment against its control, the
+                    arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's

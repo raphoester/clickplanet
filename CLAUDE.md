@@ -51,7 +51,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   tooling.
 - [CrazyGames](docs/crazygames.md) — the game framed from `crazygames.clickplanet.lol`: why a host of its own, what
   each app and the deploy do, and what the owner sets up.
-- [The video lab](docs/video-lab.md) — PRs 1 to 3 built 2026-11-20: new video formats beside the clips, on the two
+- [The video lab](docs/video-lab.md) — PRs 1 to 3 built 2026-11-20, PR 6 (the readout: the backoffice's Lab page,
+  auth's `CountArrivals`) 2026-11-23: new video formats beside the clips, on the two
   accounts there are (no new TikTok account: 94% of its views are For You's), one pick a run by a coin (2 of TikTok's 3
   a day, half of YouTube's), `post.experiment` on every post, 2 or 3 experiments at once for 10 days each and the
   owner's verdict; the owner's order (the narrated war report, POV, far invasion, rankings, call to arms, satisfying);

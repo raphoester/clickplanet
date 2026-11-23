@@ -49,6 +49,9 @@ const (
 	// AdminServiceApproveConnectionProcedure is the fully-qualified name of the AdminService's
 	// ApproveConnection RPC.
 	AdminServiceApproveConnectionProcedure = "/auth.v1.AdminService/ApproveConnection"
+	// AdminServiceCountArrivalsProcedure is the fully-qualified name of the AdminService's
+	// CountArrivals RPC.
+	AdminServiceCountArrivalsProcedure = "/auth.v1.AdminService/CountArrivals"
 )
 
 // AdminServiceClient is a client for the auth.v1.AdminService service.
@@ -66,6 +69,11 @@ type AdminServiceClient interface {
 	// The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
 	// tokens. Only the page's session makes this call, and the code is for the account of that session.
 	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
+	// How many accounts came from each source on each UTC day of a window: TikTok (clickplanet.lol/t), YouTube (/y), a
+	// player's link or video, CrazyGames, or unknown. Read from the address the browser first opened, when the account was
+	// made, guests included. A deleted account's arrival still counts, so a day's count never shrinks. A day and a source
+	// with no account are not listed. TikTok was counted apart from 2026-11-20; before, its arrivals are unknown.
+	CountArrivals(context.Context, *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the auth.v1.AdminService service. By default, it
@@ -116,6 +124,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ApproveConnection")),
 			connect.WithClientOptions(opts...),
 		),
+		countArrivals: connect.NewClient[v1.CountArrivalsRequest, v1.CountArrivalsResponse](
+			httpClient,
+			baseURL+AdminServiceCountArrivalsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CountArrivals")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -127,6 +142,7 @@ type adminServiceClient struct {
 	whoAmI             *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
 	describeConnection *connect.Client[v1.DescribeConnectionRequest, v1.DescribeConnectionResponse]
 	approveConnection  *connect.Client[v1.ApproveConnectionRequest, v1.ApproveConnectionResponse]
+	countArrivals      *connect.Client[v1.CountArrivalsRequest, v1.CountArrivalsResponse]
 }
 
 // StartSignIn calls auth.v1.AdminService.StartSignIn.
@@ -159,6 +175,11 @@ func (c *adminServiceClient) ApproveConnection(ctx context.Context, req *connect
 	return c.approveConnection.CallUnary(ctx, req)
 }
 
+// CountArrivals calls auth.v1.AdminService.CountArrivals.
+func (c *adminServiceClient) CountArrivals(ctx context.Context, req *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error) {
+	return c.countArrivals.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the auth.v1.AdminService service.
 type AdminServiceHandler interface {
 	StartSignIn(context.Context, *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error)
@@ -174,6 +195,11 @@ type AdminServiceHandler interface {
 	// The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
 	// tokens. Only the page's session makes this call, and the code is for the account of that session.
 	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
+	// How many accounts came from each source on each UTC day of a window: TikTok (clickplanet.lol/t), YouTube (/y), a
+	// player's link or video, CrazyGames, or unknown. Read from the address the browser first opened, when the account was
+	// made, guests included. A deleted account's arrival still counts, so a day's count never shrinks. A day and a source
+	// with no account are not listed. TikTok was counted apart from 2026-11-20; before, its arrivals are unknown.
+	CountArrivals(context.Context, *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -220,6 +246,13 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ApproveConnection")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceCountArrivalsHandler := connect.NewUnaryHandler(
+		AdminServiceCountArrivalsProcedure,
+		svc.CountArrivals,
+		connect.WithSchema(adminServiceMethods.ByName("CountArrivals")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceStartSignInProcedure:
@@ -234,6 +267,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceDescribeConnectionHandler.ServeHTTP(w, r)
 		case AdminServiceApproveConnectionProcedure:
 			adminServiceApproveConnectionHandler.ServeHTTP(w, r)
+		case AdminServiceCountArrivalsProcedure:
+			adminServiceCountArrivalsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -265,4 +300,8 @@ func (UnimplementedAdminServiceHandler) DescribeConnection(context.Context, *con
 
 func (UnimplementedAdminServiceHandler) ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.ApproveConnection is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CountArrivals(context.Context, *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.CountArrivals is not implemented"))
 }

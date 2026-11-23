@@ -139,6 +139,12 @@ import {
     StatsSnapshot,
     TikTokAccount,
 } from "./gen/grpc/publishing/v1/admin_pb.ts"
+import {
+    ArrivalCount,
+    ArrivalSource,
+    CountArrivalsRequest,
+    CountArrivalsResponse,
+} from "./gen/grpc/auth/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {Graffiti, GraffitiKind, ListGraffitiRequest, ListGraffitiResponse} from "./gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
@@ -216,8 +222,8 @@ import {
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
-    PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
+    AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin,
+    PlanetAdmin, PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -234,7 +240,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, AuthAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly bonuses: FakeBonuses = new FakeBonuses(this)
@@ -477,6 +483,13 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             }),
         }),
     ]]
+    // What CountArrivals answers, whatever the window asked.
+    arrivals = [
+        new ArrivalCount({day: "2026-10-17", source: ArrivalSource.TIKTOK, accounts: 4}),
+        new ArrivalCount({day: "2026-10-18", source: ArrivalSource.TIKTOK, accounts: 6}),
+        new ArrivalCount({day: "2026-10-18", source: ArrivalSource.YOUTUBE, accounts: 3}),
+        new ArrivalCount({day: "2026-10-18", source: ArrivalSource.UNKNOWN, accounts: 20}),
+    ]
     // The videos kept, the newest first, and the upload each link was made for, by video id.
     videos = [
         new Video({
@@ -499,7 +512,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return {
             alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, boxes: this.boxes, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
-            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad,
+            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad, auth: this,
         }
     }
 
@@ -537,6 +550,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const index = request.page ? Number(request.page) : 0
         const next = index + 1 < this.rowPages.length ? String(index + 1) : ""
         return this.answer("listRows", request, new ListRowsResponse({rows: this.rowPages[index] ?? [], nextPage: next}))
+    }
+
+    countArrivals(request: PartialMessage<CountArrivalsRequest>): Promise<CountArrivalsResponse> {
+        return this.answer("countArrivals", request, new CountArrivalsResponse({counts: this.arrivals}))
     }
 
     createVideoUpload(request: PartialMessage<CreateVideoUploadRequest>): Promise<CreateVideoUploadResponse> {

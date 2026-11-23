@@ -16,7 +16,8 @@ the clips job took it (`clips stats`) and the clips module kept it.
   a day the server took none.
 - **Download CSV** (`tableFileOf` in `actions.ts`): the rows of the last snapshot (each clip once, at its latest age),
   the last 7 or 30 days, or everything, every page of `ListRows` (2000 a page), saved as
-  `clip-stats-<since>-<until>.csv` from memory (`saveText`, as the replay is). **`tableOf` (`table.ts`) makes the
+  `clip-stats-<since>-<until>.csv` from memory (`saveText`, as the replay is). The Lab reads its rows with the same
+  `documentsOf` (see [The Lab](lab.md)). **`tableOf` (`table.ts`) makes the
   columns from the rows**: the row's own first (`takenAt`, `postId`, `platform`, `ageHours`, …), then one for each
   metric (`metrics.views`, `metrics.impressionSources.forYou`), each part of the metadata (`meta.storyFlag`,
   `meta.record.clip.variants.<experiment>`: an arm is a column with no code, the backend's

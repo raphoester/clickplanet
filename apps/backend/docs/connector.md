@@ -19,7 +19,11 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   description), and `readOnlyHint` when the method is `NO_SIDE_EFFECTS`, `destructiveHint` otherwise. **A new admin
   method is a new tool after `make proto`, with no code here.** Its comment is the text Claude reads, which is why
   admin rpcs keep a comment (see [`docs/proto.md`](../../../docs/proto.md)).
-- **Left out:** `auth.v1` (an app never signs in to the page or lets an app in), and the hidden list, `tools.Hidden` in `internal/mcp/internal/tools/tools.go`:
+- **Left out**, the hidden list, `tools.Hidden` in `internal/mcp/internal/tools/tools.go`:
+  - the admin page's own calls, which the gate refuses a token: `auth` `StartSignIn`, `CompleteSignIn`, `SignOut`,
+    `WhoAmI`, `DescribeConnection` and `ApproveConnection` (an app never signs in to the page or lets an app in).
+    `auth` `CountArrivals` stays (`auth_count_arrivals`), the accounts made each day by source; `tools_test.go` fails
+    on any other `auth` tool, so a method added to `auth.v1.AdminService` is a choice;
   - reads too big for a tool's answer: `planet` `GetReplay` (megabytes for a day), `GetLedger` (72 h of every act,
     page by page: a 24 h poll of it once pushed the box into swap) and `GetTerritories` (every tile of every country);
   - the clips job's writes, which only the job calls over ssh: `clips` `MakeCast` and `KeepAppearance`;
@@ -63,6 +67,8 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   `unauthenticated`, an account no longer flagged `permission_denied`.
 - **A token never makes the page's own calls.** The sign-in, `WhoAmI`, `DescribeConnection` and
   `ApproveConnection` are `permission_denied` before auth is asked, so a connected app can never let another app in.
+  Every call of `auth.v1.AdminService` is the page's own, one added later too, but the reads named in `appReads`
+  (`internal/auth/admin_gate.go`): `CountArrivals` alone (`admission.Page.WithSessionOnly`).
 - **`GetTokenOperator(token)`** (`token_operator_query`) answers a live access token whose account is flagged, and
   the app's name. The flag is read on every call, so unsetting it ends every connection of the account at once.
 

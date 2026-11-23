@@ -4,7 +4,71 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+
+/**
+ * Where an account came from, by the tag of the first address it opened.
+ *
+ * @generated from enum auth.v1.ArrivalSource
+ */
+export enum ArrivalSource {
+  /**
+   * @generated from enum value: ARRIVAL_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A tag nobody posted, or none: the site typed alone, an old link, a streamer's own link.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * clickplanet.lol/y, and the old ?s=yt.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_YOUTUBE = 2;
+   */
+  YOUTUBE = 2,
+
+  /**
+   * clickplanet.lol/t.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_TIKTOK = 3;
+   */
+  TIKTOK = 3,
+
+  /**
+   * A player's link, pressed: clickplanet.lol/r.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_RECRUIT = 4;
+   */
+  RECRUIT = 4,
+
+  /**
+   * The address a player's video shows, typed: clickplanet.lol/v.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_RECRUIT_VIDEO = 5;
+   */
+  RECRUIT_VIDEO = 5,
+
+  /**
+   * The game framed on CrazyGames.
+   *
+   * @generated from enum value: ARRIVAL_SOURCE_CRAZYGAMES = 6;
+   */
+  CRAZYGAMES = 6,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ArrivalSource)
+proto3.util.setEnumType(ArrivalSource, "auth.v1.ArrivalSource", [
+  { no: 0, name: "ARRIVAL_SOURCE_UNSPECIFIED" },
+  { no: 1, name: "ARRIVAL_SOURCE_UNKNOWN" },
+  { no: 2, name: "ARRIVAL_SOURCE_YOUTUBE" },
+  { no: 3, name: "ARRIVAL_SOURCE_TIKTOK" },
+  { no: 4, name: "ARRIVAL_SOURCE_RECRUIT" },
+  { no: 5, name: "ARRIVAL_SOURCE_RECRUIT_VIDEO" },
+  { no: 6, name: "ARRIVAL_SOURCE_CRAZYGAMES" },
+]);
 
 /**
  * @generated from message auth.v1.AdminStartSignInRequest
@@ -447,6 +511,144 @@ export class ApproveConnectionResponse extends Message<ApproveConnectionResponse
 
   static equals(a: ApproveConnectionResponse | PlainMessage<ApproveConnectionResponse> | undefined, b: ApproveConnectionResponse | PlainMessage<ApproveConnectionResponse> | undefined): boolean {
     return proto3.util.equals(ApproveConnectionResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CountArrivalsRequest
+ */
+export class CountArrivalsRequest extends Message<CountArrivalsRequest> {
+  /**
+   * The accounts made in [since, until). Unset is from the first arrival kept, and until now. A day cut by either is
+   * counted for its part in the window only.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<CountArrivalsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CountArrivalsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountArrivalsRequest {
+    return new CountArrivalsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountArrivalsRequest {
+    return new CountArrivalsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountArrivalsRequest {
+    return new CountArrivalsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CountArrivalsRequest | PlainMessage<CountArrivalsRequest> | undefined, b: CountArrivalsRequest | PlainMessage<CountArrivalsRequest> | undefined): boolean {
+    return proto3.util.equals(CountArrivalsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CountArrivalsResponse
+ */
+export class CountArrivalsResponse extends Message<CountArrivalsResponse> {
+  /**
+   * The oldest day first.
+   *
+   * @generated from field: repeated auth.v1.ArrivalCount counts = 1;
+   */
+  counts: ArrivalCount[] = [];
+
+  constructor(data?: PartialMessage<CountArrivalsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CountArrivalsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "counts", kind: "message", T: ArrivalCount, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountArrivalsResponse {
+    return new CountArrivalsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountArrivalsResponse {
+    return new CountArrivalsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountArrivalsResponse {
+    return new CountArrivalsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CountArrivalsResponse | PlainMessage<CountArrivalsResponse> | undefined, b: CountArrivalsResponse | PlainMessage<CountArrivalsResponse> | undefined): boolean {
+    return proto3.util.equals(CountArrivalsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.ArrivalCount
+ */
+export class ArrivalCount extends Message<ArrivalCount> {
+  /**
+   * The UTC day, as YYYY-MM-DD.
+   *
+   * @generated from field: string day = 1;
+   */
+  day = "";
+
+  /**
+   * @generated from field: auth.v1.ArrivalSource source = 2;
+   */
+  source = ArrivalSource.UNSPECIFIED;
+
+  /**
+   * The accounts made that day by an arrival from that source.
+   *
+   * @generated from field: uint32 accounts = 3;
+   */
+  accounts = 0;
+
+  constructor(data?: PartialMessage<ArrivalCount>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.ArrivalCount";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "day", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "source", kind: "enum", T: proto3.getEnumType(ArrivalSource) },
+    { no: 3, name: "accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArrivalCount {
+    return new ArrivalCount().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ArrivalCount {
+    return new ArrivalCount().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ArrivalCount {
+    return new ArrivalCount().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ArrivalCount | PlainMessage<ArrivalCount> | undefined, b: ArrivalCount | PlainMessage<ArrivalCount> | undefined): boolean {
+    return proto3.util.equals(ArrivalCount, a, b);
   }
 }
 
