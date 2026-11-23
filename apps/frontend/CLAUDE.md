@@ -177,7 +177,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [What a tile costs on the GPU](docs/tile-layout.md) — the plain layout of floats alone and the compact one, the
   uploads of only what changed, and the one shared earth sphere.
 - [CSS pixels in, drawing-buffer pixels out](docs/pixel-ratio.md) — the pixel ratio, capped at 2, lowered to 1.5 then 1
-  when the frames come slow and kept for the next visit, only in a build with `VITE_ADAPTIVE_RATIO=on`.
+  for the visit when the frames come slow, a step undone if the frames get no faster, only in a build with
+  `VITE_ADAPTIVE_RATIO=on`, off since 2026-11-23.
 - [The light](docs/light.md) — one pass for every player: the season-end clips' light, rim and halo, on a navy
   sky.
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,

@@ -51,8 +51,9 @@ them in the page's language. See [Translation](i18n.md).
   by. So **guests are grey** whatever they hold, and **so is a player who has
   not picked a color**: there is no color from the name, so the grey is a
   reason to pick one.
-- `framePace.ts` — `FramePace` and `slow`: when the globe's frames come slow enough to lower the pixel ratio, and
-  `loweredRatio`, the next step down. See [Slow frames lower the ratio](pixel-ratio.md#slow-frames-lower-the-ratio).
+- `framePace.ts` — `FramePace`, `slow` and `paid`: when the globe's frames come slow enough to lower the pixel ratio,
+  whether a step made them faster or is undone, and `loweredRatio`, the next step down. See [Slow frames lower the
+  ratio](pixel-ratio.md#slow-frames-lower-the-ratio).
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
