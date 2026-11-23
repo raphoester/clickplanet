@@ -2283,3 +2283,34 @@ a.button {
     align-items: center;
     gap: 4px 8px;
 }
+
+.scroll-x {
+    overflow-x: auto;
+}
+
+.lab-table tbody + tbody {
+    border-top: 2px solid var(--line);
+}
+
+.lab {
+    display: grid;
+    gap: 12px;
+}
+
+.lab .fields {
+    max-width: 14em;
+}
+
+.lab-table th.num {
+    white-space: normal;
+    overflow-wrap: normal;
+}
+
+.lab-table .lab-days {
+    white-space: nowrap;
+}
+
+.lab-table .lab-control th {
+    font-weight: 400;
+    color: var(--muted);
+}

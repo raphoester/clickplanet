@@ -72,6 +72,11 @@ var signInProcedures = []string{
 
 const sessionOnlyService = "/" + authv1connect.AdminServiceName + "/"
 
+// What an app such as Claude may read of auth's admin service: where the accounts came from, counted.
+var appReads = []string{
+	authv1connect.AdminServiceCountArrivalsProcedure,
+}
+
 // No origin is no admin page, and so no gate: an admin listener then refuses the boot.
 func NewAdminGate(config AdminConfig, internalBindAddress string, logger *slog.Logger) (cpbootstrap.Gate, error) {
 	if config.Origin == "" {
@@ -84,7 +89,7 @@ func NewAdminGate(config AdminConfig, internalBindAddress string, logger *slog.L
 	auth := authv1connect.NewInternalServiceClient(&http.Client{Transport: http.DefaultTransport}, "http://"+internalBindAddress)
 	admit := log_admit.New(
 		admit_usecase.New(
-			admission.NewPage(config.Origin, signInProcedures...).WithSessionOnly(sessionOnlyService),
+			admission.NewPage(config.Origin, signInProcedures...).WithSessionOnly(sessionOnlyService, appReads...),
 			rpc_operators.New(auth),
 		),
 		logger,

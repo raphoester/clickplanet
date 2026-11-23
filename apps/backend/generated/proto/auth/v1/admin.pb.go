@@ -9,6 +9,7 @@ package authv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -20,6 +21,74 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// Where an account came from, by the tag of the first address it opened.
+type ArrivalSource int32
+
+const (
+	ArrivalSource_ARRIVAL_SOURCE_UNSPECIFIED ArrivalSource = 0
+	// A tag nobody posted, or none: the site typed alone, an old link, a streamer's own link.
+	ArrivalSource_ARRIVAL_SOURCE_UNKNOWN ArrivalSource = 1
+	// clickplanet.lol/y, and the old ?s=yt.
+	ArrivalSource_ARRIVAL_SOURCE_YOUTUBE ArrivalSource = 2
+	// clickplanet.lol/t.
+	ArrivalSource_ARRIVAL_SOURCE_TIKTOK ArrivalSource = 3
+	// A player's link, pressed: clickplanet.lol/r.
+	ArrivalSource_ARRIVAL_SOURCE_RECRUIT ArrivalSource = 4
+	// The address a player's video shows, typed: clickplanet.lol/v.
+	ArrivalSource_ARRIVAL_SOURCE_RECRUIT_VIDEO ArrivalSource = 5
+	// The game framed on CrazyGames.
+	ArrivalSource_ARRIVAL_SOURCE_CRAZYGAMES ArrivalSource = 6
+)
+
+// Enum value maps for ArrivalSource.
+var (
+	ArrivalSource_name = map[int32]string{
+		0: "ARRIVAL_SOURCE_UNSPECIFIED",
+		1: "ARRIVAL_SOURCE_UNKNOWN",
+		2: "ARRIVAL_SOURCE_YOUTUBE",
+		3: "ARRIVAL_SOURCE_TIKTOK",
+		4: "ARRIVAL_SOURCE_RECRUIT",
+		5: "ARRIVAL_SOURCE_RECRUIT_VIDEO",
+		6: "ARRIVAL_SOURCE_CRAZYGAMES",
+	}
+	ArrivalSource_value = map[string]int32{
+		"ARRIVAL_SOURCE_UNSPECIFIED":   0,
+		"ARRIVAL_SOURCE_UNKNOWN":       1,
+		"ARRIVAL_SOURCE_YOUTUBE":       2,
+		"ARRIVAL_SOURCE_TIKTOK":        3,
+		"ARRIVAL_SOURCE_RECRUIT":       4,
+		"ARRIVAL_SOURCE_RECRUIT_VIDEO": 5,
+		"ARRIVAL_SOURCE_CRAZYGAMES":    6,
+	}
+)
+
+func (x ArrivalSource) Enum() *ArrivalSource {
+	p := new(ArrivalSource)
+	*p = x
+	return p
+}
+
+func (x ArrivalSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArrivalSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_admin_proto_enumTypes[0].Descriptor()
+}
+
+func (ArrivalSource) Type() protoreflect.EnumType {
+	return &file_auth_v1_admin_proto_enumTypes[0]
+}
+
+func (x ArrivalSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArrivalSource.Descriptor instead.
+func (ArrivalSource) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{0}
+}
 
 type AdminStartSignInRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -544,11 +613,172 @@ func (x *ApproveConnectionResponse) GetRedirectUrl() string {
 	return ""
 }
 
+type CountArrivalsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The accounts made in [since, until). Unset is from the first arrival kept, and until now. A day cut by either is
+	// counted for its part in the window only.
+	Since         *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Until         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountArrivalsRequest) Reset() {
+	*x = CountArrivalsRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountArrivalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountArrivalsRequest) ProtoMessage() {}
+
+func (x *CountArrivalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountArrivalsRequest.ProtoReflect.Descriptor instead.
+func (*CountArrivalsRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CountArrivalsRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *CountArrivalsRequest) GetUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Until
+	}
+	return nil
+}
+
+type CountArrivalsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The oldest day first.
+	Counts        []*ArrivalCount `protobuf:"bytes,1,rep,name=counts,proto3" json:"counts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountArrivalsResponse) Reset() {
+	*x = CountArrivalsResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountArrivalsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountArrivalsResponse) ProtoMessage() {}
+
+func (x *CountArrivalsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountArrivalsResponse.ProtoReflect.Descriptor instead.
+func (*CountArrivalsResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CountArrivalsResponse) GetCounts() []*ArrivalCount {
+	if x != nil {
+		return x.Counts
+	}
+	return nil
+}
+
+type ArrivalCount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The UTC day, as YYYY-MM-DD.
+	Day    string        `protobuf:"bytes,1,opt,name=day,proto3" json:"day,omitempty"`
+	Source ArrivalSource `protobuf:"varint,2,opt,name=source,proto3,enum=auth.v1.ArrivalSource" json:"source,omitempty"`
+	// The accounts made that day by an arrival from that source.
+	Accounts      uint32 `protobuf:"varint,3,opt,name=accounts,proto3" json:"accounts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArrivalCount) Reset() {
+	*x = ArrivalCount{}
+	mi := &file_auth_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArrivalCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArrivalCount) ProtoMessage() {}
+
+func (x *ArrivalCount) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArrivalCount.ProtoReflect.Descriptor instead.
+func (*ArrivalCount) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ArrivalCount) GetDay() string {
+	if x != nil {
+		return x.Day
+	}
+	return ""
+}
+
+func (x *ArrivalCount) GetSource() ArrivalSource {
+	if x != nil {
+		return x.Source
+	}
+	return ArrivalSource_ARRIVAL_SOURCE_UNSPECIFIED
+}
+
+func (x *ArrivalCount) GetAccounts() uint32 {
+	if x != nil {
+		return x.Accounts
+	}
+	return 0
+}
+
 var File_auth_v1_admin_proto protoreflect.FileDescriptor
 
 const file_auth_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13auth/v1/admin.proto\x12\aauth.v1\"\x19\n" +
+	"\x13auth/v1/admin.proto\x12\aauth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x19\n" +
 	"\x17AdminStartSignInRequest\"G\n" +
 	"\x18AdminStartSignInResponse\x12+\n" +
 	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\"F\n" +
@@ -574,14 +804,32 @@ const file_auth_v1_admin_proto_rawDesc = "" +
 	"\x18ApproveConnectionRequest\x12\x18\n" +
 	"\arequest\x18\x01 \x01(\tR\arequest\">\n" +
 	"\x19ApproveConnectionResponse\x12!\n" +
-	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl2\x82\x04\n" +
+	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"z\n" +
+	"\x14CountArrivalsRequest\x120\n" +
+	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
+	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"F\n" +
+	"\x15CountArrivalsResponse\x12-\n" +
+	"\x06counts\x18\x01 \x03(\v2\x15.auth.v1.ArrivalCountR\x06counts\"l\n" +
+	"\fArrivalCount\x12\x10\n" +
+	"\x03day\x18\x01 \x01(\tR\x03day\x12.\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x16.auth.v1.ArrivalSourceR\x06source\x12\x1a\n" +
+	"\baccounts\x18\x03 \x01(\rR\baccounts*\xdf\x01\n" +
+	"\rArrivalSource\x12\x1e\n" +
+	"\x1aARRIVAL_SOURCE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ARRIVAL_SOURCE_UNKNOWN\x10\x01\x12\x1a\n" +
+	"\x16ARRIVAL_SOURCE_YOUTUBE\x10\x02\x12\x19\n" +
+	"\x15ARRIVAL_SOURCE_TIKTOK\x10\x03\x12\x1a\n" +
+	"\x16ARRIVAL_SOURCE_RECRUIT\x10\x04\x12 \n" +
+	"\x1cARRIVAL_SOURCE_RECRUIT_VIDEO\x10\x05\x12\x1d\n" +
+	"\x19ARRIVAL_SOURCE_CRAZYGAMES\x10\x062\xd7\x04\n" +
 	"\fAdminService\x12R\n" +
 	"\vStartSignIn\x12 .auth.v1.AdminStartSignInRequest\x1a!.auth.v1.AdminStartSignInResponse\x12[\n" +
 	"\x0eCompleteSignIn\x12#.auth.v1.AdminCompleteSignInRequest\x1a$.auth.v1.AdminCompleteSignInResponse\x12F\n" +
 	"\aSignOut\x12\x1c.auth.v1.AdminSignOutRequest\x1a\x1d.auth.v1.AdminSignOutResponse\x129\n" +
 	"\x06WhoAmI\x12\x16.auth.v1.WhoAmIRequest\x1a\x17.auth.v1.WhoAmIResponse\x12b\n" +
 	"\x12DescribeConnection\x12\".auth.v1.DescribeConnectionRequest\x1a#.auth.v1.DescribeConnectionResponse\"\x03\x90\x02\x01\x12Z\n" +
-	"\x11ApproveConnection\x12!.auth.v1.ApproveConnectionRequest\x1a\".auth.v1.ApproveConnectionResponseB\xa4\x01\n" +
+	"\x11ApproveConnection\x12!.auth.v1.ApproveConnectionRequest\x1a\".auth.v1.ApproveConnectionResponse\x12S\n" +
+	"\rCountArrivals\x12\x1d.auth.v1.CountArrivalsRequest\x1a\x1e.auth.v1.CountArrivalsResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
 	"\vcom.auth.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
@@ -597,39 +845,51 @@ func file_auth_v1_admin_proto_rawDescGZIP() []byte {
 	return file_auth_v1_admin_proto_rawDescData
 }
 
-var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_auth_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_auth_v1_admin_proto_goTypes = []any{
-	(*AdminStartSignInRequest)(nil),     // 0: auth.v1.AdminStartSignInRequest
-	(*AdminStartSignInResponse)(nil),    // 1: auth.v1.AdminStartSignInResponse
-	(*AdminCompleteSignInRequest)(nil),  // 2: auth.v1.AdminCompleteSignInRequest
-	(*AdminCompleteSignInResponse)(nil), // 3: auth.v1.AdminCompleteSignInResponse
-	(*AdminSignOutRequest)(nil),         // 4: auth.v1.AdminSignOutRequest
-	(*AdminSignOutResponse)(nil),        // 5: auth.v1.AdminSignOutResponse
-	(*WhoAmIRequest)(nil),               // 6: auth.v1.WhoAmIRequest
-	(*WhoAmIResponse)(nil),              // 7: auth.v1.WhoAmIResponse
-	(*DescribeConnectionRequest)(nil),   // 8: auth.v1.DescribeConnectionRequest
-	(*DescribeConnectionResponse)(nil),  // 9: auth.v1.DescribeConnectionResponse
-	(*ApproveConnectionRequest)(nil),    // 10: auth.v1.ApproveConnectionRequest
-	(*ApproveConnectionResponse)(nil),   // 11: auth.v1.ApproveConnectionResponse
+	(ArrivalSource)(0),                  // 0: auth.v1.ArrivalSource
+	(*AdminStartSignInRequest)(nil),     // 1: auth.v1.AdminStartSignInRequest
+	(*AdminStartSignInResponse)(nil),    // 2: auth.v1.AdminStartSignInResponse
+	(*AdminCompleteSignInRequest)(nil),  // 3: auth.v1.AdminCompleteSignInRequest
+	(*AdminCompleteSignInResponse)(nil), // 4: auth.v1.AdminCompleteSignInResponse
+	(*AdminSignOutRequest)(nil),         // 5: auth.v1.AdminSignOutRequest
+	(*AdminSignOutResponse)(nil),        // 6: auth.v1.AdminSignOutResponse
+	(*WhoAmIRequest)(nil),               // 7: auth.v1.WhoAmIRequest
+	(*WhoAmIResponse)(nil),              // 8: auth.v1.WhoAmIResponse
+	(*DescribeConnectionRequest)(nil),   // 9: auth.v1.DescribeConnectionRequest
+	(*DescribeConnectionResponse)(nil),  // 10: auth.v1.DescribeConnectionResponse
+	(*ApproveConnectionRequest)(nil),    // 11: auth.v1.ApproveConnectionRequest
+	(*ApproveConnectionResponse)(nil),   // 12: auth.v1.ApproveConnectionResponse
+	(*CountArrivalsRequest)(nil),        // 13: auth.v1.CountArrivalsRequest
+	(*CountArrivalsResponse)(nil),       // 14: auth.v1.CountArrivalsResponse
+	(*ArrivalCount)(nil),                // 15: auth.v1.ArrivalCount
+	(*timestamppb.Timestamp)(nil),       // 16: google.protobuf.Timestamp
 }
 var file_auth_v1_admin_proto_depIdxs = []int32{
-	0,  // 0: auth.v1.AdminService.StartSignIn:input_type -> auth.v1.AdminStartSignInRequest
-	2,  // 1: auth.v1.AdminService.CompleteSignIn:input_type -> auth.v1.AdminCompleteSignInRequest
-	4,  // 2: auth.v1.AdminService.SignOut:input_type -> auth.v1.AdminSignOutRequest
-	6,  // 3: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
-	8,  // 4: auth.v1.AdminService.DescribeConnection:input_type -> auth.v1.DescribeConnectionRequest
-	10, // 5: auth.v1.AdminService.ApproveConnection:input_type -> auth.v1.ApproveConnectionRequest
-	1,  // 6: auth.v1.AdminService.StartSignIn:output_type -> auth.v1.AdminStartSignInResponse
-	3,  // 7: auth.v1.AdminService.CompleteSignIn:output_type -> auth.v1.AdminCompleteSignInResponse
-	5,  // 8: auth.v1.AdminService.SignOut:output_type -> auth.v1.AdminSignOutResponse
-	7,  // 9: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
-	9,  // 10: auth.v1.AdminService.DescribeConnection:output_type -> auth.v1.DescribeConnectionResponse
-	11, // 11: auth.v1.AdminService.ApproveConnection:output_type -> auth.v1.ApproveConnectionResponse
-	6,  // [6:12] is the sub-list for method output_type
-	0,  // [0:6] is the sub-list for method input_type
-	0,  // [0:0] is the sub-list for extension type_name
-	0,  // [0:0] is the sub-list for extension extendee
-	0,  // [0:0] is the sub-list for field type_name
+	16, // 0: auth.v1.CountArrivalsRequest.since:type_name -> google.protobuf.Timestamp
+	16, // 1: auth.v1.CountArrivalsRequest.until:type_name -> google.protobuf.Timestamp
+	15, // 2: auth.v1.CountArrivalsResponse.counts:type_name -> auth.v1.ArrivalCount
+	0,  // 3: auth.v1.ArrivalCount.source:type_name -> auth.v1.ArrivalSource
+	1,  // 4: auth.v1.AdminService.StartSignIn:input_type -> auth.v1.AdminStartSignInRequest
+	3,  // 5: auth.v1.AdminService.CompleteSignIn:input_type -> auth.v1.AdminCompleteSignInRequest
+	5,  // 6: auth.v1.AdminService.SignOut:input_type -> auth.v1.AdminSignOutRequest
+	7,  // 7: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
+	9,  // 8: auth.v1.AdminService.DescribeConnection:input_type -> auth.v1.DescribeConnectionRequest
+	11, // 9: auth.v1.AdminService.ApproveConnection:input_type -> auth.v1.ApproveConnectionRequest
+	13, // 10: auth.v1.AdminService.CountArrivals:input_type -> auth.v1.CountArrivalsRequest
+	2,  // 11: auth.v1.AdminService.StartSignIn:output_type -> auth.v1.AdminStartSignInResponse
+	4,  // 12: auth.v1.AdminService.CompleteSignIn:output_type -> auth.v1.AdminCompleteSignInResponse
+	6,  // 13: auth.v1.AdminService.SignOut:output_type -> auth.v1.AdminSignOutResponse
+	8,  // 14: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
+	10, // 15: auth.v1.AdminService.DescribeConnection:output_type -> auth.v1.DescribeConnectionResponse
+	12, // 16: auth.v1.AdminService.ApproveConnection:output_type -> auth.v1.ApproveConnectionResponse
+	14, // 17: auth.v1.AdminService.CountArrivals:output_type -> auth.v1.CountArrivalsResponse
+	11, // [11:18] is the sub-list for method output_type
+	4,  // [4:11] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_admin_proto_init() }
@@ -642,13 +902,14 @@ func file_auth_v1_admin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_admin_proto_rawDesc), len(file_auth_v1_admin_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_auth_v1_admin_proto_goTypes,
 		DependencyIndexes: file_auth_v1_admin_proto_depIdxs,
+		EnumInfos:         file_auth_v1_admin_proto_enumTypes,
 		MessageInfos:      file_auth_v1_admin_proto_msgTypes,
 	}.Build()
 	File_auth_v1_admin_proto = out.File

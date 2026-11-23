@@ -2,7 +2,7 @@
 
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
 experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. PR 3 is built (2026-11-20): the carousel,
-a list of countries in photos, on from its merge.** The clips had one format, and the experiments of October only tuned
+a list of countries in photos, on from its merge. PR 6 is built (2026-11-23): the readout, the backoffice's Lab page.** The clips had one format, and the experiments of October only tuned
 it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
@@ -98,7 +98,9 @@ Then, the same day:
   takes its place. Two or three are on at any time.
 - **The verdict is the owner's**: keep (the format joins the control's mix, at a share the owner sets), again (10 more
   days with one thing changed), or drop (its name moves to `Off`, its brief stays). It is judgement, not a threshold,
-  as with the editor. The readout gives the numbers:
+  as with the editor. **The readout gives the numbers**: the backoffice's Lab page (`#/lab`, see its
+  [The Lab](../apps/backoffice/docs/lab.md)), each experiment on each platform against the control's posts of the
+  same UTC days, each post read by day 7, and each day's arrivals by platform:
   - **A breakout is a keep on sight**, even one.
   - **Else the signs, against the control of the same days**: on TikTok the share held at 2 s (control 64%), the share
     that watched to the end (16%), comments per 1,000 views (1.3), shares and follows per 1,000 (about 0); on YouTube
@@ -260,11 +262,11 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
    globe, timed to it) and its experiment, once signed off.
 5. **POV.**
-6. **The readout**: auth's arrivals counted by source and by day on its `AdminService`, so the backoffice and Claude's
-   connector both read them; the backoffice's Lab page, each experiment on each platform against the control of the
-   same days: posts, median and best views, breakouts, the signs above, and each day's arrivals by platform. Until it
-   is built, the rows of the snapshot hold every number, each with its `post.experiment`, and Claude reads them
-   through the connector.
+6. **The readout** (built 2026-11-23): auth's arrivals counted by source and by day (`auth.v1.AdminService/CountArrivals`,
+   the one auth call Claude's connector makes too, `auth_count_arrivals`; see the backend's
+   [Arrivals](../apps/backend/docs/arrivals.md#counting-them)); the backoffice's Lab page, each experiment on each
+   platform against the control of the same days: posts, median and best views, breakouts, the signs above, and each
+   day's arrivals by platform, counted on the page from the snapshot rows.
 7. **Rankings.**
 8. **Call to arms' hours**, its country's evening, then it is on again.
 9. **Satisfying.**

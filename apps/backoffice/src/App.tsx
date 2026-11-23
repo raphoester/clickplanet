@@ -8,6 +8,7 @@ import {clearPending, pendingRequest} from "./connect/pending.ts"
 import {HomePage} from "./home/HomePage.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
 import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
+import {LabPage} from "./lab/LabPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
@@ -123,6 +124,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 )}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}
+                {page === "lab" && <LabPage publishing={CLIENTS.publishing} auth={CLIENTS.auth}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
                 {page === "promo" && (
                     <PromoPage

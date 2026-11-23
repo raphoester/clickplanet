@@ -215,6 +215,7 @@ func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOpera
 	assert.True(t, listed["planet_top_players"])
 	assert.False(t, listed["planet_grant_charges"])
 	assert.NotContains(t, listed, "auth_approve_connection")
+	assert.True(t, listed["auth_count_arrivals"])
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":3,"method":"tools/call",
 		"params":{"name":"planet_grant_charges","arguments":{"accountId":"`+operator.account()+`","bombs":1}}}`)
@@ -229,6 +230,14 @@ func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOpera
 	text, refused = toolText(t, answer)
 	assert.True(t, refused, "a refusal is the tool's result")
 	assert.Contains(t, text, "not_found", "no offence to lift, and the call says so")
+
+	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":8,"method":"tools/call",
+		"params":{"name":"auth_count_arrivals","arguments":{}}}`)
+	text, refused = toolText(t, answer)
+	require.False(t, refused, "a token reads the arrivals counted: %s", text)
+	var arrived authv1.CountArrivalsResponse
+	require.NoError(t, protojson.Unmarshal([]byte(text), &arrived))
+	assert.NotEmpty(t, arrived.GetCounts(), "the operator's own account arrived")
 
 	approve := connect.NewRequest(&authv1.ApproveConnectionRequest{Request: "anything"})
 	approve.Header().Set("Authorization", "Bearer "+claude.access)

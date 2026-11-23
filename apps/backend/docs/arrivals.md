@@ -72,7 +72,16 @@ browser says its first page was.
 
 ## Counting them
 
-New accounts per day (UTC) by source, and how many took a tile again the next day. `back_next_day` is empty until
+- **`auth.v1.AdminService/CountArrivals(since, until)`** is how many accounts came from each source on each UTC day of
+  the window, the oldest day first, a day and a source with none left out (`count_arrivals_handler/arrivals_query`,
+  one `GROUP BY` over `auth.arrivals`). Counts, not rows: no account leaves auth, and a day is six rows at most. An
+  anonymized arrival still counts, so a day's count never shrinks. A source the enum holds and this build does not is
+  `ErrUnknownSource`, which refuses the read (see [Reads are queries](queries.md)). The backoffice's Lab reads it
+  (its [The Lab](../../backoffice/docs/lab.md)), and Claude calls it as `auth_count_arrivals`: it is the one call of
+  auth's admin service a token makes (see [Claude as a connector](connector.md)). It is `NO_SIDE_EFFECTS`. Its postgres
+  suite pins the UTC days, the window, an anonymized arrival and a source this build does not know.
+
+By hand, new accounts per day (UTC) by source, and how many took a tile again the next day. `back_next_day` is empty until
 that next day is over. An anonymized arrival never counts as back: the ledger lost its account too. Run on the
 box with `docker exec -i cp-postgres psql -U clickplanet -d clickplanet`:
 
@@ -115,6 +124,3 @@ ORDER BY recruits DESC;
 ```
 
 A recruit with no row in `auth.recruitments` came by a flag's address with no name, or by an old link.
-
-No backoffice screen reads it yet. When one does, it gets the raw arrivals and counts them itself (see
-[Reads are queries](queries.md)).

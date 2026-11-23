@@ -41,6 +41,15 @@ export enum Ranking {
    * @generated from enum value: RANKING_FIGHTERS = 3;
    */
   FIGHTERS = 3,
+
+  /**
+   * A battle that plays the knock-out's: only the countries whose players took a tile in the round are placed. The flags
+   * still standing at its end come first, placed among themselves as RANKING_FIGHTERS places them; then the flags
+   * knocked out, the last one out first, the more tiles taken breaking a tie of two out at once. Every one placed scores.
+   *
+   * @generated from enum value: RANKING_KNOCK_OUT = 4;
+   */
+  KNOCK_OUT = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Ranking)
 proto3.util.setEnumType(Ranking, "scoring.v1.Ranking", [
@@ -48,6 +57,7 @@ proto3.util.setEnumType(Ranking, "scoring.v1.Ranking", [
   { no: 1, name: "RANKING_GAIN" },
   { no: 2, name: "RANKING_HELD_AND_GAIN" },
   { no: 3, name: "RANKING_FIGHTERS" },
+  { no: 4, name: "RANKING_KNOCK_OUT" },
 ]);
 
 /**

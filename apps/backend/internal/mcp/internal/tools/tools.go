@@ -22,19 +22,23 @@ var (
 
 const serviceName = "AdminService"
 
-var (
-	LeftOut = []protoreflect.FullName{"auth.v1"}
-	Hidden  = []protoreflect.FullName{
-		"planet.v1.AdminService.GetReplay",
-		"planet.v1.AdminService.GetLedger",
-		"planet.v1.AdminService.GetTerritories",
-		"clips.v1.AdminService.MakeCast",
-		"clips.v1.AdminService.KeepAppearance",
-		"publishing.v1.AdminService.CreateMediaUpload",
-		"publishing.v1.AdminService.SchedulePost",
-		"promo.v1.AdminService.PostTeaser",
-	}
-)
+var Hidden = []protoreflect.FullName{
+	// The admin page's own calls, which the gate refuses a token: an app never signs in or lets an app in.
+	"auth.v1.AdminService.StartSignIn",
+	"auth.v1.AdminService.CompleteSignIn",
+	"auth.v1.AdminService.SignOut",
+	"auth.v1.AdminService.WhoAmI",
+	"auth.v1.AdminService.DescribeConnection",
+	"auth.v1.AdminService.ApproveConnection",
+	"planet.v1.AdminService.GetReplay",
+	"planet.v1.AdminService.GetLedger",
+	"planet.v1.AdminService.GetTerritories",
+	"clips.v1.AdminService.MakeCast",
+	"clips.v1.AdminService.KeepAppearance",
+	"publishing.v1.AdminService.CreateMediaUpload",
+	"publishing.v1.AdminService.SchedulePost",
+	"promo.v1.AdminService.PostTeaser",
+}
 
 type Tool struct {
 	Name        string
@@ -49,7 +53,7 @@ type Catalog struct {
 	tools []Tool
 }
 
-func CatalogOf(set []byte, leftOut []protoreflect.FullName, hidden []protoreflect.FullName) (*Catalog, error) {
+func CatalogOf(set []byte, hidden []protoreflect.FullName) (*Catalog, error) {
 	var files descriptorpb.FileDescriptorSet
 	if err := proto.Unmarshal(set, &files); err != nil {
 		return nil, fmt.Errorf("failed to read the descriptor set: %w", err)
@@ -63,9 +67,6 @@ func CatalogOf(set []byte, leftOut []protoreflect.FullName, hidden []protoreflec
 	names := map[string]protoreflect.FullName{}
 	var failed error
 	registry.RangeFiles(func(file protoreflect.FileDescriptor) bool {
-		if slices.Contains(leftOut, file.Package()) {
-			return true
-		}
 		for i := range file.Services().Len() {
 			service := file.Services().Get(i)
 			if service.Name() != serviceName {
