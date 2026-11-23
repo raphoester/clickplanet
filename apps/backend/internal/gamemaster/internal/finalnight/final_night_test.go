@@ -73,8 +73,8 @@ func (s *scoring) Ask(_ context.Context, command moments.Command) (moments.Answe
 // rulesOf answers whether a set makes an arena battle: none of season 0's does.
 type rulesOf map[schedule.SetName]bool
 
-func (r rulesOf) Arena(_ context.Context, set schedule.SetName) (bool, error) {
-	return r[set], nil
+func (r rulesOf) Plays(_ context.Context, set schedule.SetName) (moments.SetPlays, error) {
+	return moments.SetPlays{Arena: r[set]}, nil
 }
 
 type arenaCommands struct {

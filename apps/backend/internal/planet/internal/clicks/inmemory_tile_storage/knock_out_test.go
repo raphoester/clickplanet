@@ -64,7 +64,7 @@ func (s *testSuite) TestAFlagOutStandsNoMoreAndAMapReadSaysSo() {
 	s.True(storage.Stands("fr"))
 	s.False(storage.Stands("gb-eng"), "a flag with no capital never stands in an arena")
 
-	_, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 
 	s.False(storage.Stands("fr"))
@@ -72,6 +72,8 @@ func (s *testSuite) TestAFlagOutStandsNoMoreAndAMapReadSaysSo() {
 	batch, err := storage.StateBatchDense(1, 100)
 	s.Require().NoError(err)
 	s.Equal([]string{"fr"}, batch.KnockedOut)
+	s.Require().NotNil(impact.KnockedOut)
+	s.Equal([]clicks.OutFlag{{Flag: "fr", By: "de", At: impact.KnockedOut.At}}, storage.OutFlags())
 }
 
 func (s *testSuite) TestAFlagIsKnockedOutOnce() {
@@ -201,4 +203,5 @@ func (s *testSuite) TestTheFlagsOutGoWithTheirArena() {
 	batch, err := storage.StateBatchDense(1, 100)
 	s.Require().NoError(err)
 	s.Empty(batch.KnockedOut)
+	s.Empty(storage.OutFlags())
 }

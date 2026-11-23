@@ -5,12 +5,11 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 )
 
-func (s *testSuite) outOn(played clicks.MapID) []inmemory_tile_storage.OutFlag {
-	var out []inmemory_tile_storage.OutFlag
-	s.Require().NoError(s.store.LoadOutFlags(context.Background(), played, func(flag inmemory_tile_storage.OutFlag) {
+func (s *testSuite) outOn(played clicks.MapID) []clicks.OutFlag {
+	var out []clicks.OutFlag
+	s.Require().NoError(s.store.LoadOutFlags(context.Background(), played, func(flag clicks.OutFlag) {
 		out = append(out, flag)
 	}))
 	return out
@@ -19,10 +18,10 @@ func (s *testSuite) outOn(played clicks.MapID) []inmemory_tile_storage.OutFlag {
 func (s *testSuite) TestAFlagOutIsKeptWithItsArenasTilesOnce() {
 	ctx := context.Background()
 	at := time.Date(2026, 11, 11, 20, 3, 4, 500_000_000, time.UTC)
-	out := []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: at}}
+	out := []clicks.OutFlag{{Flag: "fr", By: "de", At: at}}
 
 	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), owned("de", 4), nil, out))
-	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "it", At: at.Add(time.Minute)}}),
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []clicks.OutFlag{{Flag: "fr", By: "it", At: at.Add(time.Minute)}}),
 		"a flush told it again changes nothing")
 
 	s.Equal(out, s.outOn(battle))
@@ -32,8 +31,8 @@ func (s *testSuite) TestAFlagOutIsKeptWithItsArenasTilesOnce() {
 func (s *testSuite) TestAWipeDeletesTheFlagsOutOfItsMap() {
 	ctx := context.Background()
 	other := clicks.MapID("0192f5a0-7c00-7000-8000-000000000033")
-	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: time.Now()}}))
-	s.Require().NoError(s.store.Save(ctx, other.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "pl", By: "de", At: time.Now()}}))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []clicks.OutFlag{{Flag: "fr", By: "de", At: time.Now()}}))
+	s.Require().NoError(s.store.Save(ctx, other.On(clicks.TestBoard), nil, nil, []clicks.OutFlag{{Flag: "pl", By: "de", At: time.Now()}}))
 
 	_, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 
@@ -44,7 +43,7 @@ func (s *testSuite) TestAWipeDeletesTheFlagsOutOfItsMap() {
 
 func (s *testSuite) TestTheWorldsMapKeepsItsFlagsOutToo() {
 	at := time.Date(2026, 11, 11, 20, 3, 4, 0, time.UTC)
-	out := []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: at}}
+	out := []clicks.OutFlag{{Flag: "fr", By: "de", At: at}}
 
 	s.Require().NoError(s.store.Save(context.Background(), clicks.WorldStage, nil, nil, out))
 

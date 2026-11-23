@@ -119,6 +119,8 @@ func rankingOf(ranking moments.Ranking) (scoringv1.Ranking, error) {
 		return scoringv1.Ranking_RANKING_HELD_AND_GAIN, nil
 	case moments.RankedByFighters:
 		return scoringv1.Ranking_RANKING_FIGHTERS, nil
+	case moments.RankedByKnockOut:
+		return scoringv1.Ranking_RANKING_KNOCK_OUT, nil
 	}
 	return scoringv1.Ranking_RANKING_UNSPECIFIED, fmt.Errorf("scoring has no ranking %q", ranking)
 }

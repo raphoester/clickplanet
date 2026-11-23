@@ -41,7 +41,8 @@ takes racing for one capital knock the flag out once.
   `planet.knockouts` (`map`, `flag`, `by_flag`, `knocked_out_at`), written by the map's flush in the transaction that
   writes the tiles, so a flag is never saved out apart from its blank land. A failed flush keeps them for the next one.
   The boot reads them with the map (`LoadOutFlags`); a wipe deletes them with its map (an arena's close, a season's
-  reset). The world's map keeps its own since 2026-11-10. Every map read says them (`GetMapResponse.knocked_out`).
+  reset). The world's map keeps its own since 2026-11-10. Every map read says them (`GetMapResponse.knocked_out`), and
+  the internal one says when each went out (`GetTerritoriesResponse.knocked_out`, `Storage.OutFlags`).
 - **Which flags still stand** (`CapitalRules.Stands`, read through `Storage.Stands`): every flag while the knock-out
   does not play; while it does, a flag with a capital that is not out. A flag out on a map stays out there while the
   rule is off, and is out again if it comes back on, until a wipe. The allegiance reads it (see
@@ -52,7 +53,8 @@ takes racing for one capital knock the flag out once.
 - **To the other modules**: the ledger relay tells `planet.v1.FlagKnockedOut` (`country`, `by`, `tile_id`,
   `account_id`, `cleared`, `knocked_out_at`, `position`) once the ledger flushed it, in order with the takes. The chat
   announces every one ("Germany knocked out France"; the owner, 2026-11-10). No Discord ping.
-- **Scoring needs nothing**: an out flag holds no tile, so it gains nothing.
+- **Scoring places a battle that plays the knock-out on survival**: the flags still standing first, then the ones out,
+  the last one out first, read from `GetTerritories` as the round closes (see [Scoring](scoring.md#the-rules)).
 - **Without the reach**, a flag that is out can still take tiles: see [Arena battles](arenas.md#known-gaps).
 - **The page** shows the knock-out and asks a player whose flag is out to pick one still in: see the frontend's
   [The capitals](../../frontend/docs/capitals.md).
@@ -108,6 +110,7 @@ rule off, a capital taken with the knock-out and without it, and an enclosure cu
 they are not, a fortify that skips a fixed capital, the map's `Arena`, and `HoldsAny`; its `knock_out_test.go` the take
 of a capital that clears the flag's other tiles in one change after the take, nobody knocked out while the rule is off,
 the knock-out on the world's map kept by the flush, an enclosure that knocks out once its pocket is written, the flag
-out saved by the flush (again after a failed one) and read at boot, and gone with its arena; `postgres_tile_store`'s
+out saved by the flush (again after a failed one) and read at boot, and gone with its arena (`OutFlags` with it);
+`territories_query` each flag out and when; `postgres_tile_store`'s
 `knockouts_test.go` the rows of each map, the world's too, kept once and deleted by a wipe; `ledger_test.go` the event's entry, takes and scenes; the relay's `FlagKnockedOut`; the stream's
 sink and `GetMap`'s out flags; `allegiances`' rule and `Book`.

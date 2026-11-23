@@ -40,14 +40,17 @@ func TestABattleIsJudgedAnArenaBattleWhenItsSetSaysSoUnlessItOpensItsBook(t *tes
 
 	running, ok := plan.Unjudged(firstStarts)
 	require.True(t, ok)
-	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Arena}, plan.Judge(running, true))
-	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Plain}, plan.Judge(running, false))
+	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Arena}, plan.Judge(running, moments.SetPlays{Arena: true}))
+	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Plain}, plan.Judge(running, moments.SetPlays{}))
+	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Arena, KnockOut: true},
+		plan.Judge(running, moments.SetPlays{Arena: true, KnockOut: true}))
 	assert.Equal(t, "rush", string(running.Set))
 
 	opener := moments.NewPlan(calendar(season.Finale{}), cutoff, season.Origin, nil, battle(early, season.Origin, season.Origin.Add(time.Hour)))
 	atStart, ok := opener.Unjudged(season.Origin)
 	require.True(t, ok)
-	assert.Equal(t, moments.Plain, opener.Judge(atStart, true).Mode, "the season's reset blanked the map already")
+	assert.Equal(t, moments.Judgement{Round: moments.BattleRoundOf(early), Mode: moments.Plain, KnockOut: true},
+		opener.Judge(atStart, moments.SetPlays{Arena: true, KnockOut: true}), "the season's reset blanked the map already")
 
 	_, ok = backToBack(knowing([]moments.Judgement{{Round: first, Mode: moments.Plain}}, nil, nil)).Unjudged(firstStarts)
 	assert.False(t, ok, "judged once")
@@ -73,6 +76,25 @@ func TestAnArenaBattlesRoundOpensFromNothingOnceItsArenaOpenedAndItsArenaOpensNo
 	assert.NotContains(t, waiting.DueAt(now), open, "the round waits for the blank map")
 	assert.Contains(t, opened.DueAt(now), open)
 	assert.Empty(t, opened.ArenasDueAt(now))
+}
+
+func TestABattleWhoseSetPlaysTheKnockOutOpensRankedOnTheFlagsStillStanding(t *testing.T) {
+	scored := moments.Kept{Scored: []moments.RoundID{"season-0/day-23"}}
+	now := firstStarts.Add(5 * time.Second)
+
+	siege := backToBack(moments.NewKnown(scored, moments.ArenasKept{
+		Judged: []moments.Judgement{{Round: first, Mode: moments.Arena, KnockOut: true}}, Opened: []moments.RoundID{first},
+	}))
+	knockOut := backToBack(moments.NewKnown(scored, moments.ArenasKept{
+		Judged: []moments.Judgement{{Round: first, Mode: moments.Plain, KnockOut: true}},
+	}))
+
+	assert.Contains(t, siege.DueAt(now), moments.Command{
+		Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true, Ranking: moments.RankedByKnockOut,
+	})
+	assert.Contains(t, knockOut.DueAt(now), moments.Command{
+		Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, Ranking: moments.RankedByKnockOut,
+	}, "the knock-out on the world's map too")
 }
 
 func TestTheNextArenaWaitsForTheMapOfTheOneBefore(t *testing.T) {

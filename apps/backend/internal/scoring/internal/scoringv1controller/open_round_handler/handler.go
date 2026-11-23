@@ -75,6 +75,8 @@ func rankingOf(ranking scoringv1.Ranking) (books.Ranking, error) {
 		return books.HeldAndGainRanking{}, nil
 	case scoringv1.Ranking_RANKING_FIGHTERS:
 		return books.FightersRanking{}, nil
+	case scoringv1.Ranking_RANKING_KNOCK_OUT:
+		return books.KnockOutRanking{}, nil
 	case scoringv1.Ranking_RANKING_UNSPECIFIED:
 	}
 	return nil, fmt.Errorf("%w: %s", books.ErrUnknownRanking, ranking)

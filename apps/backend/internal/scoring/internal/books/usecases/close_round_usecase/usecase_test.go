@@ -17,6 +17,7 @@ import (
 
 type stubTerritory struct {
 	held map[books.Country]uint32
+	out  map[books.Country]time.Time
 	err  error
 }
 
@@ -25,7 +26,7 @@ func (s *stubTerritory) Snapshot(context.Context) (books.Snapshot, error) {
 	for _, held := range s.held {
 		tiles += held
 	}
-	return books.Snapshot{Tiles: tiles, Held: s.held}, s.err
+	return books.Snapshot{Tiles: tiles, Held: s.held, Out: s.out}, s.err
 }
 
 func utc(day, hour int) time.Time {
@@ -121,4 +122,28 @@ func TestADayRankedOnTheGroundHeldAndGainedIsScoredOnBothRanks(t *testing.T) {
 		{Country: "br", Rank: 3, Points: 15, Share: 0.28},
 		{Country: "fr", Rank: 4, Points: 12, Share: 0.1},
 	}, scored[0].Results, "ie held the most and kept it, lv gained the most, fr lost ground and still scores")
+}
+
+func TestAKnockOutBattleIsScoredOnTheFlagStillStandingFirst(t *testing.T) {
+	siege := books.Round{ID: battle, Book: "season-1", Times: 2, Ranking: books.KnockOutRanking{}, StartsAt: utc(21, 21)}
+	stack := newStack(t, map[books.Round]books.Start{siege: {}})
+	takes := []books.Take{
+		{Account: books.AccountID{15: 1}, Country: "ie", At: utc(21, 21), Position: 1},
+		{Account: books.AccountID{15: 1}, Country: "ie", At: utc(21, 21), Position: 2},
+		{Account: books.AccountID{15: 1}, Country: "ie", At: utc(21, 21), Position: 3},
+		{Account: books.AccountID{15: 2}, Country: "kp", At: utc(21, 21), Position: 4},
+	}
+	require.NoError(t, stack.rounds.Count(t.Context(), map[books.RoundID][]books.Take{battle: takes}))
+	stack.territory.held = map[books.Country]uint32{"kp": 4}
+	stack.territory.out = map[books.Country]time.Time{"ie": utc(21, 22)}
+
+	stack.close(t, battle, utc(21, 23))
+
+	scored, err := stack.rounds.ScoredIn(t.Context(), "season-1")
+	require.NoError(t, err)
+	require.Len(t, scored, 1)
+	assert.Equal(t, []books.Result{
+		{Country: "kp", Rank: 1, Points: 50, Share: 1},
+		{Country: "ie", Rank: 2, Points: 36, Share: 0},
+	}, scored[0].Results, "ie took the most and was knocked out")
 }

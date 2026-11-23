@@ -20,7 +20,7 @@ type Planet interface {
 	) (*connect.Response[planetv1.GetTerritoriesResponse], error)
 }
 
-var ErrNoCountry = errors.New("the planet module answered tiles held by no country")
+var ErrNoCountry = errors.New("the planet module answered tiles held, or a knock-out, of no country")
 
 const askTimeout = 2 * time.Second
 
@@ -50,5 +50,12 @@ func (t *Territories) Snapshot(ctx context.Context) (books.Snapshot, error) {
 		}
 		held[books.Country(territory.GetCountryId())] = territory.GetTiles()
 	}
-	return books.Snapshot{Tiles: res.Msg.GetTiles(), Held: held}, nil
+	out := make(map[books.Country]time.Time, len(res.Msg.GetKnockedOut()))
+	for _, flag := range res.Msg.GetKnockedOut() {
+		if flag.GetCountryId() == "" {
+			return books.Snapshot{}, ErrNoCountry
+		}
+		out[books.Country(flag.GetCountryId())] = flag.GetKnockedOutAt().AsTime()
+	}
+	return books.Snapshot{Tiles: res.Msg.GetTiles(), Held: held, Out: out}, nil
 }

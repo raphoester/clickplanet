@@ -13,9 +13,9 @@ type Judged interface {
 	KeepJudged(ctx context.Context, judgement moments.Judgement) (bool, error)
 }
 
-// Planet says whether a rule set makes an arena battle.
+// Planet says what a rule set plays that a battle is judged by.
 type Planet interface {
-	Arena(ctx context.Context, set schedule.SetName) (bool, error)
+	Plays(ctx context.Context, set schedule.SetName) (moments.SetPlays, error)
 }
 
 // Execute answers the battle it judged this time, if any.
@@ -41,11 +41,11 @@ func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) ([]moments.Jud
 	if !ok {
 		return nil, nil
 	}
-	inArena, err := u.planet.Arena(ctx, battle.Set)
+	plays, err := u.planet.Plays(ctx, battle.Set)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the adapter names the set.
 	}
-	judgement := plan.Judge(battle, inArena)
+	judgement := plan.Judge(battle, plays)
 	if _, err := u.judged.KeepJudged(ctx, judgement); err != nil {
 		return nil, fmt.Errorf("failed to keep %s judged: %w", battle, err)
 	}

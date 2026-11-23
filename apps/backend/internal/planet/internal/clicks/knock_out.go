@@ -18,6 +18,13 @@ type KnockOut struct {
 	Cleared []uint32
 }
 
+// OutFlag is a flag the map in play knocked out: kept with the map's tiles, saved by the same flush.
+type OutFlag struct {
+	Flag string
+	By   string
+	At   time.Time
+}
+
 // KnockOutError is nil when a take of a tile knocks a flag out: while the knock-out plays, the capital of a flag not out
 // yet, taken by another flag. It reads the capital's flag, not the tile's last owner, so a capital left blank still falls.
 func (r CapitalRules) KnockOutError(capitalOf string, out bool, flag string) error {

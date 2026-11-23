@@ -101,7 +101,7 @@ func (s *Storage) Carried(onto clicks.Stage, carry clicks.Carryover) (clicks.Car
 type carriedRows struct {
 	tiles []Tile
 	mines []clicks.MineSnapshot
-	out   []OutFlag
+	out   []clicks.OutFlag
 }
 
 func (c carriedRows) Load(_ context.Context, _ clicks.MapID, visit func(tile Tile)) error {
@@ -116,7 +116,7 @@ func (carriedRows) LoadProvinces(context.Context, clicks.MapID, string, func(cli
 	return nil
 }
 
-func (c carriedRows) LoadOutFlags(_ context.Context, _ clicks.MapID, visit func(out OutFlag)) error {
+func (c carriedRows) LoadOutFlags(_ context.Context, _ clicks.MapID, visit func(out clicks.OutFlag)) error {
 	for _, out := range c.out {
 		visit(out)
 	}

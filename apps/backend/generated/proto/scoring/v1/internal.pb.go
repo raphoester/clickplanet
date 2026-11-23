@@ -36,6 +36,10 @@ const (
 	// holds at the round's end and on the tiles its players took during it, smallest first, the takes' rank breaking a
 	// tie; every country placed scores. A battle's: a country that held its capital and never fought scores nothing.
 	Ranking_RANKING_FIGHTERS Ranking = 3
+	// A battle that plays the knock-out's: only the countries whose players took a tile in the round are placed. The flags
+	// still standing at its end come first, placed among themselves as RANKING_FIGHTERS places them; then the flags
+	// knocked out, the last one out first, the more tiles taken breaking a tie of two out at once. Every one placed scores.
+	Ranking_RANKING_KNOCK_OUT Ranking = 4
 )
 
 // Enum value maps for Ranking.
@@ -45,12 +49,14 @@ var (
 		1: "RANKING_GAIN",
 		2: "RANKING_HELD_AND_GAIN",
 		3: "RANKING_FIGHTERS",
+		4: "RANKING_KNOCK_OUT",
 	}
 	Ranking_value = map[string]int32{
 		"RANKING_UNSPECIFIED":   0,
 		"RANKING_GAIN":          1,
 		"RANKING_HELD_AND_GAIN": 2,
 		"RANKING_FIGHTERS":      3,
+		"RANKING_KNOCK_OUT":     4,
 	}
 )
 
@@ -1026,12 +1032,13 @@ const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\x11CloseBookResponse\x129\n" +
 	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bclosedAt\x129\n" +
 	"\tmissed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bmissedAtB\t\n" +
-	"\aoutcome*e\n" +
+	"\aoutcome*|\n" +
 	"\aRanking\x12\x17\n" +
 	"\x13RANKING_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fRANKING_GAIN\x10\x01\x12\x19\n" +
 	"\x15RANKING_HELD_AND_GAIN\x10\x02\x12\x14\n" +
-	"\x10RANKING_FIGHTERS\x10\x032\xa1\x05\n" +
+	"\x10RANKING_FIGHTERS\x10\x03\x12\x15\n" +
+	"\x11RANKING_KNOCK_OUT\x10\x042\xa1\x05\n" +
 	"\x0fInternalService\x12J\n" +
 	"\bOpenBook\x12\x1b.scoring.v1.OpenBookRequest\x1a\x1c.scoring.v1.OpenBookResponse\"\x03\x90\x02\x02\x12M\n" +
 	"\tOpenRound\x12\x1c.scoring.v1.OpenRoundRequest\x1a\x1d.scoring.v1.OpenRoundResponse\"\x03\x90\x02\x02\x12P\n" +

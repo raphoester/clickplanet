@@ -2,9 +2,11 @@ package territories_query_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -20,6 +22,12 @@ func (s stubTally) Tally() (clicks.MapVersion, clicks.Tally) {
 type stubShields []clicks.FlagShields
 
 func (s stubShields) ShieldTally() []clicks.FlagShields {
+	return s
+}
+
+type stubOut []clicks.OutFlag
+
+func (s stubOut) OutFlags() []clicks.OutFlag {
 	return s
 }
 
@@ -41,7 +49,7 @@ func (earth1) Tiles() uint32 { return 260_504 }
 func TestTheTerritoryIsTheMapsSizeAndWhatEachCountryHoldsInCountryOrder(t *testing.T) {
 	query := territories_query.NewMemoryQuery(stubTally{
 		Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}, {Flag: "bg", Tiles: 7}, {Flag: "de", Tiles: 1}},
-	}, stubShields{}, stubBorders{})
+	}, stubShields{}, stubOut{}, stubBorders{})
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 100, Board: "earth-1",
@@ -61,7 +69,7 @@ func TestATerritorySaysHowManyTilesOfEachCountrysLandTheFlagHoldsInCountryOrder(
 			{Landmass: 2, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 2}, {Flag: "it", Tiles: 2}}},
 			{Landmass: 3, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 2}}},
 		},
-	}, stubShields{}, stubBorders{1: "it", 2: "fr", 3: "fr"})
+	}, stubShields{}, stubOut{}, stubBorders{1: "it", 2: "fr", 3: "fr"})
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 100, Board: "earth-1",
@@ -75,7 +83,7 @@ func TestATerritorySaysHowManyTilesOfEachCountrysLandTheFlagHoldsInCountryOrder(
 func TestATerritorySaysTheShieldsOnItsTiles(t *testing.T) {
 	query := territories_query.NewMemoryQuery(stubTally{
 		Countries: []clicks.FlagTiles{{Flag: "pl", Tiles: 25_862}, {Flag: "sc", Tiles: 18_272}},
-	}, stubShields{{Flag: "pl", Shields: 18_726}}, earth1{})
+	}, stubShields{{Flag: "pl", Shields: 18_726}}, stubOut{}, earth1{})
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 260_504, Board: "earth-1",
@@ -90,7 +98,7 @@ func TestATileOnNoCountrysLandIsOnNoGround(t *testing.T) {
 	query := territories_query.NewMemoryQuery(stubTally{
 		Countries:  []clicks.FlagTiles{{Flag: "fr", Tiles: 1}},
 		Landmasses: []clicks.LandmassTiles{{Landmass: clicks.NoLandmass, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 1}}}},
-	}, stubShields{}, stubBorders{})
+	}, stubShields{}, stubOut{}, stubBorders{})
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 100, Board: "earth-1",
@@ -99,7 +107,23 @@ func TestATileOnNoCountrysLandIsOnNoGround(t *testing.T) {
 }
 
 func TestAnEmptyMapIsItsSizeAlone(t *testing.T) {
-	query := territories_query.NewMemoryQuery(stubTally{}, stubShields{}, stubBorders{})
+	query := territories_query.NewMemoryQuery(stubTally{}, stubShields{}, stubOut{}, stubBorders{})
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{Tiles: 100, Board: "earth-1"}, query.Territories()))
+}
+
+func TestTheTerritoriesSayEachFlagKnockedOutAndWhen(t *testing.T) {
+	at := time.Date(2026, 11, 21, 21, 40, 0, 0, time.UTC)
+	query := territories_query.NewMemoryQuery(stubTally{
+		Countries: []clicks.FlagTiles{{Flag: "kp", Tiles: 14}},
+	}, stubShields{}, stubOut{{Flag: "ie", By: "kp", At: at}, {Flag: "pl", By: "ie", At: at.Add(-time.Minute)}}, stubBorders{})
+
+	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
+		Tiles: 100, Board: "earth-1",
+		Territories: []*planetv1.Territory{{CountryId: "kp", Tiles: 14}},
+		KnockedOut: []*planetv1.KnockedOutFlag{
+			{CountryId: "ie", KnockedOutAt: timestamppb.New(at)},
+			{CountryId: "pl", KnockedOutAt: timestamppb.New(at.Add(-time.Minute))},
+		},
+	}, query.Territories()))
 }
