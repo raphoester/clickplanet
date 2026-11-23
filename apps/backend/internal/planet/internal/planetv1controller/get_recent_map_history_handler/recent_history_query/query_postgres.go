@@ -41,13 +41,20 @@ type Forgettings interface {
 	Forgetting(ctx context.Context) (forgetting.Forgetting, error)
 }
 
+// Erasures reads the erasure of every event of the world's ledger before a position.
+type Erasures interface {
+	Before(ctx context.Context, position ledger.Position) (*ledger.Erasure, error)
+}
+
 // A build reads a day of the ledger: the caller that leaves does not stop it.
 const buildTimeout = 2 * time.Minute
 
 func NewPostgresQuery(
-	db cppg.Conn, tiles Tiles, eras Eras, resets Resets, forgettings Forgettings, clock cptime.Clock,
+	db cppg.Conn, tiles Tiles, eras Eras, resets Resets, forgettings Forgettings, erasures Erasures, clock cptime.Clock,
 ) *PostgresQuery {
-	return &PostgresQuery{db: db, tiles: tiles, eras: eras, resets: resets, forgettings: forgettings, clock: clock}
+	return &PostgresQuery{
+		db: db, tiles: tiles, eras: eras, resets: resets, forgettings: forgettings, erasures: erasures, clock: clock,
+	}
 }
 
 type PostgresQuery struct {
@@ -56,6 +63,7 @@ type PostgresQuery struct {
 	eras        Eras
 	resets      Resets
 	forgettings Forgettings
+	erasures    Erasures
 	clock       cptime.Clock
 
 	building singleflight.Group
@@ -95,8 +103,8 @@ func (q *PostgresQuery) RecentHistory(ctx context.Context) (*planetv1.MapHistory
 }
 
 // The events from the head on keep their order by the primary key. The ones before the window are read for the rewind
-// to see through what a revert forgot. Each names its map and its board, and the rewind keeps the world's on the board it
-// plays.
+// to see through what a revert forgot, and the erasure before the head for the ones behind it. Each names its map and its
+// board, and the rewind keeps the world's on the board it plays.
 const events = `
 	SELECT map, board, kind, tile, country, previous, taken_at, payload, forgotten
 	FROM ledger_events
@@ -132,7 +140,15 @@ func (q *PostgresQuery) build(
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the world's eras: %w", err)
 	}
-	rewind, err := ledger.NewRewind(recent.Since, recent.Until, recent.Step, world.Stage())
+	var head int64
+	if err := q.db.On(ctx).QueryRowContext(ctx, `SELECT COALESCE((SELECT head FROM ledger_head), 0)`).Scan(&head); err != nil {
+		return nil, fmt.Errorf("failed to read the ledger's head: %w", err)
+	}
+	erased, err := q.erasures.Before(ctx, ledger.Position(head)) //nolint:gosec // CHECK (head >= 0).
+	if err != nil {
+		return nil, fmt.Errorf("failed to read what the reverts forgot before the ledger's head: %w", err)
+	}
+	rewind, err := ledger.NewRewind(recent.Since, recent.Until, recent.Step, world.Stage(), erased)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the map's recent history: %w", err)
 	}
@@ -142,7 +158,7 @@ func (q *PostgresQuery) build(
 	if err != nil {
 		return nil, err
 	}
-	if err := q.replay(ctx, rewind); err != nil {
+	if err := q.replay(ctx, rewind, head); err != nil {
 		return nil, err
 	}
 	history := planetmessage.MapHistory(rewind.Frames(now), ledger.InEra(len(covering)-1, rewind.Hits()), covering)
@@ -166,11 +182,7 @@ func (q *PostgresQuery) world(ctx context.Context, world clicks.Stage) (clicks.D
 	return now, nil
 }
 
-func (q *PostgresQuery) replay(ctx context.Context, rewind *ledger.Rewind) error {
-	var head int64
-	if err := q.db.On(ctx).QueryRowContext(ctx, `SELECT COALESCE((SELECT head FROM ledger_head), 0)`).Scan(&head); err != nil {
-		return fmt.Errorf("failed to read the ledger's head: %w", err)
-	}
+func (q *PostgresQuery) replay(ctx context.Context, rewind *ledger.Rewind, head int64) error {
 	rows, err := q.db.On(ctx).QueryContext(ctx, events, head)
 	if err != nil {
 		return fmt.Errorf("failed to read the ledger: %w", err)
