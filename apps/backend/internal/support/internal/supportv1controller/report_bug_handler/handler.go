@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/attachment"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/caller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/pagecontext"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/replyaddress"
 )
 
 type UseCase interface {
@@ -40,11 +41,18 @@ func (h ReportBugHandler) ReportBug(
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
 	}
 
+	address, err := replyaddress.Of(req.Msg.ReplyAddress)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // already the connect error the page reads.
+	}
+
 	err = h.useCase.Execute(ctx, report_bug_usecase.In{
 		Account:     account,
 		Text:        req.Msg.GetText(),
 		Diagnostics: pagecontext.Diagnostics(req.Msg.GetContext(), req.Header()),
 		Attachments: files,
+
+		ReplyAddress: address,
 	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidText):

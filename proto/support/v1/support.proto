@@ -21,6 +21,9 @@ message SuggestFeatureRequest {
   PageContext context = 2;
   // Each one from CreateUpload, and uploaded before the note is sent.
   repeated string attachment_ids = 3;
+  // Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+  // NoteRefusal detail.
+  optional string reply_address = 4;
 }
 
 message SuggestFeatureResponse {}
@@ -30,9 +33,23 @@ message ReportBugRequest {
   PageContext context = 2;
   // Each one from CreateUpload, and uploaded before the note is sent.
   repeated string attachment_ids = 3;
+  // Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+  // NoteRefusal detail.
+  optional string reply_address = 4;
 }
 
 message ReportBugResponse {}
+
+message NoteRefusal {
+  NoteRefusalReason reason = 1;
+}
+
+enum NoteRefusalReason {
+  NOTE_REFUSAL_REASON_UNSPECIFIED = 0;
+  // The note named no address and the account holds none: ask the player for one.
+  NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS = 1;
+  NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS = 2;
+}
 
 message CreateUploadRequest {
   string content_type = 1;

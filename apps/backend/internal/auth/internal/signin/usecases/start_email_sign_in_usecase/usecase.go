@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -40,7 +41,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.challenges.Off() {
 		return nil, signin.ErrSignInOff
 	}
-	address, err := signin.AddressOf(in.Address)
+	address, err := cpmail.AddressOf(in.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the address: %w", err)
 	}

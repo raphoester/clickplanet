@@ -345,6 +345,95 @@ func (x *Account) GetCreatedAtUnixMs() int64 {
 	return 0
 }
 
+type GetEmailRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailRequest) Reset() {
+	*x = GetEmailRequest{}
+	mi := &file_player_v1_internal_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailRequest) ProtoMessage() {}
+
+func (x *GetEmailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_internal_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailRequest.ProtoReflect.Descriptor instead.
+func (*GetEmailRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetEmailRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type GetEmailResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset: the account holds no verified address, a guest's.
+	Email         *string `protobuf:"bytes,1,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailResponse) Reset() {
+	*x = GetEmailResponse{}
+	mi := &file_player_v1_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailResponse) ProtoMessage() {}
+
+func (x *GetEmailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailResponse.ProtoReflect.Descriptor instead.
+func (*GetEmailResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetEmailResponse) GetEmail() string {
+	if x != nil && x.Email != nil {
+		return *x.Email
+	}
+	return ""
+}
+
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
@@ -369,12 +458,19 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
 	"\x06linked\x18\x02 \x01(\bR\x06linked\x12+\n" +
-	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\x8e\x02\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\"0\n" +
+	"\x0fGetEmailRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"7\n" +
+	"\x10GetEmailResponse\x12\x19\n" +
+	"\x05email\x18\x01 \x01(\tH\x00R\x05email\x88\x01\x01B\b\n" +
+	"\x06_email2\xd8\x02\n" +
 	"\x0fInternalService\x12X\n" +
 	"\x0fIntroducePlayer\x12!.player.v1.IntroducePlayerRequest\x1a\".player.v1.IntroducePlayerResponse\x12N\n" +
 	"\n" +
 	"GetPlayers\x12\x1c.player.v1.GetPlayersRequest\x1a\x1d.player.v1.GetPlayersResponse\"\x03\x90\x02\x01\x12Q\n" +
-	"\vGetAccounts\x12\x1d.player.v1.GetAccountsRequest\x1a\x1e.player.v1.GetAccountsResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\vGetAccounts\x12\x1d.player.v1.GetAccountsRequest\x1a\x1e.player.v1.GetAccountsResponse\"\x03\x90\x02\x01\x12H\n" +
+	"\bGetEmail\x12\x1a.player.v1.GetEmailRequest\x1a\x1b.player.v1.GetEmailResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.player.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
 
@@ -390,7 +486,7 @@ func file_player_v1_internal_proto_rawDescGZIP() []byte {
 	return file_player_v1_internal_proto_rawDescData
 }
 
-var file_player_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_player_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_player_v1_internal_proto_goTypes = []any{
 	(*IntroducePlayerRequest)(nil),  // 0: player.v1.IntroducePlayerRequest
 	(*IntroducePlayerResponse)(nil), // 1: player.v1.IntroducePlayerResponse
@@ -399,20 +495,24 @@ var file_player_v1_internal_proto_goTypes = []any{
 	(*GetAccountsRequest)(nil),      // 4: player.v1.GetAccountsRequest
 	(*GetAccountsResponse)(nil),     // 5: player.v1.GetAccountsResponse
 	(*Account)(nil),                 // 6: player.v1.Account
-	(*Player)(nil),                  // 7: player.v1.Player
+	(*GetEmailRequest)(nil),         // 7: player.v1.GetEmailRequest
+	(*GetEmailResponse)(nil),        // 8: player.v1.GetEmailResponse
+	(*Player)(nil),                  // 9: player.v1.Player
 }
 var file_player_v1_internal_proto_depIdxs = []int32{
-	7, // 0: player.v1.IntroducePlayerResponse.player:type_name -> player.v1.Player
-	7, // 1: player.v1.GetPlayersResponse.players:type_name -> player.v1.Player
+	9, // 0: player.v1.IntroducePlayerResponse.player:type_name -> player.v1.Player
+	9, // 1: player.v1.GetPlayersResponse.players:type_name -> player.v1.Player
 	6, // 2: player.v1.GetAccountsResponse.accounts:type_name -> player.v1.Account
 	0, // 3: player.v1.InternalService.IntroducePlayer:input_type -> player.v1.IntroducePlayerRequest
 	2, // 4: player.v1.InternalService.GetPlayers:input_type -> player.v1.GetPlayersRequest
 	4, // 5: player.v1.InternalService.GetAccounts:input_type -> player.v1.GetAccountsRequest
-	1, // 6: player.v1.InternalService.IntroducePlayer:output_type -> player.v1.IntroducePlayerResponse
-	3, // 7: player.v1.InternalService.GetPlayers:output_type -> player.v1.GetPlayersResponse
-	5, // 8: player.v1.InternalService.GetAccounts:output_type -> player.v1.GetAccountsResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
+	7, // 6: player.v1.InternalService.GetEmail:input_type -> player.v1.GetEmailRequest
+	1, // 7: player.v1.InternalService.IntroducePlayer:output_type -> player.v1.IntroducePlayerResponse
+	3, // 8: player.v1.InternalService.GetPlayers:output_type -> player.v1.GetPlayersResponse
+	5, // 9: player.v1.InternalService.GetAccounts:output_type -> player.v1.GetAccountsResponse
+	8, // 10: player.v1.InternalService.GetEmail:output_type -> player.v1.GetEmailResponse
+	7, // [7:11] is the sub-list for method output_type
+	3, // [3:7] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -424,13 +524,14 @@ func file_player_v1_internal_proto_init() {
 		return
 	}
 	file_player_v1_player_proto_init()
+	file_player_v1_internal_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_internal_proto_rawDesc), len(file_player_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

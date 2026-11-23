@@ -56,7 +56,7 @@ describe("NoteModal", () => {
         await user.type(box(), "  a night mode{Enter}for the globe  ")
         await user.click(send())
 
-        expect(onSend).toHaveBeenCalledWith("a night mode\nfor the globe", [])
+        expect(onSend).toHaveBeenCalledWith("a night mode\nfor the globe", [], undefined)
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         expect(screen.queryByRole("textbox")).toBeNull()
 
@@ -303,7 +303,7 @@ describe("NoteModal's files", () => {
         expect(onSend).not.toHaveBeenCalled()
 
         await act(async () => landings[1].land("second"))
-        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"])
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"], undefined)
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
@@ -329,7 +329,7 @@ describe("NoteModal's files", () => {
         expect(landings[2].file).toBe(recording)
 
         await act(async () => landings[2].land("second"))
-        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"])
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"], undefined)
     })
 
     it("says why the server would not take a file, and keeps them all", async () => {
@@ -362,7 +362,7 @@ describe("NoteModal's files", () => {
         await user.click(send())
 
         expect(files.uploadAttachment).toHaveBeenCalledTimes(1)
-        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["first"])
+        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["first"], undefined)
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
@@ -380,7 +380,7 @@ describe("NoteModal's files", () => {
         await user.click(screen.getByRole("button", {name: "Remove screen.png"}))
         await user.click(send())
 
-        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["second"])
+        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["second"], undefined)
     })
 
     it("calls the upload off when it is closed, and sends nothing", async () => {
@@ -431,7 +431,7 @@ describe("NoteModal's files", () => {
 
         expect(landings[0].signal?.aborted).toBe(false)
         await act(async () => landings[0].land("first"))
-        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first"])
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first"], undefined)
     })
 
     it("does not close on a click beside it once a file is picked, or while files go up", async () => {

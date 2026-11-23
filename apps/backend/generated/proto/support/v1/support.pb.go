@@ -21,6 +21,56 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type NoteRefusalReason int32
+
+const (
+	NoteRefusalReason_NOTE_REFUSAL_REASON_UNSPECIFIED NoteRefusalReason = 0
+	// The note named no address and the account holds none: ask the player for one.
+	NoteRefusalReason_NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS      NoteRefusalReason = 1
+	NoteRefusalReason_NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS NoteRefusalReason = 2
+)
+
+// Enum value maps for NoteRefusalReason.
+var (
+	NoteRefusalReason_name = map[int32]string{
+		0: "NOTE_REFUSAL_REASON_UNSPECIFIED",
+		1: "NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS",
+		2: "NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS",
+	}
+	NoteRefusalReason_value = map[string]int32{
+		"NOTE_REFUSAL_REASON_UNSPECIFIED":           0,
+		"NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS":      1,
+		"NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS": 2,
+	}
+)
+
+func (x NoteRefusalReason) Enum() *NoteRefusalReason {
+	p := new(NoteRefusalReason)
+	*p = x
+	return p
+}
+
+func (x NoteRefusalReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NoteRefusalReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_support_v1_support_proto_enumTypes[0].Descriptor()
+}
+
+func (NoteRefusalReason) Type() protoreflect.EnumType {
+	return &file_support_v1_support_proto_enumTypes[0]
+}
+
+func (x NoteRefusalReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NoteRefusalReason.Descriptor instead.
+func (NoteRefusalReason) EnumDescriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{0}
+}
+
 type ReportReason int32
 
 const (
@@ -60,11 +110,11 @@ func (x ReportReason) String() string {
 }
 
 func (ReportReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_support_v1_support_proto_enumTypes[0].Descriptor()
+	return file_support_v1_support_proto_enumTypes[1].Descriptor()
 }
 
 func (ReportReason) Type() protoreflect.EnumType {
-	return &file_support_v1_support_proto_enumTypes[0]
+	return &file_support_v1_support_proto_enumTypes[1]
 }
 
 func (x ReportReason) Number() protoreflect.EnumNumber {
@@ -73,7 +123,7 @@ func (x ReportReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ReportReason.Descriptor instead.
 func (ReportReason) EnumDescriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{0}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
 }
 
 type SuggestFeatureRequest struct {
@@ -82,6 +132,9 @@ type SuggestFeatureRequest struct {
 	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
 	// Each one from CreateUpload, and uploaded before the note is sent.
 	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	// Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+	// NoteRefusal detail.
+	ReplyAddress  *string `protobuf:"bytes,4,opt,name=reply_address,json=replyAddress,proto3,oneof" json:"reply_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,6 +190,13 @@ func (x *SuggestFeatureRequest) GetAttachmentIds() []string {
 	return nil
 }
 
+func (x *SuggestFeatureRequest) GetReplyAddress() string {
+	if x != nil && x.ReplyAddress != nil {
+		return *x.ReplyAddress
+	}
+	return ""
+}
+
 type SuggestFeatureResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -179,6 +239,9 @@ type ReportBugRequest struct {
 	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
 	// Each one from CreateUpload, and uploaded before the note is sent.
 	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	// Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+	// NoteRefusal detail.
+	ReplyAddress  *string `protobuf:"bytes,4,opt,name=reply_address,json=replyAddress,proto3,oneof" json:"reply_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,6 +297,13 @@ func (x *ReportBugRequest) GetAttachmentIds() []string {
 	return nil
 }
 
+func (x *ReportBugRequest) GetReplyAddress() string {
+	if x != nil && x.ReplyAddress != nil {
+		return *x.ReplyAddress
+	}
+	return ""
+}
+
 type ReportBugResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -270,6 +340,50 @@ func (*ReportBugResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
 }
 
+type NoteRefusal struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        NoteRefusalReason      `protobuf:"varint,1,opt,name=reason,proto3,enum=support.v1.NoteRefusalReason" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoteRefusal) Reset() {
+	*x = NoteRefusal{}
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoteRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoteRefusal) ProtoMessage() {}
+
+func (x *NoteRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoteRefusal.ProtoReflect.Descriptor instead.
+func (*NoteRefusal) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NoteRefusal) GetReason() NoteRefusalReason {
+	if x != nil {
+		return x.Reason
+	}
+	return NoteRefusalReason_NOTE_REFUSAL_REASON_UNSPECIFIED
+}
+
 type CreateUploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ContentType   string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
@@ -280,7 +394,7 @@ type CreateUploadRequest struct {
 
 func (x *CreateUploadRequest) Reset() {
 	*x = CreateUploadRequest{}
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +406,7 @@ func (x *CreateUploadRequest) String() string {
 func (*CreateUploadRequest) ProtoMessage() {}
 
 func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +419,7 @@ func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUploadRequest.ProtoReflect.Descriptor instead.
 func (*CreateUploadRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateUploadRequest) GetContentType() string {
@@ -334,7 +448,7 @@ type CreateUploadResponse struct {
 
 func (x *CreateUploadResponse) Reset() {
 	*x = CreateUploadResponse{}
-	mi := &file_support_v1_support_proto_msgTypes[5]
+	mi := &file_support_v1_support_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +460,7 @@ func (x *CreateUploadResponse) String() string {
 func (*CreateUploadResponse) ProtoMessage() {}
 
 func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[5]
+	mi := &file_support_v1_support_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +473,7 @@ func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUploadResponse.ProtoReflect.Descriptor instead.
 func (*CreateUploadResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateUploadResponse) GetAttachmentId() string {
@@ -384,7 +498,7 @@ type GetAttachmentRulesRequest struct {
 
 func (x *GetAttachmentRulesRequest) Reset() {
 	*x = GetAttachmentRulesRequest{}
-	mi := &file_support_v1_support_proto_msgTypes[6]
+	mi := &file_support_v1_support_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +510,7 @@ func (x *GetAttachmentRulesRequest) String() string {
 func (*GetAttachmentRulesRequest) ProtoMessage() {}
 
 func (x *GetAttachmentRulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[6]
+	mi := &file_support_v1_support_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +523,7 @@ func (x *GetAttachmentRulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAttachmentRulesRequest.ProtoReflect.Descriptor instead.
 func (*GetAttachmentRulesRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{7}
 }
 
 type GetAttachmentRulesResponse struct {
@@ -424,7 +538,7 @@ type GetAttachmentRulesResponse struct {
 
 func (x *GetAttachmentRulesResponse) Reset() {
 	*x = GetAttachmentRulesResponse{}
-	mi := &file_support_v1_support_proto_msgTypes[7]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -436,7 +550,7 @@ func (x *GetAttachmentRulesResponse) String() string {
 func (*GetAttachmentRulesResponse) ProtoMessage() {}
 
 func (x *GetAttachmentRulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[7]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -449,7 +563,7 @@ func (x *GetAttachmentRulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAttachmentRulesResponse.ProtoReflect.Descriptor instead.
 func (*GetAttachmentRulesResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{7}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetAttachmentRulesResponse) GetMaxPerNote() uint32 {
@@ -501,7 +615,7 @@ type PageContext struct {
 
 func (x *PageContext) Reset() {
 	*x = PageContext{}
-	mi := &file_support_v1_support_proto_msgTypes[8]
+	mi := &file_support_v1_support_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +627,7 @@ func (x *PageContext) String() string {
 func (*PageContext) ProtoMessage() {}
 
 func (x *PageContext) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[8]
+	mi := &file_support_v1_support_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +640,7 @@ func (x *PageContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageContext.ProtoReflect.Descriptor instead.
 func (*PageContext) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{8}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PageContext) GetBuild() string {
@@ -628,7 +742,7 @@ type ReportPlayerRequest struct {
 
 func (x *ReportPlayerRequest) Reset() {
 	*x = ReportPlayerRequest{}
-	mi := &file_support_v1_support_proto_msgTypes[9]
+	mi := &file_support_v1_support_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -640,7 +754,7 @@ func (x *ReportPlayerRequest) String() string {
 func (*ReportPlayerRequest) ProtoMessage() {}
 
 func (x *ReportPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[9]
+	mi := &file_support_v1_support_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -653,7 +767,7 @@ func (x *ReportPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPlayerRequest.ProtoReflect.Descriptor instead.
 func (*ReportPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{9}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ReportPlayerRequest) GetReason() ReportReason {
@@ -692,7 +806,7 @@ type ReportPlayerResponse struct {
 
 func (x *ReportPlayerResponse) Reset() {
 	*x = ReportPlayerResponse{}
-	mi := &file_support_v1_support_proto_msgTypes[10]
+	mi := &file_support_v1_support_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +818,7 @@ func (x *ReportPlayerResponse) String() string {
 func (*ReportPlayerResponse) ProtoMessage() {}
 
 func (x *ReportPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[10]
+	mi := &file_support_v1_support_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +831,7 @@ func (x *ReportPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPlayerResponse.ProtoReflect.Descriptor instead.
 func (*ReportPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{10}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{11}
 }
 
 var File_support_v1_support_proto protoreflect.FileDescriptor
@@ -725,17 +839,23 @@ var File_support_v1_support_proto protoreflect.FileDescriptor
 const file_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x18support/v1/support.proto\x12\n" +
-	"support.v1\"\x85\x01\n" +
+	"support.v1\"\xc1\x01\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
 	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x18\n" +
-	"\x16SuggestFeatureResponse\"\x80\x01\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12(\n" +
+	"\rreply_address\x18\x04 \x01(\tH\x00R\freplyAddress\x88\x01\x01B\x10\n" +
+	"\x0e_reply_address\"\x18\n" +
+	"\x16SuggestFeatureResponse\"\xbc\x01\n" +
 	"\x10ReportBugRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
 	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x13\n" +
-	"\x11ReportBugResponse\"W\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12(\n" +
+	"\rreply_address\x18\x04 \x01(\tH\x00R\freplyAddress\x88\x01\x01B\x10\n" +
+	"\x0e_reply_address\"\x13\n" +
+	"\x11ReportBugResponse\"D\n" +
+	"\vNoteRefusal\x125\n" +
+	"\x06reason\x18\x01 \x01(\x0e2\x1d.support.v1.NoteRefusalReasonR\x06reason\"W\n" +
 	"\x13CreateUploadRequest\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
 	"\n" +
@@ -772,7 +892,11 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"message_id\x18\x04 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x05 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\"\x16\n" +
-	"\x14ReportPlayerResponse*\x9c\x01\n" +
+	"\x14ReportPlayerResponse*\x91\x01\n" +
+	"\x11NoteRefusalReason\x12#\n" +
+	"\x1fNOTE_REFUSAL_REASON_UNSPECIFIED\x10\x00\x12(\n" +
+	"$NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS\x10\x01\x12-\n" +
+	")NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS\x10\x02*\x9c\x01\n" +
 	"\fReportReason\x12\x1d\n" +
 	"\x19REPORT_REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REPORT_REASON_CHEATING\x10\x01\x12\x1c\n" +
@@ -801,41 +925,44 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_support_v1_support_proto_goTypes = []any{
-	(ReportReason)(0),                  // 0: support.v1.ReportReason
-	(*SuggestFeatureRequest)(nil),      // 1: support.v1.SuggestFeatureRequest
-	(*SuggestFeatureResponse)(nil),     // 2: support.v1.SuggestFeatureResponse
-	(*ReportBugRequest)(nil),           // 3: support.v1.ReportBugRequest
-	(*ReportBugResponse)(nil),          // 4: support.v1.ReportBugResponse
-	(*CreateUploadRequest)(nil),        // 5: support.v1.CreateUploadRequest
-	(*CreateUploadResponse)(nil),       // 6: support.v1.CreateUploadResponse
-	(*GetAttachmentRulesRequest)(nil),  // 7: support.v1.GetAttachmentRulesRequest
-	(*GetAttachmentRulesResponse)(nil), // 8: support.v1.GetAttachmentRulesResponse
-	(*PageContext)(nil),                // 9: support.v1.PageContext
-	(*ReportPlayerRequest)(nil),        // 10: support.v1.ReportPlayerRequest
-	(*ReportPlayerResponse)(nil),       // 11: support.v1.ReportPlayerResponse
+	(NoteRefusalReason)(0),             // 0: support.v1.NoteRefusalReason
+	(ReportReason)(0),                  // 1: support.v1.ReportReason
+	(*SuggestFeatureRequest)(nil),      // 2: support.v1.SuggestFeatureRequest
+	(*SuggestFeatureResponse)(nil),     // 3: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),           // 4: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),          // 5: support.v1.ReportBugResponse
+	(*NoteRefusal)(nil),                // 6: support.v1.NoteRefusal
+	(*CreateUploadRequest)(nil),        // 7: support.v1.CreateUploadRequest
+	(*CreateUploadResponse)(nil),       // 8: support.v1.CreateUploadResponse
+	(*GetAttachmentRulesRequest)(nil),  // 9: support.v1.GetAttachmentRulesRequest
+	(*GetAttachmentRulesResponse)(nil), // 10: support.v1.GetAttachmentRulesResponse
+	(*PageContext)(nil),                // 11: support.v1.PageContext
+	(*ReportPlayerRequest)(nil),        // 12: support.v1.ReportPlayerRequest
+	(*ReportPlayerResponse)(nil),       // 13: support.v1.ReportPlayerResponse
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	9,  // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
-	9,  // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
-	0,  // 2: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
-	1,  // 3: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	3,  // 4: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	10, // 5: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
-	7,  // 6: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
-	5,  // 7: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
-	2,  // 8: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	4,  // 9: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	11, // 10: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
-	8,  // 11: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
-	6,  // 12: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	11, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
+	11, // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	0,  // 2: support.v1.NoteRefusal.reason:type_name -> support.v1.NoteRefusalReason
+	1,  // 3: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
+	2,  // 4: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	4,  // 5: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	12, // 6: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
+	9,  // 7: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
+	7,  // 8: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
+	3,  // 9: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	5,  // 10: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	13, // 11: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
+	10, // 12: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
+	8,  // 13: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -843,13 +970,15 @@ func file_support_v1_support_proto_init() {
 	if File_support_v1_support_proto != nil {
 		return
 	}
+	file_support_v1_support_proto_msgTypes[0].OneofWrappers = []any{}
+	file_support_v1_support_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   11,
+			NumEnums:      2,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

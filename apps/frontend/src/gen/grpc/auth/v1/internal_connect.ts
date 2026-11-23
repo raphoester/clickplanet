@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetDiscordUsersRequest, GetDiscordUsersResponse, GetOperatorRequest, GetOperatorResponse, GetTokenOperatorRequest, GetTokenOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse, SearchEmailsRequest, SearchEmailsResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetDiscordUsersRequest, GetDiscordUsersResponse, GetEmailRequest, GetEmailResponse, GetOperatorRequest, GetOperatorResponse, GetTokenOperatorRequest, GetTokenOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse, SearchEmailsRequest, SearchEmailsResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -101,6 +101,19 @@ export const InternalService = {
       name: "SearchEmails",
       I: SearchEmailsRequest,
       O: SearchEmailsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The address to write to an account at: the oldest verified one it holds. For player.v1.InternalService/GetEmail.
+     * InvalidArgument for an id that is not an account's.
+     *
+     * @generated from rpc auth.v1.InternalService.GetEmail
+     */
+    getEmail: {
+      name: "GetEmail",
+      I: GetEmailRequest,
+      O: GetEmailResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
