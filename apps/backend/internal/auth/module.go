@@ -64,6 +64,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_grant_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_users_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_users_handler/discord_users_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_email_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_email_handler/email_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
@@ -122,6 +124,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -368,6 +371,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		GetDiscordUsersHandler:  get_discord_users_handler.New(discord_users_query.NewPostgresQuery(db)),
 		GetTokenOperatorHandler: get_token_operator_handler.New(token_operator_query.NewPostgresQuery(db, clock)),
 		SearchEmailsHandler:     search_emails_handler.New(emails_query.NewPostgresQuery(db)),
+		GetEmailHandler:         get_email_handler.New(email_query.NewPostgresQuery(db)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
@@ -636,7 +640,7 @@ func (c Config) emailError() error {
 	}
 
 	var errs []error
-	if _, err := signin.AddressOf(c.Email.From); err != nil {
+	if _, err := cpmail.AddressOf(c.Email.From); err != nil {
 		errs = append(errs, fmt.Errorf("auth.email.from %q: %w", c.Email.From, err))
 	}
 	if c.Email.Cloudflare.AccountID == "" {

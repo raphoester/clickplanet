@@ -2,7 +2,6 @@ package signin_test
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,30 +18,6 @@ func challenge(t *testing.T, intent accounts.Intent, account accounts.AccountID)
 	challenge, err := signin.NewChallenge("player@example.com", intent, account, &signin.SequentialSecrets{}, &signin.SequentialCodes{}, now)
 	require.NoError(t, err)
 	return challenge
-}
-
-func TestAnythingButOneBareAddressIsRefused(t *testing.T) {
-	for _, raw := range []string{
-		"",
-		"player",
-		"player@",
-		"@example.com",
-		"Player <player@example.com>",
-		"player@example.com (comment)",
-		`"player one"@example.com`,
-		"player@localhost",
-		"player@[192.0.2.1]",
-		"player@example..com",
-		"player@-example.com",
-		"player@example.com, other@example.com",
-		strings.Repeat("a", 250) + "@example.com",
-	} {
-		t.Run(raw, func(t *testing.T) {
-			_, err := signin.AddressOf(raw)
-
-			assert.ErrorIs(t, err, signin.ErrAddressInvalid)
-		})
-	}
 }
 
 func TestOnlyTheCodeSentPassesWhileTheChallengeLives(t *testing.T) {

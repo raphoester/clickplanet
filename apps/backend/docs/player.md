@@ -337,6 +337,10 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
   account is `InvalidArgument`, and reads nothing; a failure to ask auth is the error net's `internal`.
   `NO_SIDE_EFFECTS`. Progression asks it on each title award and once per page of a reconciliation, missions whether
   an account is signed in before it pays.
+- **`InternalService/GetEmail(account_id)`** is the address to write to an account at, auth's `GetEmail` passed
+  through (`get_email_handler/email_query`): the oldest verified one it holds, or the field unset. Support asks it for
+  the address a note is answered at, since it must not ask auth. An id that is not an account is `InvalidArgument`.
+  `NO_SIDE_EFFECTS`.
 
 ## An account asked deleted
 

@@ -43,7 +43,8 @@ type PostgresQuery struct {
 const me = `
 	SELECT accounts.id,
 	       COALESCE(array_agg(identities.provider ORDER BY identities.linked_at, identities.provider::text)
-	                FILTER (WHERE identities.provider IS NOT NULL), '{}')
+	                FILTER (WHERE identities.provider IS NOT NULL), '{}'),
+	       COALESCE(bool_or(identities.email IS NOT NULL), false)
 	FROM sessions
 	JOIN accounts ON accounts.id = sessions.account_id
 	LEFT JOIN identities ON identities.account_id = accounts.id
@@ -58,12 +59,13 @@ func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.Ge
 	}
 
 	var (
-		account uuid.UUID
-		names   []string
+		account  uuid.UUID
+		names    []string
+		hasEmail bool
 	)
 	// Postgres keeps microseconds and rounds what it is sent: truncated, "now < expires_at" stays exact.
 	now := q.clock.Now().UTC().Truncate(time.Microsecond)
-	err := q.db.On(ctx).QueryRowContext(ctx, me, hash, now).Scan(&account, pq.Array(&names))
+	err := q.db.On(ctx).QueryRowContext(ctx, me, hash, now).Scan(&account, pq.Array(&names), &hasEmail)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: no live session for this cookie", ErrNoAccount)
 	}
@@ -71,7 +73,7 @@ func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.Ge
 		return nil, fmt.Errorf("failed to read the caller: %w", err)
 	}
 
-	answer := &authv1.GetMeResponse{AccountId: account.String(), Kind: authv1.AccountKind_ACCOUNT_KIND_GUEST}
+	answer := &authv1.GetMeResponse{AccountId: account.String(), Kind: authv1.AccountKind_ACCOUNT_KIND_GUEST, HasEmail: hasEmail}
 	for _, name := range names {
 		provider, known := providers[name]
 		if !known {

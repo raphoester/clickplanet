@@ -38,6 +38,12 @@ service InternalService {
   rpc SearchEmails(SearchEmailsRequest) returns (SearchEmailsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The address to write to an account at: the oldest verified one it holds. For player.v1.InternalService/GetEmail.
+  // InvalidArgument for an id that is not an account's.
+  rpc GetEmail(GetEmailRequest) returns (GetEmailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetVerifyingKeyRequest {}
@@ -136,4 +142,13 @@ message EmailHolder {
   // The identity that verified it: "google", "discord" or "email".
   string provider = 3;
   google.protobuf.Timestamp linked_at = 4;
+}
+
+message GetEmailRequest {
+  string account_id = 1;
+}
+
+message GetEmailResponse {
+  // Unset: the account holds no verified address, a guest's, or auth knows no such account.
+  optional string email = 1;
 }

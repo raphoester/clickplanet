@@ -617,10 +617,12 @@ func (*GetMeRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetMeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Kind          AccountKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AccountKind" json:"kind,omitempty"`
-	Providers     []Provider             `protobuf:"varint,3,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind      AccountKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AccountKind" json:"kind,omitempty"`
+	Providers []Provider             `protobuf:"varint,3,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
+	// The account holds a verified email address, where the operator answers its notes.
+	HasEmail      bool `protobuf:"varint,4,opt,name=has_email,json=hasEmail,proto3" json:"has_email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -674,6 +676,13 @@ func (x *GetMeResponse) GetProviders() []Provider {
 		return x.Providers
 	}
 	return nil
+}
+
+func (x *GetMeResponse) GetHasEmail() bool {
+	if x != nil {
+		return x.HasEmail
+	}
+	return false
 }
 
 type GetSignInOptionsRequest struct {
@@ -1620,12 +1629,13 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x15ResumeSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
 	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x0e\n" +
-	"\fGetMeRequest\"\x89\x01\n" +
+	"\fGetMeRequest\"\xa6\x01\n" +
 	"\rGetMeResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.auth.v1.AccountKindR\x04kind\x12/\n" +
-	"\tproviders\x18\x03 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\"\x19\n" +
+	"\tproviders\x18\x03 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\x12\x1b\n" +
+	"\thas_email\x18\x04 \x01(\bR\bhasEmail\"\x19\n" +
 	"\x17GetSignInOptionsRequest\"K\n" +
 	"\x18GetSignInOptionsResponse\x12/\n" +
 	"\tproviders\x18\x01 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\"r\n" +
