@@ -1,9 +1,11 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-
   "name": "clickplanet-mailroom",
-  "main": "src/index.ts",
+  "main": "./build/worker.mjs",
   "compatibility_date": "2026-09-07",
+
+  "build": {
+    "command": "make build"
+  },
 
   "vars": {
     "MAILROOM_URL": "https://api.clickplanet.lol/mailroom/replies"

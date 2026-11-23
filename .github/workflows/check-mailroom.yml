@@ -22,14 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/mailroom/package-lock.json
+          go-version-file: apps/mailroom/go.mod
+          cache-dependency-path: apps/mailroom/go.sum
 
-      - run: npm ci
+      - run: make vet
 
-      - run: npm run typecheck
+      - run: make test
 
-      - run: npm test
+      - run: make build
