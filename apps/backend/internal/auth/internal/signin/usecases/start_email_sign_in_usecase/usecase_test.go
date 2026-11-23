@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -114,7 +115,7 @@ func TestALinkWithNoAccountSendsNothing(t *testing.T) {
 
 func TestARefusedAddressSendsNothing(t *testing.T) {
 	for address, want := range map[string]error{
-		"not an address":              signin.ErrAddressInvalid,
+		"not an address":              cpmail.ErrAddressInvalid,
 		"player@mailinator.com":       signin.ErrAddressDisposable,
 		"player@inbox.Mailinator.com": signin.ErrAddressDisposable,
 	} {

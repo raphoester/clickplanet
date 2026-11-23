@@ -19,6 +19,12 @@ service InternalService {
   rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The address auth would write to an account at, for a module that must not ask auth: the oldest verified one it
+  // holds. InvalidArgument for an id that is not an account's.
+  rpc GetEmail(GetEmailRequest) returns (GetEmailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message IntroducePlayerRequest {
@@ -49,4 +55,13 @@ message Account {
   string account_id = 1;
   bool linked = 2;
   int64 created_at_unix_ms = 3;
+}
+
+message GetEmailRequest {
+  string account_id = 1;
+}
+
+message GetEmailResponse {
+  // Unset: the account holds no verified address, a guest's.
+  optional string email = 1;
 }

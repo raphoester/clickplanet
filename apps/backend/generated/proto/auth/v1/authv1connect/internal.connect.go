@@ -57,6 +57,9 @@ const (
 	// InternalServiceSearchEmailsProcedure is the fully-qualified name of the InternalService's
 	// SearchEmails RPC.
 	InternalServiceSearchEmailsProcedure = "/auth.v1.InternalService/SearchEmails"
+	// InternalServiceGetEmailProcedure is the fully-qualified name of the InternalService's GetEmail
+	// RPC.
+	InternalServiceGetEmailProcedure = "/auth.v1.InternalService/GetEmail"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -80,6 +83,9 @@ type InternalServiceClient interface {
 	// a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
 	// address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
 	SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error)
+	// The address to write to an account at: the oldest verified one it holds. For player.v1.InternalService/GetEmail.
+	// InvalidArgument for an id that is not an account's.
+	GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -145,6 +151,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getEmail: connect.NewClient[v1.GetEmailRequest, v1.GetEmailResponse](
+			httpClient,
+			baseURL+InternalServiceGetEmailProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetEmail")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -158,6 +171,7 @@ type internalServiceClient struct {
 	getDiscordGrant  *connect.Client[v1.GetDiscordGrantRequest, v1.GetDiscordGrantResponse]
 	getDiscordUsers  *connect.Client[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse]
 	searchEmails     *connect.Client[v1.SearchEmailsRequest, v1.SearchEmailsResponse]
+	getEmail         *connect.Client[v1.GetEmailRequest, v1.GetEmailResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -200,6 +214,11 @@ func (c *internalServiceClient) SearchEmails(ctx context.Context, req *connect.R
 	return c.searchEmails.CallUnary(ctx, req)
 }
 
+// GetEmail calls auth.v1.InternalService.GetEmail.
+func (c *internalServiceClient) GetEmail(ctx context.Context, req *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error) {
+	return c.getEmail.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
@@ -221,6 +240,9 @@ type InternalServiceHandler interface {
 	// a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
 	// address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
 	SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error)
+	// The address to write to an account at: the oldest verified one it holds. For player.v1.InternalService/GetEmail.
+	// InvalidArgument for an id that is not an account's.
+	GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -282,6 +304,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetEmailHandler := connect.NewUnaryHandler(
+		InternalServiceGetEmailProcedure,
+		svc.GetEmail,
+		connect.WithSchema(internalServiceMethods.ByName("GetEmail")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -300,6 +329,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetDiscordUsersHandler.ServeHTTP(w, r)
 		case InternalServiceSearchEmailsProcedure:
 			internalServiceSearchEmailsHandler.ServeHTTP(w, r)
+		case InternalServiceGetEmailProcedure:
+			internalServiceGetEmailHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -339,4 +370,8 @@ func (UnimplementedInternalServiceHandler) GetDiscordUsers(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.SearchEmails is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetEmail is not implemented"))
 }

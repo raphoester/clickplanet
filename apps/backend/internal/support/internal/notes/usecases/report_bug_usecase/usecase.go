@@ -2,9 +2,11 @@ package report_bug_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
@@ -22,20 +24,25 @@ type In struct {
 	Text        string
 	Diagnostics notes.Diagnostics
 	Attachments []notes.AttachmentID
+	// Empty: the address the account holds.
+	ReplyAddress cpmail.Address
 }
 
 const writeTimeout = 5 * time.Second
 
-func New(ids notes.IDProvider, clock cptime.Clock, rules notes.AttachmentRules, saver Saver, files Files) *UseCase {
-	return &UseCase{ids: ids, clock: clock, rules: rules, saver: saver, files: files}
+func New(
+	ids notes.IDProvider, clock cptime.Clock, rules notes.AttachmentRules, saver Saver, files Files, addresses notes.AddressBook,
+) *UseCase {
+	return &UseCase{ids: ids, clock: clock, rules: rules, saver: saver, files: files, addresses: addresses}
 }
 
 type UseCase struct {
-	ids   notes.IDProvider
-	clock cptime.Clock
-	rules notes.AttachmentRules
-	saver Saver
-	files Files
+	ids       notes.IDProvider
+	clock     cptime.Clock
+	rules     notes.AttachmentRules
+	saver     Saver
+	files     Files
+	addresses notes.AddressBook
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
@@ -44,13 +51,20 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to draw a note id: %w", err)
 	}
 
-	note, err := notes.NewBugReport(id, in.Account, in.Text, in.Diagnostics, u.clock.Now())
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	address, err := notes.ReplyAddress(ctx, in.ReplyAddress, in.Account, u.addresses)
+	if err != nil && !errors.Is(err, notes.ErrNoReplyAddress) {
+		return fmt.Errorf("failed to read where to answer the bug report: %w", err)
+	}
+
+	note, err := notes.NewBugReport(id, notes.Sent{
+		Account: in.Account, Text: in.Text, Diagnostics: in.Diagnostics, ReplyAddress: address,
+	}, u.clock.Now())
 	if err != nil {
 		return fmt.Errorf("cannot take the bug report: %w", err)
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
 
 	files, err := u.files.Attachments(ctx, in.Attachments...)
 	if err != nil {

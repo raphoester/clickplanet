@@ -99,8 +99,8 @@ func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_BOMB, Level: 7}, unlocks[3]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_VIRUS, Level: 10}, unlocks[4]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_MINE, Level: 13}, unlocks[5]))
-	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_RALLY, Level: 15}, unlocks[6]))
-	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_TRAP, Level: 20}, unlocks[7]))
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_TRAP, Level: 15}, unlocks[6]))
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_RALLY, Level: 17}, unlocks[7]))
 }
 
 func (s *testSuite) TestEveryAnswerTellsWhatEachSourceOfXPPaysAGuestToo() {

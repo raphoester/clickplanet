@@ -3,6 +3,8 @@ import {
     PageContext,
     PlayerReport,
     SupportBackend,
+    SupportInvalidReplyAddressError,
+    SupportNoReplyAddressError,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
@@ -10,12 +12,14 @@ import {
     UploadOptions,
 } from "./support.ts";
 
-export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "reported-already" | "failed" | "upload-failed"
+export type FakeSupportRefusal =
+    | "rate-limited" | "rejected" | "no-session" | "reported-already" | "no-reply-address" | "invalid-reply-address" | "failed"
+    | "upload-failed"
 
 type FakeNoteKind = "suggestion" | "bug"
 
 export type FakeSupportNote =
-    | {kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[]}
+    | {kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[], replyAddress?: string}
     | {kind: "report", report: PlayerReport}
 
 const ANSWER_DELAY_MS = 400
@@ -48,12 +52,12 @@ export class FakeSupportBackend implements SupportBackend {
         return refusal ? `the next sends are refused: ${refusal}` : "the next sends go through"
     }
 
-    public suggestFeature(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
-        return this.keep("suggestion", text, context, attachmentIds)
+    public suggestFeature(text: string, context: PageContext, attachmentIds: string[] = [], replyAddress?: string): Promise<void> {
+        return this.keep("suggestion", text, context, attachmentIds, replyAddress)
     }
 
-    public reportBug(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
-        return this.keep("bug", text, context, attachmentIds)
+    public reportBug(text: string, context: PageContext, attachmentIds: string[] = [], replyAddress?: string): Promise<void> {
+        return this.keep("bug", text, context, attachmentIds, replyAddress)
     }
 
     public async attachmentRules(): Promise<AttachmentRules> {
@@ -70,9 +74,9 @@ export class FakeSupportBackend implements SupportBackend {
         return `fake-file-${this.uploaded.push(file) - 1}`
     }
 
-    private async keep(kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[]): Promise<void> {
+    private async keep(kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[], replyAddress?: string): Promise<void> {
         await this.answer()
-        this.sent.push({kind, text, context, attachmentIds})
+        this.sent.push({kind, text, context, attachmentIds, replyAddress})
     }
 
     public async reportPlayer(report: PlayerReport): Promise<void> {
@@ -92,6 +96,10 @@ export class FakeSupportBackend implements SupportBackend {
                 throw new SupportNoSessionError()
             case "reported-already":
                 throw new SupportReportedAlreadyError()
+            case "no-reply-address":
+                throw new SupportNoReplyAddressError()
+            case "invalid-reply-address":
+                throw new SupportInvalidReplyAddressError()
             case "failed":
                 throw new Error("the fake support backend failed")
         }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
@@ -58,13 +59,14 @@ func write(ctx context.Context, tx cppg.Querier, kept notes.Snapshot) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO notes (id, kind, account_id, text, diagnostics, reply_address, submitted_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) DO UPDATE SET
 			kind = EXCLUDED.kind, account_id = EXCLUDED.account_id, text = EXCLUDED.text,
-			diagnostics = EXCLUDED.diagnostics, submitted_at = EXCLUDED.submitted_at
+			diagnostics = EXCLUDED.diagnostics, reply_address = EXCLUDED.reply_address, submitted_at = EXCLUDED.submitted_at
 	`,
-		uuid.UUID(kept.ID), string(kept.Kind), sender(kept.Account), kept.Text, string(said), kept.At.UTC(),
+		uuid.UUID(kept.ID), string(kept.Kind), sender(kept.Account), kept.Text, string(said), string(kept.ReplyAddress),
+		kept.At.UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to upsert a note: %w", err)
 	}
@@ -115,7 +117,7 @@ type attachment struct {
 }
 
 const columns = `
-	id, kind, account_id, text, diagnostics, submitted_at,
+	id, kind, account_id, text, diagnostics, reply_address, submitted_at,
 	COALESCE((
 		SELECT json_agg(json_build_object('id', id, 'mediaType', media_type, 'size', size_bytes) ORDER BY position)
 		FROM attachments
@@ -152,14 +154,14 @@ func (s *Store) restored(ctx context.Context, query string, args ...any) ([]note
 	var found []notes.Note
 	for rows.Next() {
 		var (
-			id         uuid.UUID
-			account    uuid.NullUUID
-			kind, text string
-			stored     []byte
-			attached   []byte
-			at         time.Time
+			id                  uuid.UUID
+			account             uuid.NullUUID
+			kind, text, address string
+			stored              []byte
+			attached            []byte
+			at                  time.Time
 		)
-		if err := rows.Scan(&id, &kind, &account, &text, &stored, &at, &attached); err != nil {
+		if err := rows.Scan(&id, &kind, &account, &text, &stored, &address, &at, &attached); err != nil {
 			return nil, fmt.Errorf("failed to read a note: %w", err)
 		}
 
@@ -174,7 +176,8 @@ func (s *Store) restored(ctx context.Context, query string, args ...any) ([]note
 
 		note, err := notes.Snapshot{
 			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account.UUID), Text: text,
-			Diagnostics: notes.Diagnostics(said), Attachments: attachments(files), At: at.UTC(),
+			Diagnostics: notes.Diagnostics(said), Attachments: attachments(files), ReplyAddress: cpmail.Address(address),
+			At: at.UTC(),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore the note %s: %w", id, err)

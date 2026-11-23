@@ -965,6 +965,95 @@ func (x *EmailHolder) GetLinkedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type GetEmailRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailRequest) Reset() {
+	*x = GetEmailRequest{}
+	mi := &file_auth_v1_internal_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailRequest) ProtoMessage() {}
+
+func (x *GetEmailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailRequest.ProtoReflect.Descriptor instead.
+func (*GetEmailRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetEmailRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type GetEmailResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset: the account holds no verified address, a guest's, or auth knows no such account.
+	Email         *string `protobuf:"bytes,1,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailResponse) Reset() {
+	*x = GetEmailResponse{}
+	mi := &file_auth_v1_internal_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailResponse) ProtoMessage() {}
+
+func (x *GetEmailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailResponse.ProtoReflect.Descriptor instead.
+func (*GetEmailResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetEmailResponse) GetEmail() string {
+	if x != nil && x.Email != nil {
+		return *x.Email
+	}
+	return ""
+}
+
 var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
@@ -1028,7 +1117,13 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
 	"\bprovider\x18\x03 \x01(\tR\bprovider\x127\n" +
-	"\tlinked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt2\xa8\x05\n" +
+	"\tlinked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt\"0\n" +
+	"\x0fGetEmailRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"7\n" +
+	"\x10GetEmailResponse\x12\x19\n" +
+	"\x05email\x18\x01 \x01(\tH\x00R\x05email\x88\x01\x01B\b\n" +
+	"\x06_email2\xee\x05\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +
@@ -1038,7 +1133,8 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\x10GetTokenOperator\x12 .auth.v1.GetTokenOperatorRequest\x1a!.auth.v1.GetTokenOperatorResponse\x12Y\n" +
 	"\x0fGetDiscordGrant\x12\x1f.auth.v1.GetDiscordGrantRequest\x1a .auth.v1.GetDiscordGrantResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\x0fGetDiscordUsers\x12\x1f.auth.v1.GetDiscordUsersRequest\x1a .auth.v1.GetDiscordUsersResponse\"\x03\x90\x02\x01\x12P\n" +
-	"\fSearchEmails\x12\x1c.auth.v1.SearchEmailsRequest\x1a\x1d.auth.v1.SearchEmailsResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
+	"\fSearchEmails\x12\x1c.auth.v1.SearchEmailsRequest\x1a\x1d.auth.v1.SearchEmailsResponse\"\x03\x90\x02\x01\x12D\n" +
+	"\bGetEmail\x12\x18.auth.v1.GetEmailRequest\x1a\x19.auth.v1.GetEmailResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -1053,7 +1149,7 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_auth_v1_internal_proto_goTypes = []any{
 	(*GetVerifyingKeyRequest)(nil),   // 0: auth.v1.GetVerifyingKeyRequest
 	(*GetVerifyingKeyResponse)(nil),  // 1: auth.v1.GetVerifyingKeyResponse
@@ -1074,13 +1170,15 @@ var file_auth_v1_internal_proto_goTypes = []any{
 	(*SearchEmailsRequest)(nil),      // 16: auth.v1.SearchEmailsRequest
 	(*SearchEmailsResponse)(nil),     // 17: auth.v1.SearchEmailsResponse
 	(*EmailHolder)(nil),              // 18: auth.v1.EmailHolder
-	(*timestamppb.Timestamp)(nil),    // 19: google.protobuf.Timestamp
+	(*GetEmailRequest)(nil),          // 19: auth.v1.GetEmailRequest
+	(*GetEmailResponse)(nil),         // 20: auth.v1.GetEmailResponse
+	(*timestamppb.Timestamp)(nil),    // 21: google.protobuf.Timestamp
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
 	6,  // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
 	15, // 1: auth.v1.GetDiscordUsersResponse.users:type_name -> auth.v1.DiscordUser
 	18, // 2: auth.v1.SearchEmailsResponse.holders:type_name -> auth.v1.EmailHolder
-	19, // 3: auth.v1.EmailHolder.linked_at:type_name -> google.protobuf.Timestamp
+	21, // 3: auth.v1.EmailHolder.linked_at:type_name -> google.protobuf.Timestamp
 	0,  // 4: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
 	2,  // 5: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
 	4,  // 6: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
@@ -1089,16 +1187,18 @@ var file_auth_v1_internal_proto_depIdxs = []int32{
 	11, // 9: auth.v1.InternalService.GetDiscordGrant:input_type -> auth.v1.GetDiscordGrantRequest
 	13, // 10: auth.v1.InternalService.GetDiscordUsers:input_type -> auth.v1.GetDiscordUsersRequest
 	16, // 11: auth.v1.InternalService.SearchEmails:input_type -> auth.v1.SearchEmailsRequest
-	1,  // 12: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	3,  // 13: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
-	5,  // 14: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
-	8,  // 15: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
-	10, // 16: auth.v1.InternalService.GetTokenOperator:output_type -> auth.v1.GetTokenOperatorResponse
-	12, // 17: auth.v1.InternalService.GetDiscordGrant:output_type -> auth.v1.GetDiscordGrantResponse
-	14, // 18: auth.v1.InternalService.GetDiscordUsers:output_type -> auth.v1.GetDiscordUsersResponse
-	17, // 19: auth.v1.InternalService.SearchEmails:output_type -> auth.v1.SearchEmailsResponse
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
+	19, // 12: auth.v1.InternalService.GetEmail:input_type -> auth.v1.GetEmailRequest
+	1,  // 13: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	3,  // 14: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	5,  // 15: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
+	8,  // 16: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
+	10, // 17: auth.v1.InternalService.GetTokenOperator:output_type -> auth.v1.GetTokenOperatorResponse
+	12, // 18: auth.v1.InternalService.GetDiscordGrant:output_type -> auth.v1.GetDiscordGrantResponse
+	14, // 19: auth.v1.InternalService.GetDiscordUsers:output_type -> auth.v1.GetDiscordUsersResponse
+	17, // 20: auth.v1.InternalService.SearchEmails:output_type -> auth.v1.SearchEmailsResponse
+	20, // 21: auth.v1.InternalService.GetEmail:output_type -> auth.v1.GetEmailResponse
+	13, // [13:22] is the sub-list for method output_type
+	4,  // [4:13] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1109,13 +1209,14 @@ func file_auth_v1_internal_proto_init() {
 	if File_auth_v1_internal_proto != nil {
 		return
 	}
+	file_auth_v1_internal_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

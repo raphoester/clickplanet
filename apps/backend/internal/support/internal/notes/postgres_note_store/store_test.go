@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
@@ -40,7 +41,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []notes.Snapshot {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
-		`SELECT id, kind, account_id, text, diagnostics, submitted_at FROM notes ORDER BY submitted_at, id`)
+		`SELECT id, kind, account_id, text, diagnostics, reply_address, submitted_at FROM notes ORDER BY submitted_at, id`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -52,12 +53,13 @@ func (s *testSuite) kept() []notes.Snapshot {
 			account uuid.NullUUID
 			text    string
 			said    []byte
+			address string
 			at      time.Time
 		)
-		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &said, &at))
+		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &said, &address, &at))
 		kept = append(kept, notes.Snapshot{
 			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account.UUID), Text: text,
-			Diagnostics: s.diagnosticsOf(said), At: at,
+			Diagnostics: s.diagnosticsOf(said), ReplyAddress: cpmail.Address(address), At: at,
 		})
 	}
 	s.Require().NoError(rows.Err())

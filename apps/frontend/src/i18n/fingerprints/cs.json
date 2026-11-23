@@ -851,6 +851,7 @@
   "report.reason.badName": "d8ff796e1182c5ce",
   "report.reason.other": "cc72843144841a6f",
   "support.sent": "e0bc9cba3c3cf367",
+  "support.email": "d646c485e1fe1c34",
   "support.uploadingCount": "9d8edba67c19e7d6",
   "support.notUploaded": "725911a325272c50",
   "support.attachedFiles": "ecc5a28d1f5e894a",
@@ -868,5 +869,7 @@
   "support.failure.rejected": "b0ce9dbef37f2d85",
   "support.failure.noSession": "547575209a4dbade",
   "support.failure.reportedAlready": "cb8a9b0c758b3742",
+  "support.failure.noReplyAddress": "9dda8ab630ea058e",
+  "support.failure.invalidReplyAddress": "8bcac4563e381c45",
   "support.failure.failed": "3e2d5127d6623edd"
 }

@@ -7,8 +7,8 @@ the flag's tiles. When another flag takes that tile, the trap springs: the playe
 
 **It is built and dormant**: no box and no right answer is a trap yet, as the bonuses' `kinds.trap` weighs 0 in
 `default` and `gates.open.trap` is off there (migration `20261123140201_trap_offers`), and no other set holds either.
-`unlocked_kind` has `trap` (`20261123140200_unlocked_trap`), and level 20 unlocks it, 96,000 XP, about two months and
-a half for a regular player ([Levels](levels.md#the-unlocks)). The operator's `GrantCharges` (`traps`) gives some, in
+`unlocked_kind` has `trap` (`20261123140200_unlocked_trap`), and level 15 unlocks it, 38,416 XP, about a month for a
+regular player, before the rally at 17 ([Levels](levels.md#the-unlocks)). The operator's `GrantCharges` (`traps`) gives some, in
 the backoffice and through the connector too.
 
 ## The rules
