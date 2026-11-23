@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
+import { AnswerNoteRequest, AnswerNoteResponse, CloseNoteRequest, CloseNoteResponse, DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,8 +15,9 @@ export const AdminService = {
   typeName: "support.v1.AdminService",
   methods: {
     /**
-     * The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
-     * link to each photo or video it carries.
+     * The feature suggestions and bug reports players sent, newest first, each with what the page said of itself, a
+     * link to each photo or video it carries, the address an answer goes to, and its conversation: the operator's
+     * answers and the player's replies by email. open_only lists the notes waiting for an answer.
      *
      * @generated from rpc support.v1.AdminService.ListNotes
      */
@@ -26,6 +27,33 @@ export const AdminService = {
       O: ListNotesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Answers a player's note by email, from support@clickplanet.lol, to the address the note was sent with: the text,
+     * then the player's note quoted, in the thread of the earlier mails about it. The player's reply comes back to the
+     * note. Write it to the player, in their language, in plain words. FailedPrecondition for a note with no address
+     * (sent before addresses were kept, or past the 90 days); NotFound for a note no longer kept; Unavailable when the
+     * mail could not be sent, and then nothing is kept: send again.
+     *
+     * @generated from rpc support.v1.AdminService.AnswerNote
+     */
+    answerNote: {
+      name: "AnswerNote",
+      I: AnswerNoteRequest,
+      O: AnswerNoteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
+     * kept.
+     *
+     * @generated from rpc support.v1.AdminService.CloseNote
+     */
+    closeNote: {
+      name: "CloseNote",
+      I: CloseNoteRequest,
+      O: CloseNoteResponse,
+      kind: MethodKind.Unary,
     },
     /**
      * Players' reports of other players, newest first, both accounts named as the game shows them now, with any

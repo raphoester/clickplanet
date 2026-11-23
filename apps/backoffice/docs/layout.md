@@ -29,7 +29,9 @@ src/
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts, and
                     the board the ledger is on), heat.ts (the picture) and activity.ts; useWidth.ts (a chart's width as
                     it resizes)
-  support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
+  support/          Ideas and bugs: NotesView (the inbox), NoteList, NoteDetail, AnswerPanel, Attachments, actions.ts
+                    (an answer and a close), notes.ts (a note's conversation and where it stands), labels.ts (names,
+                    outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts; said.ts (what a message said,
                     in words)

@@ -1342,13 +1342,25 @@ button.chip:hover {
     background: color-mix(in srgb, var(--idea) 10%, transparent);
 }
 
-.report-head {
+.report-head, .note-head {
     display: grid;
     gap: 8px;
 }
 
-.report-head .people {
+.report-head .people, .note-head .people {
     margin: 0;
+}
+
+.line-answer {
+    border-left-color: var(--accent);
+}
+
+.line-closed {
+    border-left-style: dashed;
+}
+
+.answer {
+    border-color: var(--accent);
 }
 
 .report-quote {

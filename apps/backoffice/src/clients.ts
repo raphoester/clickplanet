@@ -40,7 +40,10 @@ export type ProgressionAdmin = PromiseClient<typeof ProgressionAdminService>
 export type GamemasterAdmin = PromiseClient<typeof GamemasterAdminService>
 // The numbers missions draws with. The flag days and totals are the connector's reads.
 export type MissionsAdmin = Pick<PromiseClient<typeof MissionsAdminService>, "getRules" | "saveRules">
-export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "listNotes" | "listReports" | "decideReport">
+export type SupportAdmin = Pick<
+    PromiseClient<typeof SupportAdminService>,
+    "listNotes" | "answerNote" | "closeNote" | "listReports" | "decideReport"
+>
 
 // The videos the operator posts by hand.
 export type ClipsAdmin = Pick<PromiseClient<typeof ClipsAdminService>, "createVideoUpload" | "keepVideo" | "listVideos" | "removeVideo">

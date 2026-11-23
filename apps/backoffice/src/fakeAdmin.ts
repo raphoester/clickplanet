@@ -204,6 +204,10 @@ import {
 } from "./gen/grpc/progression/v1/admin_pb.ts"
 import {CountryTiles, Stats} from "./gen/grpc/progression/v1/progression_pb.ts"
 import {
+    AnswerNoteRequest,
+    AnswerNoteResponse,
+    CloseNoteRequest,
+    CloseNoteResponse,
     DecideReportRequest,
     DecideReportResponse,
     ListNotesRequest,
@@ -211,6 +215,7 @@ import {
     ListReportsRequest,
     ListReportsResponse,
     Note,
+    NoteAnswer,
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
@@ -370,11 +375,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         messagesSent: 4n, stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
         playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
     })
-    // A bug from a named account, and an idea whose sender deleted its account.
+    // A bug from a named account, waiting for an answer, and an idea whose sender deleted its account.
     notes = [
         new Note({
             id: "note-bug", kind: NoteKind.BUG, accountId: ACCOUNT, text: "the globe goes black",
-            submittedAt: Timestamp.fromDate(AT),
+            submittedAt: Timestamp.fromDate(AT), replyAddress: "ada@example.com",
         }),
         new Note({
             id: "note-idea", kind: NoteKind.SUGGESTION, accountId: "", text: "more flags",
@@ -738,8 +743,35 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     listNotes(request: PartialMessage<ListNotesRequest>): Promise<ListNotesResponse> {
         const kind = request.kind ?? NoteKind.UNSPECIFIED
-        const notes = this.notes.filter(note => kind === NoteKind.UNSPECIFIED || note.kind === kind)
+        const notes = this.notes.filter(note => (kind === NoteKind.UNSPECIFIED || note.kind === kind)
+            && (request.openOnly !== true || waiting(note)))
         return this.answer("listNotes", request, new ListNotesResponse({notes}))
+    }
+
+    // Kept as the server keeps it, unless refused.
+    answerNote(request: PartialMessage<AnswerNoteRequest>): Promise<AnswerNoteResponse> {
+        const sentAt = Timestamp.fromDate(this.now())
+        const answer = this.answer("answerNote", request, new AnswerNoteResponse({sentAt}))
+        if (!this.refusals.has("answerNote")) {
+            this.notes = this.notes.map(note => note.id !== request.noteId ? note : new Note({
+                ...note, answers: [...note.answers, new NoteAnswer({text: request.text, sentAt})],
+            }))
+        }
+        return answer
+    }
+
+    closeNote(request: PartialMessage<CloseNoteRequest>): Promise<CloseNoteResponse> {
+        const closedAt = Timestamp.fromDate(this.now())
+        const answer = this.answer("closeNote", request, new CloseNoteResponse({closedAt}))
+        if (!this.refusals.has("closeNote")) {
+            this.notes = this.notes.map(note => note.id !== request.noteId ? note : new Note({...note, closedAt}))
+        }
+        return answer
+    }
+
+    // When an answer is sent or a note closed: the demo's is the clock's.
+    protected now(): Date {
+        return AT
     }
 
     listReports(request: PartialMessage<ListReportsRequest>): Promise<ListReportsResponse> {
@@ -914,6 +946,15 @@ export class FakeQuizzes implements QuizzesAdmin {
     listQuizQuestions(request: PartialMessage<ListQuizQuestionsRequest>): Promise<ListQuizQuestionsResponse> {
         return this.admin.answer("listQuizQuestions", request, new ListQuizQuestionsResponse())
     }
+}
+
+// The server's open_only: an address to answer at, and the player wrote last, the note or a reply after the last answer
+// and the last close.
+function waiting(note: Note): boolean {
+    const ms = (at: Timestamp | undefined) => at?.toDate().getTime() ?? 0
+    const wrote = Math.max(ms(note.submittedAt), ...note.replies.map(reply => ms(reply.receivedAt)))
+    const acted = Math.max(ms(note.closedAt), ...note.answers.map(answer => ms(answer.sentAt)))
+    return note.replyAddress !== "" && wrote > acted
 }
 
 // A module's sets with `saved` in place of the one of its name, default first, then by name.

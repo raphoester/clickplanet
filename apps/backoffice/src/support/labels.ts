@@ -7,6 +7,11 @@ const KINDS: Record<NoteKind, string> = {
     [NoteKind.BUG]: "Bug",
 }
 
+const BADGES: Partial<Record<NoteKind, string>> = {
+    [NoteKind.SUGGESTION]: "badge-idea",
+    [NoteKind.BUG]: "badge-bug",
+}
+
 const REASONS: Record<ReportReason, string> = {
     [ReportReason.UNSPECIFIED]: "Unknown",
     [ReportReason.CHEATING]: "Cheating",
@@ -24,6 +29,16 @@ const OUTCOMES: Record<ReportOutcome, string> = {
 // A value this build has no name for is one the proto added since.
 export function kindLabel(kind: NoteKind): string {
     return KINDS[kind] ?? `Kind ${kind}`
+}
+
+export function kindBadge(kind: NoteKind): string {
+    return `badge ${BADGES[kind] ?? ""}`
+}
+
+// Who sent a note: its account's name, or why there is none.
+export function senderLabel(name: string, accountId: string): string {
+    if (accountId === "") return "no account"
+    return name === "" ? "no name" : name
 }
 
 export function reasonLabel(reason: ReportReason): string {
