@@ -20,13 +20,15 @@ mail (the note id, the words, the quoted history) is the backend's.
   workers-go's main branch, not in a release**: `go.mod` pins a commit (1 November 2026).
 - **The secret** is `MAILROOM_SECRET`, a Worker secret, and the backend's `support.mailroom.secret`
   (`env://MAILROOM_SECRET`, the repository's Actions secret). Both must be the same.
-- **`MAILROOM_URL`** is a plain var in `wrangler.jsonc`.
+- **`MAILROOM_URL`** is a plain var in `wrangler.jsonc`. `workers_dev` and `preview_urls` are off: the Worker has no page.
 - **Checks**: `make vet` (the host and `js/wasm`), `make test` (`Deliver` against an `httptest` backend: what is
   posted, an error on a refusal or an unreachable backend, a rejection on 413), `make build`. CI runs all three on a
   change under `apps/mailroom/` (`.github/workflows/check-mailroom.yml`).
 - **The build** (`make build`): workers-go's `workers-assets-gen` writes the JavaScript glue under `build/`, and Go
   builds `build/app.wasm`, stripped (`-trimpath -ldflags="-s -w"`): about 11 MB, **2.8 MB gzipped, close to the free
   Workers plan's 3 MB cap**. A dependency that grows it past the cap fails the deploy.
+- **Its cost, measured on 2026-11-23** (`wrangler tail` on two real mails): 11 ms of CPU warm, 56 ms on a cold start,
+  against 1 ms for a JavaScript pipe. Both ran to the end, with no CPU-limit kill.
 - **Deploy**: `make deploy` (`wrangler deploy`, which runs `make build` itself), by hand: it changes rarely. Its own
   build, from this directory alone (see [Independence of the apps](../../../docs/app-independence.md)).
 
