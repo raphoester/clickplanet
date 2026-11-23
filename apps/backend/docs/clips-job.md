@@ -208,7 +208,7 @@ run's findings, and `ANTHROPIC_API_KEY`.
 - **The models**: Haiku 5.5, Sonnet 5.5 and Opus 5.5 (`-models haiku,sonnet,opus`, default opus), priced each at its
   rate (`claude_writer.SpendOf`).
 - **`-out` is the round** (`display.Bench`): each story the editor chose, and each script with its id
-  (`1-deadpan-opus`), its lines and what they say together, its words, its length at a narrator's 156 words a minute,
+  (`1-deadpan-opus`), its lines and what they say together, its words, its length at Adam's pace (about 200 words a minute, at 1.15 times Kokoro's),
   the turns in it that give a machine away and the signs a voice reads badly (`Script.Tells`: a dash, a digit, more than
   one exclamation mark), and what it cost. It refuses none: whether it sounds like a person is the owner's ear to say.
 - **The workflow** is `narration-bench.yml`, started by hand: the findings of a clips run (kept 30 days), `clips bench`

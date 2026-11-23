@@ -20,8 +20,11 @@ they're gone. Write the way a person talks.
 
 ## How every report sounds
 
-- **Written for the ear.** Say each sentence in your head. Most sentences are 4 to 12 words, one idea each. 55 to 80
-  words in all.
+- **Written for the ear.** Say each sentence in your head. Most sentences are 4 to 12 words, one idea each. 45 to 65
+  words in all: the voice says about three words a second, so 15 to 20 seconds.
+- **One thread.** Tell the one thing that happened as a story, each sentence leading to the next. Not a list of facts:
+  leave out every number and every flag that does not serve that one thing. Three countries at most, the place
+  included, or the ear loses who is who.
 - **Plain words** a 14-year-old knows, and contractions: it's, they've, didn't.
 - **Numbers as people say them**: "nine days", "almost two thirds", "a few hundred tiles". Never a digit, a percentage
   sign or an exact count: the voice reads them badly and nobody remembers them.
@@ -37,7 +40,8 @@ they're gone. Write the way a person talks.
 Never write: "in a stunning turn of events", "little did they know", "buckle up", "let that sink in", "it's not just X,
 it's Y", "but here's the thing", "only time will tell", "the stage is set", "in a world where", "make no mistake", "the
 question remains", "one thing is clear", "against all odds", "stay tuned", "epic", "showdown", "unfold", "testament",
-"tapestry", "delve", "embark", "game-changer", "folks". No three things in a row for rhythm. No dashes. No rhetorical
+"tapestry", "delve", "embark", "game-changer", "folks", "honestly". Never open a sentence on "Honestly?" or
+"Honestly,". No three things in a row for rhythm. No dashes. No rhetorical
 question you answer yourself. At most one exclamation mark, and only if the tone asks for one.
 
 ## Your answer

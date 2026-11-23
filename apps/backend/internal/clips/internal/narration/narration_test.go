@@ -14,7 +14,7 @@ func TestAScriptIsMeasuredAsItIsSaid(t *testing.T) {
 
 	assert.Equal(t, "Day nine. Palau still owns Russia. Russia has not commented.", script.Said())
 	assert.Equal(t, 10, script.Words())
-	assert.InDelta(t, 10/2.6, script.Seconds(), 1e-9)
+	assert.InDelta(t, 10/3.3, script.Seconds(), 1e-9)
 	assert.Empty(t, script.Tells())
 }
 

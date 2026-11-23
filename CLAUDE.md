@@ -57,7 +57,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   a day, half of YouTube's), `post.experiment` on every post, 2 or 3 experiments at once for 10 days each and the
   owner's verdict; the owner's order (the narrated war report, POV, far invasion, rankings, call to arms, satisfying);
   the carousel (a list of countries in photos, on: its three lists and the measures chosen); the war report's bench
-  (tones, models, Kokoro's Adam, the owner's blind comparison before production); the costs.
+  (tones, models, Kokoro's Adam at 1.15, the owner's blind comparison before production, rounds run in a Claude Code
+  session; round 1 won by the storyteller) and its subtitles in place of the headline; the costs.
 - [Chat moderation](docs/moderation.md) — the three layers (banned phrases at send, raid mode for guests, a Claude Haiku
   judge of reports alone) and the daily Claude audit; the policy the judge sends Claude and the audit reads: what stays,
   what goes, the mute steps capped at 24 hours and counted from the moderation history, usernames, reports, what goes

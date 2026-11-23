@@ -135,7 +135,9 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
   episodes before it, so the series goes on from where it was. The globe plays the story under the voice, the anthem
   low beneath it. 30 s is 900 frames, 28 to 47 minutes at 1.9 to 3.1 s a frame, inside the render job's 60. The voice is
   **Kokoro** (open weights and code under Apache 2.0, its phonemizer too), run in Node with `kokoro-js`, for nothing; a
-  paid voice only if every one of Kokoro's sounds made by a machine to the owner.
+  paid voice only if every one of Kokoro's sounds made by a machine to the owner. **Every word said is on screen**
+  (the owner, 2026-11-23, from two mockups): subtitles in chunks of up to 6 words, cut at the commas first, timed to the
+  voice, in the game's display face, **in place of the headline**, which stays the post's title. Not built yet.
 - **POV, the game itself: "POV: IT'S 3AM AND YOU'RE THE LAST BELGIAN"**: the play screen and not the cinematic globe,
   its bar and counters, a finger tapping, bombs going off. The play page driven by the replay in the recorder, and a
   drawn finger. The biggest build of the list.
@@ -217,24 +219,33 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   telling a friend; and deadpan, the absurd said flat. **The writer's instructions hold what every tone keeps**: written
   for the ear, short sentences, words a teen knows, numbers as people say them, only what the facts say, and none of
   the turns that give a machine away ("in a stunning turn of events", "little did they know", "buckle up", "it's not
-  just X, it's Y", "only time will tell"). The bench counts each script's words, its length spoken, and any such turn
-  it still has; it refuses none.
+  just X, it's Y", "only time will tell", a sentence opened on "Honestly"). Since round 1 they also hold **one thread**
+  (one thing told as a story, not a list of facts), three countries at most, and 45 to 65 words. The bench counts each
+  script's words, its length spoken, and any such turn it still has; it refuses none.
 - **The models**: Claude Haiku 5.5, the editor's ($0.10 and $0.50 a million tokens in and out), Sonnet 5.5 ($2 and
   $10) and Opus 5.5 ($4 and $20). A script is a small call, one story and its tone: about $0.05 on Opus, so one episode
   a day is under $2 a month on any of them, inside the $10 ceiling. Which writes like a person is the bench's to show.
-- **A round is started by hand**: GitHub's Actions, "narration bench", Run workflow, or Claude starting it. Its inputs:
-  the clips run (empty is the latest that succeeded), the stories (3), the tones (every one), the models (opus), the
-  voices (`am_adam`) and the season's day (0, none). Its artifact `bench`, kept 30 days, holds `bench.json` (each
-  script, its words, its length, the turns that give a machine away, its cost) and an MP3 of each script in each voice.
+- **A round runs in a Claude Code session, not through the API** (the owner, 2026-11-18: no API credits on work a
+  session can do). The session takes a clips run's `findings` artifact, chooses the stories as the editor would, builds
+  each prompt with the writer's own code (`claude_editor.FactsOf`, `claude_writer.PromptOf`, in a throwaway test), has
+  each script written by a subagent of the model compared, from its one prompt alone, writes `bench.json` with
+  `display.Bench`, and voices it with `voice.mjs`. The workflow ("narration bench") does the same through the API, and
+  stays for the writer of the clips job. Its inputs: the clips run (empty is the latest that succeeded), the stories
+  (3), the tones (every one), the models (opus), the voices (`am_adam`) and the season's day (0, none). Its artifact
+  `bench`, kept 30 days, holds `bench.json` (each script, its words, its length, the turns that give a machine away,
+  its cost) and an MP3 of each script in each voice.
 - **The owner compares on a page**, on a phone as well: each story with its variants in a random order and no label,
   each with its audio and its words, rated 1 to 5 on "sounds like a person" and "I'd watch to the end", the best of
   each story picked, a note for any. The page keeps the ratings; Claude reads them, unblinds them, and says which
   tone, model and voice won and what the notes said. The next round changes one thing.
 - **The voice is Kokoro's Adam (`am_adam`) by default**, a male American voice: the owner tried Kokoro's voices by hand
   on 2026-11-20 and Adam sounded the best, whatever its grade in Kokoro's table (F+). Another voice is a bench input.
-- **The rounds**: 1. the tones, on Opus, in Adam's voice, 3 stories: 15 scripts, about 6
-  minutes of listening, about $1. 2. the best two tones on the three models, in Adam's voice. 3. whole videos of the
-  winner on new stories, once the renderer plays a voice. **The owner signs one off**, and only then is it an
+  **At 1.15 times Kokoro's pace, with 0.33 s between two sentences** (the owner, 2026-11-23: Kokoro's own pace and its
+  1.25 s between sentences were too slow, 1.5 times too fast; 1.15 picked from 1.1 to 1.25).
+- **The rounds**: 1. the tones, on Opus, in Adam's voice, 3 stories: 15 scripts, about 8 minutes of listening, done
+  2026-11-23 (the lab's log). 2. the best two tones on the three models, in Adam's voice: not run yet, Opus writes
+  meanwhile. 3. whole videos of the winner on new stories: ten previews on 2026-11-23, today's clip renderer with the
+  voice laid over it, before the renderer plays a voice. **The owner signs one off**, and only then is it an
   experiment of the lab.
 
 ## What it costs
@@ -282,3 +293,10 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   list of the countries that do not hold their own land went: on this map most countries are held by another flag, so
   it is no news, and the owner found it unappealing. Most attacked became fight the most, the headline the owner
   liked: the tiles a flag took plus the tiles it lost.
+- **war-report**: round 1 of the bench on 2026-11-23, in a session: 3 stories of clips run 45077041875 in the 5 tones,
+  on Opus. **The storyteller won**, the best or among the best of every story (3.7 of 5 on "sounds like a person", 4.0
+  on "I'd watch to the end"), the commentator second. **The story mattered more than the tone**: a front of two
+  hours, fought back and forth (North Macedonia in Turkey and Greece), was confusing in every tone; a place one flag
+  holds (Ireland's North America) was the best by far. The correspondent was "too factual, a series of uncorrelated
+  facts". Then ten previews on the day's map, which gave the writer one thread, three countries and 45 to 65 words,
+  Adam 1.15 times faster with short pauses, and the subtitles in place of the headline. Not on yet: its renderer.
