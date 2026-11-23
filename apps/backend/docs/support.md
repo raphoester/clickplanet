@@ -1,6 +1,6 @@
 # Support (`internal/support/`)
 
-**What a player sends the operator, and the operator's answers by email.** A feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it, and where to answer a note.
+**What a player sends the operator, the operator's answers by email, and the player's replies.** A feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it, and where to answer a note.
 
 ```
 internal/support/internal/
@@ -34,6 +34,10 @@ internal/support/internal/
                                     the answer — Notes, Conversations, Post
       audit_answer_note/            logs every answer at Warn
     usecases/close_note_usecase/    reads the conversation, closes it, saves — Conversations
+    usecases/receive_reply_usecase/ the note the recipient names, the mail read, the reply kept without what it quotes, or
+                                    dropped — Inbox, Reader, Notes, Conversations
+      log_receive_reply/            logs each mail: kept, dropped (and why) or not kept
+    mime_reader/                    Reader: a raw mail's Message-ID, From and words (the text part, or the HTML stripped)
   uploads/                          Upload (NewUpload, Discarded, TakeSnapshot), Snapshot (Restore), Shelf (Reserve, Room),
                                     FilesOf; the Storage port and the StorageContractSuite
     postgres_upload_store/          Storage, over support.uploads, and the attachments that name them
@@ -61,6 +65,7 @@ internal/support/internal/
     list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file and the
                                     conversation, the open ones alone if asked — Links
     list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Players
+  mailroomcontroller/receive_reply_handler/  POST /mailroom/replies on the admin listener: the mailroom Worker's mails
       rpc_players/                  Players, from player.v1.InternalService/GetPlayers, as player.v1.Player
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
@@ -186,6 +191,43 @@ answered.
   `fromName` (`ClickPlanet`), `cloudflare.accountId`, `cloudflare.apiToken`. A `from` that is not an address refuses
   the boot. Production sends through Cloudflare with auth's token (`env://CLOUDFLARE_EMAIL_TOKEN`); locally the answer
   is logged at Warn.
+
+## Replies coming in
+
+**A player's reply to an answer comes back to its note.** The answer's Reply-To is the note's own address,
+`support+<note id>@clickplanet.lol`. Cloudflare Email Routing (Subaddressing on, one rule for `support@`) hands each mail
+to it to the mailroom Worker (`apps/mailroom`, [The mailroom](../../mailroom/docs/mailroom.md)), a dumb pipe that posts
+it raw. **All reading is here, in Go.**
+
+- **The endpoint is `POST /mailroom/replies` on the admin listener** (`props.AdminHTTP`, as the connector's `/mcp`:
+  a plain handler, outside the gate), which Caddy routes with no CORS (`@mailroom`). `receive_reply_handler`:
+  - **`Authorization: Bearer <support.mailroom.secret>`**, compared in constant time (SHA-256 of each, then
+    `subtle.ConstantTimeCompare`, so the length leaks nothing). None or another is a 401, and nothing is read.
+  - **A size cap**, `support.mailroom.maxBytes` (25 MiB, Email Routing's own): a body past it is a 413, which the
+    Worker turns into a rejection for good.
+  - **The envelope recipient** is `X-Envelope-To`: the note's address, `+` part included.
+  - **A 202 is done with**, kept or dropped; a mail not kept (the database) is a 500, and the Worker throws so the
+    sending server tries again.
+- **`mime_reader` reads the mail** (`net/mail`, `mime/multipart`): the Message-ID (`cpmail.MessageIDOf`; none, or not
+  a mail at all, is `conversations.ErrUnreadable`), the From's bare address (empty if no mail goes back to it), and the
+  words: the first `text/plain` part, else the first `text/html` with its tags, styles and quoted `<blockquote>` taken
+  out. Parts marked as attachments are skipped (a reply's files are not kept), the transfer encodings
+  (quoted-printable, base64) and the charsets (any WHATWG label, `golang.org/x/text`) decoded, 1 MiB read of a part,
+  nested multiparts 5 deep at most.
+- **`receive_reply_usecase`**: `notes.Inbox.NoteOf` reads the note id from the recipient, the note is read and must
+  have an address (`Note.AddressError`), and the conversation keeps the reply (`Replied`) with **its quoted history
+  cut** (`Inbox.Unquoted`: from the first line naming the inbox's domain, the quote's header as "On …, ClickPlanet
+  <support+…@clickplanet.lol> wrote:", in any language, or Outlook's "From:", with the line before it when the header
+  wraps; Outlook's separators; and the `>` lines at its end; lines a player answers between quotes stay), its From and
+  the time it came.
+- **Idempotent by its Message-ID**: a mail the conversation holds already is `ErrReceivedAlready`, done with. Two
+  deliveries at once both write the same row (the key is the note and the Message-ID).
+- **Dropped and logged** (`receive_reply_usecase.Dropped`, `log_receive_reply` at Warn): a mail that cannot be read, a
+  recipient that names no note, a note not kept, **a note with no address** (anonymized: its replies are not kept
+  either), a mail kept already. A kept one is logged at Info, one not kept at Error.
+- **The page shows the From when it differs from the note's address**: `ListNotes` gives both.
+- **No secret, no endpoint**: with `support.mailroom.secret` empty, nothing is mounted and no reply is taken. A secret
+  of fewer than 32 characters refuses the boot.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 

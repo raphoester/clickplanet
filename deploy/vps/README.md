@@ -1844,6 +1844,44 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
   2026-11-23 player holds 3 and the flags module the fourth (the flags opened since the game shipped), so
   `max_connections` stayed 42.
 
+## 14. Answering notes by email
+
+The operator answers ideas and bug reports from the backoffice's Notes page, by email, and the players' replies come
+back to the note (see the backend's [Support](../../apps/backend/docs/support.md#answering-a-note)). Four parts on
+Cloudflare, two secrets, and one order.
+
+1. **Email Sending sends from `support@clickplanet.lol`.** `clickplanet.lol` is onboarded already (the sign-in codes
+   come from `noreply@`), and the REST API takes any sender on an onboarded domain: nothing to add. The backend sends
+   with `CLOUDFLARE_EMAIL_TOKEN`, the codes' token (`support.email` in `backend.yaml`).
+2. **The secret the Worker posts the replies with**, the same on both sides. `gh` asks for nothing: it is drawn here.
+
+   ```bash
+   s=$(openssl rand -hex 32) && printf '%s' "$s" | gh secret set MAILROOM_SECRET --repo raphoester/clickplanet && (cd apps/mailroom && printf '%s' "$s" | npx wrangler@4 secret put MAILROOM_SECRET) && unset s
+   ```
+
+   **Before the backend deploy that reads it**: `env://MAILROOM_SECRET` unset refuses the boot.
+3. **The Worker**, from `apps/mailroom` ([The mailroom](../../apps/mailroom/docs/mailroom.md)):
+
+   ```bash
+   cd apps/mailroom && make deploy
+   ```
+
+4. **Email Routing on `clickplanet.lol`** (Compute, Email Service, Email Routing): **Subaddressing** on in Settings, so
+   `support+<note id>@` reaches the rule of `support@`, and a rule **`support@clickplanet.lol` → Send to a Worker →
+   `clickplanet-mailroom`**. An address with no rule is refused at once, and the sender does not try again.
+
+**The order**: the frontend that asks a guest for an address (it shipped first), then the secret (2), the backend, the
+Worker (3) and the rule (4). A reply that comes before the backend can take it is tried again by the sending server.
+
+**Check it**: answer a note of your own from the backoffice, reply from your mailbox, and read the backend's log:
+
+```bash
+ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep "reply to a note"'
+```
+
+"a reply to a note was kept" is the reply on the note's page; "dropped" says why (a note with no address, one not
+kept, a mail with no Message-ID).
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.
