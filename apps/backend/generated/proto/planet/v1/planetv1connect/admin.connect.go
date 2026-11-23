@@ -74,9 +74,12 @@ type AdminServiceClient interface {
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
-	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
-	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
+	// Gives each tile of the map in play back to what it would show had the caller never played, when it still shows
+	// what the caller's takes made of it, then forgets the caller's takes, so every history shows none of them. An
+	// account reaches every take since the last reset, from every scope and on every board (a take a switch of board
+	// carried over too); a scope reaches the ledger's last 72 hours, since older takes keep no address. touched counts
+	// the tiles of the map in play the caller's takes changed, held those that still show it. Run again, it gives back
+	// nothing more.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
 	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
@@ -270,9 +273,12 @@ type AdminServiceHandler interface {
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
-	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
-	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
+	// Gives each tile of the map in play back to what it would show had the caller never played, when it still shows
+	// what the caller's takes made of it, then forgets the caller's takes, so every history shows none of them. An
+	// account reaches every take since the last reset, from every scope and on every board (a take a switch of board
+	// carried over too); a scope reaches the ledger's last 72 hours, since older takes keep no address. touched counts
+	// the tiles of the map in play the caller's takes changed, held those that still show it. Run again, it gives back
+	// nothing more.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
 	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
