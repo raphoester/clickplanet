@@ -470,6 +470,7 @@ func productionConfig(t *testing.T) Config {
 	}
 	t.Setenv("SESSION_SECRET", seed)
 	t.Setenv("MEDIA_BUCKET_SECRET", "the-bucket-secret")
+	t.Setenv("MAILROOM_SECRET", "the-mailroom-secret-of-at-least-32-characters")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
@@ -478,6 +479,15 @@ func productionConfig(t *testing.T) Config {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
 	return config
+}
+
+func TestTheProductionConfigAnswersNotesThroughCloudflareAndTakesTheReplies(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.Equal(t, "cloudflare", config.Support.Email.Delivery)
+	assert.Equal(t, "support@clickplanet.lol", config.Support.Email.From)
+	assert.Equal(t, config.Auth.Email.Cloudflare, config.Support.Email.Cloudflare, "auth's token sends both")
+	assert.Equal(t, "the-mailroom-secret-of-at-least-32-characters", config.Support.Mailroom.Secret)
 }
 
 // The antibot's rules are kept in postgres (antibot.rule_sets): a rule left in a file would be read by nothing.
@@ -615,6 +625,7 @@ func TestTheProductionConfigConnectsClaudeOnTheAPIsDomain(t *testing.T) {
 		t.Setenv(anchor[1], "a-secret")
 	}
 	t.Setenv("SESSION_SECRET", seed)
+	t.Setenv("MAILROOM_SECRET", "the-mailroom-secret-of-at-least-32-characters")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")

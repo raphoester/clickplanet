@@ -7,7 +7,9 @@ which shows the claude.ai connectors. There is no key, no token to paste and no 
 
 Two parts: the `mcp` module serves the tools, and auth serves the OAuth flow and the tokens. Both are on the admin
 listener. Caddy sends `/mcp`, `/oauth/*` and `/.well-known/oauth-*` there with no CORS: they are plain handlers of
-that listener (`props.AdminHTTP`), not admin services, so they are outside the gate's middlewares.
+that listener (`props.AdminHTTP`), not admin services, so they are outside the gate's middlewares. Support's
+`/mailroom/replies`, which the mailroom Worker posts the players' replies to with a secret of its own, is the same kind
+(see [Support](support.md#replies-coming-in)).
 
 ## The tools
 

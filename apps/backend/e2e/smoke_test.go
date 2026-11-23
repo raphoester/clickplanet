@@ -176,6 +176,20 @@ func (s *testSuite) TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt() 
 	require.Len(t, answered.GetAnswers(), 1)
 	assert.Equal(t, "Fixed: reload the page.", answered.GetAnswers()[0].GetText())
 	assert.NotContains(t, s.game.openNotes(t), note.GetId(), "an answered note waits for nothing")
+
+	address := "support+" + note.GetId() + "@clickplanet.lol"
+	reply := "From: Ada <player@example.com>\r\nTo: " + address + "\r\nMessage-ID: <reply-1@mail.example.com>\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n\r\nIt works now, thanks!\r\n\r\n" +
+		"On Mon, ClickPlanet <" + address + "> wrote:\r\n> Fixed: reload the page.\r\n"
+	for range 2 {
+		assert.Equal(t, http.StatusAccepted, s.game.mail(t, address, reply), "kept once, then done with")
+	}
+
+	replied := s.game.noteOf(t, "the globe is black")
+	require.Len(t, replied.GetReplies(), 1)
+	assert.Equal(t, "It works now, thanks!", replied.GetReplies()[0].GetText())
+	assert.Equal(t, "player@example.com", replied.GetReplies()[0].GetFrom())
+	assert.Contains(t, s.game.openNotes(t), note.GetId(), "the player wrote last")
 }
 
 func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {

@@ -1,0 +1,35 @@
+name: check mailroom
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/mailroom/**'
+      - '.github/workflows/check-mailroom.yml'
+  pull_request:
+    paths:
+      - 'apps/mailroom/**'
+      - '.github/workflows/check-mailroom.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: apps/mailroom
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mailroom/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test

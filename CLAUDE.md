@@ -11,11 +11,12 @@ one line for it to the `CLAUDE.md` that indexes it. Never write the details into
 
 ## Structure
 
-A monorepo with three independent apps. Each app's `CLAUDE.md` is the index of its docs:
+A monorepo with four independent apps. Each app's `CLAUDE.md` is the index of its docs:
 
 - [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) — React/Three.js client (npm)
 - [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) — Go API (Go modules)
 - [`apps/backoffice/CLAUDE.md`](apps/backoffice/CLAUDE.md) — the operator's page at `backoffice.clickplanet.lol`, React (npm)
+- [`apps/mailroom/CLAUDE.md`](apps/mailroom/CLAUDE.md) — the Cloudflare Worker that posts the players' email replies to the backend (npm)
 
 Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file only covers what's shared.
 

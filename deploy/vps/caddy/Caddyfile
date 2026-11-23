@@ -34,9 +34,11 @@
 	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
 	# The connector: Claude reaches it from Anthropic's servers, with no page and no cookie, so it gets no CORS.
 	@connector path /mcp /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
+	# The mailroom Worker posts the players' replies with a secret of its own, and no page: no CORS.
+	@mailroom path /mailroom/*
 	@game {
 		not path_regexp ^/[a-z]+\.v1\.AdminService/
-		not path /mcp /oauth/* /.well-known/*
+		not path /mcp /oauth/* /.well-known/* /mailroom/*
 	}
 
 	header @game {
@@ -166,6 +168,10 @@
 
 	# The admin listener again: the OAuth endpoints and the MCP endpoint are its handlers, beside the gated services.
 	handle @connector {
+		reverse_proxy backend:8083
+	}
+
+	handle @mailroom {
 		reverse_proxy backend:8083
 	}
 

@@ -48,7 +48,9 @@ const (
 	deletionGrace = 3 * time.Second
 	callerIP      = "203.0.113.7"
 	adminOrigin   = "https://backoffice.clickplanet.lol"
-	mediaOrigin   = "https://media.example"
+
+	mailroomSecret = "the-mailroom-secret-at-least-32-characters"
+	mediaOrigin    = "https://media.example"
 	// The fake Messages API's: it checks none.
 	judgeKey = "sk-ant-e2e-key"
 )
@@ -123,6 +125,7 @@ func startGame(t *testing.T) gameStack {
 	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support"), Redis: redis}
 	supportConfig.Attachments.Enabled = true
+	supportConfig.Mailroom.Secret = mailroomSecret
 	supportConfig.Attachments.Bucket.Endpoint = bucket.url
 	supportConfig.Attachments.Bucket.Region = "auto"
 	supportConfig.Attachments.Bucket.Name = "support"

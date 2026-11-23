@@ -3,6 +3,8 @@ package notes
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
@@ -38,4 +40,38 @@ func (i Inbox) NoteOf(recipient string) (NoteID, error) {
 		return NoteID{}, fmt.Errorf("%w: %w", ErrNotANoteAddress, err)
 	}
 	return id, nil
+}
+
+var outlook = regexp.MustCompile(`(?i)^(-{2,}\s*original message\s*-{2,}|_{10,})$`)
+
+// A reply with the mails it quotes cut off: from the first line that names the inbox (the quote's header, as
+// "On …, ClickPlanet <support+…@clickplanet.lol> wrote:" or "From: …"), and the quoted lines at its end.
+func (i Inbox) Unquoted(reply string) string {
+	lines := strings.Split(strings.ReplaceAll(reply, "\r\n", "\n"), "\n")
+	marker := "@" + i.domain
+
+	for n, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if outlook.MatchString(trimmed) {
+			lines = lines[:n]
+			break
+		}
+		if strings.Contains(strings.ToLower(trimmed), marker) {
+			cut := n
+			if n > 0 && strings.TrimSpace(lines[n-1]) != "" && (n == 1 || strings.TrimSpace(lines[n-2]) == "") {
+				cut = n - 1
+			}
+			lines = lines[:cut]
+			break
+		}
+	}
+
+	for len(lines) > 0 {
+		last := strings.TrimSpace(lines[len(lines)-1])
+		if last != "" && !strings.HasPrefix(last, ">") && !outlook.MatchString(last) {
+			break
+		}
+		lines = slices.Delete(lines, len(lines)-1, len(lines))
+	}
+	return strings.Join(lines, "\n")
 }

@@ -40,3 +40,27 @@ func TestAnAddressThatNamesNoNoteUnderTheInboxIsRefused(t *testing.T) {
 		assert.ErrorIs(t, err, notes.ErrNotANoteAddress, recipient)
 	}
 }
+
+func TestAReplyLosesTheMailItQuotesWhateverTheClient(t *testing.T) {
+	for name, reply := range map[string]string{
+		"gmail, the header on one line": "An iPhone 13.\r\nSafari.\r\n\r\nOn Mon, 23 Nov 2026 at 12:00, ClickPlanet <support+019a6f2e-1c2d-7e3f-8a9b-0c1d2e3f4a5b@clickplanet.lol> wrote:\r\n> Which phone?\r\n>\r\n> On 20 November 2026, you wrote:\r\n> > the globe is black\r\n",
+		"gmail, the header wrapped":     "An iPhone 13.\nSafari.\n\nOn Mon, 23 Nov 2026 at 12:00, ClickPlanet <\nsupport+019a6f2e-1c2d-7e3f-8a9b-0c1d2e3f4a5b@clickplanet.lol> wrote:\n\n> Which phone?\n",
+		"apple mail, in french":         "An iPhone 13.\nSafari.\n\nLe 23 nov. 2026 à 12:00, ClickPlanet <support+019a6f2e-1c2d-7e3f-8a9b-0c1d2e3f4a5b@ClickPlanet.lol> a écrit :\n\n> Which phone?",
+		"outlook":                       "An iPhone 13.\nSafari.\n\n________________________________\nFrom: ClickPlanet <support+019a6f2e-1c2d-7e3f-8a9b-0c1d2e3f4a5b@clickplanet.lol>\nSent: Monday, 23 November 2026 12:00\nSubject: Re: your bug report\n\nWhich phone?",
+		"quoted at the end alone":       "An iPhone 13.\nSafari.\n\n> Which phone?\n> \n",
+		"nothing quoted":                "An iPhone 13.\nSafari.",
+	} {
+		assert.Equal(t, "An iPhone 13.\nSafari.", inbox.Unquoted(reply), name)
+	}
+}
+
+func TestAReplyThatAnswersBetweenTheQuotedLinesKeepsThem(t *testing.T) {
+	reply := "> Which phone?\nAn iPhone 13.\n> Which browser?\nSafari."
+
+	assert.Equal(t, reply, inbox.Unquoted(reply))
+}
+
+func TestANoteWithNoAddressTakesNoReply(t *testing.T) {
+	require.ErrorIs(t, note(t, notes.KindBug, "").AddressError(), notes.ErrNoReplyAddress)
+	require.NoError(t, note(t, notes.KindBug, "ada@example.com").AddressError())
+}

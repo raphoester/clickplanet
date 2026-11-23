@@ -54,7 +54,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
 - `bonuses.Config` — an incomplete `bonuses.database` or `bonuses.redis` block
 - `boxes.Config` — an incomplete `boxes.database` or `boxes.redis` block
-- `support.Config` — an incomplete `support.database` block; a `support.email` that `cpmail.Config` refuses; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
+- `support.Config` — an incomplete `support.database` block; a `support.email` that `cpmail.Config` refuses; a `support.mailroom.secret` under 32 characters; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
@@ -175,6 +175,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `support.noteLimiter.*` — suggestions and bug reports a day, per account and per address together, same shape (default a burst of 10, refilled over a day: unset, `perSecond` is the burst over a day)
 - `support.uploadLimiter.*` — files a day, per account and per address together, same shape (default 100 a day)
 - `support.email.delivery`, `from`, `fromName`, `cloudflare.accountId`, `cloudflare.apiToken` — where the operator answers notes from, as `auth.email`: `log` unless set (each answer written to the log at Warn), `support@clickplanet.lol` and `ClickPlanet`. Each note's replies come back to its own address under `from` (`support+<note id>@…`). Production sends through Cloudflare with `env://CLOUDFLARE_EMAIL_TOKEN`, auth's token. See [Support](support.md#answering-a-note)
+- `support.mailroom.secret` — the mailroom Worker's: `env://MAILROOM_SECRET` in `deploy/vps/backend.yaml`, the repository's Actions secret, and the Worker's own secret of the same name. Empty: `/mailroom/replies` is not served and no reply is taken. Under 32 characters refuses the boot. See [Support](support.md#replies-coming-in)
+- `support.mailroom.maxBytes` — the largest mail taken (26214400, 25 MiB, Email Routing's own cap)
 - `support.attachments.enabled` — off, a note carries no file and the bucket block is not read
 - `support.attachments.maxPerNote`, `support.attachments.maxBytes` — the most files a note carries (10) and the most bytes of one (52428800, 50 MiB). The page reads both from `GetAttachmentRules`
 - `support.attachments.maxStoredBytes` — the most bytes the bucket holds, the files notes carry and the files that may still come (9 GiB)
