@@ -110,6 +110,10 @@ func (s *Storage) TrapsOf(flag string) ([]uint32, clicks.MapVersion) {
 	return s.traps.of(flag), s.version
 }
 
+func (l *insideLaying) Trapped(tile uint32) bool {
+	return l.storage.traps.has(tile)
+}
+
 func (l *insideLaying) PutTrap(trap clicks.Trap) {
 	l.storage.traps.lay(trap)
 }

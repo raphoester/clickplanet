@@ -769,8 +769,8 @@ func (*VirusRefusal) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{11}
 }
 
-// The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine or a trap
-// already, or is a capital while the knock-out plays: the mine stays held.
+// The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine already, or
+// is a capital while the knock-out plays: the mine stays held.
 type MineRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -807,8 +807,8 @@ func (*MineRefusal) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{12}
 }
 
-// The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, holds a mine or a trap
-// already, or is a capital while the knock-out plays: the trap stays held.
+// The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, or holds a trap already:
+// the trap stays held.
 type TrapRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

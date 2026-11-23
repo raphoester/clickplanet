@@ -119,8 +119,8 @@ type ClickServiceClient interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
-	// Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
-	// loses clicks from its bank.
+	// Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+	// the taker loses clicks from its bank.
 	LayTrap(context.Context, *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error)
 	// The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
@@ -494,8 +494,8 @@ type ClickServiceHandler interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
-	// Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
-	// loses clicks from its bank.
+	// Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+	// the taker loses clicks from its bank.
 	LayTrap(context.Context, *connect.Request[v1.LayTrapRequest]) (*connect.Response[v1.LayTrapResponse], error)
 	// The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.

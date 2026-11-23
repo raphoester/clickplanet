@@ -57,7 +57,7 @@ func TestTheTileAndTheFlagReachTheUseCase(t *testing.T) {
 	assert.Equal(t, lay_trap_usecase.In{TileID: 8, CountryID: "fr"}, useCase.in)
 }
 
-func TestATileNotTheFlagsOrArmedIsAFailedPreconditionWithATrapRefusal(t *testing.T) {
+func TestATileNotTheFlagsOrTrappedIsAFailedPreconditionWithATrapRefusal(t *testing.T) {
 	err := lay(t, &stubUseCase{err: fmt.Errorf("tile 8: %w", clicks.ErrNotTrappable)})
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))

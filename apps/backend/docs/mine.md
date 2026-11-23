@@ -23,7 +23,8 @@ From the design:
   and keeps its flag, whatever its count, and a tile of the mine's flag stays as it is. Every other tile, blank or another
   flag's, goes to the mine's flag, held by the mine's player. Until 2026-11-16 a shielded tile stayed with all its
   shields; the owner asked that a blast break one, as a click, a spread, a virus and a bomb do.
-- **One mine or one trap a tile** (since 2026-11-23, [The trap](trap.md)), on a tile of the flag the caller plays for.
+- **One mine a tile**, on a tile of the flag the caller plays for. A trap may wait there too: a take by another flag
+  springs it and sets the mine off ([The trap](trap.md), 2026-11-23).
 - **A bomb takes off the mines it hits, with no blast**, a shielded tile's too.
 
 The owner's answers (2026-11-16):
@@ -51,9 +52,9 @@ Chosen where the design is silent:
 `ClickService/LayMine{tile_id, country_id}`, session-gated and frozen like `UseVirus`, and not throttled. `mines.Gate`
 refuses before the mine leaves the hand, in this order: a banned caller (`BanRefusal`), an unknown flag or a tile off the
 map (`InvalidArgument`), a flag the caller does not play for (the allegiance's refusal), and a tile not that flag's or a
-capital the knock-out plays on (`MineRefusal`, `clicks.ErrNotMineable`); the map refuses a tile with a mine or a trap. A failed read of the refusals or of the flag
+capital the knock-out plays on (`MineRefusal`, `clicks.ErrNotMineable`) A failed read of the refusals or of the flag
 refuses nothing, as for a click. Then `lay_mine_usecase` spends one mine (`Held.AfterMine`; none held is `NotFound`) and
-lays it with `clicks.Minefield.Lay`, which checks the tile again under the tiles lock (its flag's, no mine and no trap on it, `Laying.Armed`): a
+lays it with `clicks.Minefield.Lay`, which checks the tile again under the tiles lock (its flag's, no mine on it, `Laying.Mined`): a
 mine refused there comes back to the hand (`Held.WithMineBack`, with no cap). A lay changes no tile, so it counts no map
 version and no stream of the map hears it.
 

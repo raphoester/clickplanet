@@ -48,8 +48,8 @@ service ClickService {
   // now, and a cached one lies.
   rpc GetMines(GetMinesRequest) returns (GetMinesResponse);
 
-  // Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
-  // loses clicks from its bank.
+  // Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+  // the taker loses clicks from its bank.
   rpc LayTrap(LayTrapRequest) returns (LayTrapResponse);
 
   // The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
@@ -189,12 +189,12 @@ message BombRefusal {}
 // virus stays held.
 message VirusRefusal {}
 
-// The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine or a trap
-// already, or is a capital while the knock-out plays: the mine stays held.
+// The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine already, or
+// is a capital while the knock-out plays: the mine stays held.
 message MineRefusal {}
 
-// The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, holds a mine or a trap
-// already, or is a capital while the knock-out plays: the trap stays held.
+// The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, or holds a trap already:
+// the trap stays held.
 message TrapRefusal {}
 
 // The detail of the FailedPrecondition that CallRally answers while a rally the caller called is still on: the rally

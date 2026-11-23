@@ -6,11 +6,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// Laying is the tiles under the lock of a mine or a trap laid: nothing else reads or writes them until it ends.
+// Laying is the tiles under the lock of a mine or a trap laid: nothing else reads or writes them until it ends. A tile
+// holds one mine and one trap at most.
 type Laying interface {
 	Tile(id uint32) (Tile, error)
-	// Armed is a tile that holds a mine or a trap: one of the two a tile at most.
-	Armed(tile uint32) bool
+	Mined(tile uint32) bool
+	Trapped(tile uint32) bool
 	Put(mine Mine)
 	PutTrap(trap Trap)
 }
@@ -46,14 +47,14 @@ type Minefield struct {
 	snare          Snare
 }
 
-// Lay puts the mine on its tile, which must be its flag's and hold no mine and no trap, and answers the map's version.
+// Lay puts the mine on its tile, which must be its flag's and hold no mine, and answers the map's version.
 func (f Minefield) Lay(ctx context.Context, mine Mine) (MapVersion, error) {
 	return f.tiles.Lay(ctx, func(tiles Laying) error { //nolint:wrapcheck // a pure delegation: the storage names it.
 		tile, err := tiles.Tile(mine.tile)
 		if err != nil {
 			return err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		laid, err := mine.Laid(tile, tiles.Armed(mine.tile))
+		laid, err := mine.Laid(tile, tiles.Mined(mine.tile))
 		if err != nil {
 			return err
 		}

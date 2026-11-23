@@ -642,8 +642,8 @@ export class VirusRefusal extends Message<VirusRefusal> {
 }
 
 /**
- * The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine or a trap
- * already, or is a capital while the knock-out plays: the mine stays held.
+ * The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine already, or
+ * is a capital while the knock-out plays: the mine stays held.
  *
  * @generated from message planet.v1.MineRefusal
  */
@@ -676,8 +676,8 @@ export class MineRefusal extends Message<MineRefusal> {
 }
 
 /**
- * The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, holds a mine or a trap
- * already, or is a capital while the knock-out plays: the trap stays held.
+ * The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, or holds a trap already:
+ * the trap stays held.
  *
  * @generated from message planet.v1.TrapRefusal
  */

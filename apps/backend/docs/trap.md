@@ -17,8 +17,10 @@ From the owner:
 
 - **A hand holds 3 traps at most** (`charges.trap.held`), a stack as the mines. A box gives 1 or 2 once it weighs above
   0 (the bonuses' `trap.maxPerBox`, 2).
-- **A tile holds one mine or one trap**, on a tile of the flag the caller plays for, checked under the tiles lock
-  (`Laying.Armed`).
+- **A tile holds one trap and one mine at most**, on a tile of the flag the caller plays for, checked under the tiles
+  lock (`Laying.Trapped`, `Laying.Mined`). The owner asked for both on 2026-11-23 ("it would be fun"): an enemy's take
+  of such a tile springs the trap and sets the mine off, so it loses clicks and the tiles around it. Until then the
+  brief kept one or the other.
 - **Any take by another flag springs it**: a click, a spread's tile, an enclosure, a virus, a mine's blast. A click a
   shield stops takes nothing, so it springs nothing.
 - **The player whose take it was loses `charges.trap.clicks`** (10, at least 1) from its own bank and, for a guest, from
@@ -47,7 +49,7 @@ refuses before the trap leaves the hand, in this order: a banned caller (`BanRef
 the map (`InvalidArgument`), a flag the caller does not play for (the allegiance's refusal), and a tile not that flag's
 (`TrapRefusal`, `clicks.ErrNotTrappable`). A failed read of the refusals or of the flag refuses nothing, as for a
 click. Then `lay_trap_usecase` spends one trap (`Held.AfterTrap`; none held is `NotFound`) and lays it with
-`clicks.Trapline.Lay`, which checks the tile again under the tiles lock (its flag's, no mine and no trap on it): a trap
+`clicks.Trapline.Lay`, which checks the tile again under the tiles lock (its flag's, no trap on it, a mine or not): a trap
 refused there comes back to the hand (`Held.WithTrapBack`, with no cap). A lay changes no tile, so it counts no map
 version and no stream of the map hears it.
 
@@ -58,7 +60,8 @@ the tiles whose trap changed since the last flush. The storage applies one rule 
 change of owner takes the tile's trap off** (`putLocked`), and the bomb's `Clear` takes it off a struck tile too.
 
 **A take springs it first.** `clicks.claim`, the one rule every take goes through, and a mine's blast, call
-`Claimable.Trip` before they write a take: the storage sets off a mine, or takes the trap off the map and answers it.
+`Claimable.Trip` before they write a take: the storage sets off the tile's mine and takes its trap off the map and
+answers it.
 The take's `taker` then has its player pay: `clicks.Snare.Spring(payer, trap)`, and the take's `Impact` keeps the trap
 (`Sprung`). So the trap leaves the map and the bank pays under the same lock of the tiles.
 
@@ -128,7 +131,7 @@ As the mines:
 `cpratelimit`'s `drain_test.go`: a drain from a full bank, below 0, stopped at minus one bank, a debt the refill pays
 back and a take refuses, a bucket made and kept, a new account's start, each bucket at its own scale, no pace set, a
 smaller burst never paid back, a fill that pays the whole debt. `clicks`' `trap_test.go`: a lay that changes no tile, one
-mine or one trap a tile, a click that springs it and its player pays, a click a shield stops springing nothing, a
+trap and one mine a tile, a take of both that springs the trap and sets the mine off, a click that springs it and its player pays, a click a shield stops springing nothing, a
 spread's, an enclosure's, a virus's and a mine's blast's take springing it with each payer, a bomb and a revert taking it
 off with no spring. `inmemory_tile_storage`'s `traps_test.go`: the flush and the boot, a row gone, a failed flush, a
 wipe, an arena, a deleted account, a knock-out; the switch's trap lost. `postgres_tile_store`'s: the rows upserted and
