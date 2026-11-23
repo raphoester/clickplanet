@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -21,11 +22,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/commands/decide_report_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/postgres_conversation_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/answer_note_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/answer_note_usecase/audit_answer_note"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/close_note_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase/audit_decide_report"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/mail_post"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/rpc_addresses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
@@ -44,6 +50,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/answer_note_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_note_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	admin_decide_report_handler "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
@@ -62,7 +70,10 @@ import (
 
 const moduleName = "support"
 
-const bucketTimeout = 4 * time.Second
+const (
+	bucketTimeout = 4 * time.Second
+	mailTimeout   = 10 * time.Second
+)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -103,6 +114,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	noteStore := postgres_note_store.New(db)
+	conversationStore := postgres_conversation_store.New(db)
 	reportStore := postgres_report_store.New(db)
 	uploadStore := postgres_upload_store.New(db)
 
@@ -115,7 +127,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	rules := config.Attachments.rules()
 	shelf := uploads.NewShelf(uploadStore, config.Attachments.MaxStoredBytes, clock)
 
-	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore),
+	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore, conversationStore),
 		props.Logger.With(slog.String("pruned", "notes")))
 	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
 		props.Logger.With(slog.String("pruned", "reports")))
@@ -123,7 +135,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
 	noteDeletions, err := cpredis.Subscribe(ctx, streams, "support-notes-forgotten",
-		log_subscriber.New(player_forgotten_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
+		log_subscriber.New(player_forgotten_subscriber.New(anonymize_notes_usecase.New(noteStore, conversationStore)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the notes to player.v1.PlayerForgotten: %w", err)
@@ -179,10 +191,26 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount support.v1.SupportService: %w", err)
 	}
 
+	mailer, err := cpmail.New(config.Email, props.Logger, &http.Client{Timeout: mailTimeout})
+	if err != nil {
+		return fmt.Errorf("failed to build the mailer of the answers: %w", err)
+	}
+	if config.Email.Delivery == cpmail.DeliveryLog {
+		props.Logger.Warn("support.email.delivery is log: answers to notes are written to the log, not sent")
+	}
+	from, err := cpmail.AddressOf(config.Email.From)
+	if err != nil {
+		return fmt.Errorf("support.email.from: %w", err)
+	}
+	post := mail_post.New(mailer, config.Email.Sender(), notes.NewInbox(from))
+
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:    list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
 		ListReportsHandler:  list_reports_handler.New(reports_query.NewPostgresQuery(db, report_players.New(player))),
 		DecideReportHandler: admin_decide_report_handler.New(audit_decide_report.New(decideReport, props.Logger)),
+		AnswerNoteHandler: answer_note_handler.New(audit_answer_note.New(
+			answer_note_usecase.New(noteStore, conversationStore, post, clock), props.Logger)),
+		CloseNoteHandler: close_note_handler.New(close_note_usecase.New(conversationStore, clock)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)
@@ -210,6 +238,9 @@ type Config struct {
 	UploadLimiter cpratelimit.Config
 
 	Attachments AttachmentsConfig
+
+	// Where the operator answers notes from. Each note's replies come back to its own address under From.
+	Email cpmail.Config
 }
 
 type AttachmentsConfig struct {
@@ -273,7 +304,21 @@ const (
 	defaultUploadsADay = 100
 )
 
+const (
+	defaultFrom     = "support@clickplanet.lol"
+	defaultFromName = "ClickPlanet"
+)
+
 func (c Config) withDefaults() Config {
+	if c.Email.Delivery == "" {
+		c.Email.Delivery = cpmail.DeliveryLog
+	}
+	if c.Email.From == "" {
+		c.Email.From = defaultFrom
+	}
+	if c.Email.FromName == "" {
+		c.Email.FromName = defaultFromName
+	}
 	if c.Retention <= 0 {
 		c.Retention = defaultRetention
 	}
@@ -327,6 +372,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Redis.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("support.redis: %w", err))
+	}
+	if err := c.withDefaults().Email.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("support.email: %w", err))
 	}
 	if !c.Attachments.Enabled {
 		return errors.Join(errs...)

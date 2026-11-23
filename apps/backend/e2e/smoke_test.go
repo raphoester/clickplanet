@@ -163,8 +163,19 @@ func (s *testSuite) TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt() 
 	note := s.game.noteOf(t, "the globe is black")
 	require.NotNil(t, note)
 	assert.Equal(t, guest.account(), note.GetAccountId())
+	assert.Equal(t, "player@example.com", note.GetReplyAddress())
 	require.Len(t, note.GetAttachments(), 1)
 	assert.Equal(t, screenshot, opened(t, note.GetAttachments()[0]))
+	assert.Contains(t, s.game.openNotes(t), note.GetId(), "a note sent waits for its answer")
+
+	_, err := s.game.supportAdmin().AnswerNote(t.Context(),
+		connect.NewRequest(&supportv1.AnswerNoteRequest{NoteId: note.GetId(), Text: "Fixed: reload the page."}))
+	require.NoError(t, err)
+
+	answered := s.game.noteOf(t, "the globe is black")
+	require.Len(t, answered.GetAnswers(), 1)
+	assert.Equal(t, "Fixed: reload the page.", answered.GetAnswers()[0].GetText())
+	assert.NotContains(t, s.game.openNotes(t), note.GetId(), "an answered note waits for nothing")
 }
 
 func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
@@ -219,6 +230,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		note := s.game.noteOf(tickOf(t, c), "a bug before leaving")
 		require.NotNil(c, note, "support keeps the note")
 		assert.Empty(c, note.GetAccountId(), "and names no account")
+		assert.Empty(c, note.GetReplyAddress(), "nor where to answer")
 		holder, err := holders.GetTileHolder(t.Context(), connect.NewRequest(&planetv1.GetTileHolderRequest{TileId: 3}))
 		require.NoError(c, err)
 		assert.Equal(c, "es", holder.Msg.GetHolder().GetCountryId(), "planet keeps the take")

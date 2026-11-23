@@ -7,11 +7,23 @@ import "support/v1/support.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
-  // The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
-  // link to each photo or video it carries.
+  // The feature suggestions and bug reports players sent, newest first, each with what the page said of itself, a
+  // link to each photo or video it carries, the address an answer goes to, and its conversation: the operator's
+  // answers and the player's replies by email. open_only lists the notes waiting for an answer.
   rpc ListNotes(ListNotesRequest) returns (ListNotesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Answers a player's note by email, from support@clickplanet.lol, to the address the note was sent with: the text,
+  // then the player's note quoted, in the thread of the earlier mails about it. The player's reply comes back to the
+  // note. Write it to the player, in their language, in plain words. FailedPrecondition for a note with no address
+  // (sent before addresses were kept, or past the 90 days); NotFound for a note no longer kept; Unavailable when the
+  // mail could not be sent, and then nothing is kept: send again.
+  rpc AnswerNote(AnswerNoteRequest) returns (AnswerNoteResponse);
+
+  // Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
+  // kept.
+  rpc CloseNote(CloseNoteRequest) returns (CloseNoteResponse);
 
   // Players' reports of other players, newest first, both accounts named as the game shows them now, with any
   // decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
@@ -37,6 +49,9 @@ message ListNotesRequest {
   uint32 limit = 2;
   // Unset is every kind.
   NoteKind kind = 3;
+  // Only the notes waiting for an answer: an address to answer at, and the player wrote last (the note, or a reply
+  // after the last answer and the last close).
+  bool open_only = 4;
 }
 
 message ListNotesResponse {
@@ -54,6 +69,27 @@ message Note {
   PageContext context = 6;
   string user_agent = 7;
   repeated NoteAttachment attachments = 8;
+  // Where an answer goes. Empty: the note cannot be answered (sent before addresses were kept, or anonymized).
+  string reply_address = 9;
+  // Oldest first.
+  repeated NoteAnswer answers = 10;
+  // What the player wrote back by email, oldest first.
+  repeated NoteReply replies = 11;
+  // The last time the operator closed it with no answer; unset if never.
+  google.protobuf.Timestamp closed_at = 12;
+}
+
+message NoteAnswer {
+  string text = 1;
+  google.protobuf.Timestamp sent_at = 2;
+}
+
+message NoteReply {
+  // With the quoted mails cut off.
+  string text = 1;
+  // The mail's From; empty once the note is anonymized.
+  string from = 2;
+  google.protobuf.Timestamp received_at = 3;
 }
 
 message NoteAttachment {
@@ -115,4 +151,22 @@ message DecideReportRequest {
 
 message DecideReportResponse {
   google.protobuf.Timestamp decided_at = 1;
+}
+
+message AnswerNoteRequest {
+  string note_id = 1;
+  // Plain text, up to 5,000 characters. Lines are kept.
+  string text = 2;
+}
+
+message AnswerNoteResponse {
+  google.protobuf.Timestamp sent_at = 1;
+}
+
+message CloseNoteRequest {
+  string note_id = 1;
+}
+
+message CloseNoteResponse {
+  google.protobuf.Timestamp closed_at = 1;
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/inmemory_conversation_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
@@ -33,7 +35,7 @@ func TestAPruneTakesTheSenderOffTheNotesPastRetentionAndLeavesTheOthersAlone(t *
 	atTheLine := suggestion(3, now.Add(-24*time.Hour))
 	kept.Seed(old, fresh, atTheLine)
 
-	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
+	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept, inmemory_conversation_storage.New()).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), anonymized)
@@ -43,7 +45,7 @@ func TestAPruneTakesTheSenderOffTheNotesPastRetentionAndLeavesTheOthersAlone(t *
 func TestASecondPruneFindsNothingLeftToDo(t *testing.T) {
 	kept := inmemory_note_storage.New()
 	kept.Seed(suggestion(1, now.Add(-48*time.Hour)))
-	prune := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept)
+	prune := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept, inmemory_conversation_storage.New())
 	_, err := prune.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -61,7 +63,7 @@ func TestAPruneGoesThroughMoreNotesThanOneBatchHolds(t *testing.T) {
 	fresh := suggestion(2000, now.Add(-time.Hour))
 	kept.Seed(fresh)
 
-	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
+	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept, inmemory_conversation_storage.New()).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(1200), anonymized)
@@ -71,4 +73,27 @@ func TestAPruneGoesThroughMoreNotesThanOneBatchHolds(t *testing.T) {
 	for _, note := range after[:1200] {
 		assert.Equal(t, notes.AccountID{}, note.Account)
 	}
+}
+
+func TestAPruneTakesTheSenderOffTheRepliesOfTheNotesPastRetention(t *testing.T) {
+	kept := inmemory_note_storage.New()
+	old := suggestion(1, now.Add(-48*time.Hour))
+	fresh := suggestion(2, now.Add(-time.Hour))
+	kept.Seed(old, fresh)
+	said := inmemory_conversation_storage.New()
+	said.KeepNote(old.ID)
+	said.KeepNote(fresh.ID)
+	reply := func(note notes.NoteID) conversations.Snapshot {
+		return conversations.Snapshot{Note: note, Replies: []conversations.Reply{
+			{Mail: "r1@example.com", From: "ada@example.com", Text: "thanks", At: now.Add(-time.Minute)},
+		}}
+	}
+	said.Seed(reply(old.ID), reply(fresh.ID))
+
+	_, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept, said).Execute(t.Context())
+	require.NoError(t, err)
+
+	blanked := reply(old.ID)
+	blanked.Replies[0].From = ""
+	assert.ElementsMatch(t, []conversations.Snapshot{blanked, reply(fresh.ID)}, said.Kept())
 }

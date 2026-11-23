@@ -134,3 +134,16 @@ func TestTheAddressThePlayerGaveIsHandedOnAndOneMailCannotGoToIsRefused(t *testi
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Len(t, useCase.asked, 1)
 }
+
+func TestNoAddressAnywhereIsAskedForWithADetailThePageReads(t *testing.T) {
+	err := report(asAda(t), &stubUseCase{err: fmt.Errorf("cannot take the bug report: %w", notes.ErrNoReplyAddress)},
+		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	var refused *connect.Error
+	require.ErrorAs(t, err, &refused)
+	assert.Equal(t, connect.CodeFailedPrecondition, refused.Code())
+	require.Len(t, refused.Details(), 1)
+	detail, err := refused.Details()[0].Value()
+	require.NoError(t, err)
+	assert.Equal(t, supportv1.NoteRefusalReason_NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS, detail.(*supportv1.NoteRefusal).GetReason())
+}

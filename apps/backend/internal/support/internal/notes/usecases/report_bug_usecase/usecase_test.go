@@ -123,13 +123,9 @@ func (s *testSuite) TestTheAddressThePlayerGaveIsKeptOverTheAccounts() {
 	}}, s.notes.Kept())
 }
 
-func (s *testSuite) TestAGuestThatGaveNoAddressIsKeptWithNone() {
-	guest := notes.AccountID{15: 2}
+func (s *testSuite) TestAGuestThatGaveNoAddressIsRefusedAndNothingIsKept() {
+	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: notes.AccountID{15: 2}, Text: "the globe is black"})
 
-	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: guest, Text: "the globe is black"})
-	s.Require().NoError(err)
-
-	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: guest, Text: "the globe is black", At: now,
-	}}, s.notes.Kept())
+	s.Require().ErrorIs(err, notes.ErrNoReplyAddress)
+	s.Empty(s.notes.Kept())
 }

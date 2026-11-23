@@ -6,12 +6,18 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
 type Notes interface {
 	WithSenderBefore(ctx context.Context, cutoff time.Time, limit int) ([]notes.Note, error)
 	Save(ctx context.Context, notes ...notes.Note) error
+}
+
+type Conversations interface {
+	Conversations(ctx context.Context, notes ...notes.NoteID) ([]conversations.Conversation, error)
+	Save(ctx context.Context, conversations ...conversations.Conversation) error
 }
 
 type Executor interface {
@@ -23,14 +29,15 @@ const (
 	batch   = 500
 )
 
-func New(retention time.Duration, clock cptime.Clock, kept Notes) *UseCase {
-	return &UseCase{retention: retention, clock: clock, notes: kept}
+func New(retention time.Duration, clock cptime.Clock, kept Notes, said Conversations) *UseCase {
+	return &UseCase{retention: retention, clock: clock, notes: kept, conversations: said}
 }
 
 type UseCase struct {
-	retention time.Duration
-	clock     cptime.Clock
-	notes     Notes
+	retention     time.Duration
+	clock         cptime.Clock
+	notes         Notes
+	conversations Conversations
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -49,6 +56,14 @@ func (u *UseCase) Execute(ctx context.Context) (int64, error) {
 		}
 		if len(old) == 0 {
 			return anonymized, nil
+		}
+
+		said, err := u.conversations.Conversations(ctx, notes.IDsOf(old)...)
+		if err != nil {
+			return anonymized, fmt.Errorf("failed to read the conversations of the notes past retention: %w", err)
+		}
+		if err := u.conversations.Save(ctx, conversations.AllAnonymized(said)...); err != nil {
+			return anonymized, fmt.Errorf("failed to anonymize the conversations of the notes past retention: %w", err)
 		}
 
 		if err := u.notes.Save(ctx, notes.AllAnonymized(old)...); err != nil {

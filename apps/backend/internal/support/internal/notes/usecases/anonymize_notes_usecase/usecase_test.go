@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/inmemory_conversation_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
@@ -31,7 +33,7 @@ func TestEveryNoteAnAccountSentKeepsItsTextAndLosesItsSenderAndTheOthersAreLeftA
 	kept := suggestion(2, bob, "more flags")
 	store.Seed(suggestion(1, ada, "a night mode"), kept, suggestion(3, ada, "a day mode"))
 
-	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store, inmemory_conversation_storage.New()).Execute(t.Context(), ada))
 
 	assert.ElementsMatch(t, []notes.Snapshot{anonymous(1, "a night mode"), kept, anonymous(3, "a day mode")}, store.Kept())
 }
@@ -41,7 +43,7 @@ func TestAnAccountThatSentNothingChangesNothing(t *testing.T) {
 	kept := suggestion(1, bob, "more flags")
 	store.Seed(kept)
 
-	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store, inmemory_conversation_storage.New()).Execute(t.Context(), ada))
 
 	assert.Equal(t, []notes.Snapshot{kept}, store.Kept())
 }
@@ -55,9 +57,25 @@ func TestANoteKeepsItsFilesWhenItLosesItsSender(t *testing.T) {
 	}
 	store.Seed(sent)
 
-	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store, inmemory_conversation_storage.New()).Execute(t.Context(), ada))
 
 	want := sent
 	want.Account = notes.AccountID{}
 	assert.Equal(t, []notes.Snapshot{want}, store.Kept())
+}
+
+func TestTheRepliesToTheNotesAnAccountSentLoseTheirSenderToo(t *testing.T) {
+	store := inmemory_note_storage.New()
+	store.Seed(suggestion(1, ada, "a night mode"))
+	said := inmemory_conversation_storage.New()
+	said.KeepNote(notes.NoteID{15: 1})
+	replied := conversations.Snapshot{Note: notes.NoteID{15: 1}, Replies: []conversations.Reply{
+		{Mail: "r1@example.com", From: "ada@example.com", Text: "thanks", At: at},
+	}}
+	said.Seed(replied)
+
+	require.NoError(t, anonymize_notes_usecase.New(store, said).Execute(t.Context(), ada))
+
+	replied.Replies[0].From = ""
+	assert.Equal(t, []conversations.Snapshot{replied}, said.Kept())
 }

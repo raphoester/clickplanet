@@ -129,7 +129,10 @@ type ListNotesRequest struct {
 	// Unset is 100; at most 500.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Unset is every kind.
-	Kind          NoteKind `protobuf:"varint,3,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
+	Kind NoteKind `protobuf:"varint,3,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
+	// Only the notes waiting for an answer: an address to answer at, and the player wrote last (the note, or a reply
+	// after the last answer and the last close).
+	OpenOnly      bool `protobuf:"varint,4,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -185,6 +188,13 @@ func (x *ListNotesRequest) GetKind() NoteKind {
 	return NoteKind_NOTE_KIND_UNSPECIFIED
 }
 
+func (x *ListNotesRequest) GetOpenOnly() bool {
+	if x != nil {
+		return x.OpenOnly
+	}
+	return false
+}
+
 type ListNotesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Notes         []*Note                `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
@@ -238,9 +248,17 @@ type Note struct {
 	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
 	// What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
-	Context       *PageContext      `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
-	UserAgent     string            `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	Attachments   []*NoteAttachment `protobuf:"bytes,8,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	Context     *PageContext      `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+	UserAgent   string            `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	Attachments []*NoteAttachment `protobuf:"bytes,8,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Where an answer goes. Empty: the note cannot be answered (sent before addresses were kept, or anonymized).
+	ReplyAddress string `protobuf:"bytes,9,opt,name=reply_address,json=replyAddress,proto3" json:"reply_address,omitempty"`
+	// Oldest first.
+	Answers []*NoteAnswer `protobuf:"bytes,10,rep,name=answers,proto3" json:"answers,omitempty"`
+	// What the player wrote back by email, oldest first.
+	Replies []*NoteReply `protobuf:"bytes,11,rep,name=replies,proto3" json:"replies,omitempty"`
+	// The last time the operator closed it with no answer; unset if never.
+	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -331,6 +349,148 @@ func (x *Note) GetAttachments() []*NoteAttachment {
 	return nil
 }
 
+func (x *Note) GetReplyAddress() string {
+	if x != nil {
+		return x.ReplyAddress
+	}
+	return ""
+}
+
+func (x *Note) GetAnswers() []*NoteAnswer {
+	if x != nil {
+		return x.Answers
+	}
+	return nil
+}
+
+func (x *Note) GetReplies() []*NoteReply {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+func (x *Note) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClosedAt
+	}
+	return nil
+}
+
+type NoteAnswer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	SentAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoteAnswer) Reset() {
+	*x = NoteAnswer{}
+	mi := &file_support_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoteAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoteAnswer) ProtoMessage() {}
+
+func (x *NoteAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoteAnswer.ProtoReflect.Descriptor instead.
+func (*NoteAnswer) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *NoteAnswer) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *NoteAnswer) GetSentAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SentAt
+	}
+	return nil
+}
+
+type NoteReply struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// With the quoted mails cut off.
+	Text string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	// The mail's From; empty once the note is anonymized.
+	From          string                 `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	ReceivedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoteReply) Reset() {
+	*x = NoteReply{}
+	mi := &file_support_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoteReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoteReply) ProtoMessage() {}
+
+func (x *NoteReply) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoteReply.ProtoReflect.Descriptor instead.
+func (*NoteReply) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NoteReply) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *NoteReply) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *NoteReply) GetReceivedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return nil
+}
+
 type NoteAttachment struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	ContentType string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
@@ -343,7 +503,7 @@ type NoteAttachment struct {
 
 func (x *NoteAttachment) Reset() {
 	*x = NoteAttachment{}
-	mi := &file_support_v1_admin_proto_msgTypes[3]
+	mi := &file_support_v1_admin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +515,7 @@ func (x *NoteAttachment) String() string {
 func (*NoteAttachment) ProtoMessage() {}
 
 func (x *NoteAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[3]
+	mi := &file_support_v1_admin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +528,7 @@ func (x *NoteAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoteAttachment.ProtoReflect.Descriptor instead.
 func (*NoteAttachment) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{3}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *NoteAttachment) GetContentType() string {
@@ -406,7 +566,7 @@ type ListReportsRequest struct {
 
 func (x *ListReportsRequest) Reset() {
 	*x = ListReportsRequest{}
-	mi := &file_support_v1_admin_proto_msgTypes[4]
+	mi := &file_support_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +578,7 @@ func (x *ListReportsRequest) String() string {
 func (*ListReportsRequest) ProtoMessage() {}
 
 func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[4]
+	mi := &file_support_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +591,7 @@ func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReportsRequest.ProtoReflect.Descriptor instead.
 func (*ListReportsRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{4}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListReportsRequest) GetSince() *timestamppb.Timestamp {
@@ -464,7 +624,7 @@ type ListReportsResponse struct {
 
 func (x *ListReportsResponse) Reset() {
 	*x = ListReportsResponse{}
-	mi := &file_support_v1_admin_proto_msgTypes[5]
+	mi := &file_support_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +636,7 @@ func (x *ListReportsResponse) String() string {
 func (*ListReportsResponse) ProtoMessage() {}
 
 func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[5]
+	mi := &file_support_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +649,7 @@ func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReportsResponse.ProtoReflect.Descriptor instead.
 func (*ListReportsResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{5}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListReportsResponse) GetReports() []*Report {
@@ -519,7 +679,7 @@ type Report struct {
 
 func (x *Report) Reset() {
 	*x = Report{}
-	mi := &file_support_v1_admin_proto_msgTypes[6]
+	mi := &file_support_v1_admin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +691,7 @@ func (x *Report) String() string {
 func (*Report) ProtoMessage() {}
 
 func (x *Report) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[6]
+	mi := &file_support_v1_admin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +704,7 @@ func (x *Report) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Report.ProtoReflect.Descriptor instead.
 func (*Report) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{6}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Report) GetId() string {
@@ -629,7 +789,7 @@ type ReportDecision struct {
 
 func (x *ReportDecision) Reset() {
 	*x = ReportDecision{}
-	mi := &file_support_v1_admin_proto_msgTypes[7]
+	mi := &file_support_v1_admin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +801,7 @@ func (x *ReportDecision) String() string {
 func (*ReportDecision) ProtoMessage() {}
 
 func (x *ReportDecision) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[7]
+	mi := &file_support_v1_admin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +814,7 @@ func (x *ReportDecision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportDecision.ProtoReflect.Descriptor instead.
 func (*ReportDecision) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{7}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReportDecision) GetOutcome() ReportOutcome {
@@ -690,7 +850,7 @@ type DecideReportRequest struct {
 
 func (x *DecideReportRequest) Reset() {
 	*x = DecideReportRequest{}
-	mi := &file_support_v1_admin_proto_msgTypes[8]
+	mi := &file_support_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -702,7 +862,7 @@ func (x *DecideReportRequest) String() string {
 func (*DecideReportRequest) ProtoMessage() {}
 
 func (x *DecideReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[8]
+	mi := &file_support_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,7 +875,7 @@ func (x *DecideReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideReportRequest.ProtoReflect.Descriptor instead.
 func (*DecideReportRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DecideReportRequest) GetReportId() string {
@@ -748,7 +908,7 @@ type DecideReportResponse struct {
 
 func (x *DecideReportResponse) Reset() {
 	*x = DecideReportResponse{}
-	mi := &file_support_v1_admin_proto_msgTypes[9]
+	mi := &file_support_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -760,7 +920,7 @@ func (x *DecideReportResponse) String() string {
 func (*DecideReportResponse) ProtoMessage() {}
 
 func (x *DecideReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[9]
+	mi := &file_support_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -773,7 +933,7 @@ func (x *DecideReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideReportResponse.ProtoReflect.Descriptor instead.
 func (*DecideReportResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DecideReportResponse) GetDecidedAt() *timestamppb.Timestamp {
@@ -783,18 +943,204 @@ func (x *DecideReportResponse) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type AnswerNoteRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	NoteId string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	// Plain text, up to 5,000 characters. Lines are kept.
+	Text          string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerNoteRequest) Reset() {
+	*x = AnswerNoteRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerNoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerNoteRequest) ProtoMessage() {}
+
+func (x *AnswerNoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerNoteRequest.ProtoReflect.Descriptor instead.
+func (*AnswerNoteRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AnswerNoteRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *AnswerNoteRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type AnswerNoteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SentAt        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerNoteResponse) Reset() {
+	*x = AnswerNoteResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerNoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerNoteResponse) ProtoMessage() {}
+
+func (x *AnswerNoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerNoteResponse.ProtoReflect.Descriptor instead.
+func (*AnswerNoteResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AnswerNoteResponse) GetSentAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SentAt
+	}
+	return nil
+}
+
+type CloseNoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseNoteRequest) Reset() {
+	*x = CloseNoteRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseNoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseNoteRequest) ProtoMessage() {}
+
+func (x *CloseNoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseNoteRequest.ProtoReflect.Descriptor instead.
+func (*CloseNoteRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CloseNoteRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+type CloseNoteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseNoteResponse) Reset() {
+	*x = CloseNoteResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseNoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseNoteResponse) ProtoMessage() {}
+
+func (x *CloseNoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseNoteResponse.ProtoReflect.Descriptor instead.
+func (*CloseNoteResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CloseNoteResponse) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClosedAt
+	}
+	return nil
+}
+
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\x16support/v1/admin.proto\x12\n" +
-	"support.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18support/v1/support.proto\"\x84\x01\n" +
+	"support.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18support/v1/support.proto\"\xa1\x01\n" +
 	"\x10ListNotesRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12(\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\";\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\x12\x1b\n" +
+	"\topen_only\x18\x04 \x01(\bR\bopenOnly\";\n" +
 	"\x11ListNotesResponse\x12&\n" +
-	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\xc2\x02\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\x83\x04\n" +
 	"\x04Note\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\x12\x1d\n" +
@@ -805,7 +1151,21 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\acontext\x18\x06 \x01(\v2\x17.support.v1.PageContextR\acontext\x12\x1d\n" +
 	"\n" +
 	"user_agent\x18\a \x01(\tR\tuserAgent\x12<\n" +
-	"\vattachments\x18\b \x03(\v2\x1a.support.v1.NoteAttachmentR\vattachments\"d\n" +
+	"\vattachments\x18\b \x03(\v2\x1a.support.v1.NoteAttachmentR\vattachments\x12#\n" +
+	"\rreply_address\x18\t \x01(\tR\freplyAddress\x120\n" +
+	"\aanswers\x18\n" +
+	" \x03(\v2\x16.support.v1.NoteAnswerR\aanswers\x12/\n" +
+	"\areplies\x18\v \x03(\v2\x15.support.v1.NoteReplyR\areplies\x127\n" +
+	"\tclosed_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"U\n" +
+	"\n" +
+	"NoteAnswer\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x123\n" +
+	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"p\n" +
+	"\tNoteReply\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
+	"\x04from\x18\x02 \x01(\tR\x04from\x12;\n" +
+	"\vreceived_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"receivedAt\"d\n" +
 	"\x0eNoteAttachment\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
 	"\n" +
@@ -842,7 +1202,16 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\acomment\x18\x03 \x01(\tR\acomment\"Q\n" +
 	"\x14DecideReportResponse\x129\n" +
 	"\n" +
-	"decided_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt*R\n" +
+	"decided_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"@\n" +
+	"\x11AnswerNoteRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"I\n" +
+	"\x12AnswerNoteResponse\x123\n" +
+	"\asent_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"+\n" +
+	"\x10CloseNoteRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\"L\n" +
+	"\x11CloseNoteResponse\x127\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
@@ -850,9 +1219,12 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\rReportOutcome\x12\x1e\n" +
 	"\x1aREPORT_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14REPORT_OUTCOME_ACTED\x10\x01\x12\x1c\n" +
-	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x85\x02\n" +
+	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x9c\x03\n" +
 	"\fAdminService\x12M\n" +
-	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\"\x03\x90\x02\x01\x12S\n" +
+	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\"\x03\x90\x02\x01\x12K\n" +
+	"\n" +
+	"AnswerNote\x12\x1d.support.v1.AnswerNoteRequest\x1a\x1e.support.v1.AnswerNoteResponse\x12H\n" +
+	"\tCloseNote\x12\x1c.support.v1.CloseNoteRequest\x1a\x1d.support.v1.CloseNoteResponse\x12S\n" +
 	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\"\x03\x90\x02\x01\x12Q\n" +
 	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
@@ -873,52 +1245,69 @@ func file_support_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_support_v1_admin_proto_goTypes = []any{
 	(NoteKind)(0),                 // 0: support.v1.NoteKind
 	(ReportOutcome)(0),            // 1: support.v1.ReportOutcome
 	(*ListNotesRequest)(nil),      // 2: support.v1.ListNotesRequest
 	(*ListNotesResponse)(nil),     // 3: support.v1.ListNotesResponse
 	(*Note)(nil),                  // 4: support.v1.Note
-	(*NoteAttachment)(nil),        // 5: support.v1.NoteAttachment
-	(*ListReportsRequest)(nil),    // 6: support.v1.ListReportsRequest
-	(*ListReportsResponse)(nil),   // 7: support.v1.ListReportsResponse
-	(*Report)(nil),                // 8: support.v1.Report
-	(*ReportDecision)(nil),        // 9: support.v1.ReportDecision
-	(*DecideReportRequest)(nil),   // 10: support.v1.DecideReportRequest
-	(*DecideReportResponse)(nil),  // 11: support.v1.DecideReportResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*PageContext)(nil),           // 13: support.v1.PageContext
-	(ReportReason)(0),             // 14: support.v1.ReportReason
+	(*NoteAnswer)(nil),            // 5: support.v1.NoteAnswer
+	(*NoteReply)(nil),             // 6: support.v1.NoteReply
+	(*NoteAttachment)(nil),        // 7: support.v1.NoteAttachment
+	(*ListReportsRequest)(nil),    // 8: support.v1.ListReportsRequest
+	(*ListReportsResponse)(nil),   // 9: support.v1.ListReportsResponse
+	(*Report)(nil),                // 10: support.v1.Report
+	(*ReportDecision)(nil),        // 11: support.v1.ReportDecision
+	(*DecideReportRequest)(nil),   // 12: support.v1.DecideReportRequest
+	(*DecideReportResponse)(nil),  // 13: support.v1.DecideReportResponse
+	(*AnswerNoteRequest)(nil),     // 14: support.v1.AnswerNoteRequest
+	(*AnswerNoteResponse)(nil),    // 15: support.v1.AnswerNoteResponse
+	(*CloseNoteRequest)(nil),      // 16: support.v1.CloseNoteRequest
+	(*CloseNoteResponse)(nil),     // 17: support.v1.CloseNoteResponse
+	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
+	(*PageContext)(nil),           // 19: support.v1.PageContext
+	(ReportReason)(0),             // 20: support.v1.ReportReason
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
-	12, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
+	18, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
 	0,  // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
 	4,  // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0,  // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	12, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	13, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
-	5,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
-	12, // 7: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
-	8,  // 8: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
-	14, // 9: support.v1.Report.reason:type_name -> support.v1.ReportReason
-	12, // 10: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
-	9,  // 11: support.v1.Report.decision:type_name -> support.v1.ReportDecision
-	1,  // 12: support.v1.ReportDecision.outcome:type_name -> support.v1.ReportOutcome
-	12, // 13: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
-	1,  // 14: support.v1.DecideReportRequest.outcome:type_name -> support.v1.ReportOutcome
-	12, // 15: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
-	2,  // 16: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
-	6,  // 17: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
-	10, // 18: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
-	3,  // 19: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	7,  // 20: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
-	11, // 21: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
-	19, // [19:22] is the sub-list for method output_type
-	16, // [16:19] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	18, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	19, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
+	7,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
+	5,  // 7: support.v1.Note.answers:type_name -> support.v1.NoteAnswer
+	6,  // 8: support.v1.Note.replies:type_name -> support.v1.NoteReply
+	18, // 9: support.v1.Note.closed_at:type_name -> google.protobuf.Timestamp
+	18, // 10: support.v1.NoteAnswer.sent_at:type_name -> google.protobuf.Timestamp
+	18, // 11: support.v1.NoteReply.received_at:type_name -> google.protobuf.Timestamp
+	18, // 12: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
+	10, // 13: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
+	20, // 14: support.v1.Report.reason:type_name -> support.v1.ReportReason
+	18, // 15: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
+	11, // 16: support.v1.Report.decision:type_name -> support.v1.ReportDecision
+	1,  // 17: support.v1.ReportDecision.outcome:type_name -> support.v1.ReportOutcome
+	18, // 18: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
+	1,  // 19: support.v1.DecideReportRequest.outcome:type_name -> support.v1.ReportOutcome
+	18, // 20: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
+	18, // 21: support.v1.AnswerNoteResponse.sent_at:type_name -> google.protobuf.Timestamp
+	18, // 22: support.v1.CloseNoteResponse.closed_at:type_name -> google.protobuf.Timestamp
+	2,  // 23: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
+	14, // 24: support.v1.AdminService.AnswerNote:input_type -> support.v1.AnswerNoteRequest
+	16, // 25: support.v1.AdminService.CloseNote:input_type -> support.v1.CloseNoteRequest
+	8,  // 26: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
+	12, // 27: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
+	3,  // 28: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	15, // 29: support.v1.AdminService.AnswerNote:output_type -> support.v1.AnswerNoteResponse
+	17, // 30: support.v1.AdminService.CloseNote:output_type -> support.v1.CloseNoteResponse
+	9,  // 31: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
+	13, // 32: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
+	28, // [28:33] is the sub-list for method output_type
+	23, // [23:28] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_admin_proto_init() }
@@ -933,7 +1322,7 @@ func file_support_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_admin_proto_rawDesc), len(file_support_v1_admin_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
