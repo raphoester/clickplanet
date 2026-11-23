@@ -29,8 +29,8 @@ type Claimable interface {
 	KnockOut(ctx context.Context, tile uint32, flag string) (KnockOut, error)
 	// CutOff clears the land of the flag its losses cut from its capital.
 	CutOff(losses Losses) (CutOff, error)
-	// Trip sets off the tile's mine or springs its trap, if it holds one: a take by another flag is landing on it. A trap
-	// sprung leaves the map, and is answered.
+	// Trip sets off the tile's mine and springs its trap, of the ones it holds: a take by another flag is landing on it.
+	// A trap sprung leaves the map, and is answered.
 	Trip(tile uint32) (Trap, bool)
 }
 

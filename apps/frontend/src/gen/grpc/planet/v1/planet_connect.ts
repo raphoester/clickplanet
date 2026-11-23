@@ -156,8 +156,8 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lays a trap on a tile of the caller's flag with no mine and no trap: a take by another flag springs it, and the taker
-     * loses clicks from its bank.
+     * Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+     * the taker loses clicks from its bank.
      *
      * @generated from rpc planet.v1.ClickService.LayTrap
      */

@@ -7,8 +7,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// ErrNotTrappable is a trap laid on a tile that is not its flag's, or holds a mine or a trap: it stays in the hand.
-var ErrNotTrappable = errors.New("a trap is laid only on a tile of its flag with no mine and no trap")
+// ErrNotTrappable is a trap laid on a tile that is not its flag's, or holds a trap already: it stays in the hand.
+var ErrNotTrappable = errors.New("a trap is laid only on a tile of its flag with no trap")
 
 // Trap waits on a tile of its flag. A take by another flag springs it: the take's player loses clicks from its bank, to
 // nobody, and the trap is gone. Any other change of owner takes it off the map with no effect.
@@ -39,9 +39,9 @@ func NewTrap(account cpsession.AccountID, flag string, tile uint32) Trap {
 	return Trap{tile: tile, flag: flag, account: account}
 }
 
-// Laid is the trap on its tile, which must be its flag's and hold no mine and no trap.
-func (t Trap) Laid(tile Tile, armed bool) (Trap, error) {
-	if tile.id != t.tile || tile.owner != t.flag || armed {
+// Laid is the trap on its tile, which must be its flag's and hold no trap. A mine may wait there too.
+func (t Trap) Laid(tile Tile, trapped bool) (Trap, error) {
+	if tile.id != t.tile || tile.owner != t.flag || trapped {
 		return Trap{}, ErrNotTrappable
 	}
 
@@ -60,7 +60,7 @@ type taker struct {
 	snare Snare
 }
 
-// tripped is the take once it set off its tile's mine or sprang its trap, which its player paid for: a take by another
+// tripped is the take once it set off its tile's mine and sprang its trap, which its player paid for: a take by another
 // flag is landing on the tile.
 func (t taker) tripped(tiles Claimable, impact Impact) Impact {
 	trap, ok := tiles.Trip(impact.Tile)
@@ -100,14 +100,14 @@ type Trapline struct {
 	tiles TrappableTiles
 }
 
-// Lay puts the trap on its tile, which must be its flag's and hold no mine and no trap, and answers the map's version.
+// Lay puts the trap on its tile, which must be its flag's and hold no trap, and answers the map's version.
 func (l Trapline) Lay(ctx context.Context, trap Trap) (MapVersion, error) {
 	return l.tiles.Lay(ctx, func(tiles Laying) error { //nolint:wrapcheck // a pure delegation: the storage names it.
 		tile, err := tiles.Tile(trap.tile)
 		if err != nil {
 			return err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		laid, err := trap.Laid(tile, tiles.Armed(trap.tile))
+		laid, err := trap.Laid(tile, tiles.Trapped(trap.tile))
 		if err != nil {
 			return err
 		}

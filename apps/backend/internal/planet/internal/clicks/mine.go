@@ -6,8 +6,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// ErrNotMineable is a mine laid on a tile that is not its flag's, or holds a mine or a trap: it stays in the hand.
-var ErrNotMineable = errors.New("a mine is laid only on a tile of its flag with no mine and no trap")
+// ErrNotMineable is a mine laid on a tile that is not its flag's, or holds a mine already: it stays in the hand.
+var ErrNotMineable = errors.New("a mine is laid only on a tile of its flag with no mine")
 
 // Mine waits on a tile of its flag. A take by another flag sets it off: its blast takes the tiles around it for the
 // flag, and every mine the blast reaches goes off too. Any other change of owner takes it off the map with no blast.
@@ -47,9 +47,9 @@ func (s MineSnapshot) Payer() Payer {
 	return Payer{Scope: s.Scope, Account: s.Account.String(), Linked: s.Linked}
 }
 
-// Laid is the mine on its tile, which must be its flag's and hold no mine and no trap.
-func (m Mine) Laid(tile Tile, armed bool) (Mine, error) {
-	if tile.id != m.tile || tile.owner != m.flag || armed {
+// Laid is the mine on its tile, which must be its flag's and hold no mine. A trap may wait there too.
+func (m Mine) Laid(tile Tile, mined bool) (Mine, error) {
+	if tile.id != m.tile || tile.owner != m.flag || mined {
 		return Mine{}, ErrNotMineable
 	}
 

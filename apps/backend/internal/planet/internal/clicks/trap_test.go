@@ -37,22 +37,46 @@ func TestATrapIsLaidOnATileOfItsFlagAndChangesNoTile(t *testing.T) {
 	assert.Empty(t, none, "another flag has none")
 }
 
-func TestATileHoldsOneMineOrOneTrap(t *testing.T) {
+func TestATileHoldsOneTrapAndOneMine(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{5: "fr", 6: "de", 7: "fr"})
 	trapped(t, tiles, "fr", 5)
 	laid(t, tiles, "fr", 7)
 
-	for _, tile := range []uint32{5, 6, 7, 8} {
+	for _, tile := range []uint32{5, 6, 8} {
 		_, err := clicks.NewTrapline(tiles).Lay(t.Context(), clicks.NewTrap(trapper, "fr", tile))
 		require.ErrorIs(t, err, clicks.ErrNotTrappable, "tile %d", tile)
 	}
-	_, err := minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, "fr", 5))
-	require.ErrorIs(t, err, clicks.ErrNotMineable, "no mine on a trap")
+	_, err := clicks.NewTrapline(tiles).Lay(t.Context(), clicks.NewTrap(trapper, "fr", 7))
+	require.NoError(t, err, "a trap beside a mine")
+	_, err = minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, "fr", 5))
+	require.NoError(t, err, "a mine beside a trap")
+	_, err = minefield(tiles).Lay(t.Context(), clicks.NewMine(miner, "203.0.113.9", false, "fr", 7))
+	require.ErrorIs(t, err, clicks.ErrNotMineable, "one mine a tile")
 
 	traps, _ := tiles.TrapsOf("fr")
-	assert.Equal(t, []uint32{5}, traps)
+	assert.Equal(t, []uint32{5, 7}, traps)
 	mined, _ := tiles.MinesOf("fr")
-	assert.Equal(t, []uint32{7}, mined)
+	assert.Equal(t, []uint32{5, 7}, mined)
+}
+
+func TestATakeOfATileWithAMineAndATrapSpringsTheTrapAndSetsTheMineOff(t *testing.T) {
+	tiles := claimable(t, map[uint32]string{4: "de", 5: "fr", 6: "de"})
+	trapped(t, tiles, "fr", 5)
+	laid(t, tiles, "fr", 5)
+	snare := clicks.NewSnareLog()
+
+	impact, err := clicks.NewClaiming(tiles, tenAShield, snare).Click(cpctx.AddAccountToContext(t.Context(), taker), 5, "de")
+	require.NoError(t, err)
+
+	require.NotNil(t, impact.Sprung, "the taker pays for the trap")
+	assert.Len(t, snare.Springs(), 1)
+	require.True(t, lit(tiles), "and the mine goes off")
+	detonations, err := minefield(tiles).Detonate(t.Context(), 1)
+	require.NoError(t, err)
+	assert.Len(t, detonations, 1)
+	assert.Equal(t, []string{"fr", "fr", "fr"}, owners(tiles, 4, 5, 6), "its blast takes the tile back")
+	traps, _ := tiles.TrapsOf("fr")
+	assert.Empty(t, traps)
 }
 
 func TestAClickByAnotherFlagSpringsTheTrapAndItsPlayerPays(t *testing.T) {
