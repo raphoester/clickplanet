@@ -79,6 +79,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/world_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/detonate_mines_usecase"
@@ -414,6 +415,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				adminBatch = 256
 			}
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
+			world := world_replay.NewPostgresReplay(db, eraStore, carriesOf{registry: registry})
 
 			getTerritories := get_territories_handler.New(
 				territories_query.NewMemoryQuery(tilesStorage, tilesStorage, tilesStorage, played))
@@ -423,7 +425,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					find_players_usecase.New(takings, tilesStorage, played, refusalBook, catalog)),
 				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, refusalBook)),
 				RevertPlayerHandler: revert_player_handler.New(
-					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
+					audit_revert.New(revert_player_usecase.New(takings, world_replay.NewToNow(world, clock), tilesStorage, pace), props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(hands, board), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
@@ -467,7 +469,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetLedgerHandler:       getLedger,
 				GetLedgerTotalsHandler: get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
 				GetMapHistoryHandler: get_map_history_handler.New(
-					history_query.NewPostgresQuery(db, eraStore, carriesOf{registry: registry}), forgetting.NewPostgresQuery(db)),
+					history_query.NewPostgresQuery(world), forgetting.NewPostgresQuery(db)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
