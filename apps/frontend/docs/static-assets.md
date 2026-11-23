@@ -93,8 +93,7 @@ chat. To retake it:
 Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt`, `sitemap.xml` and `crazygames/words.txt` (fetched by the build and ignored by git,
-see [CrazyGames](crazygames.md)). Vite copies them to the root of
+app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules

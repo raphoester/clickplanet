@@ -46,8 +46,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `backend.yaml` — API config. Each secret is an `env://NAME` anchor, so the
   file names the variable and never holds the value.
 - `env.public` — the settings that are not secret (`API_DOMAIN`,
-  `FRONTEND_ORIGIN`, `CRAZYGAMES_ORIGIN`, the CrazyGames page, which Caddy
-  answers CORS for too, and `ADMIN_ORIGIN`, the backoffice's origin, the only
+  `FRONTEND_ORIGIN`, and `ADMIN_ORIGIN`, the backoffice's origin, the only
   one the admin gate answers), in git so a change to any shows up in a diff
 - `render-env.sh` — writes the three env files the stack reads, from the
   repository's Actions secrets plus `env.public`. Every deploy runs it, and so

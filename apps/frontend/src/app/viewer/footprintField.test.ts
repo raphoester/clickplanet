@@ -1,5 +1,8 @@
 import {describe, expect, it} from "vitest"
-import {FootprintField, FOOTPRINT_COLUMNS, MOST_FOOTPRINTS} from "./footprintField.ts"
+import {flagCodeOf, regions} from "./atlas.ts"
+import {FootprintField, FOOTPRINT_COLUMNS, MOST_FOOTPRINTS, type PaintedGrounds} from "./footprintField.ts"
+import type {Divisions} from "./pointSize.ts"
+import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
 
 const TEXEL = 4
 const ROW = FOOTPRINT_COLUMNS * 2 * TEXEL
@@ -38,6 +41,50 @@ describe("FootprintField", () => {
         expect(frameAt(field, ids[1])[5]).toBe(parent)
         expect(frameAt(field, ids[0])[5]).not.toBe(parent)
         expect(frameAt(field, parent, true)[7]).toBe(3)
+    })
+
+    describe("flagNeeds", () => {
+        const view: ScreenView = {
+            toward: {x: 0, y: 0, z: 1},
+            right: {x: 1, y: 0, z: 0},
+            up: {x: 0, y: 1, z: 0},
+            origin: {x: 0, y: 0},
+            pixelsPerRadian: 1000,
+            width: 1000,
+            height: 800,
+        }
+        const leader = flagCodeOf(1)!
+        const other = flagCodeOf(2)!
+        const sizes = {countries: [0, 4], provinces: [0, 2, 2]}
+        const grounds = (divisions: Divisions, holder: string | undefined): PaintedGrounds => ({
+            holderOf: () => holder,
+            sizeOf: (ground) => sizes[divisions][ground],
+        })
+        const LEAST = 0.05
+
+        it("asks for each flag that does not lead a ground in view, as wide as its footprint's frame on screen", () => {
+            const needs = make().flagNeeds("countries", view, Float32Array.of(0, 1000), grounds("countries", leader), LEAST)
+            const {width, height} = regions.get(other)!
+            const aspect = width / height
+            const centre = {x: 0.3 / Math.hypot(0.3, 1), y: 0, z: 1 / Math.hypot(0.3, 1)}
+            expect([...needs.keys()]).toEqual([other])
+            expect(needs.get(other)!.need).toBeCloseTo(flagNeedOf(centre, LEAST * aspect, LEAST, aspect, view))
+            expect(needs.get(other)!.area).toBeCloseTo(250)
+        })
+
+        it("asks for every flag on a ground nobody leads, each with its share of the land", () => {
+            const needs = make().flagNeeds("countries", view, Float32Array.of(0, 1000), grounds("countries", undefined), LEAST)
+            expect(needs.get(leader)!.area).toBeCloseTo(750)
+            expect(needs.get(other)!.area).toBeCloseTo(250)
+        })
+
+        it("asks for nothing on a ground off screen, and reads the provinces' footprints past the provinces' line", () => {
+            const field = make()
+            expect(field.flagNeeds("countries", view, Float32Array.of(0, 0), grounds("countries", undefined), LEAST).size).toBe(0)
+            const needs = field.flagNeeds("provinces", view, Float32Array.of(0, 0, 600), grounds("provinces", leader), LEAST)
+            expect([...needs.keys()]).toEqual([other])
+            expect(needs.get(other)!.area).toBeCloseTo(300)
+        })
     })
 
     it("clears a footprint's frame once its flag holds none of its tiles", () => {

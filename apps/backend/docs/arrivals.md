@@ -1,6 +1,6 @@
 # Arrivals (`internal/auth/internal/arrivals/`)
 
-**Every account auth makes keeps how it came: a player's link or video, TikTok, YouTube, CrazyGames, or unknown, the host the
+**Every account auth makes keeps how it came: a player's link or video, TikTok, YouTube, or unknown, the host the
 browser came from, and, for a player's address with a name, the account of the player who sent it.** The frontend is a Cloudflare Worker, Caddy sees only API calls, Cloudflare's free analytics see
 no query string and TikTok sends no referrer. So the server records it when it makes the account, from what the
 browser says its first page was.
@@ -8,20 +8,19 @@ browser says its first page was.
 - **The browser sends its landing** (`auth.v1.Landing`): the `?s=` of the first page of the site it opened, the
   host of the page before it, and `recruiter_account_id` (proto `optional`) when that page was a player's address with
   a name, kept in local storage from then on (see the frontend's [Arrivals](../../frontend/docs/arrivals.md)). It goes with every call that can make an account: `CreateSession`,
-  `CompleteSignIn`, `CompleteEmailSignIn` and `CompleteCrazyGamesSignIn`.
+  `CompleteSignIn` and `CompleteEmailSignIn`.
 - **Only a call that makes an account keeps it.** `arrivals.Guests` starts the guest and records its arrival in one
   transaction, for `CreateSession`; `signin.Admitter` records it in the sign-in's transaction when the outcome is
   `Created`. A resumed session, a sign-in to an account that exists and a link keep nothing: the account's arrival
   was kept when it was made.
 - **`arrivals.NewArrival` decides the source from the tag alone**: `t` is `tiktok`, `y` is `youtube`, `r` is
-  `recruit` (a player's link, pressed), `v` is `recruit_video` (the address a player's video shows, typed), `cg` is
-  `crazygames`, anything else is `unknown`, since anybody can type a tag. **The one-letter tags are a tracked
+  `recruit` (a player's link, pressed), `v` is `recruit_video` (the address a player's video shows, typed),
+  anything else is `unknown`, since anybody can type a tag. **The one-letter tags are a tracked
   address's first segment** (`clickplanet.lol/t`, `clickplanet.lol/r?f=pl&r=kutza`, see the frontend's
   [Arrivals](../../frontend/docs/arrivals.md)): the ones that matter are typed off a video, so they are as short as can
   be, and never a word like `tiktok` that reads as a tracker. **The old tags still count**: `rc` is `recruit` and `yt`
-  `youtube`, since the links and descriptions out before Nov 20 2026 carry them. The CrazyGames page sends `cg` on every
-  call, whatever its link said. **Auth knows no flag**: `?f=` is the game's, and the client keeps
-  it to itself.
+  `youtube`, since the links and descriptions out before Nov 20 2026 carry them. **Auth knows no flag**: `?f=` is the
+  game's, and the client keeps it to itself.
 - **The tag itself is kept too** (`tagOf`), lower case, for every source: a link made for one streamer
   (`?f=pl&s=2poko2`, since 2026-11-11) is `unknown` and its tag names the stream. Only a short plain word is kept:
   32 at most, letters, digits, `_` and `-`; anything else is `""`, so a typed tag cannot carry a sentence or a script.
@@ -54,8 +53,9 @@ browser says its first page was.
 - **The YouTube link** is `https://clickplanet.lol/y`: the channel page's link, set by hand in YouTube Studio,
   and the description of every clip and teaser (`youtubeSite`, see [The clips job](clips-job.md)).
 - **One table, `auth.arrivals`**: `id`, `account_id` (`NULL` once anonymized), `source` (the enum `arrival_source`:
-  `recruit`, `youtube`, `unknown`, `crazygames` since `20261031120000_crazygames`, and `tiktok` and `recruit_video`
-  since `20261120063000_arrival_sources`), `tag` (since
+  `recruit`, `youtube`, `unknown`, and `tiktok` and `recruit_video` since `20261120063000_arrival_sources`; it holds
+  `crazygames` too, which no row has since `20261123122418_crazygames_arrivals_unknown` made the 12 of the framed
+  CrazyGames page `unknown`), `tag` (since
   `20261111140000_arrival_tag`; `''` on the rows made before it), `referrer`, `arrived_at`.
   Migration `20261030120000_arrivals`. Accounts made before it have no row.
 - **An arrival outlives its account.** It is its own concept with its own store, not a column of `accounts`: auth

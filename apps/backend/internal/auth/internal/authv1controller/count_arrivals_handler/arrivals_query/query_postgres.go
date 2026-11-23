@@ -36,7 +36,6 @@ var sources = map[string]authv1.ArrivalSource{
 	"tiktok":        authv1.ArrivalSource_ARRIVAL_SOURCE_TIKTOK,
 	"recruit":       authv1.ArrivalSource_ARRIVAL_SOURCE_RECRUIT,
 	"recruit_video": authv1.ArrivalSource_ARRIVAL_SOURCE_RECRUIT_VIDEO,
-	"crazygames":    authv1.ArrivalSource_ARRIVAL_SOURCE_CRAZYGAMES,
 }
 
 // A zero since or until is no bound.

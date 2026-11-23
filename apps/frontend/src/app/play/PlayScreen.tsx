@@ -134,11 +134,7 @@ import {useGuidedTakes} from "../frontGuide.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import {PromoBackend} from "../../backends/promo.ts";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
-import {CrazyGamesPage} from "../../backends/crazyGames.ts";
-import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
-import InvitedModal from "../crazygames/InvitedModal.tsx";
 import OutModal from "../knockout/OutModal.tsx";
-import InviteFriends from "../share/InviteFriends.tsx";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
@@ -199,8 +195,7 @@ export type Backends = {
     clips: ClipsBackend & ClipsNameBackend
     // A battle's teaser cards.
     promo: PromoBackend
-    crazyGames: CrazyGamesPage | undefined
-    alerts: DiscordAlerts | undefined
+    alerts: DiscordAlerts
     gifs: GifSearch | undefined
     // The map's last 24 hours, for the player's video.
     recentHistory: RecentHistorySource
@@ -228,13 +223,11 @@ export default function PlayScreen(props: PlayScreenProps) {
     useEffect(() => {
         if (allegiance && allegiance.countryId !== countryState.code) handleSetCountry({code: allegiance.countryId})
     }, [allegiance, countryState.code, handleSetCountry])
-    const invitation = useInvites(backends.crazyGames, allegiance, handleSetCountry)
     const {chatBackend} = backends
     const heldFlag = allegiance?.countryId
     const flagRoom = useMemo(() => {
         return heldFlag === undefined ? undefined : {country: {code: heldFlag}, backend: chatBackend.flagRoom(heldFlag)}
     }, [chatBackend, heldFlag])
-    const invite = backends.crazyGames?.room.inviteLink
     const pickCountry = async (country: Country) => {
         if (country.code !== countryState.code) await backends.allegiance.pledgeAllegiance(country.code)
         handleSetCountry(country)
@@ -244,8 +237,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const frozen = useClickBudget((store) => store.budget?.frozen === true)
     const fastStart = useClickBudget((store) => store.budget?.fastStart === true)
     const connection = useConnection(backends.connection)
-    const crazyGames = useCrazyGames(backends.crazyGames)
-    const sound = useSound(crazyGames.silenced)
+    const sound = useSound()
     const mapView = useDisplaySettings((settings) => settings.mapView)
     const rendering = useDisplaySettings((settings) => settings.rendering)
     const account = useAccount(backends.account)
@@ -369,9 +361,6 @@ export default function PlayScreen(props: PlayScreenProps) {
         rendering,
     })
 
-    useGameplay(backends.crazyGames, status.state === 'ready')
-    useRoom(backends.crazyGames, status.state === 'ready', countryState.code)
-
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
     const charges = useBonus((bonus) => bonus.charges)
     const rules = useBonus((bonus) => bonus.rules)
@@ -383,7 +372,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         source: backends.recentHistory,
         ready: status.state === 'ready',
         flag: countryState.code,
-        allowed: !arena && !backends.crazyGames,
+        allowed: !arena,
         listenForClicks: accepted.listenForClicks,
     })
     const videoOpen = useVideo((store) => store.open)
@@ -408,9 +397,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     }
 
     const signInRefill = rules?.signInRefill === true
-    // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        !backends.crazyGames && guest && linkedMultiplier !== undefined && !frozen && charges.refills === 0 && !pitchOpen,
+        guest && linkedMultiplier !== undefined && !frozen && charges.refills === 0 && !pitchOpen,
         dryTaps, fastStart)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refills > 0,
         () => void backends.chargesRefresher.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
@@ -418,7 +406,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
-    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced)
+    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order)
 
     const stats = shareStats(lines, countryState)
     const ownShown = useShownName(backends.shownNames, ownAccountId, username)
@@ -515,8 +503,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
                                     missions={missions}
-                                    missionsNews={missionsNews}
-                                    invite={invite}/>}
+                                    missionsNews={missionsNews}/>}
 
         {ready && !compact && <ScheduleChip compact={false}/>}
 
@@ -524,7 +511,6 @@ export default function PlayScreen(props: PlayScreenProps) {
                                         trailing={<ScheduleChip compact/>}/>}
 
         {ready && <ClickBudgetMeter frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState, address} : undefined}
-                                    invite={invite}
                                     discord={discord}
                                     onSignIn={openPitch}
                                     compact={compact}
@@ -539,7 +525,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                        onToggleShield={() => toggleSwitch("shield")}/>
         </ClickBudgetMeter>}
 
-        {ready && crazyGames.chat && <ChatPanel
+        {ready && <ChatPanel
             backend={backends.chatBackend}
             flagRoom={flagRoom}
             onSignIn={linkedMultiplier ? openPitch : undefined}
@@ -567,9 +553,6 @@ export default function PlayScreen(props: PlayScreenProps) {
             {sheet === "share" && <Sheet title={t("common.share")} onClose={closeSheet}>
                 <SharePlace stats={stats} {...share}/>
             </Sheet>}
-            {sheet === "invite" && invite && <Sheet title={t("play.invite")} onClose={closeSheet}>
-                <InviteFriends invite={invite}/>
-            </Sheet>}
             {sheet === "settings" && <Sheet title={t("play.settings")} onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
             </Sheet>}
@@ -577,9 +560,7 @@ export default function PlayScreen(props: PlayScreenProps) {
             {sheet === "battle" && <BattleSheet onClose={closeSheet}/>}
             {sheet === "clicks" && <Sheet title={t("clicks.yours")} onClose={closeSheet}>{clicks}</Sheet>}
 
-            <TabBar chat={crazyGames.chat}
-                    invite={invite !== undefined}
-                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
+            <TabBar you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
                     missions={missionsNews}
                     videoDot={video.dot}/>
         </>}
@@ -613,12 +594,6 @@ export default function PlayScreen(props: PlayScreenProps) {
             onClose={nudge.close}/>}
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
-
-        {invitation.asked && allegiance && <InvitedModal key={invitation.asked.code}
-                                                         friend={invitation.asked}
-                                                         held={allegiance}
-                                                         onSwitch={() => pickCountry(invitation.asked!)}
-                                                         onClose={invitation.answer}/>}
 
         <HolderCardPlace holders={backends.tileHolders}
                          players={backends.playerInfo}

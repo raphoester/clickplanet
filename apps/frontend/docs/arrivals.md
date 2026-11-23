@@ -48,6 +48,3 @@ an account. The backend decides what they mean: see the backend's [Arrivals](../
   [Player videos](player-videos.md#welcome-line).
 - **`?s=` and `?r=` are taken out of the address bar** with `?f=` (`withoutLanding`, `withoutSharedFlag`): left
   there, a copied address would make a friend a YouTube arrival, or the recruit of another player.
-- **The CrazyGames page tags every landing `cg`** (`crazyGamesLanding`) and keeps none, with no recruiter: its link
-  is not the player's to change, its storage is its own, and its first script never reads a flag's address. See
-  [CrazyGames](crazygames.md).

@@ -24,10 +24,7 @@ var allowedHeaders = strings.Join([]string{
 	"Connect-Protocol-Version",
 	"Connect-Timeout-Ms",
 	cpconnect.SessionHeader,
-	cpconnect.AccountSessionHeader,
 }, ", ")
-
-var exposedHeaders = strings.Join([]string{cpconnect.AccountSessionHeader, BootHeader}, ", ")
 
 // BootHeader names this run of the process: a page that sees it change reloads.
 const BootHeader = "X-Server-Boot"
@@ -48,7 +45,7 @@ func NewCorsMiddleware(allowedOrigin string) func(http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Expose-Headers", exposedHeaders)
+			w.Header().Set("Access-Control-Expose-Headers", BootHeader)
 			w.Header().Add("Vary", "Origin")
 
 			if r.Method == http.MethodOptions {

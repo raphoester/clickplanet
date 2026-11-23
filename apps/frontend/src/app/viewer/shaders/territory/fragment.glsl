@@ -168,6 +168,20 @@ vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, ve
     return surface / halfSize * 0.5 + anchor;
 }
 
+// A flag's colour at `uv` in its frame, `frame` in the texture's uv and `size` the texture's texels. Explicit gradients:
+// they follow the ground, which runs on across two tiles of different flags. Past the flag's edge it is the edge's own
+// colour: no gradient across an edge the uv is held at, and the sample held far enough inside that the filter never
+// reaches a texel past the edge, the next flag of the atlas.
+vec3 flagColourOf(sampler2D flags, vec2 size, vec4 frame, vec2 uv, vec2 across, vec2 upward) {
+    vec2 within = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+    vec2 dx = across * within * frame.zw;
+    vec2 dy = upward * within * frame.zw;
+    vec2 texels = frame.zw * size;
+    float reach = 0.5 + 1.5 * max(length(dx * size), length(dy * size));
+    vec2 inset = min(vec2(0.5), reach / texels);
+    return onWhite(textureGrad(flags, frame.xy + clamp(uv, inset, 1.0 - inset) * frame.zw, dx, dy));
+}
+
 // A flag that does not lead the ground covers its own footprint there from its middle, as the leader's would with no fit.
 vec2 coverOf(vec2 reach, float aspect) {
     float halfV = clamp(max(reach.y, reach.x / aspect), leastFlagRadius, MAX_FLAG_RADIUS);
@@ -221,14 +235,9 @@ vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNum
     vec2 upward = flagUVof(normalize(ground + upStep), centre, east, north, halfSize, anchor) - uv;
 
     vec4 slotFrame = texelFetch(slotFrames, ivec2(split ? ownNumber : int(held.g + 0.5), 0), 0);
-    bool slotted = slotFrame.z > 0.0;
-    vec4 flagFrame = slotted ? slotFrame : atlasFrameOf(flag);
-
-    // Explicit gradients: they follow the ground, which runs on across two tiles of different flags.
-    vec2 at = frameUVof(flagFrame, uv);
-    vec3 rgb = onWhite(slotted
-        ? textureGrad(slotTexture, at, across * flagFrame.zw, upward * flagFrame.zw)
-        : textureGrad(atlasTexture, at, across * flagFrame.zw, upward * flagFrame.zw));
+    vec3 rgb = slotFrame.z > 0.0
+        ? flagColourOf(slotTexture, vec2(textureSize(slotTexture, 0)), slotFrame, uv, across, upward)
+        : flagColourOf(atlasTexture, atlasTextureSize, atlasFrameOf(flag), uv, across, upward);
     return vec4(rgb, share);
 }
 

@@ -18,7 +18,6 @@
   "board.admin": "Name of a crown shown beside a game admin's name.",
   "menu.board": "Tab name, short: the leaderboard.",
   "menu.share": "Tab name, short: the place to share the game.",
-  "menu.invite": "Tab name, short: the place to invite friends.",
   "menu.you": "Tab name, short: the player's own profile.",
   "menu.missionsNews": "Screen-reader name of the Missions tab with new missions.",
   "menu.chatNews": "Screen-reader name of the Chat tab with unread messages.",

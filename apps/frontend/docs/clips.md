@@ -112,7 +112,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     replay's start), each with the flag it fought the most tiles with, both ways, and on which country's ground it
     fought the most; **`farFromHome`**, each flag's land on another
     country's ground, from its middle to the nearest ground of its own country (its ground read at 2,000 tiles at
-    most), to the nearest 100 km, weighed by `tiles / (tiles + readableFlipTiles)`, its best holding each; and
+    most), to the nearest 100 km, its farthest holding of `readableFlipTiles` at least each, ranked by that distance,
+    the number its photo shows; and
     **`biggestEmpires`**, the flags holding the most of the world, each with the country it holds the most of. All of
     the map at the window's end.
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place, saga or seasonal story of

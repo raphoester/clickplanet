@@ -17,7 +17,7 @@ asked player for the names at each read and copied them into their answers.
 - `app/nameplates/nameplate.ts` — what a reader draws of one: `nameOf` (`[deleted]` for an account nobody can name,
   empty until read), `paintOf` (the color for `authorStyle`, grey for a guest or nobody), and `lineOf`, the
   `PlayerLine` a card opens on, none for nobody.
-- `app/nameplates/PlayerName.tsx` — a name in its color by account id, masked by the CrazyGames word list. The Hall of
+- `app/nameplates/PlayerName.tsx` — a name in its color by account id. The Hall of
   Fame's players and the debrief's draw it; the chat and the board call `useNameplate` themselves, since they open a
   card from it too.
 - `backends/fakeNameplates.ts` — `FakeNameplates`, the fake's `GetNameplates`: the fake account (your own username),

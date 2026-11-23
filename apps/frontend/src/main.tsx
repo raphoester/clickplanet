@@ -20,7 +20,6 @@ import {scaleOf} from "./domain/boardScale.ts"
 import {landmassNamesOf, provinceNamesOf} from "./i18n/load.ts"
 import {chatterNamed, chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
-import {GifSearch} from "./backends/gifs.ts"
 import {KlipyGifs} from "./backends/klipyGifs.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeBadges} from "./backends/fakeBadges.ts"
@@ -39,8 +38,7 @@ import {FakeSupportBackend} from "./backends/fakeSupportBackend.ts"
 import {ConnectSupportBackend, newSupportServiceClient} from "./backends/supportBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
-import App from "./app/App.tsx"
-import type {Backends} from "./app/play/PlayScreen.tsx"
+import PlayScreen, {Backends} from "./app/play/PlayScreen.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {
     ConnectPlayerBackend,
@@ -76,15 +74,6 @@ import {
     withoutLanding,
 } from "./domain/landing.ts"
 import {handedReferrer, localLandingStore} from "./backends/landingStore.ts"
-import {localLeaverStore} from "./backends/leaverStore.ts"
-import {ON_CRAZYGAMES} from "./platform.ts"
-import {connectCrazyGames} from "./backends/crazyGamesSdk.ts"
-import {localAccountCarrier} from "./backends/accountCarrier.ts"
-import {crazyGamesLanding} from "./domain/crazyGames.ts"
-import {CrazyGamesPage} from "./backends/crazyGames.ts"
-import {CRAZYGAMES_WORDS_URL, crazyGamesWords} from "./backends/crazyGamesWords.ts"
-import {NO_FILTER, WordFilter} from "./domain/wordFilter.ts"
-import {AlertsBackend} from "./backends/alerts.ts"
 import {ConnectAlertsBackend, newAlertsServiceClient} from "./backends/alertsBackend.ts"
 import {FakeAlertsBackend} from "./backends/fakeAlertsBackend.ts"
 import {DiscordAlerts} from "./app/alerts/discordAlerts.ts"
@@ -111,14 +100,11 @@ else chooseOnceListed(sharedFlagCode(page))
 const shot = linkedShot(page)
 const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
-const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
-const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
-const speaking = speakChosenLanguage(crazyGames?.locale())
+const speaking = speakChosenLanguage()
 const seen = landingOf(page, handedReferrer() ?? document.referrer)
 const recruiterName = recruiterNameOf(page)
-// CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
-if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)
-    || page.searchParams.has(RECRUITER_PARAM) || shot || joinDiscord)) {
+if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)
+    || page.searchParams.has(RECRUITER_PARAM) || shot || joinDiscord) {
     window.history.replaceState(null, "", withoutDiscordJoin(withoutLinkedShot(withoutLanding(withoutSharedFlag(page)))))
 }
 
@@ -152,19 +138,17 @@ const config = {
 const holder: Recruiters = import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND
     ? chatterNamed
     : nameHolder(newPlayerServiceClient(config))
-const landing: Promise<Landing> = crazyGames
-    ? Promise.resolve(crazyGamesLanding(seen))
-    : firstLanding(localLandingStore(), seen, recruiterName === undefined ? undefined : {
-        name: recruiterName,
-        accountOf: (name) => holder(name).catch((e) => {
-            console.error("could not read who holds the name in the address", e)
-            return undefined
-        }),
-    })
+const landing: Promise<Landing> = firstLanding(localLandingStore(), seen, recruiterName === undefined ? undefined : {
+    name: recruiterName,
+    accountOf: (name) => holder(name).catch((e) => {
+        console.error("could not read who holds the name in the address", e)
+        return undefined
+    }),
+})
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const klipyKey: string | undefined = import.meta.env.VITE_KLIPY_KEY
-const authClient = newAuthServiceClient(config, crazyGames && localAccountCarrier())
+const authClient = newAuthServiceClient(config)
 const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
     ? new SessionClient(authClient, attest, {store: localTokenStore(), landing})
@@ -177,18 +161,6 @@ const FAKE_GRANT_LANDS_MS = 1_200
 // Alerts hears auth's DiscordJoinGranted over Redis, auth's outbox sends once a second, then alerts asks Discord.
 const FAKE_JOIN_LANDS_MS = 1_500
 
-// Discord's sign-in leaves for Discord and comes back on clickplanet.lol, out of CrazyGames' frame and its carried
-// session: and CrazyGames allows no sign-in but its own.
-function discordAlertsOf(backend: AlertsBackend, account: AccountStore): DiscordAlerts | undefined {
-    if (crazyGames) return undefined
-    return new DiscordAlerts(backend, () => account.connectDiscord(), joinDiscord)
-}
-
-// CrazyGames' word list cannot read the words in a GIF.
-function gifsOf(search: GifSearch | undefined): GifSearch | undefined {
-    return crazyGames ? undefined : search
-}
-
 // A flag opened since the build is known once the page reads the list: its link plays it then, if it is open.
 function chooseOnceListed(code: string | undefined) {
     if (code === undefined || !isOpenedCode(code)) return
@@ -199,20 +171,13 @@ function chooseOnceListed(code: string | undefined) {
     })
 }
 
-function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStore) {
-    if (!page) return
-    page.user.listenForSignIn(() => void account.followCrazyGames())
-    void account.followCrazyGames()
-}
-
 function start(backends: Backends) {
-    void Promise.all([words, speaking]).then(([filter]) => root.render(
+    void speaking.then(() => root.render(
         <StrictMode>
             <SignInGate callback={callback} account={backends.account}>
-                <App linkedShot={shot}
-                     showFront={guided}
-                     backends={backends}
-                     words={filter}/>
+                <PlayScreen linkedShot={shot}
+                            showFront={guided}
+                            backends={backends}/>
             </SignInGate>
         </StrictMode>,
     ))
@@ -240,12 +205,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         claimFlag: () => fake.claimFlag(),
-        crazyGames: crazyGames?.user,
-        leavers: crazyGames && localLeaverStore(),
     })
-    followCrazyGames(crazyGames, account)
-    const alerts = discordAlertsOf(
-        new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS), account)
+    const alerts = new DiscordAlerts(new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS),
+        () => account.connectDiscord(), joinDiscord)
     const fakeClips = new FakeClipsBackend()
     const fakeFlags = new FakeFlagsBackend()
     const fakePromo = new FakePromoBackend()
@@ -406,7 +368,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
         offerSignIn: () => {
             fakeAccount.offerSignIn()
-            void account.load().then(() => account.followCrazyGames())
+            void account.load()
             return "a guest is offered to sign in: run out of clicks, then signIn() finishes a sign-in"
         },
         signIn: (name = "Nova") => {
@@ -480,9 +442,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         account,
         clips: fakeClips,
         promo: fakePromo,
-        crazyGames,
         alerts,
-        gifs: gifsOf(new FakeGifs()),
+        gifs: new FakeGifs(),
         recentHistory: new FakeRecentHistory(fake, () => borders.then(({assignment}) => assignment.length)),
         shownNames: new FakeShownNames(fakeNameplates),
         landings: localLandingStore(),
@@ -509,11 +470,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         claimFlag: () => backend.claimFlag(),
-        crazyGames: crazyGames?.user,
-        leavers: crazyGames && localLeaverStore(),
     })
-    followCrazyGames(crazyGames, account)
-    const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session), account)
+    const alerts = new DiscordAlerts(new ConnectAlertsBackend(newAlertsServiceClient(config), session),
+        () => account.connectDiscord(), joinDiscord)
 
     start({
         board,
@@ -553,9 +512,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         levels: progression,
         clips,
         promo,
-        crazyGames,
         alerts,
-        gifs: gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined),
+        gifs: klipyKey ? new KlipyGifs(klipyKey) : undefined,
         recentHistory: new ConnectRecentHistory(newClickServiceClient(config)),
         shownNames: clips,
         landings: localLandingStore(),

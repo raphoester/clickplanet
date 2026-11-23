@@ -59,7 +59,7 @@ Each place that looks up a flag by its code survives a code it does not know.
 - **The standings** draw the flag of any code but an empty one. **The anthem** has no recording for it, so its play
   button is off.
 - **Built-in flags alone**: a flag's old address (`clickplanet.lol/<flag>/<name>`, written into the home page at the
-  build), a CrazyGames invite and the clips. An opened flag never had an old address.
+  build) and the clips. An opened flag never had an old address.
 
 ## In fake mode
 

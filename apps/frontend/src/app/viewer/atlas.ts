@@ -45,3 +45,9 @@ export function blankOf(pictures: Iterable<Region>, size: {width: number, height
     }
     throw new Error("the flag atlas has no room for a blank flag: pack it with some")
 }
+
+const codes = [...regions.keys()]
+
+export function flagCodeOf(number: number): string | undefined {
+    return codes[number - 1]
+}

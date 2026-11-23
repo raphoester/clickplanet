@@ -70,7 +70,7 @@ type AdminServiceClient interface {
 	// tokens. Only the page's session makes this call, and the code is for the account of that session.
 	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
 	// How many accounts came from each source on each UTC day of a window: TikTok (clickplanet.lol/t), YouTube (/y), a
-	// player's link or video, CrazyGames, or unknown. Read from the address the browser first opened, when the account was
+	// player's link or video, or unknown. Read from the address the browser first opened, when the account was
 	// made, guests included. A deleted account's arrival still counts, so a day's count never shrinks. A day and a source
 	// with no account are not listed. TikTok was counted apart from 2026-11-20; before, its arrivals are unknown.
 	CountArrivals(context.Context, *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error)
@@ -196,7 +196,7 @@ type AdminServiceHandler interface {
 	// tokens. Only the page's session makes this call, and the code is for the account of that session.
 	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
 	// How many accounts came from each source on each UTC day of a window: TikTok (clickplanet.lol/t), YouTube (/y), a
-	// player's link or video, CrazyGames, or unknown. Read from the address the browser first opened, when the account was
+	// player's link or video, or unknown. Read from the address the browser first opened, when the account was
 	// made, guests included. A deleted account's arrival still counts, so a day's count never shrinks. A day and a source
 	// with no account are not listed. TikTok was counted apart from 2026-11-20; before, its arrivals are unknown.
 	CountArrivals(context.Context, *connect.Request[v1.CountArrivalsRequest]) (*connect.Response[v1.CountArrivalsResponse], error)

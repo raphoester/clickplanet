@@ -24,12 +24,12 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Translation](docs/i18n.md) — the catalogue (`src/i18n/locales/en.json` and one file per language), whole
   sentences with slots and ICU plurals, `t`/`rich`/`translator()`, `domain/` returns facts, Intl for every number and
   name, "in" a country as a phrase per language ("au Brésil"), each board's landmass and province names, how the
-  language is chosen (pick, CrazyGames, browser), adding a string or a language.
+  language is chosen (pick, browser), adding a string or a language.
 - [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a tracked address, `/t`, `/y`,
   `/r` and `/v`, and a flag's old address, `clickplanet.lol/<flag>/<name>`, which the home page's first script opens
   on the game.
 - [Search](docs/search.md) — what Google reads: the titles, the one description, the JSON-LD that names us
-  "Click Planet" too, the sitemap, the CrazyGames host's noindex; the Search Console baseline of Nov 2026 and how to
+  "Click Planet" too, the sitemap; the Search Console baseline of Nov 2026 and how to
   read it with Composio.
 
 ## Architecture
@@ -57,9 +57,6 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   and the welcome back when a sign-in within 30 days brings it back.
 - [Arrivals](docs/arrivals.md) — the first page's `?s=`, referrer host and recruiter's account (the name in a
   player's address, read with `GetPlayerByName`), kept and sent with the calls that make an account.
-- [CrazyGames](docs/crazygames.md) — the same build on `crazygames.clickplanet.lol`: CrazyGames' sign-in alone, the
-  session in a header, a deleted account the next start does not bring back, its settings, the world as one room
-  with invites, no ad, and its word list masked in the chat and the names.
 - [The counts are the server's](docs/counts.md) — every count on screen comes from `GetHoldings` and
   `holdings_changed`; one version rule for every tile value; the load and what is read again.
 - [Rolling back a refused click](docs/click-rollback.md) — a click is painted first and undone if the server
@@ -108,8 +105,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.
 - [Nudges](docs/nudges.md) — the next battle's teaser and the asks (coffee, TikTok, YouTube) in the announcements
-  queue: moments first, the teaser before any ask, one ask each 12 hours in turn, none on a first visit, in a battle
-  or on CrazyGames.
+  queue: moments first, the teaser before any ask, one ask each 12 hours in turn, none on a first visit or in a battle.
 - [The Hall of Fame](docs/hall-of-fame.md) — the board's crown (a gold button on a phone), and the modal's carousel of seasons: each
   ended one's winner flag, then the "?" of the one that runs; View opens a season's slides: the podium and the whole
   table, the race (each flag's points or map share round by round, drawn as a timelapse), players, the Final Battle,

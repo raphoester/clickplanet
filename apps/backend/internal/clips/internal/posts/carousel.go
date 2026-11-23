@@ -76,20 +76,34 @@ var ErrUnknownList = errors.New("no list is named so")
 func (l Lists) codesOf(list ListName) ([]string, error) {
 	switch list {
 	case FightTheMost:
-		return codes(l.FightTheMost, func(entry FightEntry) string { return entry.Flag }), nil
+		return eachOf(l.FightTheMost, func(entry FightEntry) string { return entry.Flag }), nil
 	case FarFromHome:
-		return codes(l.FarFromHome, func(entry FarLandEntry) string { return entry.Flag }), nil
+		return eachOf(l.FarFromHome, func(entry FarLandEntry) string { return entry.Flag }), nil
 	case BiggestEmpires:
-		return codes(l.BiggestEmpires, func(entry EmpireEntry) string { return entry.Flag }), nil
+		return eachOf(l.BiggestEmpires, func(entry EmpireEntry) string { return entry.Flag }), nil
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownList, list)
 	}
 }
 
-func codes[T any](entries []T, codeOf func(T) string) []string {
-	written := make([]string, 0, len(entries))
+// What each entry is ranked by, the top first: the number its photo shows, or for fight-the-most the sum of its two.
+func (l Lists) measuresOf(list ListName) ([]float64, error) {
+	switch list {
+	case FightTheMost:
+		return eachOf(l.FightTheMost, func(entry FightEntry) float64 { return float64(entry.Took + entry.Lost) }), nil
+	case FarFromHome:
+		return eachOf(l.FarFromHome, func(entry FarLandEntry) float64 { return float64(entry.Km) }), nil
+	case BiggestEmpires:
+		return eachOf(l.BiggestEmpires, func(entry EmpireEntry) float64 { return entry.Share }), nil
+	default:
+		return nil, fmt.Errorf("%w: %q", ErrUnknownList, list)
+	}
+}
+
+func eachOf[T, V any](entries []T, of func(T) V) []V {
+	written := make([]V, 0, len(entries))
 	for _, entry := range entries {
-		written = append(written, codeOf(entry))
+		written = append(written, of(entry))
 	}
 	return written
 }
@@ -109,6 +123,15 @@ func (f Findings) carouselTellable(story Story, told []Telling, keys *cpcolls.Se
 	}
 	if len(story.Ranks) != CarouselRanks {
 		return refused("a carousel tells %d ranks, not %d", CarouselRanks, len(story.Ranks))
+	}
+	measures, err := f.Lists.measuresOf(story.List)
+	if err != nil {
+		return refused("%s", err)
+	}
+	for i := 1; i < CarouselRanks; i++ {
+		if measures[i] > measures[i-1] {
+			return refused("rank %d of %s shows more than rank %d: %v against %v", i+1, story.List, i, measures[i], measures[i-1])
+		}
 	}
 	ranks := make([]Rank, 0, CarouselRanks)
 	for i, rank := range story.Ranks {

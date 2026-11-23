@@ -24,17 +24,6 @@ know the name in every spelling, say plainly what the game is, and show one site
   public page with its own canonical. Submitted in Search Console on Nov 13 2026.
 - **robots.txt** allows everything and names the sitemap (see [Static assets](static-assets.md)).
 
-## The CrazyGames host is out of Google
-
-`crazygames.clickplanet.lol` is the same build (see [CrazyGames](crazygames.md)). Before Nov 2026 its `/` and
-`/terms` showed in Google (92 impressions) and took clicks from the main site.
-
-`public/_headers` sends `X-Robots-Tag: noindex` on `https://crazygames.clickplanet.lol/*`. Workers static assets
-accept a host in a `_headers` pattern ([Cloudflare](https://developers.cloudflare.com/workers/static-assets/headers/)).
-The project has no Worker script, so every answer is a static asset and gets the header, the home page fallback too.
-The header does not change framing or caching, so the CrazyGames frame works as before. **Never send noindex on
-clickplanet.lol.**
-
 ## Baseline (Search Console, Sep 16 to Nov 10 2026)
 
 | Search | Position | Click-through |

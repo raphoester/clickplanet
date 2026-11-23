@@ -108,7 +108,7 @@ async function offerLinkToShareSheet(url: string, text: string): Promise<LinkOut
     }
 }
 
-export async function copyLink(url: string): Promise<LinkOutcome> {
+async function copyLink(url: string): Promise<LinkOutcome> {
     if (!await writeToClipboard(url)) {
         throw new Error("the clipboard would not take the link")
     }
