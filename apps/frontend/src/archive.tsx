@@ -17,6 +17,7 @@ import {speakChosenLanguage} from "./i18n/start.ts"
 import {FlagLister} from "./backends/flags.ts"
 import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
 import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
+import {paintFakeFlag} from "./backends/fakeFlagPictures.ts"
 import {useFlags} from "./app/flags/flagsStore.ts"
 
 const speaking = speakChosenLanguage()
@@ -56,7 +57,7 @@ function turnBackend(): TurnBackend {
 
 // The flags opened since the build, named once: the archive has no stream to say the list changed.
 function flagLister(): FlagLister {
-    return faked ? new FakeFlagsBackend() : new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true))
+    return faked ? new FakeFlagsBackend(paintFakeFlag) : new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true))
 }
 
 const turn = turnBackend()

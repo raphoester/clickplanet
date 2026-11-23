@@ -9,7 +9,9 @@ package flagsv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -20,28 +22,488 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CreateFlagUploadRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// image/png, image/jpeg or image/webp.
+	ContentType   string `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes     uint64 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateFlagUploadRequest) Reset() {
+	*x = CreateFlagUploadRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFlagUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFlagUploadRequest) ProtoMessage() {}
+
+func (x *CreateFlagUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFlagUploadRequest.ProtoReflect.Descriptor instead.
+func (*CreateFlagUploadRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CreateFlagUploadRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *CreateFlagUploadRequest) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type CreateFlagUploadResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What OpenFlag takes.
+	UploadId      string `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	UploadUrl     string `protobuf:"bytes,2,opt,name=upload_url,json=uploadUrl,proto3" json:"upload_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateFlagUploadResponse) Reset() {
+	*x = CreateFlagUploadResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFlagUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFlagUploadResponse) ProtoMessage() {}
+
+func (x *CreateFlagUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFlagUploadResponse.ProtoReflect.Descriptor instead.
+func (*CreateFlagUploadResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateFlagUploadResponse) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+func (x *CreateFlagUploadResponse) GetUploadUrl() string {
+	if x != nil {
+		return x.UploadUrl
+	}
+	return ""
+}
+
+type OpenFlagRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1 to 40 characters, in English: the place's name.
+	Name     string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	UploadId string `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	// In the future.
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenFlagRequest) Reset() {
+	*x = OpenFlagRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenFlagRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenFlagRequest) ProtoMessage() {}
+
+func (x *OpenFlagRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenFlagRequest.ProtoReflect.Descriptor instead.
+func (*OpenFlagRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OpenFlagRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *OpenFlagRequest) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+func (x *OpenFlagRequest) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+type OpenFlagResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          *Flag                  `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenFlagResponse) Reset() {
+	*x = OpenFlagResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenFlagResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenFlagResponse) ProtoMessage() {}
+
+func (x *OpenFlagResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenFlagResponse.ProtoReflect.Descriptor instead.
+func (*OpenFlagResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *OpenFlagResponse) GetFlag() *Flag {
+	if x != nil {
+		return x.Flag
+	}
+	return nil
+}
+
+type AddTimeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// r- and ten letters or digits.
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// 1 to 3660.
+	Days          uint32 `protobuf:"varint,2,opt,name=days,proto3" json:"days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddTimeRequest) Reset() {
+	*x = AddTimeRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddTimeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddTimeRequest) ProtoMessage() {}
+
+func (x *AddTimeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddTimeRequest.ProtoReflect.Descriptor instead.
+func (*AddTimeRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AddTimeRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *AddTimeRequest) GetDays() uint32 {
+	if x != nil {
+		return x.Days
+	}
+	return 0
+}
+
+type AddTimeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          *Flag                  `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddTimeResponse) Reset() {
+	*x = AddTimeResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddTimeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddTimeResponse) ProtoMessage() {}
+
+func (x *AddTimeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddTimeResponse.ProtoReflect.Descriptor instead.
+func (*AddTimeResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AddTimeResponse) GetFlag() *Flag {
+	if x != nil {
+		return x.Flag
+	}
+	return nil
+}
+
+type CloseFlagRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseFlagRequest) Reset() {
+	*x = CloseFlagRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseFlagRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseFlagRequest) ProtoMessage() {}
+
+func (x *CloseFlagRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseFlagRequest.ProtoReflect.Descriptor instead.
+func (*CloseFlagRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CloseFlagRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+type CloseFlagResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          *Flag                  `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseFlagResponse) Reset() {
+	*x = CloseFlagResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseFlagResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseFlagResponse) ProtoMessage() {}
+
+func (x *CloseFlagResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseFlagResponse.ProtoReflect.Descriptor instead.
+func (*CloseFlagResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CloseFlagResponse) GetFlag() *Flag {
+	if x != nil {
+		return x.Flag
+	}
+	return nil
+}
+
 var File_flags_v1_admin_proto protoreflect.FileDescriptor
 
 const file_flags_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x14flags/v1/admin.proto\x12\bflags.v1\x1a\x14flags/v1/flags.proto2Y\n" +
+	"\x14flags/v1/admin.proto\x12\bflags.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14flags/v1/flags.proto\"[\n" +
+	"\x17CreateFlagUploadRequest\x12!\n" +
+	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"V\n" +
+	"\x18CreateFlagUploadResponse\x12\x1b\n" +
+	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x1d\n" +
+	"\n" +
+	"upload_url\x18\x02 \x01(\tR\tuploadUrl\"w\n" +
+	"\x0fOpenFlagRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
+	"\tupload_id\x18\x02 \x01(\tR\buploadId\x123\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"6\n" +
+	"\x10OpenFlagResponse\x12\"\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"8\n" +
+	"\x0eAddTimeRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
+	"\x04days\x18\x02 \x01(\rR\x04days\"5\n" +
+	"\x0fAddTimeResponse\x12\"\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"&\n" +
+	"\x10CloseFlagRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\"7\n" +
+	"\x11CloseFlagResponse\x12\"\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag2\xfd\x02\n" +
 	"\fAdminService\x12I\n" +
-	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01B\xab\x01\n" +
+	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01\x12Y\n" +
+	"\x10CreateFlagUpload\x12!.flags.v1.CreateFlagUploadRequest\x1a\".flags.v1.CreateFlagUploadResponse\x12A\n" +
+	"\bOpenFlag\x12\x19.flags.v1.OpenFlagRequest\x1a\x1a.flags.v1.OpenFlagResponse\x12>\n" +
+	"\aAddTime\x12\x18.flags.v1.AddTimeRequest\x1a\x19.flags.v1.AddTimeResponse\x12D\n" +
+	"\tCloseFlag\x12\x1a.flags.v1.CloseFlagRequest\x1a\x1b.flags.v1.CloseFlagResponseB\xab\x01\n" +
 	"\fcom.flags.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
+var (
+	file_flags_v1_admin_proto_rawDescOnce sync.Once
+	file_flags_v1_admin_proto_rawDescData []byte
+)
+
+func file_flags_v1_admin_proto_rawDescGZIP() []byte {
+	file_flags_v1_admin_proto_rawDescOnce.Do(func() {
+		file_flags_v1_admin_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_flags_v1_admin_proto_rawDesc), len(file_flags_v1_admin_proto_rawDesc)))
+	})
+	return file_flags_v1_admin_proto_rawDescData
+}
+
+var file_flags_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_flags_v1_admin_proto_goTypes = []any{
-	(*ListFlagsRequest)(nil),  // 0: flags.v1.ListFlagsRequest
-	(*ListFlagsResponse)(nil), // 1: flags.v1.ListFlagsResponse
+	(*CreateFlagUploadRequest)(nil),  // 0: flags.v1.CreateFlagUploadRequest
+	(*CreateFlagUploadResponse)(nil), // 1: flags.v1.CreateFlagUploadResponse
+	(*OpenFlagRequest)(nil),          // 2: flags.v1.OpenFlagRequest
+	(*OpenFlagResponse)(nil),         // 3: flags.v1.OpenFlagResponse
+	(*AddTimeRequest)(nil),           // 4: flags.v1.AddTimeRequest
+	(*AddTimeResponse)(nil),          // 5: flags.v1.AddTimeResponse
+	(*CloseFlagRequest)(nil),         // 6: flags.v1.CloseFlagRequest
+	(*CloseFlagResponse)(nil),        // 7: flags.v1.CloseFlagResponse
+	(*timestamppb.Timestamp)(nil),    // 8: google.protobuf.Timestamp
+	(*Flag)(nil),                     // 9: flags.v1.Flag
+	(*ListFlagsRequest)(nil),         // 10: flags.v1.ListFlagsRequest
+	(*ListFlagsResponse)(nil),        // 11: flags.v1.ListFlagsResponse
 }
 var file_flags_v1_admin_proto_depIdxs = []int32{
-	0, // 0: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	1, // 1: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	8,  // 0: flags.v1.OpenFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
+	9,  // 1: flags.v1.OpenFlagResponse.flag:type_name -> flags.v1.Flag
+	9,  // 2: flags.v1.AddTimeResponse.flag:type_name -> flags.v1.Flag
+	9,  // 3: flags.v1.CloseFlagResponse.flag:type_name -> flags.v1.Flag
+	10, // 4: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	0,  // 5: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
+	2,  // 6: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
+	4,  // 7: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
+	6,  // 8: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
+	11, // 9: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	1,  // 10: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
+	3,  // 11: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
+	5,  // 12: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
+	7,  // 13: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_admin_proto_init() }
@@ -56,12 +518,13 @@ func file_flags_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_admin_proto_rawDesc), len(file_flags_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_flags_v1_admin_proto_goTypes,
 		DependencyIndexes: file_flags_v1_admin_proto_depIdxs,
+		MessageInfos:      file_flags_v1_admin_proto_msgTypes,
 	}.Build()
 	File_flags_v1_admin_proto = out.File
 	file_flags_v1_admin_proto_goTypes = nil

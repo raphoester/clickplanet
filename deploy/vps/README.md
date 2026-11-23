@@ -1844,6 +1844,28 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
   2026-11-23 player holds 3 and the flags module the fourth (the flags opened since the game shipped), so
   `max_connections` stayed 42.
 
+## Sold flags' pictures
+
+A flag the operator opens on the backoffice's Flags page wears a picture the backend drew again (see the backend's
+[The flags module](../../apps/backend/docs/flags.md)): uploaded **into `clickplanet-media` under `flags/uploads/`**,
+private, then written under **`flags/pictures/<sha256>.png`**, with the same key and secret as the support files
+(`flags.pictures` in `backend.yaml`). Players load it by its plain URL on `https://media.clickplanet.lol`.
+
+1. **The WAF custom rule on the `clickplanet.lol` zone** ("media: promo only, GET and HEAD only") lets
+   `/flags/pictures/` through too, and nothing else of `flags/`:
+   `(lower(http.host) eq "media.clickplanet.lol" and (not (starts_with(http.request.uri.path, "/promo/") or
+   starts_with(http.request.uri.path, "/flags/pictures/")) or not http.request.method in {"GET" "HEAD"}))`.
+2. **A response header transform rule on the zone** sets `Access-Control-Allow-Origin: *` for
+   `(lower(http.host) eq "media.clickplanet.lol" and starts_with(http.request.uri.path, "/flags/pictures/"))`. The
+   globe draws each picture into its texture, which WebGL allows only with CORS, and the cache rule keeps one copy of a
+   file whatever the asking page: the header must come from the zone, on every answer.
+3. The cache rule for `media.clickplanet.lol` (a year) already holds: a picture's name is its content.
+4. The upload needs nothing new: the bucket's CORS already lets `https://backoffice.clickplanet.lol` `PUT`.
+
+To check it: `curl -sI https://media.clickplanet.lol/flags/pictures/does-not-exist.png` answers 404 (it reached the
+bucket) with `access-control-allow-origin: *`, and `curl -sI https://media.clickplanet.lol/flags/uploads/x` answers 403.
+The boot logs `flags built ... pictures=true`.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.

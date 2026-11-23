@@ -17,14 +17,17 @@ type Store interface {
 
 const readTimeout = time.Second
 
-func NewCatalog(store Store) Catalog {
-	return Catalog{store: store}
+// lock is true while the rules in force let no account change its flag: a flag closed then stays playable until it
+// lifts, so a battle plays to its end.
+func NewCatalog(store Store, lock func() bool) Catalog {
+	return Catalog{store: store, lock: lock}
 }
 
 // Catalog is the flags planet knows: the ones the game ships with, and the ones it heard opened or closed since
 // (flags.v1.FlagOpened, FlagClosed), kept in its own schema.
 type Catalog struct {
 	store Store
+	lock  func() bool
 }
 
 // A player may play for a flag the game ships with, or for one opened and not closed since.
@@ -36,7 +39,7 @@ func (c Catalog) Playable(ctx context.Context, flag string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return heard.playable(), nil
+	return heard.playable() || (heard.known() && c.lock()), nil
 }
 
 // A closed flag is known: history still names it.

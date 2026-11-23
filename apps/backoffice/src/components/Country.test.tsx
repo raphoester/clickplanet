@@ -33,6 +33,18 @@ describe("Country", () => {
         expect(container.querySelector(".flag-blank")).not.toBeNull()
     })
 
+    it("draws a sold flag with its picture and its name once the list is read", () => {
+        const {container} = render(<Page id="r-k3p9x2ma0b"/>)
+
+        act(() => learnFlags([{
+            code: "r-k3p9x2ma0b", name: "Bavaria", closed: false, picture: "https://media.test/flags/pictures/bavaria.png",
+        }]))
+
+        expect(container.textContent).toBe(" Bavaria")
+        expect(container.querySelector("img.flag-picture")?.getAttribute("src")).toBe("https://media.test/flags/pictures/bavaria.png")
+        expect(container.querySelector(".flag-blank")).toBeNull()
+    })
+
     it("draws Brittany with no flag at all, as Unicode has none", () => {
         const {container} = render(<Country id="xb"/>)
         expect(container.querySelector(".flag")).toBeNull()

@@ -12,6 +12,7 @@ import (
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
@@ -57,8 +58,8 @@ func TestAFlagClosedTellsItIsClosed(t *testing.T) {
 	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
 	require.NoError(t, err)
 
-	assert.Equal(t, catalog.Snapshot{ID: "r-0000000001", Name: "Rennes", State: catalog.Closed, DecidedAt: closedAt},
-		flag.TakeSnapshot())
+	assert.Equal(t, catalog.Closed, flag.TakeSnapshot().State)
+	assert.Equal(t, closedAt, flag.TakeSnapshot().DecidedAt)
 	assertFacts(t, []proto.Message{
 		&flagsv1.FlagClosed{Flag: "r-0000000001", ClosedAt: timestamppb.New(closedAt)},
 	}, flag.Facts())
@@ -83,4 +84,78 @@ func assertFacts(t *testing.T, want []proto.Message, got []proto.Message) {
 	for i := range want {
 		assert.True(t, proto.Equal(want[i], got[i]), "%v", got[i])
 	}
+}
+
+func TestTimeAddedToAnOpenFlagEndsItLater(t *testing.T) {
+	flag := catalog.OpenFlag("r-0000000001", "Rennes", openedAt)
+	days, err := catalog.ParseDays(7)
+	require.NoError(t, err)
+
+	added, err := flag.TimeAdded(days, openedAt.Add(time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, flag.TakeSnapshot().EndsAt.Add(7*24*time.Hour), added.TakeSnapshot().EndsAt)
+	assert.Equal(t, catalog.Open, added.TakeSnapshot().State)
+	assert.Equal(t, openedAt, added.TakeSnapshot().DecidedAt, "still open since it opened")
+}
+
+func TestAFlagClosedComesBackWithinThirtyDaysAndNotAfter(t *testing.T) {
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	require.NoError(t, err)
+	days, err := catalog.ParseDays(30)
+	require.NoError(t, err)
+
+	back := closedAt.Add(29 * 24 * time.Hour)
+	reopened, err := closed.TimeAdded(days, back)
+	require.NoError(t, err)
+	kept := reopened.TakeSnapshot()
+	assert.Equal(t, catalog.Open, kept.State)
+	assert.Equal(t, back, kept.DecidedAt)
+	assert.Equal(t, back.Add(30*24*time.Hour), kept.EndsAt)
+	assert.Equal(t, closed.TakeSnapshot().ID, kept.ID, "the same code")
+	assert.Equal(t, closed.TakeSnapshot().Name, kept.Name, "the same name")
+	assert.Equal(t, closed.TakeSnapshot().Picture, kept.Picture, "the same picture")
+
+	_, err = closed.TimeAdded(days, closedAt.Add(30*24*time.Hour))
+	require.ErrorIs(t, err, catalog.ErrTooLate)
+}
+
+func TestAFlagExpiresAtItsEndAndNotBefore(t *testing.T) {
+	flag := catalog.OpenFlag("r-0000000001", "Rennes", openedAt)
+	ends := flag.TakeSnapshot().EndsAt
+
+	_, expired := flag.Expired(ends.Add(-time.Second))
+	assert.False(t, expired)
+
+	closed, expired := flag.Expired(ends.Add(time.Minute))
+	require.True(t, expired)
+	assert.Equal(t, catalog.Closed, closed.TakeSnapshot().State)
+	assert.Equal(t, ends, closed.TakeSnapshot().DecidedAt, "closed at its end, however late the check")
+
+	_, expired = closed.Expired(ends.Add(time.Hour))
+	assert.False(t, expired, "closed once")
+}
+
+func TestDaysAreOneToAboutTenYears(t *testing.T) {
+	for _, days := range []uint32{1, 30, 3660} {
+		_, err := catalog.ParseDays(days)
+		require.NoError(t, err, days)
+	}
+	for _, days := range []uint32{0, 3661} {
+		_, err := catalog.ParseDays(days)
+		require.ErrorIs(t, err, catalog.ErrInvalidDays, days)
+	}
+}
+
+func TestAFlagEndingNowOrBeforeIsNotOpened(t *testing.T) {
+	opening := catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(openedAt))
+	picture, err := catalog.TestPicture.Restore()
+	require.NoError(t, err)
+
+	_, err = opening.Open("Rennes", picture, openedAt)
+	require.ErrorIs(t, err, catalog.ErrEnded)
+
+	flag, err := opening.Open("Rennes", picture, openedAt.Add(time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), flag.TakeSnapshot().ID)
 }

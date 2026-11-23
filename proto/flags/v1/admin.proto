@@ -2,13 +2,80 @@ syntax = "proto3";
 
 package flags.v1;
 
+import "google/protobuf/timestamp.proto";
 import "flags/v1/flags.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   // Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
-  // opened since, by name. A closed flag stays: no player may play for it.
+  // opened since, by name, each with its picture, its end and, once closed, when. A closed flag stays: no player may
+  // play for it.
   rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // A link to upload the picture of a flag to open, good for 10 minutes: PUT the file there with its Content-Type.
+  // PNG, JPEG or WebP, at most 5 MB. The file stays private: OpenFlag draws it again. FailedPrecondition while the
+  // flags' pictures are off.
+  rpc CreateFlagUpload(CreateFlagUploadRequest) returns (CreateFlagUploadResponse);
+
+  // Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
+  // CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
+  // data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
+  // wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
+  // one only when the owner says so.
+  rpc OpenFlag(OpenFlagRequest) returns (OpenFlagResponse);
+
+  // Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
+  // days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
+  // from now; FailedPrecondition past the 30 days.
+  rpc AddTime(AddTimeRequest) returns (AddTimeResponse);
+
+  // Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
+  // may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
+  // lifts. FailedPrecondition for a flag closed already.
+  rpc CloseFlag(CloseFlagRequest) returns (CloseFlagResponse);
+}
+
+message CreateFlagUploadRequest {
+  // image/png, image/jpeg or image/webp.
+  string content_type = 1;
+  uint64 size_bytes = 2;
+}
+
+message CreateFlagUploadResponse {
+  // What OpenFlag takes.
+  string upload_id = 1;
+  string upload_url = 2;
+}
+
+message OpenFlagRequest {
+  // 1 to 40 characters, in English: the place's name.
+  string name = 1;
+  string upload_id = 2;
+  // In the future.
+  google.protobuf.Timestamp ends_at = 3;
+}
+
+message OpenFlagResponse {
+  Flag flag = 1;
+}
+
+message AddTimeRequest {
+  // r- and ten letters or digits.
+  string code = 1;
+  // 1 to 3660.
+  uint32 days = 2;
+}
+
+message AddTimeResponse {
+  Flag flag = 1;
+}
+
+message CloseFlagRequest {
+  string code = 1;
+}
+
+message CloseFlagResponse {
+  Flag flag = 1;
 }

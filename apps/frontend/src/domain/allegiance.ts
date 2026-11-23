@@ -8,6 +8,9 @@ export type Allegiance = {
 
     // The rules in force let no flag change, whatever changeableAt says.
     locked?: boolean
+
+    // The flag held is closed and no lock holds it: the account picks another at once.
+    closed?: boolean
 }
 
 // Why the flag held cannot change now: the rules in force, or the wait after a change.
@@ -15,6 +18,7 @@ export type Lock = {kind: "rules"} | {kind: "wait", until: number}
 
 // A flag held that does not stand locks nothing: its player picks a flag still in at once.
 export function lockOf(allegiance: Allegiance | undefined, now: number, standing?: Standing): Lock | undefined {
+    if (allegiance?.closed) return undefined
     if (allegiance && !stands(standing, allegiance.countryId)) return undefined
     if (allegiance?.locked) return {kind: "rules"}
     if (allegiance?.changeableAt !== undefined && allegiance.changeableAt > now) return {kind: "wait", until: allegiance.changeableAt}

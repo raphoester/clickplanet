@@ -7,7 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// What an account is shown: a message among the newest of its room, in a room the account may enter.
+// What an account may react to: a message among the newest of its room, in a room the account may speak in.
 type Showing struct {
 	shown  Shown
 	rooms  Rooms
@@ -24,7 +24,7 @@ func (s Showing) Message(ctx context.Context, account AccountID, id MessageID) (
 	if err != nil {
 		return Message{}, fmt.Errorf("failed to read the message: %w", err)
 	}
-	if err := s.rooms.EntryError(ctx, account, message.room); err != nil {
+	if err := s.rooms.SpeakError(ctx, account, message.room); err != nil {
 		return Message{}, err
 	}
 	return message, nil

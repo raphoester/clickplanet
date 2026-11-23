@@ -181,7 +181,8 @@ round Saudi Arabia, grey round Greece, purple under Turkey (the owner's shots).
 **The flags on screen are drawn from their SVGs, not read from the atlas.** A sprite is 100px wide and a painted
 flag is as wide as its landmass's frame: zoomed out over Africa on a retina screen, Algeria, Libya and Sudan stretch
 their sprite 6 to 7 times, and a crescent, a star or a coat of arms is mud. So each flag in view gets a cell of its
-own in one texture, `flagSlots.ts`, rasterised from `static/countries/svg/<code>.svg` at its sprite's aspect.
+own in one texture, `flagSlots.ts`, rasterised from `static/countries/svg/<code>.svg` at its sprite's aspect; a sold
+flag from its own picture, 768 x 512 at most, at its picture's aspect (see [The list of flags](flag-catalog.md)).
 
 *How wide a flag must be* (`flagNeedOf` in `slotNeed.ts`): the width of its frame on screen, in drawing-buffer pixels,
 or its height times the flag's aspect if that is more. Each axis is foreshortened by its own slant at the frame's
@@ -278,7 +279,8 @@ country flags": a setting saved by it as `"flags"` now reads as the default, Spl
 `npm run flagFit` decides the rest for the leader's flag: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
 cropped, anchored on the part that names it rather than on its middle. The
-result is `static/countries/flagFit.json`.
+result is `static/countries/flagFit.json`. A sold flag's picture carries its own `stretch` and `focus`, which the
+server measured as `npm run flagFit` does.
 
 **Every tile is in a country**, because the runs and the borders come from one Natural Earth
 query: a tile exists exactly where `groundOf` answers a code, and that same answer

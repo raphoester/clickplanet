@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 )
 
 var _ Store = (*MemoryStore)(nil)
@@ -48,6 +49,20 @@ func (m *MemoryStore) Flags(context.Context) ([]Flag, error) {
 		flags = append(flags, flag)
 	}
 	return flags, nil
+}
+
+func (m *MemoryStore) Ending(ctx context.Context, at time.Time) ([]Flag, error) {
+	flags, err := m.Flags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var ending []Flag
+	for _, flag := range flags {
+		if kept := flag.TakeSnapshot(); kept.State == Open && !kept.EndsAt.After(at) {
+			ending = append(ending, flag)
+		}
+	}
+	return ending, nil
 }
 
 func (m *MemoryStore) Save(_ context.Context, flags ...Flag) error {

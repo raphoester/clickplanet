@@ -1,0 +1,9 @@
+DROP INDEX flags_open_ends_at;
+ALTER TABLE flags
+    DROP COLUMN picture_hash,
+    DROP COLUMN picture_width,
+    DROP COLUMN picture_height,
+    DROP COLUMN picture_stretch,
+    DROP COLUMN picture_focus_x,
+    DROP COLUMN picture_focus_y,
+    DROP COLUMN ends_at;

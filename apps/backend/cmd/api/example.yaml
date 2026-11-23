@@ -388,6 +388,9 @@ flags:
   redis:
     address: localhost:6379
     password: ""
+  # Off, no flag can be opened: every picture call is FailedPrecondition.
+  pictures:
+    enabled: false
 
 support:
   database:

@@ -9,6 +9,7 @@ package flagsv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -264,8 +265,10 @@ type Flag struct {
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// In English.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// No player may play for a closed flag.
-	Closed        bool `protobuf:"varint,3,opt,name=closed,proto3" json:"closed,omitempty"`
+	// No player may play for a closed flag, once no lock of the rules in force holds it.
+	Closed bool `protobuf:"varint,3,opt,name=closed,proto3" json:"closed,omitempty"`
+	// Only for a flag opened since the game shipped: the ones it ships with are in the page's atlas and never end.
+	Sold          *Sold `protobuf:"bytes,4,opt,name=sold,proto3" json:"sold,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -321,11 +324,170 @@ func (x *Flag) GetClosed() bool {
 	return false
 }
 
+func (x *Flag) GetSold() *Sold {
+	if x != nil {
+		return x.Sold
+	}
+	return nil
+}
+
+// What a flag opened since the game shipped has that the ones it ships with do not.
+type Sold struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Picture *Picture               `protobuf:"bytes,1,opt,name=picture,proto3" json:"picture,omitempty"`
+	// When its time runs out. A closed flag keeps the end it had.
+	EndsAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	// Unset while the flag is open. Time added within 30 days of it opens the flag again.
+	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Sold) Reset() {
+	*x = Sold{}
+	mi := &file_flags_v1_flags_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sold) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sold) ProtoMessage() {}
+
+func (x *Sold) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sold.ProtoReflect.Descriptor instead.
+func (*Sold) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Sold) GetPicture() *Picture {
+	if x != nil {
+		return x.Picture
+	}
+	return nil
+}
+
+func (x *Sold) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *Sold) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClosedAt
+	}
+	return nil
+}
+
+// A flag's picture as the server drew it again: a PNG at most 768 wide and 512 high, between square and 2 wide by 1
+// high, with no hidden data.
+type Picture struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public, and named after its content: a browser may keep it a year.
+	Url    string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Width  uint32 `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height uint32 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	// What static/countries/flagFit.json says of a flag the game ships with: only bands, so it may be stretched to a
+	// country's shape, and the point of the picture a crop keeps, each from 0 to 1.
+	Stretch       bool    `protobuf:"varint,4,opt,name=stretch,proto3" json:"stretch,omitempty"`
+	FocusX        float32 `protobuf:"fixed32,5,opt,name=focus_x,json=focusX,proto3" json:"focus_x,omitempty"`
+	FocusY        float32 `protobuf:"fixed32,6,opt,name=focus_y,json=focusY,proto3" json:"focus_y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Picture) Reset() {
+	*x = Picture{}
+	mi := &file_flags_v1_flags_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Picture) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Picture) ProtoMessage() {}
+
+func (x *Picture) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Picture.ProtoReflect.Descriptor instead.
+func (*Picture) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Picture) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Picture) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Picture) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *Picture) GetStretch() bool {
+	if x != nil {
+		return x.Stretch
+	}
+	return false
+}
+
+func (x *Picture) GetFocusX() float32 {
+	if x != nil {
+		return x.FocusX
+	}
+	return 0
+}
+
+func (x *Picture) GetFocusY() float32 {
+	if x != nil {
+		return x.FocusY
+	}
+	return 0
+}
+
 var File_flags_v1_flags_proto protoreflect.FileDescriptor
 
 const file_flags_v1_flags_proto_rawDesc = "" +
 	"\n" +
-	"\x14flags/v1/flags.proto\x12\bflags.v1\"\x12\n" +
+	"\x14flags/v1/flags.proto\x12\bflags.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x12\n" +
 	"\x10ListFlagsRequest\"9\n" +
 	"\x11ListFlagsResponse\x12$\n" +
 	"\x05flags\x18\x01 \x03(\v2\x0e.flags.v1.FlagR\x05flags\"\x18\n" +
@@ -334,11 +496,23 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\theartbeat\x18\x01 \x01(\v2\x13.flags.v1.HeartbeatH\x00R\theartbeat\x123\n" +
 	"\fflag_changed\x18\x02 \x01(\v2\x0e.flags.v1.FlagH\x00R\vflagChangedB\a\n" +
 	"\x05event\"\v\n" +
-	"\tHeartbeat\"F\n" +
+	"\tHeartbeat\"j\n" +
 	"\x04Flag\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06closed\x18\x03 \x01(\bR\x06closed2\xa4\x01\n" +
+	"\x06closed\x18\x03 \x01(\bR\x06closed\x12\"\n" +
+	"\x04sold\x18\x04 \x01(\v2\x0e.flags.v1.SoldR\x04sold\"\xa1\x01\n" +
+	"\x04Sold\x12+\n" +
+	"\apicture\x18\x01 \x01(\v2\x11.flags.v1.PictureR\apicture\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x127\n" +
+	"\tclosed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\x95\x01\n" +
+	"\aPicture\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\rR\x06height\x12\x18\n" +
+	"\astretch\x18\x04 \x01(\bR\astretch\x12\x17\n" +
+	"\afocus_x\x18\x05 \x01(\x02R\x06focusX\x12\x17\n" +
+	"\afocus_y\x18\x06 \x01(\x02R\x06focusY2\xa4\x01\n" +
 	"\vFlagService\x12I\n" +
 	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\x0fListenForEvents\x12 .flags.v1.ListenForEventsRequest\x1a\x13.flags.v1.FlagEvent0\x01B\xab\x01\n" +
@@ -357,7 +531,7 @@ func file_flags_v1_flags_proto_rawDescGZIP() []byte {
 	return file_flags_v1_flags_proto_rawDescData
 }
 
-var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_flags_v1_flags_proto_goTypes = []any{
 	(*ListFlagsRequest)(nil),       // 0: flags.v1.ListFlagsRequest
 	(*ListFlagsResponse)(nil),      // 1: flags.v1.ListFlagsResponse
@@ -365,20 +539,27 @@ var file_flags_v1_flags_proto_goTypes = []any{
 	(*FlagEvent)(nil),              // 3: flags.v1.FlagEvent
 	(*Heartbeat)(nil),              // 4: flags.v1.Heartbeat
 	(*Flag)(nil),                   // 5: flags.v1.Flag
+	(*Sold)(nil),                   // 6: flags.v1.Sold
+	(*Picture)(nil),                // 7: flags.v1.Picture
+	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
 }
 var file_flags_v1_flags_proto_depIdxs = []int32{
 	5, // 0: flags.v1.ListFlagsResponse.flags:type_name -> flags.v1.Flag
 	4, // 1: flags.v1.FlagEvent.heartbeat:type_name -> flags.v1.Heartbeat
 	5, // 2: flags.v1.FlagEvent.flag_changed:type_name -> flags.v1.Flag
-	0, // 3: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	2, // 4: flags.v1.FlagService.ListenForEvents:input_type -> flags.v1.ListenForEventsRequest
-	1, // 5: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	3, // 6: flags.v1.FlagService.ListenForEvents:output_type -> flags.v1.FlagEvent
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 3: flags.v1.Flag.sold:type_name -> flags.v1.Sold
+	7, // 4: flags.v1.Sold.picture:type_name -> flags.v1.Picture
+	8, // 5: flags.v1.Sold.ends_at:type_name -> google.protobuf.Timestamp
+	8, // 6: flags.v1.Sold.closed_at:type_name -> google.protobuf.Timestamp
+	0, // 7: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	2, // 8: flags.v1.FlagService.ListenForEvents:input_type -> flags.v1.ListenForEventsRequest
+	1, // 9: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	3, // 10: flags.v1.FlagService.ListenForEvents:output_type -> flags.v1.FlagEvent
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_flags_proto_init() }
@@ -396,7 +577,7 @@ func file_flags_v1_flags_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_flags_proto_rawDesc), len(file_flags_v1_flags_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

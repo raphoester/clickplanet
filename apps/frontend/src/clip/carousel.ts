@@ -1,5 +1,6 @@
 import {codeOf, Entry, LIST_LENGTH, ListName} from "../domain/clip/lists.ts"
 import {DISPLAY_FONT_DRAWS, nameOf, said} from "./names.ts"
+import {flagPictureUrl} from "../app/flags/flagPicture.ts"
 
 export type Rank = {code: string, line: string}
 
@@ -62,7 +63,7 @@ export function createCarousel(root: HTMLElement, photos: readonly Photo[]): Car
             element("p", "carousel-rank", top).textContent = `#${photo.rank}`
             const title = element("h1", "carousel-title", top)
             const flag = element("img", "carousel-flag", title)
-            flag.src = `/static/countries/svg/${photo.code}.svg`
+            flag.src = flagPictureUrl(photo.code)
             flag.alt = ""
             const name = element("span", "carousel-name", title)
             name.textContent = photo.name

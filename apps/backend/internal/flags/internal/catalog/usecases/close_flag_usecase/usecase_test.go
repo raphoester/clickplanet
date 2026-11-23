@@ -38,12 +38,14 @@ func newFixture(t *testing.T) fixture {
 func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 	f := newFixture(t)
 
-	require.NoError(t, f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"}))
+	answered, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	require.NoError(t, err)
 
 	kept, err := f.store.Flag(t.Context(), "r-0000000001")
 	require.NoError(t, err)
-	assert.Equal(t, catalog.Snapshot{ID: "r-0000000001", Name: "Rennes", State: catalog.Closed, DecidedAt: now},
-		kept.TakeSnapshot(), "closed, never deleted")
+	assert.Equal(t, catalog.Closed, kept.TakeSnapshot().State, "closed, never deleted")
+	assert.Equal(t, now, kept.TakeSnapshot().DecidedAt)
+	assert.Equal(t, kept.TakeSnapshot(), answered)
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(&flagsv1.FlagClosed{Flag: "r-0000000001", ClosedAt: timestamppb.New(now)},
 		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
@@ -51,9 +53,10 @@ func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 
 func TestAFlagClosedAlreadyIsNotClosedAgain(t *testing.T) {
 	f := newFixture(t)
-	require.NoError(t, f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"}))
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	require.NoError(t, err)
 
-	err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
 
 	require.ErrorIs(t, err, catalog.ErrClosed)
 	assert.Len(t, f.outbox.Recorded(), 1)
@@ -62,7 +65,9 @@ func TestAFlagClosedAlreadyIsNotClosedAgain(t *testing.T) {
 func TestOnlyAFlagOpenedSinceTheGameShippedCanBeClosed(t *testing.T) {
 	f := newFixture(t)
 
-	require.ErrorIs(t, f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000002"}), catalog.ErrUnknownFlag)
-	require.ErrorIs(t, f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "fr"}), catalog.ErrInvalidFlagID)
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000002"})
+	require.ErrorIs(t, err, catalog.ErrUnknownFlag)
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "fr"})
+	require.ErrorIs(t, err, catalog.ErrInvalidFlagID)
 	assert.Empty(t, f.outbox.Recorded())
 }

@@ -1,6 +1,3 @@
-//go:build testing
-
-// Only tests call it until the operator's call to open and close a flag (step 2 of the regional flags) does.
 package open_flag_usecase
 
 import (
@@ -9,49 +6,61 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+type Gallery interface {
+	Draw(ctx context.Context, id pictures.UploadID) (pictures.Picture, error)
+	Discard(ctx context.Context, id pictures.UploadID) error
+}
 
 type Flags interface {
 	Save(ctx context.Context, flags ...catalog.Flag) error
 }
 
 type In struct {
-	Name string
+	Name   string
+	Upload string
+	EndsAt time.Time
 }
 
-type Out struct {
-	Flag catalog.FlagID
-}
+const timeout = 30 * time.Second
 
-const timeout = 5 * time.Second
-
-func New(ids catalog.IDProvider, clock cptime.Clock, db cpatomic.Transactioner, flags Flags, outbox cpatomic.Outbox) *UseCase {
-	return &UseCase{ids: ids, clock: clock, db: db, flags: flags, outbox: outbox}
+func New(
+	opening catalog.Opening, gallery Gallery, db cpatomic.Transactioner, flags Flags, outbox cpatomic.Outbox,
+) *UseCase {
+	return &UseCase{opening: opening, gallery: gallery, db: db, flags: flags, outbox: outbox}
 }
 
 type UseCase struct {
-	ids    catalog.IDProvider
-	clock  cptime.Clock
-	db     cpatomic.Transactioner
-	flags  Flags
-	outbox cpatomic.Outbox
+	opening catalog.Opening
+	gallery Gallery
+	db      cpatomic.Transactioner
+	flags   Flags
+	outbox  cpatomic.Outbox
 }
 
-func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	name, err := catalog.ParseName(in.Name)
 	if err != nil {
-		return Out{}, err //nolint:wrapcheck // the parse names it.
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
-	id, err := u.ids.NewID()
+	upload, err := pictures.ParseUploadID(in.Upload)
 	if err != nil {
-		return Out{}, fmt.Errorf("failed to draw a flag id: %w", err)
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
-	flag := catalog.OpenFlag(id, name, u.clock.Now())
+	picture, err := u.gallery.Draw(ctx, upload)
+	if err != nil {
+		return catalog.Snapshot{}, fmt.Errorf("failed to draw the flag's picture: %w", err)
+	}
+	flag, err := u.opening.Open(name, picture, in.EndsAt)
+	if err != nil {
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the opening names it.
+	}
 
 	// Never a flag the other modules are not told of, nor a fact of a flag not kept.
 	if err := u.db.InTx(ctx, func(ctx context.Context) error {
@@ -63,7 +72,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 		return nil
 	}); err != nil {
-		return Out{}, fmt.Errorf("failed to open the flag %q: %w", name, err)
+		return catalog.Snapshot{}, fmt.Errorf("failed to open the flag %q: %w", name, err)
 	}
-	return Out{Flag: id}, nil
+	// The flag is open: a file left in the private folder harms nobody.
+	_ = u.gallery.Discard(ctx, upload)
+	return flag.TakeSnapshot(), nil
 }

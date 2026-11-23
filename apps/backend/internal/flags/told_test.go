@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
@@ -106,17 +107,21 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 	require.NoError(t, err)
 	running(t, opened, closed, streamsOpened, streamsClosed, cpoutbox.NewRelay("flags-outbox", db, teller, logger))
 
-	out, err := open_flag_usecase.New(&catalog.Sequence{}, clock, db, store, cpoutbox.New(db)).
-		Execute(t.Context(), open_flag_usecase.In{Name: "Rennes"})
+	bucket, upload := pictures.NewMemoryBucket(), pictures.UploadID{1}
+	bucket.Upload(upload, pictures.TestPNG(300, 200))
+	out, err := open_flag_usecase.New(catalog.NewOpening(&catalog.Sequence{}, clock),
+		pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20}), db, store, cpoutbox.New(db)).
+		Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), EndsAt: clock.Now().Add(time.Hour)})
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 1 }, 10*time.Second, 20*time.Millisecond)
 	assert.Equal(t, catalog.Open, (<-page).State, "the page hears it opened")
 
 	clock.Advance(time.Hour)
-	require.NoError(t, close_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
-		Execute(t.Context(), close_flag_usecase.In{Flag: out.Flag.String()}))
+	_, err = close_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
+		Execute(t.Context(), close_flag_usecase.In{Flag: out.ID.String()})
+	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 2 }, 10*time.Second, 20*time.Millisecond)
 	assert.Equal(t, catalog.Closed, (<-page).State, "the page hears it closed")
 
-	assert.Equal(t, []string{"opened " + out.Flag.String() + " Rennes", "closed " + out.Flag.String()}, planet.all())
+	assert.Equal(t, []string{"opened " + out.ID.String() + " Rennes", "closed " + out.ID.String()}, planet.all())
 }

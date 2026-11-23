@@ -1,6 +1,3 @@
-//go:build testing
-
-// Only tests call it until the operator's call to open and close a flag (step 2 of the regional flags) does.
 package close_flag_usecase
 
 import (
@@ -35,21 +32,22 @@ type UseCase struct {
 	outbox cpatomic.Outbox
 }
 
-func (u *UseCase) Execute(ctx context.Context, in In) error {
+func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	id, err := catalog.ParseFlagID(in.Flag)
 	if err != nil {
-		return err //nolint:wrapcheck // the parse names it.
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
 
+	var closed catalog.Flag
 	if err := u.db.InTx(ctx, func(ctx context.Context) error {
 		flag, err := u.flags.Flag(ctx, id)
 		if err != nil {
 			return fmt.Errorf("failed to read the flag: %w", err)
 		}
-		closed, err := flag.Closed(u.clock.Now())
+		closed, err = flag.Closed(u.clock.Now())
 		if err != nil {
 			return err //nolint:wrapcheck // the flag names it.
 		}
@@ -61,7 +59,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to close the flag %s: %w", id, err)
+		return catalog.Snapshot{}, fmt.Errorf("failed to close the flag %s: %w", id, err)
 	}
-	return nil
+	return closed.TakeSnapshot(), nil
 }

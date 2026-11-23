@@ -92,7 +92,14 @@ import {
     ReportDecision,
 } from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {FakeAdmin} from "../fakeAdmin.ts"
+import {FakeAdmin, soldFlag} from "../fakeAdmin.ts"
+import {
+    CreateFlagUploadRequest,
+    CreateFlagUploadResponse,
+    OpenFlagRequest,
+    OpenFlagResponse,
+} from "../gen/grpc/flags/v1/admin_pb.ts"
+import {Flag, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {Graffiti, GraffitiKind} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {
     Background as PromoBackground,
@@ -183,6 +190,8 @@ export class DemoAdmin extends FakeAdmin {
                 bot: i % 29 === 7,
             }
         })
+        // A few play for a flag opened since.
+        this.accounts.filter((_, i) => i % 13 === 6).forEach(account => account.flag = BAVARIA)
         // Some accounts never got a name: most likely scripts.
         for (const account of this.accounts.filter(account => account.bot)) account.name = ""
         // Some players changed their name: up to three, a little over a week apart. Picked by index, so every other
@@ -321,6 +330,7 @@ export class DemoAdmin extends FakeAdmin {
                 clicks: {tempo: 3}, charges: {bomb: {held: 3}}, allegianceLocked: true,
             })}),
         ]})
+        this.flags.listed = [...this.flags.listed.filter(flag => flag.sold === undefined), ...DEMO_FLAGS]
         this.promo.backgrounds = DEMO_BACKGROUNDS
         this.promo.decks.set("rush", [
             new CardDraft({backgroundId: "demo-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country fights at once."}),
@@ -663,6 +673,41 @@ export class DemoAdmin extends FakeAdmin {
         saveCards: this.promo.saveCards.bind(this.promo),
     }
 
+    // flags.v1, as the server answers it: a PNG, a JPEG or a WebP of 5 MB at most, the file in the made-up bucket, a
+    // name of 1 to 40 characters and an end to come; the picture shown from the page's memory.
+    readonly demoFlags = {
+        listFlags: this.flags.listFlags.bind(this.flags),
+        createFlagUpload: (request: PartialMessage<CreateFlagUploadRequest>) => {
+            const type = request.contentType ?? ""
+            if (!IMAGE_TYPES.includes(type)) {
+                return this.refuseLater<CreateFlagUploadResponse>("createFlagUpload", request, `"${type}" is not a PNG, a JPEG or a WebP`, Code.InvalidArgument)
+            }
+            if ((request.sizeBytes ?? 0n) > BigInt(FLAG_PICTURE_BYTES)) {
+                return this.refuseLater<CreateFlagUploadResponse>("createFlagUpload", request, "a picture of 5 MB at most", Code.InvalidArgument)
+            }
+            return this.flags.createFlagUpload(request)
+        },
+        openFlag: async (request: PartialMessage<OpenFlagRequest>) => {
+            const file = this.bucket.get(request.uploadId ?? "")
+            const name = (request.name ?? "").trim()
+            const why = file === undefined ? "no picture uploaded under this id"
+                : name === "" || [...name].length > 40 ? "a name of 1 to 40 characters"
+                    : new Timestamp(request.endsAt).toDate().getTime() <= Date.now() ? "an end to come" : undefined
+            if (file === undefined || why !== undefined) {
+                return this.refuseLater<OpenFlagResponse>("openFlag", request, why ?? "", Code.InvalidArgument)
+            }
+            const {flag} = await this.flags.openFlag(request)
+            const drawn = new Flag({
+                ...flag,
+                sold: new Sold({...flag?.sold, picture: new Picture({...flag?.sold?.picture, url: URL.createObjectURL(file)})}),
+            })
+            this.flags.listed = this.flags.listed.map(each => each.code === drawn.code ? drawn : each)
+            return new OpenFlagResponse({flag: drawn})
+        },
+        addTime: this.flags.addTime.bind(this.flags),
+        closeFlag: this.flags.closeFlag.bind(this.flags),
+    }
+
     readonly demoProgression = {
         getProgress: (request: PartialMessage<AdminGetProgressRequest>) =>
             this.answer("getProgress", request, this.progressOf(request.accountId ?? "")),
@@ -755,6 +800,28 @@ const DEMO_GRAFFITI: {tiles: number[], flag: string, hoursAgo: number, painter: 
 ]
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+const FLAG_PICTURE_BYTES = 5 * 1024 * 1024
+const DAY = 24 * HOUR
+const BAVARIA = "r-demobavar1"
+
+// Made-up sold flags, each picture drawn in the page: Bavaria and Cornwall open, Savoy closed 3 days ago (time added
+// opens it again), Tyrol closed 41 days ago (it no longer comes back).
+function flagSvgOf(width: number, height: number, shapes: string): string {
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${shapes}</svg>`)}`
+}
+
+const DEMO_FLAGS = [
+    soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3,
+        `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
+        `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
+        `</pattern></defs><rect width="5" height="3" fill="url(#l)"/>`)),
+    soldFlag("r-democornw1", "Cornwall", new Date(NOW + 20 * HOUR), undefined, flagSvgOf(5, 3,
+        `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`)),
+    soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,
+        `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`)),
+    soldFlag("r-demotyrol1", "Tyrol", new Date(NOW - 41 * DAY), new Date(NOW - 41 * DAY), flagSvgOf(2, 1,
+        `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`)),
+]
 
 // Made-up backgrounds: a gradient and a few shapes each, drawn in the page.
 function svgOf(top: string, bottom: string, shapes: string): string {

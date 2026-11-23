@@ -1,10 +1,12 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {flagCatalog, knowsFlag, useFlags} from "./flagsStore.ts"
-import type {ListedFlag} from "../../domain/flags.ts"
+import type {FlagPicture, ListedFlag} from "../../domain/flags.ts"
 import {ENGLISH_TRANSLATOR} from "../../i18n/translator.ts"
 import {FakeFlagsBackend} from "../../backends/fakeFlagsBackend.ts"
 
 const BAVARIA: ListedFlag = {code: "r-k3p9x2ma0b", name: "Bavaria", closed: false}
+const PICTURE: FlagPicture = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
+const DAY_MS = 24 * 60 * 60 * 1000
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -152,20 +154,36 @@ describe("the flags store", () => {
     })
 
     it("follows the fake's flags as the flags' stream would tell them, reading once more as it opens", async () => {
-        const fake = new FakeFlagsBackend()
+        let now = 0
+        const fake = new FakeFlagsBackend(async () => PICTURE, () => now)
         const listFlags = vi.spyOn(fake, "listFlags")
         const {serve, changed, told} = useFlags.getState()
         serve(fake)
         const stop = fake.listenForFlags({onOpened: changed, onChanged: told})
         await vi.waitFor(() => expect(listFlags.mock.calls).toEqual([[false], [true]]))
 
-        const code = fake.open("Bavaria")
+        const code = await fake.open("Bavaria", 7)
         expect(flagCatalog().playable(code)).toBe(true)
+        expect(flagCatalog().pictureOf(code)).toEqual(PICTURE)
+        expect(flagCatalog().soldOf(code)?.endsAt).toBe(7 * DAY_MS)
         expect(ENGLISH_TRANSLATOR.country(code)).toBe("Bavaria")
+
+        expect(fake.addTime(code, 3)).toBe("longer")
+        expect(flagCatalog().soldOf(code)?.endsAt).toBe(10 * DAY_MS)
 
         fake.close(code)
         expect(flagCatalog().playable(code)).toBe(false)
         expect(flagCatalog().knows(code)).toBe(true)
+        expect(flagCatalog().pictures().get(code)).toEqual(PICTURE)
+
+        now = 29 * DAY_MS
+        expect(fake.addTime(code, 5)).toBe("reopened")
+        expect(flagCatalog().playable(code)).toBe(true)
+        expect(flagCatalog().soldOf(code)?.endsAt).toBe(34 * DAY_MS)
+
+        fake.close(code)
+        now = 60 * DAY_MS
+        expect(fake.addTime(code, 5)).toBe("too late")
         expect(listFlags).toHaveBeenCalledTimes(2)
         stop()
     })

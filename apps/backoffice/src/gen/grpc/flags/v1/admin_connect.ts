@@ -5,6 +5,7 @@
 
 import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, OpenFlagRequest, OpenFlagResponse } from "./admin_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -16,7 +17,8 @@ export const AdminService = {
   methods: {
     /**
      * Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
-     * opened since, by name. A closed flag stays: no player may play for it.
+     * opened since, by name, each with its picture, its end and, once closed, when. A closed flag stays: no player may
+     * play for it.
      *
      * @generated from rpc flags.v1.AdminService.ListFlags
      */
@@ -26,6 +28,60 @@ export const AdminService = {
       O: ListFlagsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * A link to upload the picture of a flag to open, good for 10 minutes: PUT the file there with its Content-Type.
+     * PNG, JPEG or WebP, at most 5 MB. The file stays private: OpenFlag draws it again. FailedPrecondition while the
+     * flags' pictures are off.
+     *
+     * @generated from rpc flags.v1.AdminService.CreateFlagUpload
+     */
+    createFlagUpload: {
+      name: "CreateFlagUpload",
+      I: CreateFlagUploadRequest,
+      O: CreateFlagUploadResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
+     * CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
+     * data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
+     * wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
+     * one only when the owner says so.
+     *
+     * @generated from rpc flags.v1.AdminService.OpenFlag
+     */
+    openFlag: {
+      name: "OpenFlag",
+      I: OpenFlagRequest,
+      O: OpenFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
+     * days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
+     * from now; FailedPrecondition past the 30 days.
+     *
+     * @generated from rpc flags.v1.AdminService.AddTime
+     */
+    addTime: {
+      name: "AddTime",
+      I: AddTimeRequest,
+      O: AddTimeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
+     * may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
+     * lifts. FailedPrecondition for a flag closed already.
+     *
+     * @generated from rpc flags.v1.AdminService.CloseFlag
+     */
+    closeFlag: {
+      name: "CloseFlag",
+      I: CloseFlagRequest,
+      O: CloseFlagResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

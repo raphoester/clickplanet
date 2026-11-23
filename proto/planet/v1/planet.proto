@@ -116,6 +116,10 @@ message Allegiance {
 
   // The rules in force let no flag change, whatever changeable_at_unix_ms says.
   bool locked = 3;
+
+  // The flag is closed, and no lock holds it: nobody may click for it, its land stays, and the account picks another
+  // flag at once, with no wait.
+  bool closed = 4;
 }
 
 message ClickBudget {

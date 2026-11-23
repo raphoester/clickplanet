@@ -18,6 +18,7 @@ import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders, loadProvinces} from "../app/viewer/borderField.ts"
 import {boardOf} from "../app/viewer/boards.ts"
 import {Countries} from "../domain/countries.ts"
+import {isOpenedCode} from "../domain/flags.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {foughtOver, ownersAfter, ranked as rankedBy, tally, TileChange} from "../domain/clip/changes.ts"
 import {cellOf, meanOf, pointOf} from "../domain/clip/geometry.ts"
@@ -43,6 +44,9 @@ import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, placeName, tagOf, wordsOf} from "./overlay.ts"
 import {nameOf} from "./names.ts"
+import {ListFlagsResponse} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {listedOf} from "../backends/flagsBackend.ts"
+import {afterFirstRead, flagCatalog, useFlags} from "../app/flags/flagsStore.ts"
 import {findingsOf, FrontFound, Measured, PlaceFound, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
 import {carouselRecordOf, clipRecordOf} from "./clipRecord.ts"
 import {aimedTilesOf, codeOf, entriesOf, LIST_LENGTH, ListGround, ListName, listsOf} from "../domain/clip/lists.ts"
@@ -160,7 +164,7 @@ function picturesLoaded(root: HTMLElement): Promise<unknown> {
 
 function countryParam(name: string): string | undefined {
     const code = params.get(name) ?? undefined
-    if (code !== undefined && !Countries.has(code)) throw new Error(`no country "${code}"`)
+    if (code !== undefined && !Countries.has(code) && !isOpenedCode(code)) throw new Error(`no country "${code}"`)
     return code
 }
 
@@ -233,6 +237,15 @@ async function choose(): Promise<Chosen> {
     const root = document.getElementById("clip")
     const stage = document.getElementById("clip-globe")
     if (!root || !stage) throw new Error("clip.html is missing its elements")
+
+    // The flags sold since the build, when the run fetched the list: their names and pictures.
+    const flags = await fetch("/__clip/flags.json")
+    if (flags.ok) {
+        const listed = ListFlagsResponse.fromJson(await flags.json(), {ignoreUnknownFields: true}).flags.map(listedOf)
+        const read = new Promise<void>((resolve) => afterFirstRead(() => resolve()))
+        useFlags.getState().serve({listFlags: async () => listed})
+        await read
+    }
 
     const answer = await fetch("/__clip/replay.json")
     if (!answer.ok) throw new Error(`no replay to play: ${answer.status}`)
@@ -560,7 +573,7 @@ async function choose(): Promise<Chosen> {
         }
 
         const codes = told.ranks.map(({code}) => code)
-        const countries = codes.filter((code) => Countries.has(code)).map((code) => ({code, tag: tagOf(nameOf(code))}))
+        const countries = codes.filter((code) => flagCatalog().knows(code)).map((code) => ({code, tag: tagOf(nameOf(code))}))
         return {
             pick, frames: 0, fps, seconds: photos.length * SECONDS_PER_PHOTO,
             since: new Date(foughtSince).toISOString(), until: new Date(until).toISOString(),

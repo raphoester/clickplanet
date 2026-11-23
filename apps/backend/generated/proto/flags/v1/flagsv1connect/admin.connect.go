@@ -35,13 +35,41 @@ const (
 const (
 	// AdminServiceListFlagsProcedure is the fully-qualified name of the AdminService's ListFlags RPC.
 	AdminServiceListFlagsProcedure = "/flags.v1.AdminService/ListFlags"
+	// AdminServiceCreateFlagUploadProcedure is the fully-qualified name of the AdminService's
+	// CreateFlagUpload RPC.
+	AdminServiceCreateFlagUploadProcedure = "/flags.v1.AdminService/CreateFlagUpload"
+	// AdminServiceOpenFlagProcedure is the fully-qualified name of the AdminService's OpenFlag RPC.
+	AdminServiceOpenFlagProcedure = "/flags.v1.AdminService/OpenFlag"
+	// AdminServiceAddTimeProcedure is the fully-qualified name of the AdminService's AddTime RPC.
+	AdminServiceAddTimeProcedure = "/flags.v1.AdminService/AddTime"
+	// AdminServiceCloseFlagProcedure is the fully-qualified name of the AdminService's CloseFlag RPC.
+	AdminServiceCloseFlagProcedure = "/flags.v1.AdminService/CloseFlag"
 )
 
 // AdminServiceClient is a client for the flags.v1.AdminService service.
 type AdminServiceClient interface {
 	// Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
-	// opened since, by name. A closed flag stays: no player may play for it.
+	// opened since, by name, each with its picture, its end and, once closed, when. A closed flag stays: no player may
+	// play for it.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
+	// A link to upload the picture of a flag to open, good for 10 minutes: PUT the file there with its Content-Type.
+	// PNG, JPEG or WebP, at most 5 MB. The file stays private: OpenFlag draws it again. FailedPrecondition while the
+	// flags' pictures are off.
+	CreateFlagUpload(context.Context, *connect.Request[v1.CreateFlagUploadRequest]) (*connect.Response[v1.CreateFlagUploadResponse], error)
+	// Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
+	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
+	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
+	// wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
+	// one only when the owner says so.
+	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
+	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
+	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
+	// from now; FailedPrecondition past the 30 days.
+	AddTime(context.Context, *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error)
+	// Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
+	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
+	// lifts. FailedPrecondition for a flag closed already.
+	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the flags.v1.AdminService service. By default, it
@@ -62,12 +90,40 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		createFlagUpload: connect.NewClient[v1.CreateFlagUploadRequest, v1.CreateFlagUploadResponse](
+			httpClient,
+			baseURL+AdminServiceCreateFlagUploadProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CreateFlagUpload")),
+			connect.WithClientOptions(opts...),
+		),
+		openFlag: connect.NewClient[v1.OpenFlagRequest, v1.OpenFlagResponse](
+			httpClient,
+			baseURL+AdminServiceOpenFlagProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("OpenFlag")),
+			connect.WithClientOptions(opts...),
+		),
+		addTime: connect.NewClient[v1.AddTimeRequest, v1.AddTimeResponse](
+			httpClient,
+			baseURL+AdminServiceAddTimeProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("AddTime")),
+			connect.WithClientOptions(opts...),
+		),
+		closeFlag: connect.NewClient[v1.CloseFlagRequest, v1.CloseFlagResponse](
+			httpClient,
+			baseURL+AdminServiceCloseFlagProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listFlags *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	listFlags        *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	createFlagUpload *connect.Client[v1.CreateFlagUploadRequest, v1.CreateFlagUploadResponse]
+	openFlag         *connect.Client[v1.OpenFlagRequest, v1.OpenFlagResponse]
+	addTime          *connect.Client[v1.AddTimeRequest, v1.AddTimeResponse]
+	closeFlag        *connect.Client[v1.CloseFlagRequest, v1.CloseFlagResponse]
 }
 
 // ListFlags calls flags.v1.AdminService.ListFlags.
@@ -75,11 +131,50 @@ func (c *adminServiceClient) ListFlags(ctx context.Context, req *connect.Request
 	return c.listFlags.CallUnary(ctx, req)
 }
 
+// CreateFlagUpload calls flags.v1.AdminService.CreateFlagUpload.
+func (c *adminServiceClient) CreateFlagUpload(ctx context.Context, req *connect.Request[v1.CreateFlagUploadRequest]) (*connect.Response[v1.CreateFlagUploadResponse], error) {
+	return c.createFlagUpload.CallUnary(ctx, req)
+}
+
+// OpenFlag calls flags.v1.AdminService.OpenFlag.
+func (c *adminServiceClient) OpenFlag(ctx context.Context, req *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error) {
+	return c.openFlag.CallUnary(ctx, req)
+}
+
+// AddTime calls flags.v1.AdminService.AddTime.
+func (c *adminServiceClient) AddTime(ctx context.Context, req *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error) {
+	return c.addTime.CallUnary(ctx, req)
+}
+
+// CloseFlag calls flags.v1.AdminService.CloseFlag.
+func (c *adminServiceClient) CloseFlag(ctx context.Context, req *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error) {
+	return c.closeFlag.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the flags.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
-	// opened since, by name. A closed flag stays: no player may play for it.
+	// opened since, by name, each with its picture, its end and, once closed, when. A closed flag stays: no player may
+	// play for it.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
+	// A link to upload the picture of a flag to open, good for 10 minutes: PUT the file there with its Content-Type.
+	// PNG, JPEG or WebP, at most 5 MB. The file stays private: OpenFlag draws it again. FailedPrecondition while the
+	// flags' pictures are off.
+	CreateFlagUpload(context.Context, *connect.Request[v1.CreateFlagUploadRequest]) (*connect.Response[v1.CreateFlagUploadResponse], error)
+	// Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
+	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
+	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
+	// wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
+	// one only when the owner says so.
+	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
+	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
+	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
+	// from now; FailedPrecondition past the 30 days.
+	AddTime(context.Context, *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error)
+	// Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
+	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
+	// lifts. FailedPrecondition for a flag closed already.
+	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -96,10 +191,42 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceCreateFlagUploadHandler := connect.NewUnaryHandler(
+		AdminServiceCreateFlagUploadProcedure,
+		svc.CreateFlagUpload,
+		connect.WithSchema(adminServiceMethods.ByName("CreateFlagUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceOpenFlagHandler := connect.NewUnaryHandler(
+		AdminServiceOpenFlagProcedure,
+		svc.OpenFlag,
+		connect.WithSchema(adminServiceMethods.ByName("OpenFlag")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceAddTimeHandler := connect.NewUnaryHandler(
+		AdminServiceAddTimeProcedure,
+		svc.AddTime,
+		connect.WithSchema(adminServiceMethods.ByName("AddTime")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceCloseFlagHandler := connect.NewUnaryHandler(
+		AdminServiceCloseFlagProcedure,
+		svc.CloseFlag,
+		connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListFlagsProcedure:
 			adminServiceListFlagsHandler.ServeHTTP(w, r)
+		case AdminServiceCreateFlagUploadProcedure:
+			adminServiceCreateFlagUploadHandler.ServeHTTP(w, r)
+		case AdminServiceOpenFlagProcedure:
+			adminServiceOpenFlagHandler.ServeHTTP(w, r)
+		case AdminServiceAddTimeProcedure:
+			adminServiceAddTimeHandler.ServeHTTP(w, r)
+		case AdminServiceCloseFlagProcedure:
+			adminServiceCloseFlagHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -111,4 +238,20 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.ListFlags is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CreateFlagUpload(context.Context, *connect.Request[v1.CreateFlagUploadRequest]) (*connect.Response[v1.CreateFlagUploadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.CreateFlagUpload is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.OpenFlag is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) AddTime(context.Context, *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.AddTime is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.CloseFlag is not implemented"))
 }

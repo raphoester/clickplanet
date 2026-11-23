@@ -1,5 +1,5 @@
 import {Country} from "../components/Country.tsx"
-import {blankFlag, flagOf} from "../countries.ts"
+import {flagged} from "../countries.ts"
 import {FlagMark} from "../components/FlagMark.tsx"
 import {RosterEntry} from "../gen/grpc/player/v1/player_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
@@ -48,9 +48,7 @@ export function PlayingNow({roster}: {roster: RosterEntry[]}) {
 }
 
 function FlagOf({id}: {id: string}) {
-    if (blankFlag(id)) return <><FlagMark id={id}/> </>
-    const flag = flagOf(id)
-    return flag === "" ? null : <span className="flag" aria-hidden="true">{flag} </span>
+    return flagged(id) ? <><FlagMark id={id}/> </> : null
 }
 
 function flagsOf(roster: RosterEntry[]): [string, number][] {

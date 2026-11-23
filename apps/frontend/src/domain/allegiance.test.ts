@@ -14,6 +14,10 @@ describe("lockOf", () => {
         expect(lockOf(undefined, now)).toBeUndefined()
     })
 
+    it("holds no closed flag, whatever the wait says: its player picks another at once", () => {
+        expect(lockOf({countryId: "r-k3p9x2ma0b", changeableAt: now + 1, closed: true}, now)).toBeUndefined()
+    })
+
     it("holds a flag the rules lock, with no time, whatever the wait says", () => {
         expect(lockOf({countryId: "de", locked: true}, now)).toEqual({kind: "rules"})
         expect(lockOf({countryId: "de", changeableAt: now + 1, locked: true}, now)).toEqual({kind: "rules"})

@@ -1464,6 +1464,7 @@ export function allegianceOfMessage(message: AllegianceMessage | undefined): All
     const changeableAt = Number(message.changeableAtUnixMs)
     if (changeableAt !== 0) allegiance.changeableAt = changeableAt
     if (message.locked) allegiance.locked = true
+    if (message.closed) allegiance.closed = true
     return allegiance
 }
 

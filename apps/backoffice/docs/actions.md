@@ -22,6 +22,6 @@
   paced on the server, a replay is MBs, and the two ops runs page through every player.
 - **Every page takes its clients** (`clients.ts`: `AlertsAdmin`, `AntibotAdmin`, `BonusesAdmin`, `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`,
   `ProgressionAdmin`, `GamemasterAdmin`, `MissionsAdmin`, `QuizzesAdmin`, `SupportAdmin`, `ClipsAdmin`, `PromoAdmin`,
-  `PublishingAdmin`, `VandalsquadAdmin`, defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
+  `PublishingAdmin`, `VandalsquadAdmin`, `FlagsAdmin`, defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
   each request (`askedFor`), can refuse a method with a code, and can hold its answers until released (`hold`). The jsdom tests drive each action through its
   page.

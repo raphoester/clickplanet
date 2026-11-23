@@ -14,7 +14,8 @@ import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, leastPaintedTiles, loadBorders, loadProvinces} from "./borderField.ts";
 import {coarseTolerancesOf, createBorderLines, loadBorderLines, loadProvinceLines} from "./borderLines.ts";
-import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
+import {FlagAtlas} from "./flagAtlas.ts";
+import {useFlags} from "../flags/flagsStore.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
@@ -295,8 +296,6 @@ const GHOSTS_SIGHT = 0.7
 
 const TAP_AIM_EVERY_SECONDS = 1
 
-const textureLoader = new THREE.TextureLoader();
-
 export type Shot = {
     direction: GlobePoint
     zoom: number
@@ -513,6 +512,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const slots = new FlagSlots(invalidate)
+    // A sold flag's picture reached the atlas: the tiles, the grounds it leads and the slots take it.
+    const atlas = new FlagAtlas(invalidate, (code, number) => {
+        field.showFlag(number)
+        territories.showFlag(code)
+        provinceFrames.showFlag(code)
+        arrangeSlots()
+        invalidate()
+    })
 
     // The flags painted in each landmass's frame, and in each province's.
     const territories = new BorderField(borders, undefined, leastPaintedTiles(scale))
@@ -524,8 +531,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height, scale) * renderer.getPixelRatio()},
         virusLift: {value: virusLiftOf(scale)},
         leastFlagRadius: {value: leastFlagRadiusOf(scale)},
-        atlasTexture: {value: textureLoader.load(ATLAS_URL)},
-        atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
+        atlasTexture: atlas.texture,
+        atlasTextureSize: atlas.size,
         landmassData: {value: territories.texture},
         landmassCount: {value: territories.count},
         provinceData: {value: provinceFrames.texture},
@@ -554,6 +561,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return translator().province(province, landmass, borders.codes[landmass])
     }
     field.setProvinces(provinces.province, provinces.landmass)
+    // Every sold flag's picture, as the list of flags says it, closed ones too: they still hold land.
+    atlas.want(useFlags.getState().catalog.pictures())
+    const stopPictures = useFlags.subscribe((store, before) => {
+        if (store.catalog !== before.catalog) atlas.want(store.catalog.pictures())
+    })
 
     // The tiles of each province, and how much of each is on screen, made the first time provinces divide the map.
     let provinceTiles: Landmasses | undefined
@@ -2235,7 +2247,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             settle()
             arrangeSlots()
         }
-        if (motion !== "moving") slots.upload(renderer)
+        if (motion !== "moving") {
+            slots.upload(renderer)
+            atlas.upload(renderer)
+        }
         driveGhosts(seconds)
         driveTap(seconds)
         const boxed = driveBonusBox(seconds)
@@ -2436,6 +2451,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             territories.dispose()
             provinceFrames.dispose()
             slots.dispose()
+            stopPictures()
+            atlas.dispose()
             outline.dispose()
             bonusBox.dispose()
             enclosures.dispose()

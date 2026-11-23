@@ -509,6 +509,8 @@
   "knockout.pickFailed": "Vlajku se nepodařilo změnit. Zkus to znovu.",
   "knockout.confirmTitle": "Hrát za vlajku {country}?",
   "knockout.keepLocked": "Vlajku už nezměníš, dokud nebude vyřazená i tahle.",
+  "flagClosed.title": "{country}: vlajka uzavřena",
+  "flagClosed.pickAnother": "Vyber jinou vlajku.",
   "archive.title": "Archiv",
   "archive.backToGame": "Zpět do hry",
   "archive.seasonPicker": "Sezóna",

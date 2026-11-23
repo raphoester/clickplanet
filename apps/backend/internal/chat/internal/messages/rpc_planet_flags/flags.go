@@ -30,13 +30,14 @@ type Flags struct {
 
 var _ messages.Flags = Flags{}
 
-func (f Flags) Flag(ctx context.Context, account messages.AccountID) (string, error) {
+func (f Flags) Flag(ctx context.Context, account messages.AccountID) (messages.Pledge, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
 	res, err := f.planet.GetAllegianceOf(ctx, connect.NewRequest(&planetv1.GetAllegianceOfRequest{AccountId: account.String()}))
 	if err != nil {
-		return "", fmt.Errorf("failed to ask planet the flag %s plays for: %w", account, err)
+		return messages.Pledge{}, fmt.Errorf("failed to ask planet the flag %s plays for: %w", account, err)
 	}
-	return res.Msg.GetAllegiance().GetCountryId(), nil
+	allegiance := res.Msg.GetAllegiance()
+	return messages.Pledge{Flag: allegiance.GetCountryId(), Closed: allegiance.GetClosed()}, nil
 }

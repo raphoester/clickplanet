@@ -1,7 +1,7 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {FlagService} from "../gen/grpc/flags/v1/flags_connect.ts"
-import {FlagEvent} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Flag, FlagEvent} from "../gen/grpc/flags/v1/flags_pb.ts"
 import type {ListedFlag} from "../domain/flags.ts"
 import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -19,9 +19,24 @@ export function newFlagServiceClient(config: Config, fresh = false): PromiseClie
 }
 
 export function flagChangedOf(event: FlagEvent): ListedFlag | undefined {
-    if (event.event.case !== "flagChanged") return undefined
-    const {code, name, closed} = event.event.value
-    return {code, name, closed}
+    return event.event.case === "flagChanged" ? listedOf(event.event.value) : undefined
+}
+
+// A sold flag with no picture, which no server sends, is listed as an opened flag with none: the blank.
+export function listedOf({code, name, closed, sold}: Flag): ListedFlag {
+    const picture = sold?.picture
+    if (!sold || !picture || picture.url === "") return {code, name, closed}
+    return {
+        code, name, closed,
+        sold: {
+            picture: {
+                url: picture.url, width: picture.width, height: picture.height,
+                stretch: picture.stretch, focusX: picture.focusX, focusY: picture.focusY,
+            },
+            endsAt: sold.endsAt ? sold.endsAt.toDate().getTime() : 0,
+            closedAt: sold.closedAt ? sold.closedAt.toDate().getTime() : undefined,
+        },
+    }
 }
 
 // A server from before the flags module has neither the list nor the stream.
@@ -38,7 +53,7 @@ export class ConnectFlagsBackend implements FlagLister, FlagStream {
         const client = fresh ? this.fresh : this.client
         try {
             const res = await retrying(() => client.listFlags({}), "ListFlags")
-            return res.flags.map(({code, name, closed}) => ({code, name, closed}))
+            return res.flags.map(listedOf)
         } catch (e) {
             if (unimplemented(e)) return []
             throw e

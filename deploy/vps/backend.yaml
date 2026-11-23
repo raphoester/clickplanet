@@ -360,6 +360,18 @@ flags:
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
+  # The pictures of the flags opened since: uploaded private under flags/uploads/, drawn again under flags/pictures/,
+  # which media.clickplanet.lol serves (deploy/vps/README.md, "Sold flags' pictures"). Same bucket and key as the
+  # support files.
+  pictures:
+    enabled: true
+    publicBaseURL: https://media.clickplanet.lol
+    bucket:
+      endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET
 
 support:
   database:

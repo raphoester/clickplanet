@@ -12,13 +12,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Conn, lock func() allegiances.Lock) *PostgresQuery {
-	return &PostgresQuery{db: db, lock: lock}
+// Flags is planet's catalog: a closed flag is not playable once no lock holds it.
+type Flags interface {
+	Playable(ctx context.Context, flag string) (bool, error)
+}
+
+func NewPostgresQuery(db cppg.Conn, lock func() allegiances.Lock, flags Flags) *PostgresQuery {
+	return &PostgresQuery{db: db, lock: lock, flags: flags}
 }
 
 type PostgresQuery struct {
-	db   cppg.Conn
-	lock func() allegiances.Lock
+	db    cppg.Conn
+	lock  func() allegiances.Lock
+	flags Flags
 }
 
 func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Account) (*planetv1.GetAllegianceResponse, error) {
@@ -39,7 +45,11 @@ func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Acco
 		return nil, fmt.Errorf("failed to read the allegiance of %s: %w", account, err)
 	}
 
-	return &planetv1.GetAllegianceResponse{
-		Allegiance: allegiancemessage.Encode(flag, allegiances.ChangedAt(changedAt.Time).ChangeableAt(), bool(q.lock())),
-	}, nil
+	playable, err := q.flags.Playable(ctx, flag)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read whether %q may be played: %w", flag, err)
+	}
+	allegiance := allegiancemessage.Encode(flag, allegiances.ChangedAt(changedAt.Time).ChangeableAt(), bool(q.lock()))
+	allegiance.Closed = !playable
+	return &planetv1.GetAllegianceResponse{Allegiance: allegiance}, nil
 }

@@ -17,6 +17,7 @@ import {
     minesExplodedOf,
     mineLaidOf,
     rallyCalledOf,
+    allegianceOfMessage,
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {BoardChanges, CACHED_MS} from "./boards.ts"
@@ -2174,6 +2175,14 @@ describe("the refill", () => {
 
         expect(seen.at(-1)?.refills).toBe(0)
         backend.close()
+    })
+})
+
+describe("allegianceOfMessage", () => {
+    it("says a flag held is closed, as GetAllegiance answers it when no lock holds it", () => {
+        expect(allegianceOfMessage(new AllegianceMessage({countryId: "r-k3p9x2ma0b", closed: true})))
+            .toEqual({countryId: "r-k3p9x2ma0b", closed: true})
+        expect(allegianceOfMessage(new AllegianceMessage({countryId: "fr"}))).toEqual({countryId: "fr"})
     })
 })
 

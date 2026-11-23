@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type {OwnerChange} from "../../domain/tileOwnership.ts";
 import type {ShieldChange} from "../../domain/shields.ts";
-import {BLANK_REGION, FLAG_NUMBERS, flagNumberOf, regions} from "./atlas.ts";
+import {FLAG_NUMBERS, flagNumberOf, regionOfNumber} from "./atlas.ts";
 import {disposeMaterial} from "./scene.ts";
 import type {TileGeometry} from "./points.ts";
 import type {Graphics} from "./graphics.ts";
@@ -59,13 +59,6 @@ const RECTANGLE = 4
 // Must match PACK in shaders/display/vertex.glsl: the plain layout holds a rectangle as x + y * PACK, width + height * PACK.
 const PACK = 2048
 
-const PICTURES = [...regions.values(), BLANK_REGION]
-const RECTANGLES = new Float32Array(FLAG_NUMBERS * RECTANGLE)
-const PACKED = new Float32Array(FLAG_NUMBERS * 2)
-PICTURES.forEach(({x, y, width, height}, i) => {
-    RECTANGLES.set([x, y, width, height], (i + 1) * RECTANGLE)
-    PACKED.set([x + y * PACK, width + height * PACK], (i + 1) * 2)
-})
 
 type Slot = {attribute: THREE.BufferAttribute, offset: number, width: number}
 
@@ -87,6 +80,9 @@ export class TileField {
     // Each tile's flag and province at its cell's texel, for the territory layer.
     readonly tileData: THREE.DataTexture
     readonly flagRectangles: THREE.DataTexture
+    // Each flag number's atlas rectangle, as the compact layout's texture and as the plain layout's two floats.
+    private readonly rectangles = new Float32Array(FLAG_NUMBERS * RECTANGLE)
+    private readonly packed = new Float32Array(FLAG_NUMBERS * 2)
     // Where each flag's own tiles lie on each ground, for the territory layer's flags that do not lead it.
     readonly footprints: FootprintField
 
@@ -120,7 +116,8 @@ export class TileField {
         this.shown = new Uint32Array(chunkCount(chunks))
         this.ringed = new Uint32Array(chunkCount(chunks))
         this.sight = new ChunkSight(chunks, this.shown, MAX_DRAWS, LEAST_GAP)
-        this.flagRectangles = flagRectangles()
+        for (let flag = 1; flag < FLAG_NUMBERS; flag++) this.writeRegion(flag)
+        this.flagRectangles = flagRectangles(this.rectangles)
 
         const rows = Math.ceil(size / TILE_COLUMNS)
         this.tileValues = new Uint16Array(TILE_COLUMNS * rows * 2)
@@ -189,7 +186,7 @@ export class TileField {
 
         this.patch(this.slots.flag, tiles, (values, at, i) => {
             if (this.compact) values[at] = flags[i]
-            else values.set(PACKED.subarray(flags[i] * 2, flags[i] * 2 + 2), at)
+            else values.set(this.packed.subarray(flags[i] * 2, flags[i] * 2 + 2), at)
         })
 
         tiles.forEach((tile, i) => {
@@ -198,6 +195,24 @@ export class TileField {
             this.changedRows.add(Math.floor(texel / TILE_COLUMNS))
         })
         this.footprints.setFlags(tiles.map((tile) => tile - 1), flags)
+    }
+
+    // A flag's picture reached the atlas: the plain layout holds the rectangle in each of its tiles.
+    showFlag(flag: number) {
+        this.writeRegion(flag)
+        this.flagRectangles.needsUpdate = true
+        if (this.compact) return
+        const tiles: number[] = []
+        for (let tile = 1; tile <= this.size; tile++) {
+            if (this.tileValues[this.texels[tile - 1] * 2] === flag) tiles.push(tile)
+        }
+        this.patch(this.slots.flag, tiles, (values, at) => values.set(this.packed.subarray(flag * 2, flag * 2 + 2), at))
+    }
+
+    private writeRegion(flag: number) {
+        const {x, y, width, height} = regionOfNumber(flag)
+        this.rectangles.set([x, y, width, height], flag * RECTANGLE)
+        this.packed.set([x + y * PACK, width + height * PACK], flag * 2)
     }
 
     setShields(changes: readonly ShieldChange[]) {
@@ -358,8 +373,8 @@ function compactLayout(size: number): Layout {
     }
 }
 
-function flagRectangles(): THREE.DataTexture {
-    const texture = new THREE.DataTexture(RECTANGLES, RECTANGLES.length / RECTANGLE, 1, THREE.RGBAFormat, THREE.FloatType)
+function flagRectangles(rectangles: Float32Array): THREE.DataTexture {
+    const texture = new THREE.DataTexture(rectangles, rectangles.length / RECTANGLE, 1, THREE.RGBAFormat, THREE.FloatType)
     texture.needsUpdate = true
     return texture
 }

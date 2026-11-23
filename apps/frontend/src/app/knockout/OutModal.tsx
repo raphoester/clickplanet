@@ -27,16 +27,33 @@ export type OutModalProps = {
 export default function OutModal(props: OutModalProps) {
     const standing = useStanding((store) => store.standing)
     const watching = useStanding((store) => store.watching)
+    const watch = useStanding((store) => store.watch)
 
     if (standing === undefined || stands(standing, props.flag.code) || watching === props.flag.code) return null
-    return <OutWindow {...props} standing={standing}/>
+    const country = translator().country(props.flag.code)
+    return <PickAnotherWindow title={t(standing.out.has(props.flag.code) ? "knockout.isOut" : "knockout.noCapital", {country})}
+                              line={t("knockout.pickStillIn")}
+                              standing={standing}
+                              allegiance={props.allegiance}
+                              onPick={props.onPick}
+                              onClose={() => watch(props.flag.code)}/>
 }
 
 // One pick to confirm; `n` tells two picks of the same country apart, so each arms Confirm anew.
 type Choice = {country: Country, n: number}
 
-function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standing: Standing}) {
-    const watch = useStanding((store) => store.watch)
+export type PickAnotherProps = {
+    title: string
+    line: string
+    standing: Standing | undefined
+    allegiance?: Allegiance
+    onPick: (country: Country) => Promise<void>
+    // None: the window stays until a flag is picked.
+    onClose?: () => void
+}
+
+// The flags a player may play for, to pick one, and the pick to confirm.
+export function PickAnotherWindow({title, line, standing, allegiance, onPick, onClose}: PickAnotherProps) {
     const [choice, setChoice] = useState<Choice>()
     const [armedFor, setArmedFor] = useState<number>()
     const picks = useRef(0)
@@ -71,19 +88,16 @@ function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standi
         try {
             await onPick(choice.country)
         } catch (e) {
-            console.error("could not pick a flag still in", e)
+            console.error("could not pick another flag", e)
             setFailed(true)
         } finally {
             setSending(false)
         }
     }
 
-    const close = () => watch(flag.code)
     if (choice === undefined) {
-        const country = translator().country(flag.code)
-        return <Modal title={t(standing.out.has(flag.code) ? "knockout.isOut" : "knockout.noCapital", {country})}
-                      onClose={close}>
-            <p className="country-picker-rule">{t("knockout.pickStillIn")}</p>
+        return <Modal title={title} onClose={onClose} stayOnBackdropClick={onClose === undefined}>
+            <p className="country-picker-rule">{line}</p>
             <div className="country-picker-list">
                 <SelectWithSearch values={stillIn} onChange={(value) => choose({code: value.code})}/>
             </div>
@@ -92,7 +106,8 @@ function OutWindow({flag, allegiance, onPick, standing}: OutModalProps & {standi
 
     const chosen = translator().country(choice.country.code)
     return <Modal title={t("knockout.confirmTitle", {country: chosen})}
-                  onClose={close}
+                  onClose={onClose}
+                  stayOnBackdropClick={onClose === undefined}
                   footer={<div className="out-confirm-actions">
                       <button type="button" className="button button-action" disabled={!armed || sending} onClick={() => void confirm()}>
                           {t("common.confirm")}

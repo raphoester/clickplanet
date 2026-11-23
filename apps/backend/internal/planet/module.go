@@ -354,7 +354,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			refusing := log_refusals.New(refusalBook, props.Logger)
 
-			flagCatalog := catalog.NewCatalog(postgres_catalog_store.New(db))
+			flagCatalog := catalog.NewCatalog(postgres_catalog_store.New(db), func() bool { return bool(lock()) })
 			flagsOpened, err := cpredis.Subscribe(ctx, streams, "planet-flags-opened",
 				log_subscriber.New(flag_opened_subscriber.New(flagCatalog), props.Logger))
 			if err != nil {
@@ -488,7 +488,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(played),
-				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
+				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db, lock, flagCatalog)),
 				GetRuleSetNamesHandler:   get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 				GetRuleSetHandler:        get_rule_set_handler.New(rule_set_query.NewPostgresQuery(db)),
 				// A grant made at once is known by its id in memory for a while, or in charge_grants for good.
@@ -568,7 +568,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
 					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, forgettings, erasures, clock),
 					clock),
-				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
+				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock, flagCatalog)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}
 

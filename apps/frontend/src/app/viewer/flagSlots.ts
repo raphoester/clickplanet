@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {FLAG_NUMBERS, flagNumbers, regions} from "./atlas.ts"
+import {aspectOf, FLAG_NUMBERS, flagNumberOf, pictureOf} from "./atlas.ts"
 import {type Cell, flagIn, overlap, type SlotBudget, textureSizeOf} from "./slotCells.ts"
 import {type FlagNeed, type Placed, SlotLayout} from "./slotRanking.ts"
 
@@ -36,7 +36,7 @@ export class FlagSlots {
     arrange(needs: ReadonlyMap<string, FlagNeed>, budget: SlotBudget) {
         if (this.layout && !sameBudget(this.layout.budget, budget)) this.reset()
         this.layout ??= new SlotLayout(budget)
-        this.wanted = this.layout.arrange(new Map([...needs].filter(([code]) => !failed.has(code) && regions.has(code))))
+        this.wanted = this.layout.arrange(new Map([...needs].filter(([code]) => !failed.has(code) && aspectOf(code) !== undefined)))
         this.prepare()
     }
 
@@ -114,15 +114,14 @@ export class FlagSlots {
 
     private async rasterise(placed: Placed): Promise<Drawn | undefined> {
         const image = await imageOf(placed.code)
-        const region = regions.get(placed.code)
-        if (image === undefined || region === undefined) {
+        const aspect = aspectOf(placed.code)
+        if (image === undefined || aspect === undefined) {
             this.layout?.forget(placed.code)
             this.wanted = this.wanted.filter((other) => other !== placed)
             return undefined
         }
         await idle()
         if (!this.wants(placed)) return undefined
-        const aspect = region.width / region.height
         this.canvas = drawFlag(this.canvas, image, placed.cell, aspect)
         const bitmap = await createImageBitmap(this.canvas)
         if (!this.wants(placed)) {
@@ -177,7 +176,7 @@ function createTarget({width, height}: {width: number, height: number}): THREE.D
 }
 
 function frameAt(code: string): number {
-    return (flagNumbers.get(code) ?? 0) * FRAME
+    return flagNumberOf(code) * FRAME
 }
 
 function sameCell(a: Cell | undefined, b: Cell | undefined): boolean {
@@ -195,10 +194,12 @@ function idle(): Promise<void> {
     })
 }
 
+// A built flag from its SVG; a sold one from its picture, 768 x 512 at most.
 function imageOf(code: string): Promise<HTMLImageElement | undefined> {
     let loading = images.get(code)
     if (loading === undefined) {
-        loading = loadSvg(`/static/countries/svg/${code}.svg`).catch((e: unknown) => {
+        const picture = pictureOf(code)
+        loading = (picture ? decoded(picture.url, "anonymous") : loadSvg(`/static/countries/svg/${code}.svg`)).catch((e: unknown) => {
             console.warn(`the flag of ${code} stays on the atlas`, e)
             failed.add(code)
             return undefined
@@ -230,9 +231,11 @@ export function sizedSvg(svg: string, url: string): string {
     return svg.replace(root, () => `<svg width="${width}" height="${height}"${bare.slice(4)}`)
 }
 
-function decoded(src: string): Promise<HTMLImageElement> {
+// A picture from another origin is asked for with CORS, or the canvas it is drawn on could not be sent to the GPU.
+function decoded(src: string, crossOrigin?: "anonymous"): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
         const image = new Image()
+        if (crossOrigin) image.crossOrigin = crossOrigin
         image.onload = () => resolve(image)
         image.onerror = () => reject(new Error(`${src} could not be decoded`))
         image.src = src

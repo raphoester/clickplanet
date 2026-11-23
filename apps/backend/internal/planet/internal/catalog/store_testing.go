@@ -59,5 +59,8 @@ func NewOpenCatalog(flags ...string) Catalog {
 	for _, flag := range flags {
 		store.rows[flag] = HeardSnapshot{State: Open, DecidedAt: at}
 	}
-	return NewCatalog(store)
+	return NewCatalog(store, Unlocked)
 }
+
+// Unlocked is the rules of a day: every flag may change.
+func Unlocked() bool { return false }

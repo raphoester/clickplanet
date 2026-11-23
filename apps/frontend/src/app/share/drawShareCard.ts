@@ -1,6 +1,7 @@
 import {CapturedFrame} from "../viewer/capture.ts";
-import {BLANK_REGION, regions} from "../viewer/atlas.ts";
+import {BLANK_REGION, Region, regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
+import {flagCatalog} from "../flags/flagsStore.ts";
 import {
     cardLayout,
     Crop,
@@ -43,14 +44,22 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats, add
     const look = lookOfThePage()
 
     // Fonts must be ready before the first measureText: a fallback face measures differently.
-    const [atlas, logo] = await Promise.all([
+    const picture = flagCatalog().pictureOf(stats.country.code)
+    const [atlas, logo, sold] = await Promise.all([
         loadImage(ATLAS_URL),
         loadImage(LOGO_URL),
+        picture && loadImage(picture.url, "anonymous").catch((e: unknown) => {
+            console.warn("the flag's picture did not load for the share image: it is drawn grey", e)
+            return undefined
+        }),
         fontsReady(look, translator().country(stats.country.code) + statsLine(stats)),
     ])
 
     drawMasthead(context, size, address, logo, look)
-    drawBadge(context, size, stats, atlas, look)
+    const built = regions.get(stats.country.code)
+    drawBadge(context, size, stats, look, sold
+        ? {image: sold, region: {x: 0, y: 0, width: sold.naturalWidth, height: sold.naturalHeight}}
+        : built && {image: atlas, region: built})
 
     return encode(canvas)
 }
@@ -133,8 +142,9 @@ function drawBadge(
     context: CanvasRenderingContext2D,
     size: {width: number, height: number},
     stats: ShareStats,
-    atlas: HTMLImageElement,
     look: Look,
+    // A built flag's sprite out of the atlas, or a sold one's own picture; none, a flag with neither, is drawn grey.
+    picture: {image: HTMLImageElement, region: Region} | undefined,
 ) {
     const unit = Math.min(size.width, size.height) / 100
     const margin = 4 * unit
@@ -143,7 +153,7 @@ function drawBadge(
     let nameSize = 7 * unit
     const labelSize = 3 * unit
 
-    const region = regions.get(stats.country.code)
+    const region = picture?.region
     const name = translator().country(stats.country.code)
     const flag = fitInBox(region ?? BLANK_REGION, {width: 9 * unit, height: 6 * unit})
 
@@ -174,8 +184,8 @@ function drawBadge(
     panel(context, left, top, width, height, 2.6 * unit, unit, look)
 
     const middle = top + padding + topRow / 2
-    if (region) {
-        context.drawImage(atlas,
+    if (picture && region) {
+        context.drawImage(picture.image,
             region.x, region.y, region.width, region.height,
             left + padding, middle - flag.height / 2, flag.width, flag.height)
     } else {
@@ -271,12 +281,14 @@ function clearShadow(context: CanvasRenderingContext2D) {
 
 const images = new Map<string, Promise<HTMLImageElement>>()
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+// A picture of another origin is asked for with CORS, or the canvas could not be read back into a file.
+function loadImage(url: string, crossOrigin?: "anonymous"): Promise<HTMLImageElement> {
     const known = images.get(url)
     if (known) return known
 
     const loading = new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image()
+        if (crossOrigin) image.crossOrigin = crossOrigin
         image.onload = () => resolve(image)
         image.onerror = () => {
             images.delete(url)

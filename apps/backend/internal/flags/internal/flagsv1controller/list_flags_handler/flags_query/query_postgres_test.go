@@ -11,6 +11,7 @@ import (
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler/flags_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
@@ -25,7 +26,7 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 	require.NoError(t, postgres_flag_store.New(db).Save(t.Context(),
 		closed, catalog.OpenFlag("r-0000000002", "Bavaria", openedAt)))
 
-	list, err := flags_query.NewPostgresQuery(db).Flags(t.Context())
+	list, err := flags_query.NewPostgresQuery(db, flagmessage.New("https://media.test")).Flags(t.Context())
 	require.NoError(t, err)
 
 	builtIn := cpflags.BuiltIn()
@@ -34,7 +35,13 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 		assert.True(t, proto.Equal(&flagsv1.Flag{Code: flag.Code, Name: flag.Name}, list.GetFlags()[i]), "%v", list.GetFlags()[i])
 	}
 	opened := list.GetFlags()[len(builtIn):]
-	assert.True(t, proto.Equal(&flagsv1.Flag{Code: "r-0000000002", Name: "Bavaria"}, opened[0]), "%v", opened[0])
-	assert.True(t, proto.Equal(&flagsv1.Flag{Code: "r-0000000001", Name: "Rennes", Closed: true}, opened[1]),
-		"a closed flag stays in the list: %v", opened[1])
+	assert.Equal(t, [2]string{"r-0000000002", "Bavaria"}, [2]string{opened[0].GetCode(), opened[0].GetName()})
+	assert.False(t, opened[0].GetClosed())
+	assert.Nil(t, opened[0].GetSold().GetClosedAt())
+	assert.Equal(t, "https://media.test/"+catalog.TestPicture.Key(), opened[0].GetSold().GetPicture().GetUrl())
+	assert.Equal(t, uint32(300), opened[0].GetSold().GetPicture().GetWidth())
+	assert.Equal(t, openedAt.Add(30*24*time.Hour), opened[0].GetSold().GetEndsAt().AsTime())
+	assert.Equal(t, [2]string{"r-0000000001", "Rennes"}, [2]string{opened[1].GetCode(), opened[1].GetName()})
+	assert.True(t, opened[1].GetClosed(), "a closed flag stays in the list")
+	assert.Equal(t, openedAt.Add(time.Hour), opened[1].GetSold().GetClosedAt().AsTime())
 }

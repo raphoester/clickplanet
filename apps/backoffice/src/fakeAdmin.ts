@@ -221,7 +221,17 @@ import {
     SaveRulesResponse,
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
-import {Flag, ListFlagsRequest, ListFlagsResponse} from "./gen/grpc/flags/v1/flags_pb.ts"
+import {Flag, ListFlagsRequest, ListFlagsResponse, Picture, Sold} from "./gen/grpc/flags/v1/flags_pb.ts"
+import {
+    AddTimeRequest,
+    AddTimeResponse,
+    CloseFlagRequest,
+    CloseFlagResponse,
+    CreateFlagUploadRequest,
+    CreateFlagUploadResponse,
+    OpenFlagRequest,
+    OpenFlagResponse,
+} from "./gen/grpc/flags/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
     PlanetAdmin, PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
@@ -755,15 +765,97 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     }
 }
 
-// flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, and no flag opened.
+const DAY_MS = 86_400_000
+
+// A flag opened since the game shipped, as the server lists it; closed when it has a close.
+export function soldFlag(code: string, name: string, endsAt: Date, closedAt?: Date, url = `https://media.test/flags/pictures/${code}.png`): Flag {
+    return new Flag({
+        code, name, closed: closedAt !== undefined,
+        sold: new Sold({
+            picture: new Picture({url, width: 768, height: 512, focusX: 0.5, focusY: 0.5}),
+            endsAt: Timestamp.fromDate(endsAt),
+            closedAt: closedAt === undefined ? undefined : Timestamp.fromDate(closedAt),
+        }),
+    })
+}
+
+// flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, then the ones opened
+// since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it. Each change is kept as the
+// server keeps it, at the time of the call.
 export class FakeFlags implements FlagsAdmin {
-    listed = [["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
-        .map(([code, name]) => new Flag({code, name}))
+    listed = [
+        ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
+            .map(([code, name]) => new Flag({code, name})),
+        soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS)),
+        soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS)),
+    ]
+    private readonly uploads = new Map<string, PartialMessage<CreateFlagUploadRequest>>()
 
     constructor(private readonly admin: FakeAdmin) {}
 
     listFlags(request: PartialMessage<ListFlagsRequest>): Promise<ListFlagsResponse> {
         return this.admin.answer("listFlags", request, new ListFlagsResponse({flags: this.listed}))
+    }
+
+    createFlagUpload(request: PartialMessage<CreateFlagUploadRequest>): Promise<CreateFlagUploadResponse> {
+        const uploadId = `flag-upload-${this.uploads.size + 1}`
+        const answer = this.admin.answer("createFlagUpload", request, new CreateFlagUploadResponse({
+            uploadId, uploadUrl: `https://bucket.test/flags/uploads/${uploadId}`,
+        }))
+        if (!this.admin.refusals.has("createFlagUpload")) this.uploads.set(uploadId, request)
+        return answer
+    }
+
+    // The fake has no bucket: any upload it made a link for is a picture.
+    openFlag(request: PartialMessage<OpenFlagRequest>): Promise<OpenFlagResponse> {
+        if (!this.uploads.has(request.uploadId ?? "")) {
+            return this.refused("openFlag", request, "no picture uploaded under this id", Code.InvalidArgument)
+        }
+        const code = `r-${this.listed.length.toString(36).padStart(10, "0")}`
+        const flag = soldFlag(code, (request.name ?? "").trim(), new Timestamp(request.endsAt).toDate())
+        const answer = this.admin.answer("openFlag", request, new OpenFlagResponse({flag}))
+        if (!this.admin.refusals.has("openFlag")) {
+            const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
+            this.listed = [...this.listed.filter(each => each.sold === undefined), ...sold]
+        }
+        return answer
+    }
+
+    // An open flag ends that much later; one closed less than 30 days ago opens again, and ends that much from now.
+    addTime(request: PartialMessage<AddTimeRequest>): Promise<AddTimeResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("addTime", request, "no flag opened under this code", Code.NotFound)
+        const now = new Date()
+        const closedAt = flag.sold?.closedAt?.toDate()
+        if (closedAt !== undefined && now.getTime() - closedAt.getTime() >= 30 * DAY_MS) {
+            return this.refused("addTime", request, "closed over 30 days ago", Code.FailedPrecondition)
+        }
+        const from = closedAt === undefined ? flag.sold?.endsAt?.toDate() ?? now : now
+        const added = soldFlag(flag.code, flag.name, new Date(from.getTime() + (request.days ?? 0) * DAY_MS), undefined,
+            flag.sold?.picture?.url)
+        return this.replaced("addTime", request, added, new AddTimeResponse({flag: added}))
+    }
+
+    closeFlag(request: PartialMessage<CloseFlagRequest>): Promise<CloseFlagResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("closeFlag", request, "no flag opened under this code", Code.NotFound)
+        if (flag.closed) return this.refused("closeFlag", request, "the flag is closed already", Code.FailedPrecondition)
+        const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
+            flag.sold?.picture?.url)
+        return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))
+    }
+
+    private replaced<T>(method: string, request: unknown, flag: Flag, response: T): Promise<T> {
+        const answer = this.admin.answer(method, request, response)
+        if (!this.admin.refusals.has(method)) this.listed = this.listed.map(each => each.code === flag.code ? flag : each)
+        return answer
+    }
+
+    // Refused as the server refuses it, after the same wait as an answer.
+    private refused<T>(method: string, request: unknown, why: string, code: Code): Promise<T> {
+        return this.admin.answer(method, request, undefined).then((): T => {
+            throw new ConnectError(why, code)
+        })
     }
 }
 

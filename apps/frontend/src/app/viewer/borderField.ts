@@ -2,7 +2,7 @@ import {BoardScale, scaledCount} from "../../domain/boardScale.ts"
 import type {BoardAsset} from "../../domain/board.ts"
 import {bordersHashOf, decodeProvinces, landmassProvinces, type Provinces} from "../../domain/provinces.ts"
 import * as THREE from "three"
-import {flagNumberOf, regionOf} from "./atlas.ts"
+import {flagNumberOf, pictureOf, regionOf} from "./atlas.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
 import {addNeed, type FlagNeed} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
@@ -67,6 +67,7 @@ export class BorderField {
 
     private readonly rows: Float32Array
     private readonly painted: (string | undefined)[]
+    private readonly leaders: ({holder: string, held: number} | undefined)[]
 
     constructor(
         private readonly data: Grounds,
@@ -78,6 +79,7 @@ export class BorderField {
         this.count = data.totals.length
         if (this.count > MOST_GROUNDS) throw new Error(`${this.count} grounds, more rows than a texture takes (${MOST_GROUNDS})`)
         this.painted = new Array(this.count)
+        this.leaders = new Array(this.count)
 
         this.rows = new Float32Array(LANDMASS_TEXELS * this.count * 4)
         for (let piece = 1; piece < this.count; piece++) {
@@ -129,7 +131,19 @@ export class BorderField {
         if (changed) this.texture.needsUpdate = true
     }
 
+    // A flag's picture reached the atlas: each ground it leads is framed again at the picture's shape.
+    showFlag(code: string) {
+        let changed = false
+        for (let landmass = 1; landmass < this.count; landmass++) {
+            if (this.painted[landmass] !== code) continue
+            this.painted[landmass] = undefined
+            changed = this.settle(landmass, this.leaders[landmass]) || changed
+        }
+        if (changed) this.texture.needsUpdate = true
+    }
+
     private settle(landmass: number, leader: {holder: string, held: number} | undefined): boolean {
+        this.leaders[landmass] = leader
         const total = this.data.totals[landmass]
 
         let holder = leader?.holder
@@ -161,7 +175,7 @@ export class BorderField {
 
         let halfU: number
         let halfV: number
-        if (this.stretch && holder !== undefined && fits[holder]?.stretch && reachU > 0 && reachV > 0) {
+        if (this.stretch && holder !== undefined && fitOf(holder)?.stretch && reachU > 0 && reachV > 0) {
             const wanted = reachU / reachV
             const pulled = Math.min(Math.max(wanted, aspect / MAX_STRETCH), aspect * MAX_STRETCH)
             halfV = Math.max(reachV, reachU / pulled)
@@ -217,8 +231,14 @@ const fits: Record<string, FlagFit> = flagFit
 
 const FOCUS_BIAS = 2
 
+// A sold flag's picture says what flagFit.json says of a built one.
+function fitOf(code: string): FlagFit | undefined {
+    const picture = pictureOf(code)
+    return picture ? {stretch: picture.stretch, focus: [picture.focusX, picture.focusY]} : fits[code]
+}
+
 function focusOf(code: string, axis: 0 | 1): number {
-    const focus = fits[code]?.focus?.[axis] ?? 0.5
+    const focus = fitOf(code)?.focus?.[axis] ?? 0.5
     return Math.min(1, Math.max(0, 0.5 + (focus - 0.5) * FOCUS_BIAS))
 }
 

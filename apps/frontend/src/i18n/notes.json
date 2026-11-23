@@ -137,6 +137,8 @@
   "knockout.pickStillIn": "A flag still in the knock-out (it still has a capital).",
   "knockout.confirmTitle": "The out window asks the player to confirm the flag just picked, before it is pledged.",
   "knockout.keepLocked": "Under the confirm title, while the rules lock every flag: the flag picked is kept until it is itself knocked out.",
+  "flagClosed.title": "The title of the window that opens when the flag the player plays for has closed: its time ran out. The player must pick another flag.",
+  "flagClosed.pickAnother": "Under that title, over the list of flags the player can pick from.",
   "archive.seasonPicker": "Screen reader name of the switch that picks a past season.",
   "archive.window": "Screen reader name of the switch between the whole season and its Final Battle.",
   "archive.wholeSeason": "Choice: the whole season, against its Final Battle alone.",

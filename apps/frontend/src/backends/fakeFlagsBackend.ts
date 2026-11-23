@@ -1,18 +1,29 @@
 import countriesData from "../../static/countries/countries.json"
-import type {ListedFlag} from "../domain/flags.ts"
+import type {FlagPicture, ListedFlag} from "../domain/flags.ts"
 import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 
 const BUILT_IN: readonly ListedFlag[] = Object.entries(countriesData).map(([code, name]) => ({code, name, closed: false}))
 
 const CODE_LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
+const DAY_MS = 24 * 60 * 60 * 1000
+// Time added within this long of a close opens the flag again.
+const COMEBACK_MS = 30 * DAY_MS
 
-// `openFlag("Bavaria")` and `closeFlag(code)` on the console, each told as the flags module's stream tells it.
+// A flag's picture, as the server would have drawn it from an upload.
+export type FlagPainter = (name: string) => Promise<FlagPicture>
+
+// `openFlag("Bavaria")`, `addTime(code, days)` and `closeFlag(code)` on the console, each told as the flags module's
+// stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
-    private readonly opened: ListedFlag[] = []
+    private readonly sold: ListedFlag[] = []
     private readonly listeners = new Set<FlagHandlers>()
+    private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
+
+    constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
+    }
 
     public async listFlags(): Promise<ListedFlag[]> {
-        return [...BUILT_IN, ...this.opened.map((flag) => ({...flag}))]
+        return [...BUILT_IN, ...this.sold.map(copyOf)]
     }
 
     public listenForFlags(handlers: FlagHandlers): () => void {
@@ -25,23 +36,58 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         }
     }
 
-    public open(name: string): string {
+    // The flags closed now, as planet hears them: the fake planet answers GetAllegiance with them.
+    public listenForClosed(onClosed: (closed: ReadonlySet<string>) => void): () => void {
+        this.closings.add(onClosed)
+        onClosed(this.closed())
+        return () => this.closings.delete(onClosed)
+    }
+
+    public async open(name: string, days = 30): Promise<string> {
         const code = `r-${Array.from({length: 10}, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("")}`
-        const flag = {code, name, closed: false}
-        this.opened.push(flag)
+        const flag: ListedFlag = {code, name, closed: false, sold: {picture: await this.paint(name), endsAt: this.now() + days * DAY_MS}}
+        this.sold.push(flag)
         this.tell(flag)
         return code
     }
 
+    // An open flag ends later; one closed less than 30 days ago opens again, ending that many days from now.
+    public addTime(code: string, days: number): "longer" | "reopened" | "unknown" | "too late" {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined) return "unknown"
+        const now = this.now()
+        if (!flag.closed) {
+            flag.sold = {...flag.sold, endsAt: flag.sold.endsAt + days * DAY_MS}
+            this.tell(flag)
+            return "longer"
+        }
+        if (now - (flag.sold.closedAt ?? 0) > COMEBACK_MS) return "too late"
+        flag.closed = false
+        flag.sold = {picture: flag.sold.picture, endsAt: now + days * DAY_MS}
+        this.tell(flag)
+        return "reopened"
+    }
+
     public close(code: string): boolean {
-        const flag = this.opened.find((opened) => opened.code === code)
-        if (flag === undefined || flag.closed) return false
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined || flag.closed) return false
         flag.closed = true
+        flag.sold = {...flag.sold, closedAt: this.now()}
         this.tell(flag)
         return true
     }
 
-    private tell(flag: ListedFlag) {
-        this.listeners.forEach(({onChanged}) => onChanged({...flag}))
+    private closed(): ReadonlySet<string> {
+        return new Set(this.sold.filter((flag) => flag.closed).map((flag) => flag.code))
     }
+
+    private tell(flag: ListedFlag) {
+        this.listeners.forEach(({onChanged}) => onChanged(copyOf(flag)))
+        const closed = this.closed()
+        this.closings.forEach((onClosed) => onClosed(closed))
+    }
+}
+
+function copyOf(flag: ListedFlag): ListedFlag {
+    return flag.sold ? {...flag, sold: {...flag.sold}} : {...flag}
 }

@@ -541,6 +541,9 @@ wire each request says its room in `flag_room`: empty for the world, a country f
   so a new flag counts at once. A call to the world asks nothing.
 - **`messages.Rooms.EntryError` is the rule**: nil for the world; `ErrNoAccount` with no account; `ErrNotInRoom` for an
   account that plays for another flag, or for none. A failure to ask planet is the error net's.
+- **The room of a closed flag is read, not written** (`Rooms.SpeakError`, `ErrRoomClosed`, `FailedPrecondition`): a post
+  and a reaction there are refused once planet answers `Allegiance.closed`, until its players pick another flag; the
+  history, the seen mark and the stream stay open. See the backend's [The flags module](flags.md).
 - **Every call to a flag's room checks it**: `Drafts.Draft` before it draws an id (a post), `Showing.Message` once it
   read the message's room (a reaction), `get_history_handler` before it reads, `mark_seen_usecase`, and
   `listen_for_events_usecase` once it has subscribed, so a pledge in between is read or heard. `ErrNotInRoom` is

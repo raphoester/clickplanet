@@ -12,57 +12,75 @@ import (
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var now = time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+var (
+	now    = time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+	upload = pictures.UploadID{1}
+)
 
 type fixture struct {
 	store   *catalog.MemoryStore
+	bucket  *pictures.MemoryBucket
 	outbox  *cpatomic.FakeOutbox
 	useCase *open_flag_usecase.UseCase
 }
 
 func newFixture() fixture {
-	store, outbox := catalog.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	return fixture{store: store, outbox: outbox, useCase: open_flag_usecase.New(
-		&catalog.Sequence{}, cptime.NewFixedClock(now), cpatomic.FakeTransactioner{}, store, outbox)}
+	store, bucket, outbox := catalog.NewMemoryStore(), pictures.NewMemoryBucket(), &cpatomic.FakeOutbox{}
+	bucket.Upload(upload, pictures.TestPNG(300, 200))
+	return fixture{store: store, bucket: bucket, outbox: outbox, useCase: open_flag_usecase.New(
+		catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(now)),
+		pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20}), cpatomic.FakeTransactioner{}, store, outbox)}
 }
 
-func TestAFlagOpenedIsKeptAndTold(t *testing.T) {
+func TestAFlagOpenedIsKeptWithItsPictureAndToldAndItsUploadGoes(t *testing.T) {
 	f := newFixture()
 
-	out, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: " Rennes "})
+	opened, err := f.useCase.Execute(t.Context(),
+		open_flag_usecase.In{Name: " Rennes ", Upload: upload.String(), EndsAt: now.Add(7 * 24 * time.Hour)})
 	require.NoError(t, err)
 
-	assert.Equal(t, catalog.FlagID("r-0000000001"), out.Flag)
-	kept, err := f.store.Flag(t.Context(), out.Flag)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), opened.ID)
+	assert.Equal(t, catalog.Name("Rennes"), opened.Name)
+	assert.Equal(t, catalog.Open, opened.State)
+	assert.Equal(t, now.Add(7*24*time.Hour), opened.EndsAt)
+	assert.Equal(t, [2]uint32{300, 200}, [2]uint32{opened.Picture.Width, opened.Picture.Height})
+	assert.Contains(t, f.bucket.Published(), opened.Picture.Key(), "public")
+	assert.Zero(t, f.bucket.Uploads(), "the file uploaded is gone once the flag is kept")
+	kept, err := f.store.Flag(t.Context(), opened.ID)
 	require.NoError(t, err)
-	assert.Equal(t, catalog.Snapshot{ID: out.Flag, Name: "Rennes", State: catalog.Open, DecidedAt: now},
-		kept.TakeSnapshot())
+	assert.Equal(t, opened, kept.TakeSnapshot())
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(
 		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now)},
 		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
-func TestEachFlagOpenedHasAnIDOfItsOwn(t *testing.T) {
+func TestAFlagThatEndsBeforeNowIsNotOpenedAndItsUploadStays(t *testing.T) {
 	f := newFixture()
 
-	first, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes"})
-	require.NoError(t, err)
-	second, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes"})
-	require.NoError(t, err)
+	_, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), EndsAt: now})
 
-	assert.NotEqual(t, first.Flag, second.Flag, "a name is not an id")
+	require.ErrorIs(t, err, catalog.ErrEnded)
+	assert.Equal(t, 1, f.bucket.Uploads(), "the operator may try again with the same file")
+	assert.Empty(t, f.outbox.Recorded())
 }
 
-func TestAFlagWithNoNameIsNotOpened(t *testing.T) {
+func TestAFlagWithNoNameOrNoPictureIsNotOpened(t *testing.T) {
 	f := newFixture()
+	ends := now.Add(time.Hour)
 
-	_, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "  "})
+	_, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "  ", Upload: upload.String(), EndsAt: ends})
 	require.ErrorIs(t, err, catalog.ErrInvalidName)
+	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: pictures.UploadID{2}.String(), EndsAt: ends})
+	require.ErrorIs(t, err, pictures.ErrUnknownUpload)
+	f.bucket.Upload(upload, pictures.TestPNG(500, 200))
+	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), EndsAt: ends})
+	require.ErrorIs(t, err, pictures.ErrShape)
 
 	flags, err := f.store.Flags(t.Context())
 	require.NoError(t, err)
