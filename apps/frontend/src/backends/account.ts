@@ -19,6 +19,7 @@ export type SignInOutcome = "signedIn" | "linked" | "created" | "restored"
 
 export type Me = {
     linked: Provider[]
+    hasEmail?: boolean
 }
 
 export interface AccountBackend {

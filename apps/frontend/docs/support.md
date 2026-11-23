@@ -23,7 +23,10 @@ the foot of Settings, and a report of another player, from that player's card.
   hundred files a day; and the bucket is full) and `invalid_argument` →
   `SupportRejectedError`. The line says "Try again later": the wait can be a day.
   A player report has one more: `already_exists` → `SupportReportedAlreadyError`
-  (one account reports one player once a day).
+  (one account reports one player once a day). A note's address is refused by its
+  `NoteRefusal` detail, not its code: `NO_REPLY_ADDRESS` →
+  `SupportNoReplyAddressError`, `INVALID_REPLY_ADDRESS` →
+  `SupportInvalidReplyAddressError`.
 - **A note says what the page knows about itself, a suggestion as a bug report**
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
   pixel ratio, whether the connection was down, the cores and the memory the
@@ -44,7 +47,8 @@ the foot of Settings, and a report of another player, from that player's card.
   characters left. A failure is one line under the box (`sendFailure.ts`), and
   the text stays. Once sent it says so and offers Close. A question before the
   text is `asked`, and Send waits for `ready`; `optional` lets the text stay
-  empty, and makes the box short.
+  empty, and makes the box short. `asksAddress` adds an email field under the
+  text (below).
 - **`FeedbackModal` is the one entry for an idea and for a bug**, opened by the
   Feedback tile ("Send feedback" wrapped on a phone 360px wide): `NoteModal`
   with "It is" before the text, a `radiogroup` of An idea and A bug (`Choices`
@@ -56,7 +60,8 @@ the foot of Settings, and a report of another player, from that player's card.
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - `SettingsPlace` always shows the Feedback tile. It asks
   for `FeedbackBackend` (the two sends and the two contracts of the files), not
-  the whole `SupportBackend`.
+  the whole `SupportBackend`, and for the `AccountStore`, to tell the form
+  whether the account holds an email (`hasEmail`).
 - **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
   has a Report button in its footer, clear of the body's scroll fade. A press
   shows `ReportPlayerModal` **in place of the card**, not over it: two modals
@@ -93,6 +98,24 @@ the foot of Settings, and a report of another player, from that player's card.
   report.
 - The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
   chat message, roster line and standing agree on who a player is.
+
+**The operator answers a note by email**, so every note carries an address (the
+backend's [Support](../../backend/docs/support.md#the-address-a-note-is-answered-at)).
+
+- **The account says whether it holds one**: `GetMe`'s `has_email`, kept in
+  `AccountStore` as `me.hasEmail`. A guest holds none, and neither does an
+  account signed in with no verified address.
+- **With none, the form asks for one** (`FeedbackModal` gives `NoteModal`
+  `asksAddress`): "Your email, so we can answer" under the text. Send waits for
+  an address that looks like one (`domain/emailAddress.ts`, the check the email
+  sign-in uses too); the server is the judge. Send passes it as `reply_address`.
+  With one, there is no field and nothing is sent: the server takes the
+  account's.
+- **A refused address keeps the form**, the text, the files up and the address
+  typed: `INVALID_REPLY_ADDRESS` says under the field that it is not an email
+  address; `NO_REPLY_ADDRESS` shows the field, if it was not there, and asks for
+  it. Both lines describe the field (`aria-describedby`).
+- The player reports do not ask for an address.
 
 **A note carries photos and videos**, an idea as a bug: `FeedbackModal` hands
 `NoteModal` the backend as `files`, and the picker is under the text whatever

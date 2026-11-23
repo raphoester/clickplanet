@@ -843,6 +843,7 @@
   "report.reason.badName": "Pseudo choquant",
   "report.reason.other": "Autre chose",
   "support.sent": "Envoyé. Merci !",
+  "support.email": "Ton e-mail, pour qu’on puisse te répondre",
   "support.uploadingCount": "Envoi de {place} sur {count}…",
   "support.notUploaded": "{file} n’a pas pu être envoyé. Réessaie.",
   "support.attachedFiles": "Fichiers joints",
@@ -860,5 +861,7 @@
   "support.failure.rejected": "Ça a été refusé.",
   "support.failure.noSession": "Impossible de démarrer une session. Réessaie dans un instant.",
   "support.failure.reportedAlready": "Tu as déjà signalé ce joueur aujourd’hui.",
+  "support.failure.noReplyAddress": "Ajoute ton e-mail.",
+  "support.failure.invalidReplyAddress": "Ce n’est pas une adresse e-mail.",
   "support.failure.failed": "Impossible d’envoyer. Réessaie."
 }

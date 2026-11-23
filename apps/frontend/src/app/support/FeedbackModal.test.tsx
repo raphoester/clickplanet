@@ -2,7 +2,13 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {AttachmentRules, NO_ATTACHMENTS, PageContext} from "../../backends/support.ts"
+import {
+    AttachmentRules,
+    NO_ATTACHMENTS,
+    PageContext,
+    SupportInvalidReplyAddressError,
+    SupportNoReplyAddressError,
+} from "../../backends/support.ts"
 import FeedbackModal from "./FeedbackModal.tsx"
 
 const PAGE: PageContext = {
@@ -33,7 +39,7 @@ afterEach(() => {
 
 const TAKES_FILES: AttachmentRules = {maxPerNote: 10, maxBytes: 1000, contentTypes: ["image/png", "video/mp4"]}
 
-function setup(rules: AttachmentRules = NO_ATTACHMENTS) {
+function setup({rules = NO_ATTACHMENTS, hasEmail = true}: {rules?: AttachmentRules, hasEmail?: boolean} = {}) {
     const uploaded: Blob[] = []
     const support = {
         suggestFeature: vi.fn(async () => undefined),
@@ -42,13 +48,15 @@ function setup(rules: AttachmentRules = NO_ATTACHMENTS) {
         uploadAttachment: vi.fn(async (file: Blob) => `file-${uploaded.push(file) - 1}`),
     }
     const onClose = vi.fn()
-    render(<FeedbackModal support={support} pageContext={() => PAGE} onClose={onClose}/>)
+    render(<FeedbackModal support={support} pageContext={() => PAGE} hasEmail={hasEmail} onClose={onClose}/>)
     return {support, onClose, user: userEvent.setup()}
 }
 
 const kind = (name: string) => screen.getByRole("radio", {name}) as HTMLButtonElement
 const box = (name: string) => screen.getByRole("textbox", {name}) as HTMLTextAreaElement
 const send = () => screen.getByRole("button", {name: "Send"}) as HTMLButtonElement
+const EMAIL = "Your email, so we can answer"
+const email = () => screen.getByRole("textbox", {name: EMAIL}) as HTMLInputElement
 
 describe("FeedbackModal", () => {
     it("asks whether it is an idea or a bug first, and sends nothing yet", () => {
@@ -80,7 +88,7 @@ describe("FeedbackModal", () => {
         await user.type(box("Your idea"), "a night mode")
         await user.click(send())
 
-        expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", PAGE, [])
+        expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", PAGE, [], undefined)
         expect(support.reportBug).not.toHaveBeenCalled()
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
@@ -93,7 +101,7 @@ describe("FeedbackModal", () => {
         await user.type(box("What happened"), "the globe is black")
         await user.click(send())
 
-        expect(support.reportBug).toHaveBeenCalledWith("the globe is black", PAGE, [])
+        expect(support.reportBug).toHaveBeenCalledWith("the globe is black", PAGE, [], undefined)
         expect(support.suggestFeature).not.toHaveBeenCalled()
     })
 
@@ -116,7 +124,7 @@ describe("FeedbackModal", () => {
         ["A bug", "What happened", "reportBug"],
         ["An idea", "Your idea", "suggestFeature"],
     ] as const)("uploads the files picked for %s, then sends it with them", async (option, label, procedure) => {
-        const {support, user} = setup(TAKES_FILES)
+        const {support, user} = setup({rules: TAKES_FILES})
         const screenshot = new File(["a screenshot"], "screen.png", {type: "image/png"})
         const recording = new File(["a screen recording"], "clip.mp4", {type: "video/mp4"})
 
@@ -128,6 +136,77 @@ describe("FeedbackModal", () => {
 
         await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!"))
         expect(support.uploadAttachment.mock.calls.map((call) => call[0])).toEqual([screenshot, recording])
-        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, ["file-0", "file-1"])
+        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, ["file-0", "file-1"], undefined)
+    })
+})
+
+describe("FeedbackModal and the email it is answered at", () => {
+    it("asks for no email when the account holds one", () => {
+        setup({hasEmail: true})
+
+        expect(screen.queryByRole("textbox", {name: EMAIL})).toBeNull()
+    })
+
+    it("asks an account with no email for one, and waits for an address", async () => {
+        const {user} = setup({hasEmail: false})
+
+        await user.click(kind("An idea"))
+        await user.type(box("Your idea"), "a night mode")
+        expect(send().disabled).toBe(true)
+
+        await user.type(email(), "ana")
+        expect(send().disabled).toBe(true)
+
+        await user.type(email(), "@example.com")
+        expect(send().disabled).toBe(false)
+    })
+
+    it.each([
+        ["An idea", "Your idea", "suggestFeature"],
+        ["A bug", "What happened", "reportBug"],
+    ] as const)("sends %s with the address typed", async (option, label, procedure) => {
+        const {support, user} = setup({hasEmail: false})
+
+        await user.click(kind(option))
+        await user.type(box(label), "the globe is black")
+        await user.type(email(), " ana@example.com ")
+        await user.click(send())
+
+        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, [], "ana@example.com")
+    })
+
+    it("says at the field that the address is not valid, and keeps what was typed", async () => {
+        const {support, user} = setup({hasEmail: false})
+        support.reportBug.mockRejectedValueOnce(new SupportInvalidReplyAddressError())
+
+        await user.click(kind("A bug"))
+        await user.type(box("What happened"), "the globe is black")
+        await user.type(email(), "ana@example.con")
+        await user.click(send())
+
+        const field = await screen.findByRole("textbox", {name: EMAIL, description: "This is not an email address."})
+        expect((field as HTMLInputElement).value).toBe("ana@example.con")
+        expect(box("What happened").value).toBe("the globe is black")
+        expect(screen.getAllByRole("alert")).toHaveLength(1)
+        expect(send().disabled).toBe(false)
+    })
+
+    it("asks for an email when the server needs one, and sends it then", async () => {
+        const {support, user} = setup({hasEmail: true})
+        support.suggestFeature.mockRejectedValueOnce(new SupportNoReplyAddressError())
+
+        await user.click(kind("An idea"))
+        await user.type(box("Your idea"), "a night mode")
+        await user.click(send())
+
+        await screen.findByRole("textbox", {name: EMAIL, description: "Add your email."})
+        expect(box("Your idea").value).toBe("a night mode")
+        expect(send().disabled).toBe(true)
+
+        await user.type(email(), "ana@example.com")
+        await user.click(send())
+
+        expect(support.suggestFeature).toHaveBeenLastCalledWith("a night mode", PAGE, [], "ana@example.com")
+        expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 })
