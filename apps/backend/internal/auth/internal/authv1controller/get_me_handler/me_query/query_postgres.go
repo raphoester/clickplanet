@@ -20,10 +20,9 @@ import (
 const cookieName = "cp_sid"
 
 var providers = map[string]authv1.Provider{
-	"google":     authv1.Provider_PROVIDER_GOOGLE,
-	"discord":    authv1.Provider_PROVIDER_DISCORD,
-	"email":      authv1.Provider_PROVIDER_EMAIL,
-	"crazygames": authv1.Provider_PROVIDER_CRAZYGAMES,
+	"google":  authv1.Provider_PROVIDER_GOOGLE,
+	"discord": authv1.Provider_PROVIDER_DISCORD,
+	"email":   authv1.Provider_PROVIDER_EMAIL,
 }
 
 var (

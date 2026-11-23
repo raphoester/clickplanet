@@ -37,8 +37,6 @@ const (
 	ArrivalSource_ARRIVAL_SOURCE_RECRUIT ArrivalSource = 4
 	// The address a player's video shows, typed: clickplanet.lol/v.
 	ArrivalSource_ARRIVAL_SOURCE_RECRUIT_VIDEO ArrivalSource = 5
-	// The game framed on CrazyGames.
-	ArrivalSource_ARRIVAL_SOURCE_CRAZYGAMES ArrivalSource = 6
 )
 
 // Enum value maps for ArrivalSource.
@@ -50,7 +48,6 @@ var (
 		3: "ARRIVAL_SOURCE_TIKTOK",
 		4: "ARRIVAL_SOURCE_RECRUIT",
 		5: "ARRIVAL_SOURCE_RECRUIT_VIDEO",
-		6: "ARRIVAL_SOURCE_CRAZYGAMES",
 	}
 	ArrivalSource_value = map[string]int32{
 		"ARRIVAL_SOURCE_UNSPECIFIED":   0,
@@ -59,7 +56,6 @@ var (
 		"ARRIVAL_SOURCE_TIKTOK":        3,
 		"ARRIVAL_SOURCE_RECRUIT":       4,
 		"ARRIVAL_SOURCE_RECRUIT_VIDEO": 5,
-		"ARRIVAL_SOURCE_CRAZYGAMES":    6,
 	}
 )
 
@@ -813,15 +809,14 @@ const file_auth_v1_admin_proto_rawDesc = "" +
 	"\fArrivalCount\x12\x10\n" +
 	"\x03day\x18\x01 \x01(\tR\x03day\x12.\n" +
 	"\x06source\x18\x02 \x01(\x0e2\x16.auth.v1.ArrivalSourceR\x06source\x12\x1a\n" +
-	"\baccounts\x18\x03 \x01(\rR\baccounts*\xdf\x01\n" +
+	"\baccounts\x18\x03 \x01(\rR\baccounts*\xe1\x01\n" +
 	"\rArrivalSource\x12\x1e\n" +
 	"\x1aARRIVAL_SOURCE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ARRIVAL_SOURCE_UNKNOWN\x10\x01\x12\x1a\n" +
 	"\x16ARRIVAL_SOURCE_YOUTUBE\x10\x02\x12\x19\n" +
 	"\x15ARRIVAL_SOURCE_TIKTOK\x10\x03\x12\x1a\n" +
 	"\x16ARRIVAL_SOURCE_RECRUIT\x10\x04\x12 \n" +
-	"\x1cARRIVAL_SOURCE_RECRUIT_VIDEO\x10\x05\x12\x1d\n" +
-	"\x19ARRIVAL_SOURCE_CRAZYGAMES\x10\x062\xd7\x04\n" +
+	"\x1cARRIVAL_SOURCE_RECRUIT_VIDEO\x10\x05\"\x04\b\x06\x10\x06*\x19ARRIVAL_SOURCE_CRAZYGAMES2\xd7\x04\n" +
 	"\fAdminService\x12R\n" +
 	"\vStartSignIn\x12 .auth.v1.AdminStartSignInRequest\x1a!.auth.v1.AdminStartSignInResponse\x12[\n" +
 	"\x0eCompleteSignIn\x12#.auth.v1.AdminCompleteSignInRequest\x1a$.auth.v1.AdminCompleteSignInResponse\x12F\n" +

@@ -17,12 +17,11 @@ const JOIN_WAITS_MS: readonly number[] = [1_000, 2_000, 4_000]
 // connectable: the server offers Discord's sign-in, which is the one way in.
 // joining: this page came back from a Discord sign-in or link, which may not have joined yet.
 export function useDiscordAlerts(
-    alerts: DiscordAlerts | undefined, accountId: string | undefined, connectable: boolean, joining: boolean,
+    alerts: DiscordAlerts, accountId: string | undefined, connectable: boolean, joining: boolean,
 ): DiscordOffer {
     const [offer, setOffer] = useState<DiscordOffer>(NOTHING)
 
     useEffect(() => {
-        if (!alerts) return
         let stale = false
         let again: ReturnType<typeof setTimeout> | undefined
         const read = (waits: readonly number[]) => alerts.read().then(

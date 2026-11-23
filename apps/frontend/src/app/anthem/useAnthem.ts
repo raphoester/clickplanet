@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import {AnthemPick, followLeader, NO_PICK} from "../../domain/anthemLeader.ts";
 import {CountryOrder} from "../../domain/race.ts";
-import {isAnthemAudible, MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
+import {isAnthemAudible} from "../../domain/soundSettings.ts";
 import {useSoundSettings} from "../sound/soundSettingsStore.ts";
 import {ANTHEMS} from "./anthemsAsset.ts";
 import {AnthemPlayer, createAnthemPlayer} from "./anthemPlayer.ts";
@@ -16,9 +16,8 @@ export type Anthem = {
     player: AnthemPlayer
 }
 
-export function useAnthem(board: readonly LeaderboardEntry[], order: CountryOrder, silenced: boolean): Anthem {
-    const stored = useSoundSettings((sound) => sound.settings)
-    const settings = silenced ? MUTED_SOUND_SETTINGS : stored
+export function useAnthem(board: readonly LeaderboardEntry[], order: CountryOrder): Anthem {
+    const settings = useSoundSettings((sound) => sound.settings)
     const playerRef = useRef<AnthemPlayer | null>(null)
     if (!playerRef.current) playerRef.current = createAnthemPlayer()
     const player = playerRef.current

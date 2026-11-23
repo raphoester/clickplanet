@@ -28,7 +28,6 @@ import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
 import {useChat} from "./chatStore.ts";
 import {useScreen} from "../hud/screenStore.ts";
-import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {t, translator} from "../../i18n/page.ts";
 import {wordsOf} from "./wordsOf.ts";
 import "./ChatPanel.css"
@@ -272,27 +271,25 @@ export default function ChatPanel(props: ChatPanelProps) {
 }
 
 function ChatToast({message, onOpen}: {message: ChatMessage, onOpen: () => void}) {
-    const words = useWordFilter()
     const nameplate = useNameplate(message.authorAccountId)
-    const name = words.masked(nameOf(nameplate))
+    const name = nameOf(nameplate)
 
     return <button type="button"
                    className="chat-toast"
                    style={authorStyle(paintOf(nameplate))}
-                   aria-label={t("chat.openWith", {player: name, message: words.masked(wordsOf(message))})}
+                   aria-label={t("chat.openWith", {player: name, message: wordsOf(message)})}
                    onClick={onOpen}>
         <span className="chat-toast-author" aria-hidden="true">{truncate(name, PEEK_AUTHOR_MAX_LENGTH)}</span>
-        <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(wordsOf(message)), PEEK_TEXT_MAX_LENGTH)}</span>
+        <span className="chat-toast-text" aria-hidden="true">{truncate(wordsOf(message), PEEK_TEXT_MAX_LENGTH)}</span>
     </button>
 }
 
 function ChatPeek({message}: {message: ChatMessage}) {
-    const words = useWordFilter()
     const nameplate = useNameplate(message.authorAccountId)
 
     return <span className="chat-peek" aria-hidden="true" style={authorStyle(paintOf(nameplate))}>
-        <span className="chat-peek-author">{truncate(words.masked(nameOf(nameplate)), PEEK_AUTHOR_MAX_LENGTH)}</span>
-        <span className="chat-peek-text">{words.masked(wordsOf(message))}</span>
+        <span className="chat-peek-author">{truncate(nameOf(nameplate), PEEK_AUTHOR_MAX_LENGTH)}</span>
+        <span className="chat-peek-text">{wordsOf(message)}</span>
     </span>
 }
 

@@ -23,8 +23,7 @@ export type VideoOfferProps = {
     source: RecentHistorySource
     ready: boolean
     flag: string
-    // No arena plays, whose map is not the world's the 24 hours are of, and the page is not CrazyGames', whose
-    // players the address would lead away.
+    // No arena plays, whose map is not the world's the 24 hours are of.
     allowed: boolean
     listenForClicks: ListenForClicks
 }

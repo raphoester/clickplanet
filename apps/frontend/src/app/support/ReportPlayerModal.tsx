@@ -1,7 +1,6 @@
 import {useState} from "react"
 import {PlayerReporter, ReportReason} from "../../backends/support.ts"
 import {truncate} from "../truncate.ts"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import Choices from "../components/Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 import {Key} from "../../i18n/translator.ts"
@@ -26,13 +25,12 @@ const REASONS: {value: ReportReason, label: Key}[] = [
 
 export default function ReportPlayerModal({accountId, name, reporter, onClose}: ReportPlayerModalProps) {
     const [reason, setReason] = useState<ReportReason>()
-    const words = useWordFilter()
 
     const send = async (text: string) => {
         if (reason) await reporter.reportPlayer({accountId, reason, text})
     }
 
-    return <NoteModal title={t("report.playerTitle", {player: truncate(words.masked(name), NAME_MAX_LENGTH)})}
+    return <NoteModal title={t("report.playerTitle", {player: truncate(name, NAME_MAX_LENGTH)})}
                       label={t("report.details")}
                       placeholder={t("report.optional")}
                       asked={<Choices label={t("report.why")} options={REASONS.map(({value, label}) => ({value, label: t(label)}))} picked={reason} onPick={setReason}/>}

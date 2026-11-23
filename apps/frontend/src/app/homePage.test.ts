@@ -1,6 +1,5 @@
 import {describe, expect, it} from "vitest"
 import home from "../../index.html?raw"
-import {CRAZYGAMES_HOST} from "../domain/crazyGames.ts"
 import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
 import {withFlagCodes} from "../flagCodes.ts"
 import {HANDED_REFERRER_KEY} from "../backends/landingStore.ts"
@@ -8,14 +7,6 @@ import {RECRUIT_TAG, RECRUITER_PARAM, SOURCE_TAG_PARAM, SOURCES} from "../domain
 import {SHARE_FLAG_PARAM} from "../domain/shareCard.ts"
 
 describe("the home page", () => {
-    it("is never shown on the CrazyGames page: a visitor goes straight to the game, with its invite", () => {
-        expect(destinationOf(`https://${CRAZYGAMES_HOST}/?f=br&czy_invite=true`, {})).toBe("/play?f=br&czy_invite=true")
-        expect(destinationOf(`https://${CRAZYGAMES_HOST}/play/`, {})).toBe("/play")
-        expect(destinationOf(`https://${CRAZYGAMES_HOST}/#home`, {})).toBe("/play#home")
-        expect(destinationOf(`https://${CRAZYGAMES_HOST}/`, "no storage")).toBe("/play")
-        expect(destinationOf(`https://${CRAZYGAMES_HOST}/pl/kutza`, {})).toBe("/play")
-    })
-
     it("shows itself to a first visit on the site", () => {
         expect(destinationOf("https://clickplanet.lol/", {})).toBeUndefined()
         expect(destinationOf("https://clickplanet.lol/", "no storage")).toBeUndefined()

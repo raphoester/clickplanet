@@ -14,15 +14,14 @@ afterEach(cleanup)
 
 const DAY_MS = 24 * 3600_000
 
-async function signedIn(profile: ColoredProfile, setName: (name: string) => Promise<Profile>, provider: Provider = "google") {
+async function signedIn(profile: ColoredProfile, setName: (name: string) => Promise<Profile>) {
     const backend = {
-        signInOptions: vi.fn(async (): Promise<Provider[]> => [provider]),
-        me: vi.fn(async (): Promise<{linked: Provider[]}> => ({linked: [provider]})),
+        signInOptions: vi.fn(async (): Promise<Provider[]> => ["google"]),
+        me: vi.fn(async (): Promise<{linked: Provider[]}> => ({linked: ["google"]})),
         startSignIn: vi.fn(async () => "https://google.example/authorize"),
         completeSignIn: vi.fn(async () => "signedIn" as const),
         startEmailSignIn: vi.fn(async () => undefined),
         completeEmailSignIn: vi.fn(async () => "signedIn" as const),
-        completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -37,11 +36,8 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
     } satisfies ProgressionBackend
-    const crazyGames = provider === "crazygames"
-        ? {token: vi.fn(async () => "the-jwt"), prompt: vi.fn(async () => true), listenForSignIn: vi.fn(() => () => undefined)}
-        : undefined
     const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()},
-        {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn(), crazyGames})
+        {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
     await store.load()
     await vi.waitFor(() => expect(store.state()).toMatchObject({username: profile.name}))
 
@@ -98,14 +94,5 @@ describe("AccountSettings", () => {
 
         expect(screen.getByRole("button", {name: "Sign out"})).toBeDefined()
         expect(screen.getByRole("button", {name: "Sign out everywhere"})).toBeDefined()
-    })
-
-    it("has no sign-out for a CrazyGames account: CrazyGames signs the player out, and the account may still go", async () => {
-        await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED}, async (name) => ({accountId: "account-1", name}), "crazygames")
-
-        expect(screen.getByText("Signed in with CrazyGames.")).toBeDefined()
-        expect(screen.queryByRole("button", {name: "Sign out"})).toBeNull()
-        expect(screen.queryByRole("button", {name: "Sign out everywhere"})).toBeNull()
-        expect(screen.getByRole("button", {name: "Delete account"})).toBeDefined()
     })
 })
