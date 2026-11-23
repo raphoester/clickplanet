@@ -1,8 +1,15 @@
 # A revert erases the takes it forgot
 
 **Every history and replay reads the ledger as if a reverted player had never played** (2026-11-23). On 2026-11-23 a
-preview of a clips saga showed, at 20 Nov 17:36 UTC, a swastika in the US Midwest: the season's map history
-(`GetMapHistory`) read every take, forgotten or not. A clip that shows one can get the game's TikTok and YouTube banned.
+preview of a clips saga showed, at 20 Nov 17:36 UTC, a swastika in the US Midwest. A clip that shows one can get the
+game's TikTok and YouTube banned.
+
+**What happened**: one account painted a swastika (90 tiles, `nov17-us` in the vandal squad's samples) and more around
+it for Germany on `earth-1`, 16 Nov 18:45 to 17 Nov 15:35 UTC; the operator reverted it on 17 Nov, and all 133 takes are
+`forgotten`. The world switched to `earth-2` on 18 Nov with the clean map. But the season's map history
+(`GetMapHistory`) read every take, forgotten or not: it replayed the drawing on `earth-1`, carried it onto `earth-2` at
+the cut, and nobody took those tiles of Ireland's after, so it stayed in every frame. On the live map it never
+existed on `earth-2`.
 
 ## The rule: `ledger.Erasure`
 
@@ -81,7 +88,7 @@ next read; `/archive`'s from the boot on, as after every deploy. The frontend an
 
 `ledger/erasure_test.go` (a take from the paint, a take back to what was under, a strike, a shield and a fortify, a
 tile given back or reset, a paint painted twice, a bomb and an enclosure, a wipe and another stage), `history_test.go`
-and `rewind_test.go` (a drawing in no frame and no hit), `revert_player_usecase` (the paint never back on the live map),
+and `rewind_test.go` (a drawing in no frame and no hit, one reverted before a switch of board not carried over), `revert_player_usecase` (the paint never back on the live map),
 `replay_usecase` (the replay of a drawing painted over), the postgres suites of `history_query`, `recent_history_query`
 (the drawing before the day, the step built again after a revert), `changes_query` and `forgetting`, the
 `get_map_history_handler`'s `kept`, and `season_replay_query` (kept until a revert).

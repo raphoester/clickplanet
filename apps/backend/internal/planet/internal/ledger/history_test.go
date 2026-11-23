@@ -275,3 +275,23 @@ func TestAForgottenDrawingIsInNoFrameAndNoHitAndItsPaintOverIsNone(t *testing.T)
 	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "fr", At: historySince.Add(70 * time.Minute)}}, frames[2].Owners)
 	assert.Equal(t, map[ledger.EraTile]uint32{{Tile: 2}: 1}, history.Hits())
 }
+
+func TestADrawingRevertedBeforeASwitchOfBoardIsNotCarriedOver(t *testing.T) {
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	require.NoError(t, err)
+	fixture := clicks.World.On(clicks.TestBoard + 2)
+
+	for _, entry := range []ledger.Entry{
+		keptEntry(t, take(1, "ie", historySince.Add(-2*time.Hour))),
+		keptEntry(t, take(2, "ie", historySince.Add(-2*time.Hour))),
+		forgottenEntry(t, takeBy(vandal, 1, "ie", "de", historySince.Add(-time.Hour))),
+	} {
+		require.NoError(t, history.Record(entry))
+	}
+	history.Cut(historySince.Add(20*time.Minute), fixture.Board, carried{10: 1, 11: 1, 12: 2})
+
+	assert.Equal(t, map[uint32]ledger.Owner{
+		10: {Country: "ie", At: historySince.Add(20 * time.Minute)}, 11: {Country: "ie", At: historySince.Add(20 * time.Minute)},
+		12: {Country: "ie", At: historySince.Add(20 * time.Minute)},
+	}, history.Frames()[1].Owners, "on 2026-11-20 a swastika reverted on 17 Nov showed on earth-2, carried over by the history alone")
+}
