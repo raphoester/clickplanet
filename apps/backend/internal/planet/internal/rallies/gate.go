@@ -3,17 +3,12 @@ package rallies
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type Countries interface {
-	CheckCountry(country string) bool
-}
 
 type Allegiances interface {
 	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
@@ -27,7 +22,7 @@ type Calls interface {
 	Last(ctx context.Context, account cpsession.AccountID) (Rally, error)
 }
 
-func NewGate(countries Countries, allegiances Allegiances, refusals Refusals, calls Calls, clock cptime.Clock) Gate {
+func NewGate(countries clicks.Flags, allegiances Allegiances, refusals Refusals, calls Calls, clock cptime.Clock) Gate {
 	return Gate{countries: countries, allegiances: allegiances, refusals: refusals, calls: calls, clock: clock}
 }
 
@@ -35,7 +30,7 @@ func NewGate(countries Countries, allegiances Allegiances, refusals Refusals, ca
 // still on. Any point of the globe takes one, land or sea, whoever holds the tiles around it. The call checks the last
 // again under its lock.
 type Gate struct {
-	countries   Countries
+	countries   clicks.Flags
 	allegiances Allegiances
 	refusals    Refusals
 	calls       Calls
@@ -47,8 +42,8 @@ func (g Gate) Call(ctx context.Context, payer clicks.Payer, account cpsession.Ac
 	if refusal, refused, err := g.refusals.Refusal(ctx, payer); err == nil && refused {
 		return refusal
 	}
-	if !g.countries.CheckCountry(country) {
-		return fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, country)
+	if err := clicks.CheckFlag(ctx, g.countries, country); err != nil {
+		return err //nolint:wrapcheck // the check names it.
 	}
 	if err := g.allegiances.PlayError(ctx, payer, country); err != nil && !errors.Is(err, allegiances.ErrUnread) {
 		return err //nolint:wrapcheck // the book names the flag the caller plays for.

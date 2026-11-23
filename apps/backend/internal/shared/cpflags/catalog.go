@@ -1,0 +1,94 @@
+package cpflags
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+type Store interface {
+	// Heard is the flag as the latest fact told it, and never heard for a flag no fact named.
+	Heard(ctx context.Context, flag string) (Heard, error)
+	// Change runs under a lock on the flag, and keeps what it answers when that differs from what it was handed.
+	Change(ctx context.Context, flag string, change func(Heard) Heard) error
+}
+
+// Teller is told each time a fact changed what the catalog holds: a fact told again tells nothing.
+type Teller interface {
+	FlagsChanged()
+}
+
+// Quiet tells nobody.
+type Quiet struct{}
+
+func (Quiet) FlagsChanged() {}
+
+const readTimeout = time.Second
+
+func NewCatalog(store Store, teller Teller) Catalog {
+	return Catalog{store: store, teller: teller}
+}
+
+// Catalog is the flags one module knows: the ones the game ships with, and the ones it heard opened or closed since
+// (flags.v1.FlagOpened, FlagClosed), kept in its own schema.
+type Catalog struct {
+	store  Store
+	teller Teller
+}
+
+// A player may play for a flag the game ships with, or for one opened and not closed since.
+func (c Catalog) Playable(ctx context.Context, flag string) (bool, error) {
+	if IsBuiltIn(flag) {
+		return true, nil
+	}
+	heard, err := c.heard(ctx, flag)
+	if err != nil {
+		return false, err
+	}
+	return heard.playable(), nil
+}
+
+// A closed flag is known: history still names it.
+func (c Catalog) Known(ctx context.Context, flag string) (bool, error) {
+	if IsBuiltIn(flag) {
+		return true, nil
+	}
+	heard, err := c.heard(ctx, flag)
+	if err != nil {
+		return false, err
+	}
+	return heard.known(), nil
+}
+
+func (c Catalog) heard(ctx context.Context, flag string) (Heard, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+	heard, err := c.store.Heard(ctx, flag)
+	if err != nil {
+		return Heard{}, fmt.Errorf("failed to read what was heard of the flag %q: %w", flag, err)
+	}
+	return heard, nil
+}
+
+func (c Catalog) Open(ctx context.Context, flag string, at time.Time) error {
+	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Opened(at) })
+}
+
+func (c Catalog) Close(ctx context.Context, flag string, at time.Time) error {
+	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Closed(at) })
+}
+
+func (c Catalog) change(ctx context.Context, flag string, change func(Heard) Heard) error {
+	changed := false
+	if err := c.store.Change(ctx, flag, func(before Heard) Heard {
+		after := change(before)
+		changed = after != before
+		return after
+	}); err != nil {
+		return fmt.Errorf("failed to keep what was heard of the flag %q: %w", flag, err)
+	}
+	if changed {
+		c.teller.FlagsChanged()
+	}
+	return nil
+}

@@ -30,8 +30,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -179,7 +179,7 @@ func newGame(t testing.TB, w world) *game {
 	rules := charges.Rules{Enclose: charges.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
 	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), takings, cptime.SystemClock{})
 	terrain := charges.NewTerrain(w.geography, tiles)
-	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, cpcountries.New())
+	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, cpflags.NewOpenCatalog())
 	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() charges.Rules { return rules })
 
 	return &game{world: w, tiles: tiles, ledger: takings, click: chain, terrain: terrain, rules: rules}

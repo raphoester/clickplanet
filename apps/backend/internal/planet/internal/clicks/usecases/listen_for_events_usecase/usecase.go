@@ -49,6 +49,7 @@ type Event struct {
 	Tally         *clicks.Tally
 	Heartbeat     bool
 	RulesChanged  bool
+	FlagsChanged  bool
 
 	Spread   *notices.Spread
 	Granted  *charges.Gain
@@ -173,6 +174,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		case notice := <-news:
 			if err := sink.Send(Event{
 				Spread: notice.Spread, Granted: notice.Granted, MineLaid: notice.MineLaid, Rally: notice.Rally,
+				FlagsChanged: notice.FlagsChanged,
 			}); err != nil {
 				return err
 			}

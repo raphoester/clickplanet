@@ -1565,6 +1565,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: CutOff;
     case: "cutOff";
+  } | {
+    /**
+     * @generated from field: planet.v1.FlagsChanged flags_changed = 20;
+     */
+    value: FlagsChanged;
+    case: "flagsChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1590,6 +1596,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 17, name: "rally_called", kind: "message", T: Rally, oneof: "event" },
     { no: 18, name: "province_fortified", kind: "message", T: ProvinceFortified, oneof: "event" },
     { no: 19, name: "cut_off", kind: "message", T: CutOff, oneof: "event" },
+    { no: 20, name: "flags_changed", kind: "message", T: FlagsChanged, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1606,6 +1613,39 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A flag was opened or closed: read the list of flags again (flags.v1.FlagService/ListFlags).
+ *
+ * @generated from message planet.v1.FlagsChanged
+ */
+export class FlagsChanged extends Message<FlagsChanged> {
+  constructor(data?: PartialMessage<FlagsChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FlagsChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagsChanged {
+    return new FlagsChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagsChanged {
+    return new FlagsChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagsChanged {
+    return new FlagsChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagsChanged | PlainMessage<FlagsChanged> | undefined, b: FlagsChanged | PlainMessage<FlagsChanged> | undefined): boolean {
+    return proto3.util.equals(FlagsChanged, a, b);
   }
 }
 

@@ -1,6 +1,7 @@
 package find_players_usecase_test
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -39,7 +40,9 @@ func refusing(t *testing.T, scope string) refusals.Book {
 
 type countries struct{}
 
-func (countries) CheckCountry(country string) bool { return len(country) == 2 }
+func (countries) Known(_ context.Context, country string) (bool, error) {
+	return len(country) == 2, nil
+}
 
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	t.Helper()

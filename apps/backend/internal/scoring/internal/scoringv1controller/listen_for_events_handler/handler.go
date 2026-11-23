@@ -26,8 +26,9 @@ type Rounds interface {
 	Subscribe(ctx context.Context, round books.RoundID) <-chan *scoringv1.Round
 }
 
+// The flags the game ships with and the ones opened since: a closed one is known.
 type CountryChecker interface {
-	CheckCountry(country string) bool
+	Known(ctx context.Context, flag string) (bool, error)
 }
 
 var (
@@ -66,13 +67,15 @@ type asked struct {
 	rounds  []books.RoundID
 }
 
-func (h ListenForEventsHandler) askedOf(req *scoringv1.ListenForEventsRequest) (asked, error) {
+func (h ListenForEventsHandler) askedOf(ctx context.Context, req *scoringv1.ListenForEventsRequest) (asked, error) {
 	var (
 		wanted = asked{country: req.GetCountryId()}
 		err    error
 	)
-	if wanted.country != "" && !h.countries.CheckCountry(wanted.country) {
-		return asked{}, fmt.Errorf("%w: %q", ErrUnknownCountry, wanted.country)
+	if wanted.country != "" {
+		if err := knownCountry(ctx, h.countries, wanted.country); err != nil {
+			return asked{}, err
+		}
 	}
 	if req.GetBookId() != "" {
 		if wanted.book, err = books.ParseBookID(req.GetBookId()); err != nil {
@@ -99,7 +102,7 @@ func (h ListenForEventsHandler) ListenForEvents(
 	req *connect.Request[scoringv1.ListenForEventsRequest],
 	stream *connect.ServerStream[scoringv1.ScoringEvent],
 ) error {
-	wanted, err := h.askedOf(req.Msg)
+	wanted, err := h.askedOf(ctx, req.Msg)
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -161,4 +164,15 @@ func (h ListenForEventsHandler) rounds(ctx context.Context, ids []books.RoundID)
 		}()
 	}
 	return merged
+}
+
+func knownCountry(ctx context.Context, countries CountryChecker, country string) error {
+	known, err := countries.Known(ctx, country)
+	if err != nil {
+		return fmt.Errorf("failed to read whether %q is a flag: %w", country, err)
+	}
+	if !known {
+		return fmt.Errorf("%w: %q", ErrUnknownCountry, country)
+	}
+	return nil
 }

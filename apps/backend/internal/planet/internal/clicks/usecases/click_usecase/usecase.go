@@ -15,10 +15,6 @@ type Tiles interface {
 	Click(ctx context.Context, tile uint32, flag string) (clicks.Impact, error)
 }
 
-type CountryChecker interface {
-	CheckCountry(country string) bool
-}
-
 type In struct {
 	TileID    uint32
 	CountryID string
@@ -41,14 +37,14 @@ type IUseCase interface {
 	Execute(ctx context.Context, in In) (Out, error)
 }
 
-func New(tilesChecker TilesChecker, tiles Tiles, countryChecker CountryChecker) *UseCase {
-	return &UseCase{tilesChecker: tilesChecker, tiles: tiles, countryChecker: countryChecker}
+func New(tilesChecker TilesChecker, tiles Tiles, flags clicks.Flags) *UseCase {
+	return &UseCase{tilesChecker: tilesChecker, tiles: tiles, flags: flags}
 }
 
 type UseCase struct {
-	tilesChecker   TilesChecker
-	tiles          Tiles
-	countryChecker CountryChecker
+	tilesChecker TilesChecker
+	tiles        Tiles
+	flags        clicks.Flags
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -56,8 +52,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, clicks.ErrBonusesTogether
 	}
 
-	if !u.countryChecker.CheckCountry(in.CountryID) {
-		return Out{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)
+	if err := clicks.CheckFlag(ctx, u.flags, in.CountryID); err != nil {
+		return Out{}, err //nolint:wrapcheck // the check names it.
 	}
 
 	if !u.tilesChecker.CheckTile(in.TileID) {

@@ -344,8 +344,13 @@ message PlanetEvent {
     ProvinceFortified province_fortified = 18;
 
     CutOff cut_off = 19;
+
+    FlagsChanged flags_changed = 20;
   }
 }
+
+// A flag was opened or closed: read the list of flags again (flags.v1.FlagService/ListFlags).
+message FlagsChanged {}
 
 // A rally a player called for its flag: until it ends, a click of that flag on a tile inside the ring costs
 // charges.rally.cost. Every flag sees it.

@@ -108,7 +108,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -184,8 +184,22 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 	limits := messages.NewLimits(config.Service.MaxTextLength).WithBanned(
 		messages.NewBanned(slices.Concat(messages.DefaultBannedPhrases, config.Service.BannedPhrases)...))
-	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, cpcountries.New(), rooms)
+	catalog := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, catalog, rooms)
 	thread := messages.NewThread(messageStore, cptime.SystemClock{}, window)
+
+	flagsOpened, err := cpredis.Subscribe(ctx, streams, "chat-flags-opened",
+		log_subscriber.New(cpflags.NewOpenedHandler(catalog), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagOpened: %w", err)
+	}
+	flagsClosed, err := cpredis.Subscribe(ctx, streams, "chat-flags-closed",
+		log_subscriber.New(cpflags.NewClosedHandler(catalog), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
+	}
 
 	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
@@ -311,7 +325,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
 		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, switches, flagMissions, deletions, forgottenModeration, mutings, rallies,
-			days, battles, champions, departures, reports,
+			days, battles, champions, departures, reports, flagsOpened, flagsClosed,
 			cpoutbox.NewRelay("chat-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})

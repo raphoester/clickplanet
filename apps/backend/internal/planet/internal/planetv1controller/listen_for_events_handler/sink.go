@@ -34,6 +34,10 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(&planetv1.PlanetEvent{
 			Event: &planetv1.PlanetEvent_RulesChanged{RulesChanged: &planetv1.RulesChanged{}},
 		})
+	case event.FlagsChanged:
+		return s.stream.Send(&planetv1.PlanetEvent{
+			Event: &planetv1.PlanetEvent_FlagsChanged{FlagsChanged: &planetv1.FlagsChanged{}},
+		})
 	case event.Update != nil:
 		return s.stream.Send(planetmessage.TileUpdate(*event.Update, event.Version))
 	case event.Blast != nil:

@@ -17,8 +17,9 @@ type Visits interface {
 	Record(visit presence.Visit)
 }
 
+// The flags the game ships with and the ones opened since: a closed one is known.
 type CountryChecker interface {
-	CheckCountry(country string) bool
+	Known(ctx context.Context, flag string) (bool, error)
 }
 
 type In struct {
@@ -40,7 +41,11 @@ func New(introducer Introducer, visits Visits, countries CountryChecker, clock c
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
-	if !u.countries.CheckCountry(in.Country) {
+	known, err := u.countries.Known(ctx, in.Country)
+	if err != nil {
+		return fmt.Errorf("failed to read whether %q is a flag: %w", in.Country, err)
+	}
+	if !known {
 		return fmt.Errorf("%w: %q", presence.ErrUnknownCountry, in.Country)
 	}
 

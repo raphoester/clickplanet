@@ -16,7 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
@@ -79,7 +79,7 @@ const (
 )
 
 func (s *testSuite) query() *board_query.PostgresQuery {
-	return board_query.NewPostgresQuery(s.db, cpcountries.New())
+	return board_query.NewPostgresQuery(s.db, cpflags.NewOpenCatalog())
 }
 
 func (s *testSuite) standings(country string) *scoringv1.GetBoardResponse {

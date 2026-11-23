@@ -138,6 +138,12 @@
 		}
 	}
 
+	handle /flags.v1.FlagService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /support.v1.SupportService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}

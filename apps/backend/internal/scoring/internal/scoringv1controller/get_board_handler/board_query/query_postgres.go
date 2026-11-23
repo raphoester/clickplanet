@@ -14,8 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
+// The flags the game ships with and the ones opened since: a closed one is known.
 type CountryChecker interface {
-	CheckCountry(country string) bool
+	Known(ctx context.Context, flag string) (bool, error)
 }
 
 var ErrUnknownCountry = errors.New("not a country")
@@ -56,8 +57,10 @@ func (q *PostgresQuery) Live(ctx context.Context, view View) (*scoringv1.Board, 
 
 func (q *PostgresQuery) top(ctx context.Context, view View) ([]*scoringv1.Standing, error) {
 	country := view.Country
-	if country != "" && !q.countries.CheckCountry(country) {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownCountry, country)
+	if country != "" {
+		if err := knownCountry(ctx, q.countries, country); err != nil {
+			return nil, err
+		}
 	}
 
 	query, args := mainLines, []any{string(view.Book), Shown}
@@ -113,4 +116,15 @@ func rankAfter(top []*scoringv1.Standing, tiles uint64) uint32 {
 		return top[len(top)-1].GetRank()
 	}
 	return uint32(len(top) + 1) //nolint:gosec // at most Shown.
+}
+
+func knownCountry(ctx context.Context, countries CountryChecker, country string) error {
+	known, err := countries.Known(ctx, country)
+	if err != nil {
+		return fmt.Errorf("failed to read whether %q is a flag: %w", country, err)
+	}
+	if !known {
+		return fmt.Errorf("%w: %q", ErrUnknownCountry, country)
+	}
+	return nil
 }

@@ -153,6 +153,9 @@ quizzes:
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
   redis: {address: localhost:6379}
+flags:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: flags}
+  redis: {address: localhost:6379}
 clips:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
   redis: {address: localhost:6379}
@@ -363,6 +366,18 @@ func TestTheGamemasterModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "gamemaster.database")
 }
 
+func TestTheExampleConfigReachesTheFlagsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "flags", config.Flags.Database.Schema)
+	require.NoError(t, config.Flags.Validate())
+}
+
+func TestTheFlagsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "flags.database")
+}
+
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
@@ -558,7 +573,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
 		"boxes": config.Boxes.Redis, "bonuses": config.Bonuses.Redis, "quizzes": config.Quizzes.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
-		"alerts": config.Alerts.Redis, "vandalSquad": config.VandalSquad.Redis,
+		"alerts": config.Alerts.Redis, "vandalSquad": config.VandalSquad.Redis, "flags": config.Flags.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

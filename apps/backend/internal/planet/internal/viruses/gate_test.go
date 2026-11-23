@@ -13,7 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
 const alice = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
@@ -53,7 +53,7 @@ func (r refusals) Refusal(context.Context, clicks.Payer) (clicks.Refusal, bool, 
 var tiles = board{owners: map[uint32]string{7: "fr", 8: "de", 9: "de"}, shields: map[uint32]int{9: 1}}
 
 func gateWith(allegiance flags, reached reach, refused refusals) viruses.Gate {
-	return viruses.NewGate(tiles, cpcountries.New(), allegiance, reached, refused)
+	return viruses.NewGate(tiles, cpflags.NewOpenCatalog(), allegiance, reached, refused)
 }
 
 func aim(g viruses.Gate, t *testing.T, tile uint32, country string) error {

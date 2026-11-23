@@ -13,6 +13,6 @@ The response never repeats a tile id. `GetMapResponse` carries `board`, the name
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_events`, `ledger_head`, `ledger_forgotten`, `ledger_forgotten_accounts` and `ledger_relayed`, and `AnonymizeTakes` for a deleted account.
 - `charges/postgres_charge_store/` — `charges.Store`, the charges each account holds, over `planet.charges`, with no copy in memory.
 - `clicks.Board` (not an adapter) — validates tile IDs
-- country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](composite-layer.md)
+- flag codes are checked against planet's catalog (`shared/cpflags`): the flags the game ships with and the ones opened since — see [The flags module](flags.md)
 
 `inmemory_tile_storage` implements `clicks.TileStorage`, including `Subscribe(ctx) (<-chan clicks.Change, clicks.MapVersion, error)`, one call per open stream; the version is the map's at the subscription. A `Change` is a tile update, a bomb blast, a fortify or a tally, with its version, on one channel so they keep their order — see [What a bomb does](bomb.md).

@@ -67,7 +67,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/round_take_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -93,7 +93,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
-	countries := cpcountries.New()
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
@@ -175,6 +174,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe scoring to who may be ranked: %w", subscribeErr)
 	}
 
+	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	flagsOpened, err := cpredis.Subscribe(ctx, streams, "scoring-flags-opened",
+		log_subscriber.New(cpflags.NewOpenedHandler(countries), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagOpened: %w", err)
+	}
+	flagsClosed, err := cpredis.Subscribe(ctx, streams, "scoring-flags-closed",
+		log_subscriber.New(cpflags.NewClosedHandler(countries), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
+	}
+
 	grants, err := cpredis.Handle(ctx, streams, grant_points_handler.NewDropping(log_subscriber.New[*scoringv1.GrantPoints](
 		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)),
 		props.Logger)))
@@ -195,7 +208,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, scores, rounds, cpredis.CloseAfter(streams, props.Logger,
 		takes, deletions, roundTakes, roundDeletions, players, forgottenPlayers, leaving, returns, forgottenDepartures,
-		grants)))
+		grants, flagsOpened, flagsClosed)))
 
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{

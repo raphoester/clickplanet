@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package flags.v1;
+
+// The catalog of flags: the ones the game ships with, and the ones opened since.
+service FlagService {
+  // Every flag of the catalog, the closed ones too: history still names them. A cached GET.
+  rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListFlagsRequest {}
+
+message ListFlagsResponse {
+  // The flags the game ships with first, in their order, then the ones opened since, by name.
+  repeated Flag flags = 1;
+}
+
+message Flag {
+  // An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
+  // opened since.
+  string code = 1;
+  // In English.
+  string name = 2;
+  // No player may play for a closed flag.
+  bool closed = 3;
+}

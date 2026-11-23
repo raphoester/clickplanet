@@ -15,7 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
@@ -71,7 +71,7 @@ func (s *testSuite) leaves(n int) {
 }
 
 func (s *testSuite) query() *my_tally_query.PostgresQuery {
-	return my_tally_query.NewPostgresQuery(s.db, cpcountries.New())
+	return my_tally_query.NewPostgresQuery(s.db, cpflags.NewOpenCatalog())
 }
 
 func (s *testSuite) mySeason(n int, country string) *scoringv1.GetMyTallyResponse {

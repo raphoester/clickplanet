@@ -373,6 +373,22 @@ missions:
     address: localhost:6379
     password: ""
 
+# The catalog of flags: the ones the game ships with are in the code, the ones opened since in this schema.
+flags:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: flags
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: localhost:6379
+    password: ""
+
 support:
   database:
     host: localhost

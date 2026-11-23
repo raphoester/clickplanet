@@ -7,8 +7,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+// The flags the game ships with and the ones opened since: a closed one is known.
 type Countries interface {
-	CheckCountry(country string) bool
+	Known(ctx context.Context, flag string) (bool, error)
 }
 
 type Drafts struct {
@@ -35,7 +36,11 @@ func (d Drafts) Draft(
 	if err != nil {
 		return Message{}, fmt.Errorf("failed to check the message: %w", err)
 	}
-	if !d.countries.CheckCountry(country) {
+	known, err := d.countries.Known(ctx, country)
+	if err != nil {
+		return Message{}, fmt.Errorf("failed to read whether %q is a flag: %w", country, err)
+	}
+	if !known {
 		return Message{}, fmt.Errorf("%w: invalid country code %q", ErrInvalidMessage, country)
 	}
 	if err := d.rooms.EntryError(ctx, account, room); err != nil {

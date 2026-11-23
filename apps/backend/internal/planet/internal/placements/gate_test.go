@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -44,13 +44,13 @@ func gate(t *testing.T, pledged string) placements.Gate {
 func gateOn(t *testing.T, store *allegiances.MemoryStore, pledged string) placements.Gate {
 	t.Helper()
 
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
+	book := allegiances.NewBook(store, cpflags.NewOpenCatalog(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
 		cptime.NewFixedClock(takenAt), &allegiances.RecordedPledges{})
 	if pledged != "" {
 		require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(alice)}, pledged))
 	}
 	tiles := board{owners: map[uint32]string{7: "fr", 8: "de", 9: "fr"}, shields: map[uint32]int{9: 2}}
-	return placements.NewGate(tiles, cpcountries.New(), book, twoATile)
+	return placements.NewGate(tiles, cpflags.NewOpenCatalog(), book, twoATile)
 }
 
 func aim(t *testing.T, g placements.Gate, tile uint32, country string) (placements.Aim, error) {

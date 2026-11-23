@@ -43,6 +43,12 @@
   is `PlayRuleSet`, `GetRuleSetNames` and `GetRuleSet`; and `admin.proto` the operator's `GetRules`, `SaveRuleSet` and
   `ListQuizQuestions`, every question of the bank with its prior, its rating and what its answers measured
   (`quizzes_get_rules`, `quizzes_save_rule_set`, `quizzes_list_quiz_questions`)
+- `proto/flags/v1/flags.proto` — the catalog of flags (`FlagService/ListFlags`, public: every flag the game ships with,
+  then the ones opened since, the closed ones too, each `Flag{code, name, closed}`). A flag opened since is `r-` and ten
+  letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet, the chat, scoring and
+  player keep in a catalog of their own, and `admin.proto` the operator's `ListFlags` (`flags_list_flags`). Planet's
+  stream says `FlagsChanged {}` when its catalog changed: the page reads the list again (see the backend's
+  [The flags module](../apps/backend/docs/flags.md))
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the identity token resumed from the cookie, the caller's account, sign-in with Google, Discord or an emailed code, sign-out and deletion; the `Landing` the calls that make an account carry, with the recruiter's account (`optional`). Beside it, `admin.proto` is the admin page's own sign-in, `WhoAmI` and the connection of an app, and `CountArrivals`, the accounts made each UTC day by `ArrivalSource`, which the Lab page reads and Claude calls as `auth_count_arrivals`

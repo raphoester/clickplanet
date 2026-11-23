@@ -84,7 +84,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -237,12 +237,26 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the past names to player.v1.PlayerForgotten: %w", err)
 	}
+	countries := cpflags.NewCatalog(cpflags.NewPostgresStore(db), cpflags.Quiet{})
+	flagsOpened, err := cpredis.Subscribe(ctx, streams, "player-flags-opened",
+		log_subscriber.New(cpflags.NewOpenedHandler(countries), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagOpened: %w", err)
+	}
+	flagsClosed, err := cpredis.Subscribe(ctx, streams, "player-flags-closed",
+		log_subscriber.New(cpflags.NewClosedHandler(countries), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
+	}
+
 	// Not closers: closers run before the runners stop, and the runners use both.
 	prune := prune_renames_usecase.NewRunner(retention.PruneInterval, log_prune.New(
 		prune_renames_usecase.New(retention.RenameRetention, clock, renameStore), props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune, cpredis.CloseAfter(streams, props.Logger,
 		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving, pastNames,
-		forgottenPastNames,
+		forgottenPastNames, flagsOpened, flagsClosed,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	playersQuery := players_query.NewPostgresQuery(db)
@@ -253,7 +267,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(introducer, visits, cpcountries.New(), clock, tagSalt),
+			announce_usecase.New(introducer, visits, countries, clock, tagSalt),
 		),
 		LeaveHandler: leave_handler.New(forgetVisit),
 		ListenForEventsHandler: listen_for_events_handler.New(

@@ -12,8 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -54,7 +54,7 @@ func (s *testSuite) SetupTest() {
 		s.appender,
 		s.publisher,
 		s.authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New(),
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpflags.NewOpenCatalog(),
 			messages.NewRooms(messages.FakeFlags{guest: "fr"})),
 		s.thread,
 	)
@@ -367,7 +367,7 @@ func (s *testSuite) TestAMessageToTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsA
 func (s *testSuite) TestABannedPhraseIsRefusedAsAnInvalidMessageAndNeitherKeptNorPublished() {
 	s.useCase = send_message_usecase.New(s.appender, s.publisher, s.authors,
 		messages.NewDrafts(&messages.SequentialIDs{}, s.clock,
-			messages.NewLimits(0).WithBanned(messages.NewBanned(messages.DefaultBannedPhrases...)), cpcountries.New(),
+			messages.NewLimits(0).WithBanned(messages.NewBanned(messages.DefaultBannedPhrases...)), cpflags.NewOpenCatalog(),
 			messages.NewRooms(messages.FakeFlags{})),
 		s.thread)
 	in := validIn()

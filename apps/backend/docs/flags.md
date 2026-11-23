@@ -1,0 +1,86 @@
+# The flags module
+
+**The flags module owns the catalog of flags**: the 239 the game ships with, and the flags opened since. It is step 1
+of the regional flags plan (2026-11-23): a flag opened after the server starts is known everywhere with no deploy. No
+flag is opened yet, and players see no change.
+
+## The catalog
+
+- **The flags the game ships with** are the page's `static/countries/countries.json`, copied into
+  `generated/flags/countries.json` by `make flags` (`check-flags` in CI and in the pre-push hook) and embedded:
+  `cpflags.BuiltIn()` (in the page's order, with each English name) and `cpflags.IsBuiltIn`. Never a list kept by hand:
+  it replaced `shared/cpcountries` and its `data.go`.
+- **A flag opened since** is a row of `flags.flags`: `id`, `name`, `state` (`flag_state`: `open` or `closed`) and
+  `decided_at`, when it took that state. **A flag is closed, never deleted**: the season standings, the Hall of Fame,
+  the map history and the videos still name it.
+- **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
+  with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
+  review in step 2 may change the name, and the id stays.
+- **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
+
+## What it tells
+
+`flags.v1.FlagOpened{flag, name, opened_at}` and `flags.v1.FlagClosed{flag, closed_at}`, through its outbox (a lost one
+would leave a module refusing a flag for good), in the transaction that opens or closes the flag.
+
+**At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
+(`bans.Book.Restate`): an open flag as `FlagOpened`, a closed one as `FlagClosed` alone. A module that subscribes after a
+flag was told hears it at the next boot, with no hand migration. With no flag opened, it tells nothing.
+
+**Of one flag, the fact with the latest time holds.** The two facts go on two streams, so a listener may hear a close
+before the opening it follows; it keeps the later one, and a fact told again changes nothing.
+
+## Who keeps a catalog
+
+Planet, the chat, scoring and player each keep **what they heard** in their own schema (`heard_flags`: `flag`, `state`
+as `heard_flag_state`, `decided_at`), through `shared/cpflags`:
+
+- **`cpflags.Catalog`** answers two questions. `Playable`: a flag the game ships with, or one heard open. `Known`: the
+  same, or one heard closed. A flag the game ships with is never read from postgres, so today's clicks cost nothing
+  more.
+- **`cpflags.NewOpenedHandler` and `NewClosedHandler`** hear the facts (`<module>-flags-opened`, `<module>-flags-closed`).
+  `cpflags.PostgresStore` keeps one row per flag under an advisory lock, and only when a fact changes it.
+- **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
+
+| module | asks | for |
+|---|---|---|
+| planet | `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a rally |
+| planet | `Known` | the operator's `FindPlayers`, a flag and an area |
+| chat | `Known` | the flag a message is sent under, in the world and in the flag's room |
+| scoring | `Known` | a board, a tally and a stream asked for one flag |
+| player | `Known` | the flag a player is announced under (who is playing) |
+
+**A closed flag is refused as an unknown one** (`clicks.ErrUnknownCountry`) for a click, a pledge and every charge. Its
+land stays, shields too, and its players keep it as their flag. Step 2 builds what a close does to its players (pick
+another flag) and to its chat room (read-only): planet's and chat's `flags-closed` subscribers are where it goes, a use
+case of the module in place of the bare catalog (`cpflags.Facts`).
+
+**Planet tells the page.** When its catalog changes (a fact told again does not), planet's notice board sends
+`planet.v1.FlagsChanged {}` on every open stream (`notices.Board.PublishFlagsChanged`), and the page reads the list again.
+See the frontend's [flag catalog](../../frontend/docs/flag-catalog.md).
+
+**The alerts keep the flags the game ships with.** A Discord role is made per built-in flag; a flag opened since has
+none yet. `nations.FlagOf` answers no flag for it, so a pledge to it takes the user's role off, and a take by it or of
+its land pings nobody. It is never an error that holds the alerts' stream. Roles for the flags opened since are a later
+step.
+
+## The reads
+
+`flags.v1.FlagService/ListFlags`, public, and `flags.v1.AdminService/ListFlags`, for the backoffice and Claude
+(`flags_list_flags`): every flag the game ships with, in the page's order, then the flags opened since, by name, the
+closed ones with `closed`. One query (`flags_query`), no cache header: the page reads it again right after a
+`FlagsChanged`, and a cached answer would not hold the new flag.
+
+## Open and close
+
+`open_flag_usecase` (a name in, a new id out) and `close_flag_usecase` (a flag closed once: `catalog.ErrClosed`) record
+their fact in the transaction that keeps the flag. **In step 1 only tests call them**, so they, `catalog.OpenFlag` and
+`random_flag_ids` are behind the `testing` tag: `make deadcode` refuses code with no caller. Step 2's operator call
+drops the tags.
+
+`internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and watches another
+module's catalog make it playable with no restart, then not playable once closed.
+
+## The pool
+
+The flags module holds 1 postgres connection; player went from 4 to 3, so `max_connections` stays 42.

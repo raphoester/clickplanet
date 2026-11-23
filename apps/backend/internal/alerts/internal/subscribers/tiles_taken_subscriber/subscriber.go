@@ -57,16 +57,17 @@ func takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
 		if tile.GetPrevious() == "" || tile.GetPrevious() == event.GetCountry() {
 			continue
 		}
-		victim, err := nations.FlagOf(tile.GetPrevious())
-		if err != nil {
-			return nil, err //nolint:wrapcheck // the flag named it.
+		// A flag opened since the game shipped has no role to ping, nor a name the server knows.
+		victim, ok := nations.FlagOf(tile.GetPrevious())
+		if !ok {
+			continue
 		}
-		attacker, err := nations.FlagOf(event.GetCountry())
-		if err != nil {
-			return nil, err //nolint:wrapcheck // the flag named it.
+		attacker, ok := nations.FlagOf(event.GetCountry())
+		if !ok {
+			continue
 		}
-		ground, err := nations.FlagOf(tile.GetGround())
-		if err != nil {
+		ground, ok := nations.FlagOf(tile.GetGround())
+		if !ok {
 			ground = victim
 		}
 
