@@ -73,11 +73,13 @@ func (s *testSuite) TestAReplyToANoteIsKeptWithoutTheMailItQuotes() {
 func (s *testSuite) TestTheSameMailTwiceIsKeptOnce() {
 	s.Require().NoError(s.receive(stubReader{received: reply}, string(inbox.Of(note.ID))))
 
-	s.Require().ErrorIs(s.receive(stubReader{received: reply}, string(inbox.Of(note.ID))), conversations.ErrReceivedAlready)
+	err := s.receive(stubReader{received: reply}, string(inbox.Of(note.ID)))
+	s.Require().ErrorIs(err, conversations.ErrReceivedAlready)
+	s.True(receive_reply_usecase.IsKept(err))
 	s.Len(s.conversations.Kept()[0].Replies, 1)
 }
 
-func (s *testSuite) TestAMailToNoNoteOrToANoteThatTakesNoneIsDropped() {
+func (s *testSuite) TestAMailToNoNoteOrToANoteThatTakesNoneIsStray() {
 	anonymized := note
 	anonymized.ID, anonymized.Account, anonymized.ReplyAddress = notes.NoteID{15: 2}, notes.AccountID{}, ""
 	s.notes.Seed(anonymized)
@@ -90,23 +92,24 @@ func (s *testSuite) TestAMailToNoNoteOrToANoteThatTakesNoneIsDropped() {
 		err := s.receive(stubReader{received: reply}, recipient)
 
 		s.Require().ErrorIs(err, want, recipient)
-		s.True(receive_reply_usecase.IsDropped(err), recipient)
+		s.True(receive_reply_usecase.IsStray(err), recipient)
 	}
 	s.Empty(s.conversations.Kept())
 }
 
-func (s *testSuite) TestAMailThatCannotBeReadIsDropped() {
+func (s *testSuite) TestAMailThatCannotBeReadIsStray() {
 	err := s.receive(stubReader{err: conversations.ErrUnreadable}, string(inbox.Of(note.ID)))
 
 	s.Require().ErrorIs(err, conversations.ErrUnreadable)
-	s.True(receive_reply_usecase.IsDropped(err))
+	s.True(receive_reply_usecase.IsStray(err))
 }
 
-func (s *testSuite) TestAReplyThatCouldNotBeKeptIsNotDropped() {
+func (s *testSuite) TestAReplyThatCouldNotBeKeptIsNeitherKeptNorStray() {
 	s.conversations.FailWith(io.ErrUnexpectedEOF)
 
 	err := s.receive(stubReader{received: reply}, string(inbox.Of(note.ID)))
 
 	s.Require().ErrorIs(err, io.ErrUnexpectedEOF)
-	s.False(receive_reply_usecase.IsDropped(err))
+	s.False(receive_reply_usecase.IsKept(err))
+	s.False(receive_reply_usecase.IsStray(err))
 }

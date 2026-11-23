@@ -12,8 +12,10 @@ import (
 )
 
 type mail struct {
-	raw      string
-	rejected []string
+	raw       string
+	rejected  []string
+	forwarded []string
+	refused   error
 }
 
 func (m *mail) To() string { return "support+1@clickplanet.lol" }
@@ -22,6 +24,14 @@ func (m *mail) Raw() io.ReadCloser { return io.NopCloser(bytes.NewBufferString(m
 
 func (m *mail) SetReject(reason string) error {
 	m.rejected = append(m.rejected, reason)
+	return nil
+}
+
+func (m *mail) Forward(to string) error {
+	if m.refused != nil {
+		return m.refused
+	}
+	m.forwarded = append(m.forwarded, to)
 	return nil
 }
 
@@ -36,7 +46,12 @@ func backend(t *testing.T, status int, seen *http.Request, body *[]byte) Backend
 		w.WriteHeader(status)
 	}))
 	t.Cleanup(server.Close)
-	return Backend{URL: server.URL + "/mailroom/replies", Secret: "the-secret", HTTP: server.Client()}
+	return Backend{
+		URL:      server.URL + "/mailroom/replies",
+		Secret:   "the-secret",
+		Operator: "operator@example.com",
+		HTTP:     server.Client(),
+	}
 }
 
 func TestTheRawMailAndItsRecipientArePostedWithTheSecret(t *testing.T) {
@@ -53,6 +68,28 @@ func TestTheRawMailAndItsRecipientArePostedWithTheSecret(t *testing.T) {
 	assert.Equal(t, "support+1@clickplanet.lol", seen.Header.Get("X-Envelope-To"))
 	assert.Equal(t, "Message-ID: <1@x>\r\n\r\nHi", string(body))
 	assert.Empty(t, sent.rejected)
+	assert.Empty(t, sent.forwarded)
+}
+
+func TestAMailTheBackendKeepsInNoNoteGoesToTheOperator(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		var seen http.Request
+		var body []byte
+		sent := &mail{raw: "Hi"}
+
+		require.NoError(t, backend(t, status, &seen, &body).Deliver(t.Context(), sent), status)
+
+		assert.Equal(t, []string{"operator@example.com"}, sent.forwarded, status)
+	}
+}
+
+func TestAStrayMailThatCouldNotBeForwardedFailsSoItComesAgain(t *testing.T) {
+	var seen http.Request
+	var body []byte
+
+	err := backend(t, http.StatusOK, &seen, &body).Deliver(t.Context(), &mail{raw: "Hi", refused: assert.AnError})
+
+	require.ErrorIs(t, err, assert.AnError)
 }
 
 func TestAMailTheBackendDidNotKeepFailsSoItComesAgain(t *testing.T) {
@@ -83,4 +120,5 @@ func TestAMailTheBackendFindsTooLargeIsRejectedForGood(t *testing.T) {
 	require.NoError(t, backend(t, http.StatusRequestEntityTooLarge, &seen, &body).Deliver(t.Context(), sent))
 
 	assert.Equal(t, []string{"This mail is too large."}, sent.rejected)
+	assert.Empty(t, sent.forwarded)
 }

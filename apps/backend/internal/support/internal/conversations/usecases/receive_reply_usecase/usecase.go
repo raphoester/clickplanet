@@ -36,19 +36,22 @@ type Executor interface {
 	Execute(ctx context.Context, in In) (notes.NoteID, error)
 }
 
-// What is dropped: nothing can be done of it, and the sender is not asked to send it again.
-var Dropped = []error{
+// A stray mail: no note keeps it, so the operator reads it in their own mailbox.
+var Stray = []error{
 	conversations.ErrUnreadable, notes.ErrNotANoteAddress, notes.ErrUnknownNote, notes.ErrNoReplyAddress,
-	conversations.ErrReceivedAlready,
 }
 
-func IsDropped(err error) bool {
-	for _, dropped := range Dropped {
-		if errors.Is(err, dropped) {
+func IsStray(err error) bool {
+	for _, stray := range Stray {
+		if errors.Is(err, stray) {
 			return true
 		}
 	}
 	return false
+}
+
+func IsKept(err error) bool {
+	return err == nil || errors.Is(err, conversations.ErrReceivedAlready)
 }
 
 const timeout = 10 * time.Second

@@ -35,8 +35,8 @@ internal/support/internal/
       audit_answer_note/            logs every answer at Warn
     usecases/close_note_usecase/    reads the conversation, closes it, saves — Conversations
     usecases/receive_reply_usecase/ the note the recipient names, the mail read, the reply kept without what it quotes, or
-                                    dropped — Inbox, Reader, Notes, Conversations
-      log_receive_reply/            logs each mail: kept, dropped (and why) or not kept
+                                    stray — Inbox, Reader, Notes, Conversations
+      log_receive_reply/            logs each mail: kept, kept already, stray (and why) or not kept
     mime_reader/                    Reader: a raw mail's Message-ID, From and words (the text part, or the HTML stripped)
   uploads/                          Upload (NewUpload, Discarded, TakeSnapshot), Snapshot (Restore), Shelf (Reserve, Room),
                                     FilesOf; the Storage port and the StorageContractSuite
@@ -206,7 +206,8 @@ it raw. **All reading is here, in Go.**
   - **A size cap**, `support.mailroom.maxBytes` (25 MiB, Email Routing's own): a body past it is a 413, which the
     Worker turns into a rejection for good.
   - **The envelope recipient** is `X-Envelope-To`: the note's address, `+` part included.
-  - **A 202 is done with**, kept or dropped; a mail not kept (the database) is a 500, and the Worker throws so the
+  - **A 202 is kept** (`receive_reply_usecase.IsKept`: now, or already). **A 200 is a stray mail** (below), which the
+    Worker forwards to the operator's mailbox. A mail not kept (the database) is a 500, and the Worker throws so the
     sending server tries again.
 - **`mime_reader` reads the mail** (`net/mail`, `mime/multipart`): the Message-ID (`cpmail.MessageIDOf`; none, or not
   a mail at all, is `conversations.ErrUnreadable`), the From's bare address (empty if no mail goes back to it), and the
@@ -222,9 +223,12 @@ it raw. **All reading is here, in Go.**
   the time it came.
 - **Idempotent by its Message-ID**: a mail the conversation holds already is `ErrReceivedAlready`, done with. Two
   deliveries at once both write the same row (the key is the note and the Message-ID).
-- **Dropped and logged** (`receive_reply_usecase.Dropped`, `log_receive_reply` at Warn): a mail that cannot be read, a
-  recipient that names no note, a note not kept, **a note with no address** (anonymized: its replies are not kept
-  either), a mail kept already. A kept one is logged at Info, one not kept at Error.
+- **A stray mail goes to the operator's mailbox** (`receive_reply_usecase.Stray`, logged at Warn with why): a mail
+  that cannot be read, a recipient that names no note (a player who wrote to `support@` itself), a note not kept, **a
+  note with no address** (anonymized: its replies are not kept either). Nothing of it is kept here: the backend answers
+  200, and the mailroom Worker forwards the mail as it came to its `OPERATOR_ADDRESS`. Why not keep it here for the
+  backoffice is in [The mailroom](../../mailroom/docs/mailroom.md#why-a-forward-and-not-a-stray-mail-kept-in-the-backend).
+  A kept one is logged at Info, one kept already at Info, one not kept at Error.
 - **The page shows the From when it differs from the note's address**: `ListNotes` gives both.
 - **No secret, no endpoint**: with `support.mailroom.secret` empty, nothing is mounted and no reply is taken. A secret
   of fewer than 32 characters refuses the boot.

@@ -25,7 +25,7 @@ func New(useCase UseCase, secret string, maxBytes int64) http.Handler {
 	return &Handler{useCase: useCase, secret: sha256.Sum256([]byte(secret)), maxBytes: maxBytes}
 }
 
-// A mail the mailroom Worker received: a 2xx is done with, kept or dropped; anything else, Cloudflare tries again.
+// A mail the mailroom Worker received: a 202 is kept, a 200 stray; anything else, Cloudflare tries again.
 type Handler struct {
 	useCase  UseCase
 	secret   [sha256.Size]byte
@@ -52,8 +52,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.As(err, &tooLarge):
 		http.Error(w, "too large", http.StatusRequestEntityTooLarge)
-	case err == nil, receive_reply_usecase.IsDropped(err):
+	case receive_reply_usecase.IsKept(err):
 		w.WriteHeader(http.StatusAccepted)
+	case receive_reply_usecase.IsStray(err):
+		w.WriteHeader(http.StatusOK)
 	default:
 		http.Error(w, "not kept, send again", http.StatusInternalServerError)
 	}

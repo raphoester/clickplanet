@@ -12,12 +12,14 @@ type Mail interface {
 	To() string
 	Raw() io.ReadCloser
 	SetReject(reason string) error
+	Forward(to string) error
 }
 
 type Backend struct {
-	URL    string
-	Secret string
-	HTTP   *http.Client
+	URL      string
+	Secret   string
+	Operator string
+	HTTP     *http.Client
 }
 
 // A returned error answers the sending server a temporary failure: it tries again later.
@@ -51,7 +53,12 @@ func (b Backend) Deliver(ctx context.Context, mail Mail) error {
 		return nil
 	case res.StatusCode/100 != 2:
 		return fmt.Errorf("the backend answered %d", res.StatusCode)
+	case res.StatusCode == http.StatusAccepted:
+		return nil
 	default:
+		if err := mail.Forward(b.Operator); err != nil {
+			return fmt.Errorf("failed to forward the mail to the operator: %w", err)
+		}
 		return nil
 	}
 }
