@@ -11,9 +11,9 @@ every switch off (and the reverse). While aimed, a tap on a tile of the flag lay
 `ClickService/LayMine`) instead of clicking, and **it stays aimed while a mine is held**, so mines are laid together.
 **A tap on a tile of another flag, or of none, is a plain click**, as with shield on (`layingOf` in `domain/mines.ts`):
 it takes the tile, "Tile taken. Tap it again to lay a mine" (`mineTaken`) over the slot, and the next tap lays the
-mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag that holds a mine or a trap
-already, or a capital while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine or
-trap", the notice `mineNotYours`): a tile holds one mine or one trap (see [Trap](trap.md)). The backend takes one mine off the hand at once and gives it back unless the server says it holds
+mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag mined already, or a capital
+while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine", the notice
+`mineNotYours`). A tile holds one mine and one trap at most (see [Trap](trap.md)). The backend takes one mine off the hand at once and gives it back unless the server says it holds
 none: a `MineRefusal` is `MineRefusedError`, said with the same notice.
 
 **The flag's mines are read, never public.** `GetMap` carries none. The planet backend reads `GetMines` as each stream
@@ -41,7 +41,7 @@ drawing all that time (see [Drawing only when something changed](render-on-deman
 **On a shielded tile the mine steps down to the shield's tip**, at half its size, as the count fades in (16 to 22px,
 see [Shields](shields.md)). In the middle it covered the count. Its light grows there, as at that size the red dot is
 what says "mine". Under 16px the shield shows no count, so the mine stays in the middle. A capital's tile stacks the
-crown, the count and the mine, top to bottom.
+crown, the count and the mine, top to bottom. A mine beside a trap stands on the left of it (see [Trap](trap.md)).
 
 **No ghost on a mine** (see [Ghosts](ghosts.md)).
 

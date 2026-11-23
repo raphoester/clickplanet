@@ -855,7 +855,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    // A tile of the page's flag takes one mine or one trap.
+    // A tile of the page's flag with a mine or a trap: no ghost takes it.
     const armedTile = (tile: number) => tiles.mines.has(tile) || tiles.traps.has(tile)
 
     const recount = ({countries, landmasses, provinces: moved}: Recount, live: boolean) => {
@@ -1901,7 +1901,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         if (mineAimed && miner) {
-            const laying = layingOf(owner, country.code, armedTile(tile), (rules?.knockOut && capitals?.has(tile)) ?? false)
+            const laying = layingOf(owner, country.code, tiles.mines.has(tile), (rules?.knockOut && capitals?.has(tile)) ?? false)
             if (laying === "refused") {
                 onNotice("mineNotYours")
                 playSound("refused")
@@ -1914,7 +1914,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         if (trapAimed && trapper) {
-            const laying = layingOf(owner, country.code, armedTile(tile), false)
+            const laying = layingOf(owner, country.code, tiles.traps.has(tile), false)
             if (laying === "refused") {
                 onNotice("trapNotYours")
                 playSound("refused")

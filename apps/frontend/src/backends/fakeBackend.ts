@@ -576,9 +576,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
         if (this.charges.mines === 0) throw new BonusLostError()
-        if (this.tileBindings.get(tileId) !== countryId || this.mines.has(tileId) || this.traps.has(tileId)) {
-            throw new MineRefusedError()
-        }
+        if (this.tileBindings.get(tileId) !== countryId || this.mines.has(tileId)) throw new MineRefusedError()
 
         this.hold({...this.charges, mines: this.charges.mines - 1})
         this.mines.set(tileId, countryId)
@@ -591,9 +589,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
         if (this.charges.traps === 0) throw new BonusLostError()
-        if (this.tileBindings.get(tileId) !== countryId || this.mines.has(tileId) || this.traps.has(tileId)) {
-            throw new TrapRefusedError()
-        }
+        if (this.tileBindings.get(tileId) !== countryId || this.traps.has(tileId)) throw new TrapRefusedError()
 
         this.hold({...this.charges, traps: this.charges.traps - 1})
         this.traps.set(tileId, countryId)
@@ -613,7 +609,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     // Another flag lays a trap on one of its tiles, which the page does not see: the page's take of it costs its bank.
     public enemyTrap(): number | undefined {
         const flag = this.allegiance?.countryId
-        const tile = [...this.tileBindings].find(([id, owner]) => owner !== flag && !this.mines.has(id) && !this.traps.has(id))
+        const tile = [...this.tileBindings].find(([id, owner]) => owner !== flag && !this.traps.has(id))
         if (!tile) return undefined
         this.traps.set(tile[0], tile[1])
         return tile[0]

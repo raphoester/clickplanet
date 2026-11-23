@@ -11,8 +11,9 @@ virus, the mine and the rally away and turns every switch off, and aiming any of
 on a tile of the flag lays a trap (`Trapper.layTrap`, `ClickService/LayTrap`), and **it stays aimed while a trap is
 held**. A tap on a tile of another flag, or of none, is a plain click (`layingOf` in `domain/mines.ts`, the mine's rule):
 it takes the tile, "Tile taken. Tap it again to lay a trap" (`trapTaken`) over the slot, and the next tap lays it. The
-globe refuses a tile of the flag that holds a mine or a trap before the call ("A trap goes only on your flag's tile with
-no mine or trap", `trapNotYours`); a capital takes one, as the take that knocks its flag out springs it first. The
+globe refuses a tile of the flag that holds a trap before the call ("A trap goes only on your flag's tile with no trap",
+`trapNotYours`); a tile with a mine takes one, and a capital too, as the take that knocks its flag out springs it
+first. The
 backend takes one trap off the hand at once and gives it back unless the server says it holds none: a `TrapRefusal` is
 `TrapRefusedError`. The hints say only what to tap.
 
@@ -26,7 +27,9 @@ every mine and trap when it plays for another flag (`forgetMarks`).
 **A trapped tile is drawn with its trap** (the pulse slot's seventh bit, `TRAP_MARK`, 64): an open set of steel jaws,
 their teeth in, on two hinges, round a `--trap` plate. It is still, as the mine is (see [Drawing only when something
 changed](render-on-demand.md)). **On a shielded tile it steps down to the shield's tip** at half its size, as the mine
-does, and its plate grows there; a capital's tile stacks the crown, the count and the trap, top to bottom.
+does, and its plate grows there; a capital's tile stacks the crown, the count and the trap, top to bottom. **A tile with
+a mine and a trap draws them side by side**, the mine on the left, each at 0.7 of its size (`PAIR_SIZE`,
+`PAIR_APART`), in the middle or at the shield's tip.
 
 **`trap_sprung` reaches every page** (`onTrapSprung`, told after the take's own event): two toothed steel jaws slam shut
 over the tile in about 150 ms with an overshoot, the tile flashes `--trap` and shakes, and what left the taker's bank

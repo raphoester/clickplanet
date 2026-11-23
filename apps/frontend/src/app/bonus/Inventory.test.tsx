@@ -153,14 +153,14 @@ describe("Inventory", () => {
         expect(bubble()).toBe("Tap one of your tiles: if an enemy takes it, the mine explodes and takes the tiles around it")
     })
 
-    it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine or trap", () => {
+    it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine", () => {
         const charges = {...NO_CHARGES, mines: 1}
         const {rerender} = render(inventory({charges, mineAimed: true}))
         expect(slot(/^Mine/).getAttribute("aria-pressed")).toBe("true")
 
         rerender(inventory({charges, mineAimed: true, notice: {notice: "mineNotYours", seq: 1}}))
 
-        expect(bubble()).toBe("A mine goes only on your flag's tile with no mine or trap")
+        expect(bubble()).toBe("A mine goes only on your flag's tile with no mine")
     })
 
     it("counts the traps held, aims them and says only what to tap", () => {
@@ -180,7 +180,7 @@ describe("Inventory", () => {
         expect(slot(/^Trap/).getAttribute("aria-pressed")).toBe("true")
 
         rerender(inventory({charges, trapAimed: true, notice: {notice: "trapNotYours", seq: 1}}))
-        expect(bubble()).toBe("A trap goes only on your flag's tile with no mine or trap")
+        expect(bubble()).toBe("A trap goes only on your flag's tile with no trap")
 
         rerender(inventory({charges, trapAimed: true, notice: {notice: "trapTaken", seq: 2}}))
         expect(bubble()).toBe("Tile taken. Tap it again to lay a trap")

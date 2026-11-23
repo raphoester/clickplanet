@@ -407,10 +407,10 @@ export class MineRefusedError extends Error {
     }
 }
 
-// The tile was not the flag's, or held a mine or a trap already: the trap stays in the hand.
+// The tile was not the flag's, or held a trap already: the trap stays in the hand.
 export class TrapRefusedError extends Error {
     constructor(options?: ErrorOptions) {
-        super("a trap goes only on a tile of your flag with no mine and no trap", options)
+        super("a trap goes only on a tile of your flag with no trap", options)
         this.name = "TrapRefusedError"
     }
 }
