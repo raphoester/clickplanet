@@ -43,8 +43,8 @@ in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
   and the count from 22px. **The count is on the shield, not on a badge in
   its corner**: a badge leaves a digit a third of the tile, unreadable
   until about 40px. The shield is 80% of the tile, so the flag still shows
-  around it. A mine on the tile moves to the shield's tip while the count
-  shows (see [Mine](mine.md)).
+  around it. A mine or a trap on the tile moves to the shield's tip while the count
+  shows (see [Mine](mine.md), [Trap](trap.md)).
 - **A shield fades out with the tiles** (`1 - flagPaint`): under the painted
   flags from orbit there is none. With the painted flags off, the tiles stay
   and so do their shields. Nothing is allocated per tile and nothing

@@ -37,7 +37,7 @@ export type Reverted = {touched: number, held: number, restored: number}
 // Each kind a count, as GrantChargesRequest takes it: the server keeps what a hand holds of it under the rules in force.
 export type Grant = {
     refills: number, bombs: number, enclosures: number, spreadClicks: number, shields: number, viruses: number, mines: number,
-    rallies: number,
+    rallies: number, traps: number,
 }
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
 export type Released = {locked: boolean}
@@ -53,11 +53,12 @@ export type Profile = {identity: AdminGetPlayerResponse | undefined, progress: A
 
 export const MOST = 99
 export const NO_GRANT: Grant = {
-    refills: 0, bombs: 0, enclosures: 0, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
+    refills: 0, bombs: 0, enclosures: 0, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0, traps: 0,
 }
 // The server caps each count at its stack, so this fills every charge and the answer says what fit.
 export const MAX_GRANT: Grant = {
     refills: MOST, bombs: MOST, enclosures: MOST, spreadClicks: MOST, shields: MOST, viruses: MOST, mines: MOST, rallies: MOST,
+    traps: MOST,
 }
 
 // What each kind of mute takes away, as the page says it: its choice, the account it holds in a sentence, and what

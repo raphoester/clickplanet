@@ -15,22 +15,18 @@ type Tiles interface {
 	Shields(tile uint32) int
 }
 
-type Countries interface {
-	CheckCountry(country string) bool
-}
-
 type Allegiances interface {
 	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
 }
 
-func NewGate(tiles Tiles, countries Countries, allegiances Allegiances, rules func() charges.Rules) Gate {
+func NewGate(tiles Tiles, countries clicks.Flags, allegiances Allegiances, rules func() charges.Rules) Gate {
 	return Gate{tiles: tiles, countries: countries, allegiances: allegiances, rules: rules}
 }
 
 // Gate refuses a placement before a shield leaves the hand. The map checks the tile again when the shield comes.
 type Gate struct {
 	tiles       Tiles
-	countries   Countries
+	countries   clicks.Flags
 	allegiances Allegiances
 	rules       func() charges.Rules
 }
@@ -42,8 +38,8 @@ type Aim struct {
 }
 
 func (g Gate) Aim(ctx context.Context, payer clicks.Payer, tile uint32, country string) (Aim, error) {
-	if !g.countries.CheckCountry(country) {
-		return Aim{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, country)
+	if err := clicks.CheckFlag(ctx, g.countries, country); err != nil {
+		return Aim{}, err //nolint:wrapcheck // the check names it.
 	}
 
 	owner, ok := g.tiles.Owner(tile)

@@ -1,5 +1,4 @@
 import {Boards, MySeason, Standing} from "../../backends/standings.ts"
-import {Countries} from "../../domain/countries.ts"
 import {boardWith} from "../../domain/standings.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
@@ -97,7 +96,7 @@ type StandingRowProps = {
 }
 
 function StandingRow({standing, you}: StandingRowProps) {
-    const country = Countries.get(standing.countryCode)
+    const flagged = standing.countryCode !== ""
     const countryName = translator().country(standing.countryCode)
     const nameplate = useNameplate(standing.accountId)
     const style = authorStyle(paintOf(nameplate))
@@ -110,8 +109,8 @@ function StandingRow({standing, you}: StandingRowProps) {
         <td className="leaderboard-entry-index"><RankCoin rank={standing.rank} you={you}/></td>
         <td className="standings-player">
             <span className="standings-who">
-                {country && <span className="standings-flag" role="img" aria-label={countryName} title={countryName}>
-                    <CountryFlag code={country.code}/>
+                {flagged && <span className="standings-flag" role="img" aria-label={countryName} title={countryName}>
+                    <CountryFlag code={standing.countryCode}/>
                 </span>}
                 {player
                     ? <button type="button"

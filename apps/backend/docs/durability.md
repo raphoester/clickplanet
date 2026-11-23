@@ -62,7 +62,8 @@ way, in `knockouts`, by the flush that writes the tiles they left blank, and del
 [Arena battles](arenas.md). So are the live viruses, in `viruses`: the flush writes every live virus of the map in the
 transaction that writes the tiles, whenever one changed, so a crash loses the last second of both together (see
 [The virus](virus.md)). And the mines, in `mines`: the flush upserts each one laid and deletes each one gone since the
-last flush, in the same transaction (see [The mine](mine.md)).
+last flush, in the same transaction (see [The mine](mine.md)). And the traps, in `traps`, the same way (see [The
+trap](trap.md)): a sprung trap has no ledger kind, and the debt it left is the limiter's, in memory.
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
 A shield placed is the one write of both: the flush that saves its tile ends its row in `planet.placements`, in the same

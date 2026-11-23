@@ -50,8 +50,10 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	pocket := u.terrain.PocketClosedBy(in.TileID, in.CountryID, rules.MaxTiles)
+	sprung, err := u.annexer.Annex(ctx, holder, in, pocket, rules)
+	out.Sprung = append(out.Sprung, sprung...)
 
-	return out, u.annexer.Annex(ctx, holder, in, pocket, rules)
+	return out, err
 }
 
 func (u *UseCase) armed(ctx context.Context, holder charges.Holder, rules charges.EncloseRules) (bool, error) {

@@ -1,4 +1,5 @@
 import {Countries, Country} from "../domain/countries.ts";
+import {isOpenedCode} from "../domain/flags.ts";
 import {countryFromTimeZone} from "./visitorCountry.ts";
 
 export const COUNTRY_STORAGE_KEY = 'clickplanet-country'
@@ -20,7 +21,8 @@ export function parseStoredCountry(raw: string | null | undefined): Country | un
     const code = (parsed as {code?: unknown}).code
     if (typeof code !== "string") return undefined
 
-    return Countries.get(code)
+    // A flag opened since the build is kept before the page reads the list: the held flag the server tells wins anyway.
+    return Countries.get(code) ?? (isOpenedCode(code) ? {code} : undefined)
 }
 
 export function resolveCountry(

@@ -29,7 +29,7 @@ type Allegiances struct {
 	planet Planet
 }
 
-// No flag when the account never pledged one.
+// No flag when the account never pledged one, or plays for one with no role.
 func (a Allegiances) FlagOf(ctx context.Context, account links.AccountID) (nations.Flag, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
@@ -42,9 +42,6 @@ func (a Allegiances) FlagOf(ctx context.Context, account links.AccountID) (natio
 	if pledged == "" {
 		return "", nil
 	}
-	flag, err := nations.FlagOf(pledged)
-	if err != nil {
-		return "", fmt.Errorf("planet named a flag %s cannot play for: %w", account, err)
-	}
+	flag, _ := nations.FlagOf(pledged)
 	return flag, nil
 }

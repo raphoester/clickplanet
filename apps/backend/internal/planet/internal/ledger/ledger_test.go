@@ -350,7 +350,7 @@ func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortif
 	return *s.fortify, nil
 }
 
-func (*stubTiles) Trip(uint32) {}
+func (*stubTiles) Trip(uint32) (clicks.Trap, bool) { return clicks.Trap{}, false }
 
 func (s *stubTiles) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
 	if s.knockOut == nil {
@@ -423,7 +423,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 
 func recorded(tiles *stubTiles) (ledger.Recording, *inmemory_ledger_storage.Storage) {
 	events := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), events, cptime.NewFixedClock(start)), events
+	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }, clicks.NewSnareLog()), events, cptime.NewFixedClock(start)), events
 }
 
 func written(storage ledger.Storage) []ledger.Event {
@@ -464,7 +464,8 @@ func TestEveryEventARecordingMakesNamesTheStageItsWriteRanOn(t *testing.T) {
 
 	_, err := recording.Click(caller(t), 1, "fr")
 	require.NoError(t, err)
-	require.NoError(t, recording.Spread(caller(t), 1, "fr", []uint32{2}))
+	_, err = recording.Spread(caller(t), 1, "fr", []uint32{2})
+	require.NoError(t, err)
 	_, err = recording.Shield(caller(t), 1, "fr", 3, clicks.PlacementID{})
 	require.NoError(t, err)
 	_, err = recording.Clear(caller(t), clicks.Blast{Tile: 3, CountryID: "fr", Cleared: []uint32{3}})
@@ -561,7 +562,8 @@ func TestRecordingNotesASpreadAsOneEventWithWhatItTookAndWhatItStruck(t *testing
 	tiles.shields[3] = 1
 	recording, events := recorded(tiles)
 
-	require.NoError(t, recording.Spread(caller(t), 1, "fr", []uint32{2, 3, 4, 5}))
+	_, err := recording.Spread(caller(t), 1, "fr", []uint32{2, 3, 4, 5})
+	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{2: "fr", 3: "pl", 4: "fr", 5: "fr"}, tiles.owners)
 	assert.Equal(t, []ledger.Event{ledger.Spreading{
@@ -580,7 +582,7 @@ func TestRecordingNotesASpreadAsOneEventWithWhatItTookAndWhatItStruck(t *testing
 func TestRecordingNotesASpreadThatFailedWithWhatItTookBeforeIt(t *testing.T) {
 	recording, events := recorded(newTiles(map[uint32]string{2: "de"}))
 
-	err := recording.Spread(caller(t), 1, "fr", []uint32{2, lastTile + 1, 3})
+	_, err := recording.Spread(caller(t), 1, "fr", []uint32{2, lastTile + 1, 3})
 	require.ErrorIs(t, err, errOutOfRange)
 
 	assert.Equal(t, []ledger.Taking{
@@ -591,7 +593,8 @@ func TestRecordingNotesASpreadThatFailedWithWhatItTookBeforeIt(t *testing.T) {
 func TestRecordingNotesASpreadOnALoneIslandThatTookNothing(t *testing.T) {
 	recording, events := recorded(newTiles(map[uint32]string{}))
 
-	require.NoError(t, recording.Spread(caller(t), 7, "fr", nil))
+	_, err := recording.Spread(caller(t), 7, "fr", nil)
+	require.NoError(t, err)
 
 	assert.Equal(t, []ledger.Event{ledger.Spreading{Tile: 7, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start}},
 		written(events), "the spread click was spent")
@@ -602,7 +605,8 @@ func TestRecordingNotesAnEnclosureAsOneEventOnTheTileThatClosedIt(t *testing.T) 
 	tiles.shields[9] = 3
 	recording, events := recorded(tiles)
 
-	require.NoError(t, recording.Enclose(caller(t), clicks.Enclosure{Country: "fr", ClosingTile: 1}, []uint32{8, 9}))
+	_, err := recording.Enclose(caller(t), clicks.Enclosure{Country: "fr", ClosingTile: 1}, []uint32{8, 9})
+	require.NoError(t, err)
 
 	assert.Equal(t, []ledger.Event{ledger.Enclosing{
 		Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start, Impacts: []clicks.Impact{

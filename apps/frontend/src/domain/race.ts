@@ -1,5 +1,5 @@
 import {Race, Round, Score} from "../backends/standings.ts"
-import {Countries, Country} from "./countries.ts"
+import {Country} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
 
 export type CountryOrder = "points" | "tiles" | "gain" | "today"
@@ -49,8 +49,7 @@ export function countryLines(
 
     const held = new Set(leaderboard.map((entry) => entry.country.code))
     for (const code of new Set([...points.keys(), ...today.keys()])) {
-        const country = Countries.get(code)
-        if (!held.has(code) && country) lines.push(line({country, tiles: 0}))
+        if (!held.has(code)) lines.push(line({country: {code}, tiles: 0}))
     }
     return lines
         .filter((l) => l.tiles > 0 || l.points + l.today > 0)

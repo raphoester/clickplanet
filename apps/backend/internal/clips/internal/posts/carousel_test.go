@@ -31,11 +31,11 @@ func listed(t *testing.T) posts.Findings {
 	found := findings(t)
 	found.Lists = posts.Lists{
 		FightTheMost: []posts.FightEntry{
-			{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
-			{Flag: "tr", Fought: 20000, Took: 9000, Lost: 11000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
-			{Flag: "in", Fought: 9000, Took: 4000, Lost: 5000, Rival: "fr", RivalTiles: 3000, Country: "in"},
-			{Flag: "de", Fought: 5000, Took: 2500, Lost: 2500, Rival: "br", RivalTiles: 2000, Country: "de"},
-			{Flag: "br", Fought: 4000, Took: 3000, Lost: 1000, Rival: "ie", RivalTiles: 900, Country: "br"},
+			{Flag: "fr", Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
+			{Flag: "tr", Took: 9000, Lost: 11000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
+			{Flag: "in", Took: 4000, Lost: 5000, Rival: "fr", RivalTiles: 3000, Country: "in"},
+			{Flag: "de", Took: 2500, Lost: 2500, Rival: "br", RivalTiles: 2000, Country: "de"},
+			{Flag: "br", Took: 2000, Lost: 6000, Rival: "ie", RivalTiles: 900, Country: "br"},
 		},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},
 		FoughtSince:    foundAt.Add(-72 * time.Hour),
@@ -133,6 +133,22 @@ func TestAListWhoseNumbersGrowFromTheFirstIsNotTold(t *testing.T) {
 
 	assert.False(t, choice.LabTold)
 	assert.Equal(t, []string{"the lab's carousel: the story does not hold: rank 2 of far-from-home shows more than rank 1: 13200 against 12300"},
+		whysOf(choice.Skipped))
+}
+
+func TestAFightListIsRankedByTheTilesTakenAloneNotTheTilesLost(t *testing.T) {
+	found := listed(t)
+	found.Lists.FightTheMost[0], found.Lists.FightTheMost[1] = found.Lists.FightTheMost[1], found.Lists.FightTheMost[0]
+	found.Lists.FightTheMost[0].Lost = 40000
+	offer := found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
+	swapped := with(fighting, func(s *posts.Story) {
+		s.Ranks = []posts.Rank{s.Ranks[1], s.Ranks[0], s.Ranks[2], s.Ranks[3], s.Ranks[4]}
+	})
+
+	choice := found.Edited(offer, posts.Edition{Lab: []posts.Story{swapped}}, nil, foundAt)
+
+	assert.False(t, choice.LabTold)
+	assert.Equal(t, []string{"the lab's carousel: the story does not hold: rank 2 of fight-the-most shows more than rank 1: 30000 against 9000"},
 		whysOf(choice.Skipped))
 }
 

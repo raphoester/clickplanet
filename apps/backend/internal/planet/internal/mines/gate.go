@@ -19,10 +19,6 @@ type Capitals interface {
 	KnocksOut(tile uint32) bool
 }
 
-type Countries interface {
-	CheckCountry(country string) bool
-}
-
 type Allegiances interface {
 	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
 }
@@ -31,7 +27,7 @@ type Refusals interface {
 	Refusal(ctx context.Context, payer clicks.Payer) (clicks.Refusal, bool, error)
 }
 
-func NewGate(tiles Tiles, capitals Capitals, countries Countries, allegiances Allegiances, refusals Refusals) Gate {
+func NewGate(tiles Tiles, capitals Capitals, countries clicks.Flags, allegiances Allegiances, refusals Refusals) Gate {
 	return Gate{tiles: tiles, capitals: capitals, countries: countries, allegiances: allegiances, refusals: refusals}
 }
 
@@ -41,7 +37,7 @@ func NewGate(tiles Tiles, capitals Capitals, countries Countries, allegiances Al
 type Gate struct {
 	tiles       Tiles
 	capitals    Capitals
-	countries   Countries
+	countries   clicks.Flags
 	allegiances Allegiances
 	refusals    Refusals
 }
@@ -51,8 +47,8 @@ func (g Gate) Lay(ctx context.Context, payer clicks.Payer, tile uint32, country 
 	if refusal, refused, err := g.refusals.Refusal(ctx, payer); err == nil && refused {
 		return refusal
 	}
-	if !g.countries.CheckCountry(country) {
-		return fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, country)
+	if err := clicks.CheckFlag(ctx, g.countries, country); err != nil {
+		return err //nolint:wrapcheck // the check names it.
 	}
 	owner, ok := g.tiles.Owner(tile)
 	if !ok {

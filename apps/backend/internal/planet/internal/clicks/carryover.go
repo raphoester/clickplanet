@@ -147,6 +147,7 @@ type Carried struct {
 	Dropped, DroppedHeld        uint32
 	ShieldsBefore, ShieldsAfter uint32
 	MinesMoved, MinesLost       uint32
+	TrapsMoved, TrapsLost       uint32
 	VirusesEnded                uint32
 	LocksDropped                uint32
 }

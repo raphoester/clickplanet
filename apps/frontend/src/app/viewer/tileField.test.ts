@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
 import * as THREE from "three"
 import {TILE_COLUMNS, TileField} from "./tileField.ts"
-import {regions} from "./atlas.ts"
+import {BLANK_REGION, FLAG_NUMBERS, regions} from "./atlas.ts"
 import {resetWarnOnce} from "../../domain/warnOnce.ts"
 import type {TileGeometry} from "./points.ts"
 import {chunksOf} from "../../domain/tileChunks.ts"
@@ -117,13 +117,16 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             for (let tile = 1; tile <= SIZE; tile++) expect(regionOf(f, tile)).toEqual(ZERO)
         })
 
-        it("leaves a tile blank and warns once for a country with no region", () => {
+        it("gives a flag with no picture the atlas's blank, over the flag it took the tile from", () => {
             const f = field()
-            f.setOwners([{tile: 1, country: "zz"}, {tile: 2, country: "zz"}])
+            f.setOwners([{tile: 1, country: "fr"}])
 
-            expect(regionOf(f, 1)).toEqual(ZERO)
-            expect(regionOf(f, 2)).toEqual(ZERO)
-            expect(console.warn).toHaveBeenCalledTimes(1)
+            f.setOwners([{tile: 1, country: "r-k3p9x2ma0b"}, {tile: 2, country: "zz"}])
+
+            const {x, y, width, height} = BLANK_REGION
+            expect(regionOf(f, 1)).toEqual([x, y, width, height])
+            expect(regionOf(f, 2)).toEqual([x, y, width, height])
+            expect(console.warn).not.toHaveBeenCalled()
         })
 
         it("blanks the tile again when a rolled-back click leaves it unowned", () => {
@@ -409,7 +412,7 @@ describe("what a tile costs", () => {
     })
 
     it("names every flag in 16 bits", () => {
-        expect(regions.size + 1).toBeLessThanOrEqual(2 ** 16)
+        expect(FLAG_NUMBERS - 1).toBeLessThanOrEqual(2 ** 16 - 1)
     })
 })
 

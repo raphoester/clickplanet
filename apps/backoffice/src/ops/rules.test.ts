@@ -46,6 +46,7 @@ describe("the rules", () => {
             "charges.virus.held", "charges.virus.infections", "charges.virus.every",
             "charges.mine.held", "charges.mine.rings",
             "charges.rally.held", "charges.rally.rings", "charges.rally.lasts", "charges.rally.cost",
+            "charges.trap.held", "charges.trap.clicks",
         ])
         expect(paths.filter(path => /box|quiz|kinds|welcome|offer/i.test(path))).toEqual([])
     })

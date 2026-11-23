@@ -17,7 +17,7 @@ export type FakeCareer = {
 }
 
 // The server's ladder.
-const FAKE_UNLOCKS = {spreadClicks: 2, shields: 3, encloseClicks: 5, bomb: 7, virus: 10, mine: 13, rally: 15}
+const FAKE_UNLOCKS = {spreadClicks: 2, shields: 3, encloseClicks: 5, bomb: 7, virus: 10, mine: 13, trap: 15, rally: 17}
 
 // The server's scale: what each source of XP but the missions pays.
 export const FAKE_XP_RATES: XpRates = {

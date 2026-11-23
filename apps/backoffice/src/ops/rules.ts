@@ -57,6 +57,8 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "charges.rally.rings", label: "Rally ring, in tile spacings, 1 to 50", kind: "number"},
         {path: "charges.rally.lasts", label: "Rally lasts (s)", kind: "seconds"},
         {path: "charges.rally.cost", label: "A click inside a rally costs, 0.1 to 1", kind: "number"},
+        {path: "charges.trap.held", label: "Traps held", kind: "whole"},
+        {path: "charges.trap.clicks", label: "Clicks a trap takes, at least 1", kind: "whole"},
     ]},
     {title: "Arena", fields: [
         {path: "arena.freeze", label: "No play after the fresh map and before the end (s)", kind: "seconds"},

@@ -21,6 +21,7 @@ export const GROUPS: Group[] = [
         {path: "kinds.virus", label: "Virus, weight", kind: "number"},
         {path: "kinds.mine", label: "Mine, weight", kind: "number"},
         {path: "kinds.rally", label: "Rally, weight", kind: "number"},
+        {path: "kinds.trap", label: "Trap, weight", kind: "number"},
     ]},
     {title: "What it grants", switches: [], fields: [
         {path: "spread.maxPerBox", label: "Spread clicks a box, at most", kind: "whole"},
@@ -29,6 +30,7 @@ export const GROUPS: Group[] = [
         {path: "shield.maxPerBox", label: "Shields a box, at most", kind: "whole"},
         {path: "mine.maxPerBox", label: "Mines a box, at most", kind: "whole"},
         {path: "rally.maxPerBox", label: "Rallies a box, at most", kind: "whole"},
+        {path: "trap.maxPerBox", label: "Traps a box, at most", kind: "whole"},
     ]},
     {
         title: "Gates",
@@ -42,6 +44,7 @@ export const GROUPS: Group[] = [
             {path: "gates.open.virus", label: "Virus, open to all", short: "Virus open to all"},
             {path: "gates.open.mine", label: "Mine, open to all", short: "Mine open to all"},
             {path: "gates.open.rally", label: "Rally, open to all", short: "Rally open to all"},
+            {path: "gates.open.trap", label: "Trap, open to all", short: "Trap open to all"},
         ],
         fields: [],
     },
@@ -85,12 +88,12 @@ export async function saveRuleSet(bonuses: BonusesAdmin, draft: Draft): Promise<
     await bonuses.saveRuleSet({set: ruleSetOf(draft)})
 }
 
-type KindPath = "refill" | "spreadClicks" | "encloseClicks" | "bomb" | "shields" | "virus" | "mine" | "rally"
+type KindPath = "refill" | "spreadClicks" | "encloseClicks" | "bomb" | "shields" | "virus" | "mine" | "rally" | "trap"
 
 const KINDS: {path: KindPath, short: string}[] = [
     {path: "refill", short: "refill"}, {path: "spreadClicks", short: "spread"}, {path: "encloseClicks", short: "enclose"},
     {path: "bomb", short: "bomb"}, {path: "shields", short: "shields"}, {path: "virus", short: "virus"},
-    {path: "mine", short: "mine"}, {path: "rally", short: "rally"},
+    {path: "mine", short: "mine"}, {path: "rally", short: "rally"}, {path: "trap", short: "trap"},
 ]
 
 // The kinds a box or a right answer may be, and each one's weight: "refill 5, spread 3, shields 4".

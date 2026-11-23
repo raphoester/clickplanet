@@ -38,8 +38,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   `Backends` object `main.tsx` gives the page.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
-  map; the boxes' and the quizzes' streams beside planet's, whose rewards come from planet's grants;
-  connection health.
+  map; the boxes' and the quizzes' streams beside planet's, whose rewards come from planet's grants; the flags' stream,
+  the seventh of a guest page; connection health.
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
 - [The board the page draws](docs/board-reload.md) — the board `GetMap` names at the boot, the reload when the stream
@@ -117,6 +117,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, one flag an hour, and the lock a battle's rule set puts
   on it.
+- [The list of flags](docs/flag-catalog.md) — the built-in flags merged with `ListFlags`, read at load and each time
+  the flags module's stream opens, and each flag it tells merged with no read; one read at a time and once for a code it
+  does not know, never a loop; what each lookup by code does with one it does not know: its code as its name, a grey
+  flag, a blank on the globe; a closed flag known but not picked.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a
@@ -130,6 +134,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one, on another flag's takes it first; only the flag's players see it
   (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
   off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.
+- [Trap](docs/trap.md) — the mine's sibling: aimed from its slot, laid on the flag's tile, only the flag sees it
+  (`GetTraps`, `trap_laid`); any enemy take springs it, and every page sees steel jaws slam shut, a `--trap` flash and the
+  "−10" taken from the taker's bank; the bank reads below zero, down to minus one bank, and flashes; the still steel jaws.
 - [Rally](docs/rally.md) — aimed from its slot, a tap on any point of the globe calls a ring every page sees
   (`GetRallies` at each stream open, `rally_called`); a click of its flag inside costs half, counted so on the page, and
   pops "−0.5"; a teal halo whose edge is a clock, the flag planted at its centre with its caller's name and a card,

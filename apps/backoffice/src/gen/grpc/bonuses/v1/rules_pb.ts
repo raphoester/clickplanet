@@ -58,6 +58,11 @@ export class Rules extends Message<Rules> {
    */
   rally?: RallyRules;
 
+  /**
+   * @generated from field: bonuses.v1.TrapRules trap = 16;
+   */
+  trap?: TrapRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -74,6 +79,7 @@ export class Rules extends Message<Rules> {
     { no: 13, name: "gates", kind: "message", T: GateRules },
     { no: 14, name: "mine", kind: "message", T: MineRules },
     { no: 15, name: "rally", kind: "message", T: RallyRules },
+    { no: 16, name: "trap", kind: "message", T: TrapRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -187,6 +193,11 @@ export class OpenKinds extends Message<OpenKinds> {
    */
   rally?: boolean;
 
+  /**
+   * @generated from field: optional bool trap = 9;
+   */
+  trap?: boolean;
+
   constructor(data?: PartialMessage<OpenKinds>) {
     super();
     proto3.util.initPartial(data, this);
@@ -203,6 +214,7 @@ export class OpenKinds extends Message<OpenKinds> {
     { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 7, name: "mine", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 8, name: "rally", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 9, name: "trap", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenKinds {
@@ -271,6 +283,11 @@ export class KindWeights extends Message<KindWeights> {
    */
   rally?: number;
 
+  /**
+   * @generated from field: optional double trap = 9;
+   */
+  trap?: number;
+
   constructor(data?: PartialMessage<KindWeights>) {
     super();
     proto3.util.initPartial(data, this);
@@ -287,6 +304,7 @@ export class KindWeights extends Message<KindWeights> {
     { no: 6, name: "virus", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 7, name: "mine", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 8, name: "rally", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 9, name: "trap", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindWeights {
@@ -496,6 +514,43 @@ export class RallyRules extends Message<RallyRules> {
 
   static equals(a: RallyRules | PlainMessage<RallyRules> | undefined, b: RallyRules | PlainMessage<RallyRules> | undefined): boolean {
     return proto3.util.equals(RallyRules, a, b);
+  }
+}
+
+/**
+ * @generated from message bonuses.v1.TrapRules
+ */
+export class TrapRules extends Message<TrapRules> {
+  /**
+   * @generated from field: optional uint32 max_per_box = 1;
+   */
+  maxPerBox?: number;
+
+  constructor(data?: PartialMessage<TrapRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.TrapRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TrapRules {
+    return new TrapRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TrapRules {
+    return new TrapRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TrapRules {
+    return new TrapRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TrapRules | PlainMessage<TrapRules> | undefined, b: TrapRules | PlainMessage<TrapRules> | undefined): boolean {
+    return proto3.util.equals(TrapRules, a, b);
   }
 }
 

@@ -1,5 +1,4 @@
-import {Countries, Country} from "./countries.ts";
-import {warnOnce} from "./warnOnce.ts";
+import {Country} from "./countries.ts";
 
 export type LeaderboardEntry = {
     country: Country
@@ -9,16 +8,9 @@ export type LeaderboardEntry = {
 export function rankCountries(counts: ReadonlyMap<string, number>): LeaderboardEntry[] {
     const ranked: LeaderboardEntry[] = []
 
+    // A flag this build does not know is ranked too: the server counted it, and the page names it by its code.
     counts.forEach((tiles, code) => {
-        if (tiles <= 0) return
-
-        const country = Countries.get(code)
-        if (!country) {
-            warnOnce(`Leaving country "${code}" out of the leaderboard: no such country`)
-            return
-        }
-
-        ranked.push({country, tiles})
+        if (tiles > 0 && code !== "") ranked.push({country: {code}, tiles})
     })
 
     return ranked.sort((a, b) =>

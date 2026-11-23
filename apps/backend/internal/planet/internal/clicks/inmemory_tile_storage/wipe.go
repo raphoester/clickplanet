@@ -54,6 +54,7 @@ func (s *Storage) groundLocked(ground *clicks.Ground) {
 	s.out = newOutFlags()
 	s.viruses = newVirusBook()
 	s.mines = newMineBook()
+	s.traps = newTrapBook()
 	s.recount = newRecount(borders.Landmasses(), table.Count()+1)
 	s.played.Play(ground)
 }

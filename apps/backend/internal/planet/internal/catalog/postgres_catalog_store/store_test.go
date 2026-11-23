@@ -1,0 +1,23 @@
+package postgres_catalog_store_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog/postgres_catalog_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
+)
+
+func TestThePostgresStoreKeepsTheContract(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "planet", migrations.FS)
+	suite.Run(t, &catalog.StoreContractSuite{
+		NewStore: func() catalog.Store {
+			require.NoError(t, db.Purge(t.Context()))
+			return postgres_catalog_store.New(db)
+		},
+	})
+}

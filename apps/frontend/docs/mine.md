@@ -13,7 +13,7 @@ every switch off (and the reverse). While aimed, a tap on a tile of the flag lay
 it takes the tile, "Tile taken. Tap it again to lay a mine" (`mineTaken`) over the slot, and the next tap lays the
 mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag mined already, or a capital
 while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine", the notice
-`mineNotYours`). The backend takes one mine off the hand at once and gives it back unless the server says it holds
+`mineNotYours`). A tile holds one mine and one trap at most (see [Trap](trap.md)). The backend takes one mine off the hand at once and gives it back unless the server says it holds
 none: a `MineRefusal` is `MineRefusedError`, said with the same notice.
 
 **The flag's mines are read, never public.** `GetMap` carries none. The planet backend reads `GetMines` as each stream
@@ -21,7 +21,7 @@ opens and each time the flag it plays for changes, and hands the answer to the g
 globe keeps it only when it is the flag the page plays for, and forgets every mine when the page changes flag. A mine a
 teammate lays comes as `mine_laid` (`onMineLaid`), on the page's stream alone.
 
-**A mine is a tile value under the one version rule** (`TileMines` in `MapTiles`, see [The counts are the
+**A mine is a tile value under the one version rule** (`FlagMarks` in `MapTiles`, the traps' too, see [The counts are the
 server's](counts.md)): each mine is kept with the map's version it is known at. A lay counts no version, so a mine is
 kept only while its tile has not changed since; any change of its tile's owner after it takes it off (a tile update, a
 blast, an enclosure, a virus, a knock-out, a read that finds another owner), and so does a bomb's strike. A read
@@ -41,7 +41,7 @@ drawing all that time (see [Drawing only when something changed](render-on-deman
 **On a shielded tile the mine steps down to the shield's tip**, at half its size, as the count fades in (16 to 22px,
 see [Shields](shields.md)). In the middle it covered the count. Its light grows there, as at that size the red dot is
 what says "mine". Under 16px the shield shows no count, so the mine stays in the middle. A capital's tile stacks the
-crown, the count and the mine, top to bottom.
+crown, the count and the mine, top to bottom. A mine beside a trap stands on the left of it (see [Trap](trap.md)).
 
 **No ghost on a mine** (see [Ghosts](ghosts.md)).
 

@@ -12,8 +12,8 @@ message Rules {
   TollRules toll = 2;
   reserved 3;
   reserved "bonuses";
-  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally are refused, no
-  // virus spreads, and GetFreeze answers frozen. The map still loads and streams.
+  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, LayTrap and CallRally are
+  // refused, no virus spreads, and GetFreeze answers frozen. The map still loads and streams.
   optional bool frozen = 4;
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
@@ -97,6 +97,7 @@ message ChargeRules {
   MineRules mine = 6;
   RallyRules rally = 7;
   RefillRules refill = 8;
+  TrapRules trap = 9;
 }
 
 message RefillRules {
@@ -164,6 +165,14 @@ message MineRules {
   optional uint32 held = 1;
   // How many rings of tiles around its own a mine's blast takes. 1 to 3.
   optional uint32 rings = 2;
+}
+
+message TrapRules {
+  // How many traps a hand holds at most.
+  optional uint32 held = 1;
+  // How many clicks a trap takes from the bank of the player whose take sprang it, to nobody. The bank goes down to minus
+  // one bank at most. At least 1.
+  optional uint32 clicks = 2;
 }
 
 message RallyRules {

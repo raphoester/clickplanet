@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {flagNumbers, regions} from "./atlas.ts"
+import {FLAG_NUMBERS, flagNumbers, regions} from "./atlas.ts"
 import {type Cell, flagIn, overlap, type SlotBudget, textureSizeOf} from "./slotCells.ts"
 import {type FlagNeed, type Placed, SlotLayout} from "./slotRanking.ts"
 
@@ -17,7 +17,7 @@ export class FlagSlots {
     readonly texture: THREE.IUniform<THREE.Texture | null> = {value: null}
     readonly frames: THREE.IUniform<THREE.DataTexture>
 
-    private readonly frameData = new Float32Array((regions.size + 1) * FRAME)
+    private readonly frameData = new Float32Array(FLAG_NUMBERS * FRAME)
     private layout: SlotLayout | undefined
     private target: THREE.DataTexture | undefined
     private wanted: Placed[] = []
@@ -28,7 +28,7 @@ export class FlagSlots {
     private busy = false
 
     constructor(private readonly onChange: () => void) {
-        const frames = new THREE.DataTexture(this.frameData, regions.size + 1, 1, THREE.RGBAFormat, THREE.FloatType)
+        const frames = new THREE.DataTexture(this.frameData, FLAG_NUMBERS, 1, THREE.RGBAFormat, THREE.FloatType)
         frames.needsUpdate = true
         this.frames = {value: frames}
     }

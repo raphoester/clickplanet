@@ -28,8 +28,8 @@ type Rules struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Clicks *ClickRules            `protobuf:"bytes,1,opt,name=clicks,proto3" json:"clicks,omitempty"`
 	Toll   *TollRules             `protobuf:"bytes,2,opt,name=toll,proto3" json:"toll,omitempty"`
-	// The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally are refused, no
-	// virus spreads, and GetFreeze answers frozen. The map still loads and streams.
+	// The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, LayTrap and CallRally are
+	// refused, no virus spreads, and GetFreeze answers frozen. The map still loads and streams.
 	Frozen *bool `protobuf:"varint,4,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
 	// No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
 	// still taken.
@@ -551,6 +551,7 @@ type ChargeRules struct {
 	Mine          *MineRules             `protobuf:"bytes,6,opt,name=mine,proto3" json:"mine,omitempty"`
 	Rally         *RallyRules            `protobuf:"bytes,7,opt,name=rally,proto3" json:"rally,omitempty"`
 	Refill        *RefillRules           `protobuf:"bytes,8,opt,name=refill,proto3" json:"refill,omitempty"`
+	Trap          *TrapRules             `protobuf:"bytes,9,opt,name=trap,proto3" json:"trap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -637,6 +638,13 @@ func (x *ChargeRules) GetRally() *RallyRules {
 func (x *ChargeRules) GetRefill() *RefillRules {
 	if x != nil {
 		return x.Refill
+	}
+	return nil
+}
+
+func (x *ChargeRules) GetTrap() *TrapRules {
+	if x != nil {
+		return x.Trap
 	}
 	return nil
 }
@@ -1066,6 +1074,61 @@ func (x *MineRules) GetRings() uint32 {
 	return 0
 }
 
+type TrapRules struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How many traps a hand holds at most.
+	Held *uint32 `protobuf:"varint,1,opt,name=held,proto3,oneof" json:"held,omitempty"`
+	// How many clicks a trap takes from the bank of the player whose take sprang it, to nobody. The bank goes down to minus
+	// one bank at most. At least 1.
+	Clicks        *uint32 `protobuf:"varint,2,opt,name=clicks,proto3,oneof" json:"clicks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TrapRules) Reset() {
+	*x = TrapRules{}
+	mi := &file_planet_v1_rules_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrapRules) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrapRules) ProtoMessage() {}
+
+func (x *TrapRules) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_rules_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrapRules.ProtoReflect.Descriptor instead.
+func (*TrapRules) Descriptor() ([]byte, []int) {
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *TrapRules) GetHeld() uint32 {
+	if x != nil && x.Held != nil {
+		return *x.Held
+	}
+	return 0
+}
+
+func (x *TrapRules) GetClicks() uint32 {
+	if x != nil && x.Clicks != nil {
+		return *x.Clicks
+	}
+	return 0
+}
+
 type RallyRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// How many rallies a hand holds at most.
@@ -1085,7 +1148,7 @@ type RallyRules struct {
 
 func (x *RallyRules) Reset() {
 	*x = RallyRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[15]
+	mi := &file_planet_v1_rules_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1097,7 +1160,7 @@ func (x *RallyRules) String() string {
 func (*RallyRules) ProtoMessage() {}
 
 func (x *RallyRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[15]
+	mi := &file_planet_v1_rules_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1110,7 +1173,7 @@ func (x *RallyRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RallyRules.ProtoReflect.Descriptor instead.
 func (*RallyRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{15}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RallyRules) GetHeld() uint32 {
@@ -1212,7 +1275,7 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x12_linked_multiplierB\x15\n" +
 	"\x13_new_account_clicks\"6\n" +
 	"\tTollRules\x12)\n" +
-	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xfe\x02\n" +
+	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xa8\x03\n" +
 	"\vChargeRules\x12.\n" +
 	"\x06spread\x18\x01 \x01(\v2\x16.planet.v1.SpreadRulesR\x06spread\x12(\n" +
 	"\x04bomb\x18\x02 \x01(\v2\x14.planet.v1.BombRulesR\x04bomb\x121\n" +
@@ -1221,7 +1284,8 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x05virus\x18\x05 \x01(\v2\x15.planet.v1.VirusRulesR\x05virus\x12(\n" +
 	"\x04mine\x18\x06 \x01(\v2\x14.planet.v1.MineRulesR\x04mine\x12+\n" +
 	"\x05rally\x18\a \x01(\v2\x15.planet.v1.RallyRulesR\x05rally\x12.\n" +
-	"\x06refill\x18\b \x01(\v2\x16.planet.v1.RefillRulesR\x06refill\"/\n" +
+	"\x06refill\x18\b \x01(\v2\x16.planet.v1.RefillRulesR\x06refill\x12(\n" +
+	"\x04trap\x18\t \x01(\v2\x14.planet.v1.TrapRulesR\x04trap\"/\n" +
 	"\vRefillRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01B\a\n" +
 	"\x05_held\"\xbd\x01\n" +
@@ -1271,7 +1335,12 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x19\n" +
 	"\x05rings\x18\x02 \x01(\rH\x01R\x05rings\x88\x01\x01B\a\n" +
 	"\x05_heldB\b\n" +
-	"\x06_rings\"\xc5\x01\n" +
+	"\x06_rings\"U\n" +
+	"\tTrapRules\x12\x17\n" +
+	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x1b\n" +
+	"\x06clicks\x18\x02 \x01(\rH\x01R\x06clicks\x88\x01\x01B\a\n" +
+	"\x05_heldB\t\n" +
+	"\a_clicks\"\xc5\x01\n" +
 	"\n" +
 	"RallyRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x19\n" +
@@ -1299,7 +1368,7 @@ func file_planet_v1_rules_proto_rawDescGZIP() []byte {
 	return file_planet_v1_rules_proto_rawDescData
 }
 
-var file_planet_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_planet_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_planet_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),               // 0: planet.v1.Rules
 	(*ArenaRules)(nil),          // 1: planet.v1.ArenaRules
@@ -1316,9 +1385,10 @@ var file_planet_v1_rules_proto_goTypes = []any{
 	(*ShieldRules)(nil),         // 12: planet.v1.ShieldRules
 	(*VirusRules)(nil),          // 13: planet.v1.VirusRules
 	(*MineRules)(nil),           // 14: planet.v1.MineRules
-	(*RallyRules)(nil),          // 15: planet.v1.RallyRules
-	(*durationpb.Duration)(nil), // 16: google.protobuf.Duration
-	(*TollStep)(nil),            // 17: planet.v1.TollStep
+	(*TrapRules)(nil),           // 15: planet.v1.TrapRules
+	(*RallyRules)(nil),          // 16: planet.v1.RallyRules
+	(*durationpb.Duration)(nil), // 17: google.protobuf.Duration
+	(*TollStep)(nil),            // 18: planet.v1.TollStep
 }
 var file_planet_v1_rules_proto_depIdxs = []int32{
 	5,  // 0: planet.v1.Rules.clicks:type_name -> planet.v1.ClickRules
@@ -1327,25 +1397,26 @@ var file_planet_v1_rules_proto_depIdxs = []int32{
 	2,  // 3: planet.v1.Rules.seed:type_name -> planet.v1.Seed
 	4,  // 4: planet.v1.Rules.capitals:type_name -> planet.v1.CapitalRules
 	7,  // 5: planet.v1.Rules.charges:type_name -> planet.v1.ChargeRules
-	16, // 6: planet.v1.ArenaRules.freeze:type_name -> google.protobuf.Duration
+	17, // 6: planet.v1.ArenaRules.freeze:type_name -> google.protobuf.Duration
 	3,  // 7: planet.v1.Seed.capitals:type_name -> planet.v1.CapitalSeed
-	16, // 8: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
-	17, // 9: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
+	17, // 8: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
+	18, // 9: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
 	9,  // 10: planet.v1.ChargeRules.spread:type_name -> planet.v1.SpreadRules
 	10, // 11: planet.v1.ChargeRules.bomb:type_name -> planet.v1.BombRules
 	11, // 12: planet.v1.ChargeRules.enclose:type_name -> planet.v1.EncloseRules
 	12, // 13: planet.v1.ChargeRules.shield:type_name -> planet.v1.ShieldRules
 	13, // 14: planet.v1.ChargeRules.virus:type_name -> planet.v1.VirusRules
 	14, // 15: planet.v1.ChargeRules.mine:type_name -> planet.v1.MineRules
-	15, // 16: planet.v1.ChargeRules.rally:type_name -> planet.v1.RallyRules
+	16, // 16: planet.v1.ChargeRules.rally:type_name -> planet.v1.RallyRules
 	8,  // 17: planet.v1.ChargeRules.refill:type_name -> planet.v1.RefillRules
-	16, // 18: planet.v1.VirusRules.every:type_name -> google.protobuf.Duration
-	16, // 19: planet.v1.RallyRules.lasts:type_name -> google.protobuf.Duration
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	15, // 18: planet.v1.ChargeRules.trap:type_name -> planet.v1.TrapRules
+	17, // 19: planet.v1.VirusRules.every:type_name -> google.protobuf.Duration
+	17, // 20: planet.v1.RallyRules.lasts:type_name -> google.protobuf.Duration
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_rules_proto_init() }
@@ -1370,13 +1441,14 @@ func file_planet_v1_rules_proto_init() {
 	file_planet_v1_rules_proto_msgTypes[13].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[14].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[15].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_rules_proto_rawDesc), len(file_planet_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

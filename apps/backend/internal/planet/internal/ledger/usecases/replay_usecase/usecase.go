@@ -21,8 +21,9 @@ var (
 	ErrBeforeSwitch  = errors.New("the world switched boards after this window ended: the map it played on is on another board")
 )
 
+// Ledger replays the ledger memory keeps, read through what a revert forgot before it too.
 type Ledger interface {
-	Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position
+	Replay(ctx context.Context, see func(on clicks.Stage, event ledger.Event)) (ledger.Position, error)
 }
 
 // Eras names the board the world plays, and the eras a window covers.
@@ -125,7 +126,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	footage := ledger.NewFootage(in.Since, until, world.Stage())
-	u.ledger.Replay(footage.See)
+	if _, err := u.ledger.Replay(ctx, footage.See); err != nil {
+		return Out{}, fmt.Errorf("failed to replay the ledger: %w", err)
+	}
 
 	return Out{
 		Since: in.Since, Until: until, Opening: footage.Opening(now), Scenes: footage.Scenes(),

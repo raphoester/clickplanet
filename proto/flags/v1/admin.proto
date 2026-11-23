@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flags.v1;
+
+import "flags/v1/flags.proto";
+
+// No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+service AdminService {
+  // Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
+  // opened since, by name. A closed flag stays: no player may play for it.
+  rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}

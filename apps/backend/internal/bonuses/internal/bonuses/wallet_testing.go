@@ -25,6 +25,8 @@ type Hand struct {
 	Mines int
 
 	Rallies int
+
+	Traps int
 }
 
 // FakeWallet stands for planet's wallet in the bonuses module's tests: it pays each grant once, every kind stacked up to
@@ -152,6 +154,8 @@ func (h *Hand) count(kind Kind) *int {
 		return &h.Mines
 	case KindRally:
 		return &h.Rallies
+	case KindTrap:
+		return &h.Traps
 	}
 	return nil
 }

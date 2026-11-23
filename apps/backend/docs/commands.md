@@ -32,6 +32,10 @@ make proto
 # Refresh the embedded quiz bank from the shared /quiz, then commit it
 make quiz
 
+# Copy the flags the game ships with from the page (../frontend/static/countries/countries.json), then commit it;
+# pre-push and CI run make check-flags, which fails while the copy differs
+make flags
+
 # Copy the chat moderation policy (../../docs/moderation.md) the judge sends to Claude, then commit it; pre-push and CI
 # run make check-moderation, which fails while the copy differs
 make moderation

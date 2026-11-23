@@ -87,6 +87,7 @@ type Storage struct {
 	out        *outFlags
 	viruses    *virusBook
 	mines      *mineBook
+	traps      *trapBook
 	recount    recount
 	version    clicks.MapVersion
 
@@ -157,6 +158,7 @@ func (s *Storage) putLocked(tile uint32, state tileState) {
 	if from != state.owner {
 		s.viruses.cure(tile)
 		s.mines.take(tile)
+		s.traps.take(tile)
 		s.landmasses.moved(tile, from, state.owner)
 		s.provinces.moved(tile, from, state.owner)
 		s.recount.moved(s.landmasses.of(tile), s.provinces.of(tile), from, state.owner)
@@ -188,6 +190,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 
 	for _, tile := range blast.Cleared {
 		s.mines.take(tile)
+		s.traps.take(tile)
 		if s.board.shieldsOn(tile) > 0 {
 			struck = append(struck, tile)
 			struckOwners = append(struckOwners, s.board.ownerOf(tile))

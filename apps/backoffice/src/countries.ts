@@ -1,5 +1,7 @@
-// The game's country ids are ISO 3166 codes in lower case, and a few of its own that no standard names. The
-// server holds the list and refuses any other id; this only names what the operator typed.
+import {listedFlag} from "./flags.ts"
+
+// The game's country ids are ISO 3166 codes in lower case, a few of its own that no standard names, and r- and ten
+// letters or digits for a flag opened since, which the server's list names. The server refuses any other id.
 const OWN: Record<string, string> = {
     "gb-eng": "England",
     "gb-sct": "Scotland",
@@ -8,6 +10,8 @@ const OWN: Record<string, string> = {
 }
 
 const NAMES = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
+
+const ISO = /^[a-z]{2}$/
 
 // Of the game's own ids, the ones Unicode draws a flag for: England, Scotland and Wales, and not Brittany.
 const SUBDIVISIONS = new Set(["gb-eng", "gb-sct", "gb-wls"])
@@ -24,8 +28,8 @@ export function countryIdOf(typed: string): string {
 export function countryName(typed: string): string | undefined {
     const id = countryIdOf(typed)
     if (id in OWN) return OWN[id]
-    if (!/^[a-z]{2}$/.test(id)) return undefined
-    return NAMES.of(id.toUpperCase())
+    if (!ISO.test(id)) return listedFlag(id)?.name
+    return NAMES.of(id.toUpperCase()) ?? listedFlag(id)?.name
 }
 
 // A country as a sentence names it: its name, or its id when this page has none.
@@ -37,8 +41,13 @@ export function countryLabel(id: string): string {
 // draws two letters instead, so a flag always goes beside its country's name.
 export function flagOf(id: string): string {
     if (SUBDIVISIONS.has(id)) return String.fromCodePoint(BLACK_FLAG, ...codesOf(id.replace("-", ""), TAG), CANCEL_TAG)
-    if (id in OWN || countryName(id) === undefined) return ""
+    if (id in OWN || !ISO.test(id) || NAMES.of(id.toUpperCase()) === undefined) return ""
     return String.fromCodePoint(...codesOf(id, REGIONAL_A - "a".charCodeAt(0)))
+}
+
+// A flag with no emoji but Brittany's, one opened since or one this page does not know, is drawn as a plain grey flag.
+export function blankFlag(id: string): boolean {
+    return id !== "" && !(id in OWN) && flagOf(id) === ""
 }
 
 function codesOf(letters: string, offset: number): number[] {

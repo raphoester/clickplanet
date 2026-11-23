@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
@@ -35,7 +36,9 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth        auth.Config
+	Auth auth.Config
+	// The catalog of flags: the ones the game ships with, and the ones opened since.
+	Flags       flags.Config
 	AntiBot     antibot.Config
 	Chat        chat.Config
 	Player      player.Config
@@ -96,6 +99,7 @@ func run(ctx context.Context) error {
 func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
+		flags.NewModule(config.Flags),
 		planet.NewModule(config.Planet),
 		boxes.NewModule(config.Boxes),
 		bonuses.NewModule(config.Bonuses),
@@ -133,6 +137,7 @@ func (c Config) Validate() error {
 		c.AntiBot.Validate(),
 		c.Chat.Validate(),
 		c.Auth.Validate(),
+		c.Flags.Validate(),
 		c.Player.Validate(),
 		c.Progression.Validate(),
 		c.Scoring.Validate(),

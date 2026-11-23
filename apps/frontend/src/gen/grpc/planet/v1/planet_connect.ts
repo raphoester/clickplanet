@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CallRallyRequest, CallRallyResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetProvinceRequest, GetProvinceResponse, GetRalliesRequest, GetRalliesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
+import { CallRallyRequest, CallRallyResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetProvinceRequest, GetProvinceResponse, GetRalliesRequest, GetRalliesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, GetTrapsRequest, GetTrapsResponse, LayMineRequest, LayMineResponse, LayTrapRequest, LayTrapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -153,6 +153,30 @@ export const ClickService = {
       name: "GetMines",
       I: GetMinesRequest,
       O: GetMinesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+     * the taker loses clicks from its bank.
+     *
+     * @generated from rpc planet.v1.ClickService.LayTrap
+     */
+    layTrap: {
+      name: "LayTrap",
+      I: LayTrapRequest,
+      O: LayTrapResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+     * now, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetTraps
+     */
+    getTraps: {
+      name: "GetTraps",
+      I: GetTrapsRequest,
+      O: GetTrapsResponse,
       kind: MethodKind.Unary,
     },
     /**

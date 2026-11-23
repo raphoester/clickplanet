@@ -16,9 +16,9 @@ export function percentOf(share: number): string {
     return share >= 0.1 ? `${Math.floor(share * 100)}%` : `${(Math.floor(share * 1000) / 10).toFixed(1)}%`
 }
 
-// fight-the-most ranks by the sum of the two, and shows each on its line.
+// fight-the-most ranks by the tiles taken alone, and shows the tiles lost too.
 export function numbersOf(entry: Entry): string[] {
-    if ("fought" in entry) return [`TOOK ${NUMBER.format(entry.took)}`, `LOST ${NUMBER.format(entry.lost)}`]
+    if ("took" in entry) return [`TOOK ${NUMBER.format(entry.took)}`, `LOST ${NUMBER.format(entry.lost)}`]
     if ("km" in entry) return [`${NUMBER.format(entry.km)} KM`]
     return [percentOf(entry.share)]
 }

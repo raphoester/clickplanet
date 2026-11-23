@@ -221,8 +221,9 @@ import {
     SaveRulesResponse,
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
+import {Flag, ListFlagsRequest, ListFlagsResponse} from "./gen/grpc/flags/v1/flags_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin,
+    AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
     PlanetAdmin, PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
 } from "./clients.ts"
 
@@ -252,6 +253,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly missions: FakeMissions = new FakeMissions(this)
     readonly promo: FakePromo = new FakePromo(this)
     readonly vandalsquad: FakeVandalsquad = new FakeVandalsquad(this)
+    readonly flags: FakeFlags = new FakeFlags(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -417,6 +419,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             virus: {infections: 32, every: "20s", held: 1},
             mine: {held: 3, rings: 2},
             rally: {held: 3, rings: 18, lasts: "180s", cost: 0.5, off: false},
+            trap: {held: 3, clicks: 10},
         },
         frozen: false,
         allegianceLocked: false,
@@ -427,17 +430,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     })})], playing: "default"})
     // The bonuses module's set the migration keeps: what a box caught or a right answer grants, and the sign-in refill.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
-        kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3, virus: 0, mine: 0, rally: 0},
+        kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3, virus: 0, mine: 0, rally: 0, trap: 0},
         gates: {
             on: false,
             open: {refill: true, spreadClicks: true, encloseClicks: false, bomb: false, shields: true, virus: false, mine: false,
-                rally: false},
+                rally: false, trap: false},
         },
         spread: {maxPerBox: 4},
         enclose: {maxPerBox: 3},
         shield: {minPerBox: 5, maxPerBox: 20},
         mine: {maxPerBox: 2},
         rally: {maxPerBox: 1},
+        trap: {maxPerBox: 2},
         signInRefill: true,
     })})], playing: "default"})
     // The boxes' set production plays: when a box comes, how long it flies, and a newcomer's first box.
@@ -512,7 +516,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return {
             alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, boxes: this.boxes, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
-            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad, auth: this,
+            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad, auth: this, flags: this.flags,
         }
     }
 
@@ -748,6 +752,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, and no flag opened.
+export class FakeFlags implements FlagsAdmin {
+    listed = [["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
+        .map(([code, name]) => new Flag({code, name}))
+
+    constructor(private readonly admin: FakeAdmin) {}
+
+    listFlags(request: PartialMessage<ListFlagsRequest>): Promise<ListFlagsResponse> {
+        return this.admin.answer("listFlags", request, new ListFlagsResponse({flags: this.listed}))
     }
 }
 

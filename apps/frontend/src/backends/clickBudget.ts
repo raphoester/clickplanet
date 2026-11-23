@@ -37,11 +37,12 @@ export function now(): number {
     return performance.now()
 }
 
+// A trap may leave the bank in debt, down to minus one bank: the refill pays it back first.
 export function tokensAt(budget: ClickBudget, at: number): number {
     const elapsed = Math.max(0, at - budget.readAt) / 1000
     const refilled = budget.tokens + elapsed * budget.perSecond
 
-    return Math.max(0, Math.min(budget.capacity, refilled))
+    return Math.max(-budget.capacity, Math.min(budget.capacity, refilled))
 }
 
 export function canClick(budget: ClickBudget | undefined, at: number, cost = 1): boolean {
@@ -61,15 +62,17 @@ export function refilling(budget: ClickBudget, at: number): boolean {
 export function nextClickProgress(budget: ClickBudget, at: number): number {
     const tokens = tokensAt(budget, at)
     if (tokens >= budget.capacity) return 1
+    if (tokens < 0) return 0
 
     return tokens - Math.floor(tokens)
 }
 
+// In debt, the wait is for the first click the bank allows again.
 export function secondsToOneMore(budget: ClickBudget, at: number): number | undefined {
     const tokens = tokensAt(budget, at)
     if (tokens >= budget.capacity || budget.perSecond <= 0) return undefined
 
-    return (Math.floor(tokens) + 1 - tokens) / budget.perSecond
+    return (Math.max(Math.floor(tokens) + 1, 1) - tokens) / budget.perSecond
 }
 
 export interface ClickBudgetSource {
