@@ -11,6 +11,7 @@ import (
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
@@ -120,4 +121,18 @@ func TestAnInvalidTextIsTheCallersFault(t *testing.T) {
 	err := suggest(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrInvalidText)}, " ")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestTheAddressThePlayerGaveIsHandedOnAndOneMailCannotGoToIsRefused(t *testing.T) {
+	useCase := &stubUseCase{}
+	address := "Ada@Example.com"
+
+	require.NoError(t, send(asAda(t), useCase, &supportv1.SuggestFeatureRequest{Text: "a night mode", ReplyAddress: &address}, ""))
+	require.Len(t, useCase.asked, 1)
+	assert.Equal(t, cpmail.Address("ada@example.com"), useCase.asked[0].ReplyAddress)
+
+	bad := "not an address"
+	err := send(asAda(t), useCase, &supportv1.SuggestFeatureRequest{Text: "a night mode", ReplyAddress: &bad}, "")
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Len(t, useCase.asked, 1)
 }

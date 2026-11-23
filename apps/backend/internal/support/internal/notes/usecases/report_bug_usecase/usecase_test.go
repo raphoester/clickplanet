@@ -46,7 +46,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) build(ids notes.IDProvider) *report_bug_usecase.UseCase {
-	return report_bug_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket)
+	return report_bug_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket, notes.FixedAddressBook{ada: "ada@example.com"})
 }
 
 func (s *testSuite) TestABugReportIsKeptCleanedWithAnIDTheTimeAndItsDiagnostics() {
@@ -55,7 +55,7 @@ func (s *testSuite) TestABugReportIsKeptCleanedWithAnIDTheTimeAndItsDiagnostics(
 	s.Require().NoError(err)
 
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black", Diagnostics: phone, At: now,
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, ReplyAddress: "ada@example.com", Text: "the globe is black", Diagnostics: phone, At: now,
 	}}, s.notes.Kept())
 }
 
@@ -67,7 +67,7 @@ func (s *testSuite) TestABugReportIsKeptWithTheFilesTheBucketHoldsInTheOrderName
 	s.Require().NoError(err)
 
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black",
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, ReplyAddress: "ada@example.com", Text: "the globe is black",
 		Attachments: []notes.Attachment{files[1], files[0]}, At: now,
 	}}, s.notes.Kept())
 }
@@ -111,4 +111,25 @@ func (s *testSuite) TestAnInvalidTextIsRefusedAndNothingIsKept() {
 
 	s.Require().ErrorIs(err, notes.ErrInvalidText)
 	s.Empty(s.notes.Kept())
+}
+
+func (s *testSuite) TestTheAddressThePlayerGaveIsKeptOverTheAccounts() {
+	err := s.useCase.Execute(s.T().Context(),
+		report_bug_usecase.In{Account: ada, Text: "the globe is black", ReplyAddress: "ada+bugs@example.org"})
+	s.Require().NoError(err)
+
+	s.Equal([]notes.Snapshot{{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, ReplyAddress: "ada+bugs@example.org", Text: "the globe is black", At: now,
+	}}, s.notes.Kept())
+}
+
+func (s *testSuite) TestAGuestThatGaveNoAddressIsKeptWithNone() {
+	guest := notes.AccountID{15: 2}
+
+	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: guest, Text: "the globe is black"})
+	s.Require().NoError(err)
+
+	s.Equal([]notes.Snapshot{{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: guest, Text: "the globe is black", At: now,
+	}}, s.notes.Kept())
 }

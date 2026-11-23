@@ -1,10 +1,11 @@
 # Support (`internal/support/`)
 
-**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
+**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it, and where to answer a note.
 
 ```
 internal/support/internal/
-  notes/                            Note (NewSuggestion, NewBugReport, Attaching, Anonymized, TakeSnapshot), Snapshot (Restore), Diagnostics,
+  notes/                            Note (NewSuggestion, NewBugReport, Attaching, Anonymized, TakeSnapshot), Snapshot (Restore), Sent,
+                                    ReplyAddress and the AddressBook port, Diagnostics,
                                     Attachment, AttachmentID (AttachmentIDOf), MediaType (MediaTypes), AttachmentRules, NoteID, Kind,
                                     AccountID (AccountIDOf), TextOf; the Storage, IDProvider and AttachmentIDProvider ports, the
                                     StorageContractSuite and SequentialIDs
@@ -14,11 +15,12 @@ internal/support/internal/
                                     is. It signs its own links
     inmemory_attachment_bucket/     the same with no bucket, and Put for a file a test uploads — behind the testing tag, tests only
     uuid_id_provider/               IDProvider: a UUIDv7 per note; AttachmentIDProvider: a random UUID per file
+    rpc_addresses/                  AddressBook: the account's address, from player.v1.InternalService/GetEmail
     usecases/create_upload_usecase/     draws a file's id, checks it against the rules, keeps its room on the shelf,
                                         answers the link to put it at — AttachmentIDProvider, Shelf, Uploads
-    usecases/suggest_feature_usecase/   draws an id, reads the files named from the bucket, builds a suggestion with them and
-                                        keeps it — IDProvider, Saver, Files
-    usecases/report_bug_usecase/        the same, for a bug report — IDProvider, Saver, Files
+    usecases/suggest_feature_usecase/   draws an id, reads where to answer, reads the files named from the bucket, builds a
+                                        suggestion with them and keeps it — IDProvider, Saver, Files, AddressBook
+    usecases/report_bug_usecase/        the same, for a bug report — IDProvider, Saver, Files, AddressBook
     usecases/anonymize_notes_usecase/   reads the notes an account sent, anonymizes them, saves — Notes
     usecases/prune_usecase/             reads the notes past retention that still have a sender, anonymizes them, saves;
                                         Runner, which runs each prune — Notes
@@ -52,6 +54,7 @@ internal/support/internal/
       rpc_players/                  Players, from player.v1.InternalService/GetPlayers, as player.v1.Player
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
+    replyaddress/                   the address a note names, or the refusal with its NoteRefusal detail
     attachment/                     IDs and Uploaded: the files a note names, and the upload a request is answered
   commands/
     decide_report_handler/          support.v1.DecideReport → decide_report_usecase, once per report
@@ -62,7 +65,7 @@ internal/support/internal/
 ```
 
 - **A note is a text an account sent, and its kind**: `suggestion` or `bug`. Each use case draws the id, builds the note with `notes.NewSuggestion` or `notes.NewBugReport`, and saves it. The id is injected (`notes.IDProvider`), like the clock; tests use `notes.SequentialIDs`.
-- **A note has no getter: it has a snapshot.** Nothing asks a note for a field. `notes.Snapshot` is a plain struct that mirrors its private fields and holds no rule. `Note.TakeSnapshot()` hands the state to a store. **`Snapshot.Restore()` is the one place a note's rules are checked**: an id, a known kind, a time (`ErrInvalidNote`), and a text that passes `TextOf` (`ErrInvalidText`). `NewSuggestion` and `NewBugReport` are a snapshot restored, so a note built and a note read back pass the same check. **A note sent has a sender**: `NewSuggestion` and `NewBugReport` refuse no account. A note read back may have none: it was anonymized. The stores, the test fake and the tests work on snapshots: a test compares `TakeSnapshot()` with a snapshot literal, and no constructor sits behind the `testing` tag. The operator's read does not go through `Note` at all (`notes_query`).
+- **A note has no getter: it has a snapshot.** Nothing asks a note for a field. `notes.Snapshot` is a plain struct that mirrors its private fields and holds no rule. `Note.TakeSnapshot()` hands the state to a store. **`Snapshot.Restore()` is the one place a note's rules are checked**: an id, a known kind, a time, an address mail can go to or none (`ErrInvalidNote`), and a text that passes `TextOf` (`ErrInvalidText`). `NewSuggestion` and `NewBugReport` are a snapshot restored, so a note built and a note read back pass the same check. **A note sent has a sender**: `NewSuggestion` and `NewBugReport` refuse no account. A note read back may have none: it was anonymized. The stores, the test fake and the tests work on snapshots: a test compares `TakeSnapshot()` with a snapshot literal, and no constructor sits behind the `testing` tag. The operator's read does not go through `Note` at all (`notes_query`).
 - **Every note carries its diagnostics**, `notes.Diagnostics`, a suggestion as a bug report: **a note has one shape, whatever its kind**. `kind` is a label and nothing depends on it: no field that only one kind has, and no rule in `Restore` that reads the kind. A thing that needed a field of its own would be a concept of its own, with its own table, as a player report is.
   - **What the page says of itself** is `PageContext`, in `SuggestFeatureRequest.context` and `ReportBugRequest.context`: the bundle it runs, the size of its viewport and its pixel ratio, whether it had lost the server, the graphics card as WebGL names it (`gpu_vendor`, `gpu_renderer`, `webgl_version`, `max_texture_size`), whether the globe had lost its WebGL context, and the cores and the memory the browser reports. **A page cannot read `chrome://gpu`**: the WebGL names are what it can read of it.
   - **The server reads the `User-Agent` itself.** `pagecontext.Diagnostics` is the one mapping, for both handlers.
@@ -70,11 +73,13 @@ internal/support/internal/
   - **Nothing in it is trusted**: the page writes it, so it helps read a note and decides nothing. A note whose page said nothing (an older client) has empty diagnostics, not none.
 - **A note is anonymized, never deleted.** The text is worth keeping; who sent it is the personal part. `Note.Anonymized()` is the one change a note has: a copy with no account, and the same id, kind, text, diagnostics, files and time. **It keeps its diagnostics**: a user agent, a graphics card and a viewport with no account and no address describe a device, not a person. An anonymized note's account is zero in its snapshot, and `NULL` in `support.notes.account_id` (migration `20261012090000_note_sender_optional`).
 - **A storage finds and saves, and holds no rule.** `notes.Storage` is two finders (`SentBy` an account, `WithSenderBefore` a time) and one `Save`, which upserts whatever notes it is handed. **It deletes nothing and reads no flag**: a change to a note is a method of `Note`, the use case reads, tells the note, and saves, and the adapter writes the state it is given without knowing why it changed. A finder restores each row it reads (`Snapshot.Restore()`), so a row that breaks a rule is an error, not a note.
+- **A note keeps the address it is answered at** (`notes.Sent.ReplyAddress`, a part of the snapshot). See
+  [The address a note is answered at](#the-address-a-note-is-answered-at).
 - **`notes.TextOf` is the rule on the text**: valid UTF-8, and 1 to 1,000 runes (`MaxTextLength`) once trimmed. **Lines are kept**, which a chat message's are not: `\r\n` and `\r` become `\n`, a tab a space, and every other control character is dropped. The text goes to postgres and to the operator's JSON, so a newline forges nothing. A text that breaks the rule is `InvalidArgument` (`ErrInvalidText`).
 - **The caller is the account in the click token**, a guest's included: `SuggestFeature`, `ReportBug` and `ReportPlayer` are `Attested` behind `supportv1controller.NewSessionInterceptor`, always enforcing (`support_session_checks{verdict}`). A token with no account is `Unauthenticated`.
 - **One limiter for what is kept**, `support.rateLimiter`: three at once, then one a minute, per address (`cpipscope`), suggestions, bug reports and player reports together. `CreateUpload` has its own (see the files below).
 - **Ten suggestions and bug reports a day, per account and per address** (`support.noteLimiter`): a call spends from the account's allowance and the address's together, or from neither (`supportv1controller.NewNoteLimitInterceptor`, `cpratelimit.Limiter.TakeAll`), so neither a new guest on one network nor one account on many networks sends more. It is a bucket of 10 refilled over a day, so a day is a rolling one. A player report is not a note: it has its own rule, once a day per player. **It is in memory**, like every limiter here: a restart forgets it. **The session check is outside the limiter**: the client answers a refused token by minting and sending again, and that first try must not cost one of the three. The order is the module's, so the smoke test `TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt` pins it.
-- **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `diagnostics`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`diagnostics` is `jsonb NOT NULL`** (migration `20261012100000_note_diagnostics`, which gives `{}` to the notes kept before it): every row has one, so no column is there for one kind alone. The store writes every key, and the keys are the JSON names of `PageContext` plus `userAgent`: `notes_query` decodes the object as a `PageContext` and skips a key it does not know, so a new diagnostic is a proto field and a key, and no migration. `migrations_test.go` starts from a note kept before the column. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type, as `bug` is. **No address is kept**: the account is enough to find a player again, and the limiter holds the address in memory only.
+- **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `diagnostics`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`diagnostics` is `jsonb NOT NULL`** (migration `20261012100000_note_diagnostics`, which gives `{}` to the notes kept before it): every row has one, so no column is there for one kind alone. The store writes every key, and the keys are the JSON names of `PageContext` plus `userAgent`: `notes_query` decodes the object as a `PageContext` and skips a key it does not know, so a new diagnostic is a proto field and a key, and no migration. `migrations_test.go` starts from a note kept before the column. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type, as `bug` is. **No IP address is kept**: the account is enough to find a player again, and the limiter holds the IP in memory only.
 - **The account does not outlive its reason; a note's text does.** A note goes one way: read, `Anonymized()`, save. The prune reads the notes sent before `support.retention` (90 days) ago that still have a sender, 500 at a time until none is left, then forgets the reports filed before it (`prune_reports_usecase`), at boot and every `support.pruneInterval`; an anonymized note is not read again, which is what ends the loop. `player.v1.PlayerForgotten`, which player tells for every account auth deletes, reads the notes the account sent and anonymizes them at once (`support-notes-forgotten`), and forgets every report it filed or is named in (`support-reports-forgotten`): each concept has its own subscription. Until 2026-11-04 both heard `auth.v1.AccountDeleted` (`support-notes-accounts`, `support-reports-accounts`); why the new groups miss no deletion is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events). **What stays of a note is free text and its files**: a player who wrote a name or an address in it, or showed one, left it there. The privacy page says both are kept and asks for no personal details in them.
 - **The operator reads them with `support.v1.AdminService/ListNotes(since, kind, limit)`**, on the admin listener (see [Operator tools](admin.md)): newest first, 100 unless asked, 500 at most, every kind unless one is asked. Every note comes with its `context` and `user_agent`. It is a query (`notes_query`): a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`: a kind a newer migration added to the type, read by an older build), and a kind asked for that the proto does not name is `InvalidArgument` (`ErrInvalidKind`). Each note carries its `account_id`, which is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take; it is empty once the note is anonymized.
 - **Nothing of a note is pushed.** No event tells a note, and nothing of one leaves the server but the files it
@@ -101,6 +106,27 @@ internal/support/internal/
   - **Off unless switched on** (`support.attachments.enabled`). Off, the rules take no file and the bucket block is not read: every link is `ErrNoBucket`. **Switch it off only once no note carries a file**: `ListNotes` fails on one that does.
   - **`s3_attachment_bucket`'s tests run on a real S3 server**, the Versity gateway in a container (MinIO's images are gone from the public registries): a file goes up and comes back, its type and size read back as uploaded, a file never uploaded is `ErrNotUploaded`, a file deleted is gone and the others stay, a link takes no other size or type, and a link past its time and a link signed with another secret are refused. `e2e/` uses a fake bucket that checks no signature.
 - `notes.StorageContractSuite` runs on `inmemory_note_storage` and on postgres. It reads what a store kept, as snapshots, through a `Kept` hook each adapter's test fills, since the write side reads nothing back. Each snapshot read back must restore a note.
+
+## The address a note is answered at
+
+**The operator answers a note by email, so a note keeps the address it was sent with.**
+
+- **The page sends one, or the account's is taken**: `SuggestFeatureRequest.reply_address` and
+  `ReportBugRequest.reply_address` are `optional`. Given, it is read with `cpmail.AddressOf` (the rule auth reads an
+  emailed code's address with, and no disposable-domain check), and one mail cannot go to is `InvalidArgument` with a
+  `NoteRefusal` detail (`INVALID_REPLY_ADDRESS`, `supportv1controller/replyaddress`). Not given, support asks player
+  for the account's (`notes/rpc_addresses`, `player.v1.InternalService/GetEmail`, which passes auth's on): **support
+  never asks auth**. `notes.ReplyAddress` is the rule: the one given, or else the account's.
+- **The page knows whether to ask**: auth's `GetMeResponse.has_email` says the account holds a verified address. A
+  guest holds none, and is asked for one.
+- **An account with none, and no address given, is still kept with none, for now**: the frontend that asks for one
+  ships first (see [A server restart reloads the page](../../../docs/reload-on-restart.md)), then the backend refuses
+  it (`FailedPrecondition`, `NO_REPLY_ADDRESS`).
+- **Kept in `support.notes.reply_address`** (`text NOT NULL`, empty for none; migration
+  `20261123115501_note_reply_address`): every note has the field, and the notes sent before it have none, so they
+  cannot be answered. `Restore` checks a stored one with `cpmail.AddressOf`.
+- **`Anonymized()` blanks it with the account**: the prune at 90 days and `PlayerForgotten` take both. The privacy page
+  says so.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 

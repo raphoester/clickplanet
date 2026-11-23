@@ -20,9 +20,32 @@ func valid() notes.Snapshot {
 }
 
 func TestASuggestionNeedsTheAccountThatSendsIt(t *testing.T) {
-	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{}, "a night mode", notes.Diagnostics{}, sentAt)
+	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.Sent{Text: "a night mode", ReplyAddress: "ada@example.com"}, sentAt)
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
+}
+
+func TestANoteKeepsTheAddressItIsAnsweredAtInLowerCase(t *testing.T) {
+	note, err := notes.NewBugReport(notes.NoteID{15: 1},
+		notes.Sent{Account: ada, Text: "the globe is black", ReplyAddress: "Ada@Example.com"}, sentAt)
+	require.NoError(t, err)
+
+	assert.Equal(t, notes.Snapshot{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black", ReplyAddress: "ada@example.com",
+		At: sentAt,
+	}, note.TakeSnapshot())
+}
+
+func TestAnAnonymizedNoteHasNoSenderAndNoAddress(t *testing.T) {
+	snapshot := valid()
+	snapshot.ReplyAddress = "ada@example.com"
+	note, err := snapshot.Restore()
+	require.NoError(t, err)
+
+	anonymized := note.Anonymized().TakeSnapshot()
+
+	snapshot.Account, snapshot.ReplyAddress = notes.AccountID{}, ""
+	assert.Equal(t, snapshot, anonymized)
 }
 
 func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
@@ -31,6 +54,7 @@ func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
 		"an unknown kind": func(s *notes.Snapshot) { s.Kind = "praise" },
 		"no kind":         func(s *notes.Snapshot) { s.Kind = "" },
 		"no time":         func(s *notes.Snapshot) { s.At = time.Time{} },
+		"a bad address":   func(s *notes.Snapshot) { s.ReplyAddress = "ada@localhost" },
 	} {
 		snapshot := valid()
 		broken(&snapshot)

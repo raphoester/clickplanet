@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountsRequest, GetAccountsResponse, GetPlayersRequest, GetPlayersResponse, IntroducePlayerRequest, IntroducePlayerResponse } from "./internal_pb.js";
+import { GetAccountsRequest, GetAccountsResponse, GetEmailRequest, GetEmailResponse, GetPlayersRequest, GetPlayersResponse, IntroducePlayerRequest, IntroducePlayerResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -46,6 +46,19 @@ export const InternalService = {
       name: "GetAccounts",
       I: GetAccountsRequest,
       O: GetAccountsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The address auth would write to an account at, for a module that must not ask auth: the oldest verified one it
+     * holds. InvalidArgument for an id that is not an account's.
+     *
+     * @generated from rpc player.v1.InternalService.GetEmail
+     */
+    getEmail: {
+      name: "GetEmail",
+      I: GetEmailRequest,
+      O: GetEmailResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

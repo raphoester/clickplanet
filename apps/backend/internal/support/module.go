@@ -27,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/rpc_addresses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
@@ -78,7 +79,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the support module asks the player module how to name the accounts of a report: %w", err)
+		return fmt.Errorf("the support module asks the player module how to name the accounts of a report and where to answer a note: %w", err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 
@@ -156,11 +157,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	uploadLimiter := cpratelimit.New("support-upload-limiter", config.UploadLimiter, clock)
 	props.Runners.Add(uploadLimiter)
 
+	addresses := rpc_addresses.New(player)
 	service := supportv1controller.SupportService{
 		SuggestFeatureHandler: suggest_feature_handler.New(
-			suggest_feature_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
+			suggest_feature_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket, addresses)),
 		ReportBugHandler: report_bug_handler.New(
-			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
+			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket, addresses)),
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
 			report_ids.Provider{}, clock, db, reportStore, cpoutbox.New(db))),
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),

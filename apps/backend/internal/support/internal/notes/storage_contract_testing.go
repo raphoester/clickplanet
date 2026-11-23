@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 )
 
 type StorageContractSuite struct {
@@ -24,6 +26,8 @@ var contractStart = time.Date(2026, 10, 11, 12, 0, 0, 123_456_000, time.UTC)
 var (
 	contractAda = AccountID{15: 1}
 	contractBob = AccountID{15: 2}
+
+	contractAddress = cpmail.Address("player@example.com")
 )
 
 func contractID(name string) NoteID {
@@ -35,7 +39,10 @@ func (s *StorageContractSuite) SetupTest() {
 }
 
 func (s *StorageContractSuite) suggestion(name string, account AccountID, at time.Time) Snapshot {
-	return Snapshot{ID: contractID(name), Kind: KindSuggestion, Account: account, Text: "a suggestion called " + name, At: at}
+	return Snapshot{
+		ID: contractID(name), Kind: KindSuggestion, Account: account, Text: "a suggestion called " + name,
+		ReplyAddress: contractAddress, At: at,
+	}
 }
 
 func (s *StorageContractSuite) save(snapshot Snapshot) error {
@@ -148,6 +155,7 @@ func (s *StorageContractSuite) anonymized(snapshot Snapshot) Snapshot {
 	s.Require().NoError(s.storage.Save(s.T().Context(), note.Anonymized()))
 
 	snapshot.Account = AccountID{}
+	snapshot.ReplyAddress = ""
 	return snapshot
 }
 
@@ -159,6 +167,25 @@ func (s *StorageContractSuite) TestAnAnonymizedNoteIsKeptWithItsTextAndNoSender(
 
 	s.same([]Snapshot{anonymized, kept})
 	s.Equal("a suggestion called sent", s.Kept(s.storage)[0].Text)
+}
+
+func (s *StorageContractSuite) TestANoteIsKeptWithTheAddressItIsAnsweredAtAndANoteWithNoneWithNone() {
+	answerable := s.suggestion("answerable", contractAda, contractStart)
+	silent := s.suggestion("silent", contractAda, contractStart.Add(time.Minute))
+	silent.ReplyAddress = ""
+
+	s.Require().NoError(s.save(answerable))
+	s.Require().NoError(s.save(silent))
+
+	s.same([]Snapshot{answerable, silent})
+	s.Equal([]Snapshot{answerable, silent}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
+}
+
+func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsNoAddress() {
+	anonymized := s.anonymized(s.saved("sent", contractAda, contractStart))
+
+	s.Empty(anonymized.ReplyAddress)
+	s.same([]Snapshot{anonymized})
 }
 
 func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsItsDiagnostics() {

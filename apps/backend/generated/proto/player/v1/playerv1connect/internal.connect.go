@@ -42,6 +42,9 @@ const (
 	// InternalServiceGetAccountsProcedure is the fully-qualified name of the InternalService's
 	// GetAccounts RPC.
 	InternalServiceGetAccountsProcedure = "/player.v1.InternalService/GetAccounts"
+	// InternalServiceGetEmailProcedure is the fully-qualified name of the InternalService's GetEmail
+	// RPC.
+	InternalServiceGetEmailProcedure = "/player.v1.InternalService/GetEmail"
 )
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
@@ -54,6 +57,9 @@ type InternalServiceClient interface {
 	// What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
 	// provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// The address auth would write to an account at, for a module that must not ask auth: the oldest verified one it
+	// holds. InvalidArgument for an id that is not an account's.
+	GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the player.v1.InternalService service. By
@@ -87,6 +93,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getEmail: connect.NewClient[v1.GetEmailRequest, v1.GetEmailResponse](
+			httpClient,
+			baseURL+InternalServiceGetEmailProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetEmail")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -95,6 +108,7 @@ type internalServiceClient struct {
 	introducePlayer *connect.Client[v1.IntroducePlayerRequest, v1.IntroducePlayerResponse]
 	getPlayers      *connect.Client[v1.GetPlayersRequest, v1.GetPlayersResponse]
 	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
+	getEmail        *connect.Client[v1.GetEmailRequest, v1.GetEmailResponse]
 }
 
 // IntroducePlayer calls player.v1.InternalService.IntroducePlayer.
@@ -112,6 +126,11 @@ func (c *internalServiceClient) GetAccounts(ctx context.Context, req *connect.Re
 	return c.getAccounts.CallUnary(ctx, req)
 }
 
+// GetEmail calls player.v1.InternalService.GetEmail.
+func (c *internalServiceClient) GetEmail(ctx context.Context, req *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error) {
+	return c.getEmail.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
 	// The player an account is, for the chat about to show who posts. Not a pure read: a guest is given its code the
@@ -122,6 +141,9 @@ type InternalServiceHandler interface {
 	// What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
 	// provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// The address auth would write to an account at, for a module that must not ask auth: the oldest verified one it
+	// holds. InvalidArgument for an id that is not an account's.
+	GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -151,6 +173,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetEmailHandler := connect.NewUnaryHandler(
+		InternalServiceGetEmailProcedure,
+		svc.GetEmail,
+		connect.WithSchema(internalServiceMethods.ByName("GetEmail")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceIntroducePlayerProcedure:
@@ -159,6 +188,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetPlayersHandler.ServeHTTP(w, r)
 		case InternalServiceGetAccountsProcedure:
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
+		case InternalServiceGetEmailProcedure:
+			internalServiceGetEmailHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -178,4 +209,8 @@ func (UnimplementedInternalServiceHandler) GetPlayers(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAccounts is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetEmail(context.Context, *connect.Request[v1.GetEmailRequest]) (*connect.Response[v1.GetEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetEmail is not implemented"))
 }

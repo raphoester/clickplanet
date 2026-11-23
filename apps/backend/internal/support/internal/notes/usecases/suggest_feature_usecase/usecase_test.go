@@ -42,7 +42,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) build(ids notes.IDProvider) *suggest_feature_usecase.UseCase {
-	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket)
+	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket, notes.FixedAddressBook{ada: "ada@example.com"})
 }
 
 func (s *testSuite) suggest(useCase *suggest_feature_usecase.UseCase, text string) error {
@@ -53,7 +53,7 @@ func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccoun
 	s.Require().NoError(s.suggest(s.useCase, "  a night mode\tplease  "))
 
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode please", At: now,
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, ReplyAddress: "ada@example.com", Text: "a night mode please", At: now,
 	}}, s.notes.Kept())
 }
 
@@ -64,7 +64,7 @@ func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
 
 	s.Require().NoError(err)
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Diagnostics: said, At: now,
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, ReplyAddress: "ada@example.com", Text: "a night mode", Diagnostics: said, At: now,
 	}}, s.notes.Kept())
 }
 
@@ -77,7 +77,7 @@ func (s *testSuite) TestASuggestionIsKeptWithTheFilesTheBucketHolds() {
 	s.Require().NoError(err)
 
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Attachments: files, At: now,
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, ReplyAddress: "ada@example.com", Text: "a night mode", Attachments: files, At: now,
 	}}, s.notes.Kept())
 }
 
