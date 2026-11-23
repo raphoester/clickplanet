@@ -35,6 +35,10 @@ const (
 const (
 	// AdminServiceListNotesProcedure is the fully-qualified name of the AdminService's ListNotes RPC.
 	AdminServiceListNotesProcedure = "/support.v1.AdminService/ListNotes"
+	// AdminServiceAnswerNoteProcedure is the fully-qualified name of the AdminService's AnswerNote RPC.
+	AdminServiceAnswerNoteProcedure = "/support.v1.AdminService/AnswerNote"
+	// AdminServiceCloseNoteProcedure is the fully-qualified name of the AdminService's CloseNote RPC.
+	AdminServiceCloseNoteProcedure = "/support.v1.AdminService/CloseNote"
 	// AdminServiceListReportsProcedure is the fully-qualified name of the AdminService's ListReports
 	// RPC.
 	AdminServiceListReportsProcedure = "/support.v1.AdminService/ListReports"
@@ -45,9 +49,19 @@ const (
 
 // AdminServiceClient is a client for the support.v1.AdminService service.
 type AdminServiceClient interface {
-	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
-	// link to each photo or video it carries.
+	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself, a
+	// link to each photo or video it carries, the address an answer goes to, and its conversation: the operator's
+	// answers and the player's replies by email. open_only lists the notes waiting for an answer.
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	// Answers a player's note by email, from support@clickplanet.lol, to the address the note was sent with: the text,
+	// then the player's note quoted, in the thread of the earlier mails about it. The player's reply comes back to the
+	// note. Write it to the player, in their language, in plain words. FailedPrecondition for a note with no address
+	// (sent before addresses were kept, or past the 90 days); NotFound for a note no longer kept; Unavailable when the
+	// mail could not be sent, and then nothing is kept: send again.
+	AnswerNote(context.Context, *connect.Request[v1.AnswerNoteRequest]) (*connect.Response[v1.AnswerNoteResponse], error)
+	// Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
+	// kept.
+	CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error)
 	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
 	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
 	// RemoveMessage take.
@@ -74,6 +88,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		answerNote: connect.NewClient[v1.AnswerNoteRequest, v1.AnswerNoteResponse](
+			httpClient,
+			baseURL+AdminServiceAnswerNoteProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("AnswerNote")),
+			connect.WithClientOptions(opts...),
+		),
+		closeNote: connect.NewClient[v1.CloseNoteRequest, v1.CloseNoteResponse](
+			httpClient,
+			baseURL+AdminServiceCloseNoteProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CloseNote")),
+			connect.WithClientOptions(opts...),
+		),
 		listReports: connect.NewClient[v1.ListReportsRequest, v1.ListReportsResponse](
 			httpClient,
 			baseURL+AdminServiceListReportsProcedure,
@@ -93,6 +119,8 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
 	listNotes    *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
+	answerNote   *connect.Client[v1.AnswerNoteRequest, v1.AnswerNoteResponse]
+	closeNote    *connect.Client[v1.CloseNoteRequest, v1.CloseNoteResponse]
 	listReports  *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
 	decideReport *connect.Client[v1.DecideReportRequest, v1.DecideReportResponse]
 }
@@ -100,6 +128,16 @@ type adminServiceClient struct {
 // ListNotes calls support.v1.AdminService.ListNotes.
 func (c *adminServiceClient) ListNotes(ctx context.Context, req *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error) {
 	return c.listNotes.CallUnary(ctx, req)
+}
+
+// AnswerNote calls support.v1.AdminService.AnswerNote.
+func (c *adminServiceClient) AnswerNote(ctx context.Context, req *connect.Request[v1.AnswerNoteRequest]) (*connect.Response[v1.AnswerNoteResponse], error) {
+	return c.answerNote.CallUnary(ctx, req)
+}
+
+// CloseNote calls support.v1.AdminService.CloseNote.
+func (c *adminServiceClient) CloseNote(ctx context.Context, req *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error) {
+	return c.closeNote.CallUnary(ctx, req)
 }
 
 // ListReports calls support.v1.AdminService.ListReports.
@@ -114,9 +152,19 @@ func (c *adminServiceClient) DecideReport(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the support.v1.AdminService service.
 type AdminServiceHandler interface {
-	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
-	// link to each photo or video it carries.
+	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself, a
+	// link to each photo or video it carries, the address an answer goes to, and its conversation: the operator's
+	// answers and the player's replies by email. open_only lists the notes waiting for an answer.
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	// Answers a player's note by email, from support@clickplanet.lol, to the address the note was sent with: the text,
+	// then the player's note quoted, in the thread of the earlier mails about it. The player's reply comes back to the
+	// note. Write it to the player, in their language, in plain words. FailedPrecondition for a note with no address
+	// (sent before addresses were kept, or past the 90 days); NotFound for a note no longer kept; Unavailable when the
+	// mail could not be sent, and then nothing is kept: send again.
+	AnswerNote(context.Context, *connect.Request[v1.AnswerNoteRequest]) (*connect.Response[v1.AnswerNoteResponse], error)
+	// Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
+	// kept.
+	CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error)
 	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
 	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
 	// RemoveMessage take.
@@ -139,6 +187,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceAnswerNoteHandler := connect.NewUnaryHandler(
+		AdminServiceAnswerNoteProcedure,
+		svc.AnswerNote,
+		connect.WithSchema(adminServiceMethods.ByName("AnswerNote")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceCloseNoteHandler := connect.NewUnaryHandler(
+		AdminServiceCloseNoteProcedure,
+		svc.CloseNote,
+		connect.WithSchema(adminServiceMethods.ByName("CloseNote")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceListReportsHandler := connect.NewUnaryHandler(
 		AdminServiceListReportsProcedure,
 		svc.ListReports,
@@ -156,6 +216,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case AdminServiceListNotesProcedure:
 			adminServiceListNotesHandler.ServeHTTP(w, r)
+		case AdminServiceAnswerNoteProcedure:
+			adminServiceAnswerNoteHandler.ServeHTTP(w, r)
+		case AdminServiceCloseNoteProcedure:
+			adminServiceCloseNoteHandler.ServeHTTP(w, r)
 		case AdminServiceListReportsProcedure:
 			adminServiceListReportsHandler.ServeHTTP(w, r)
 		case AdminServiceDecideReportProcedure:
@@ -171,6 +235,14 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.ListNotes is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) AnswerNote(context.Context, *connect.Request[v1.AnswerNoteRequest]) (*connect.Response[v1.AnswerNoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.AnswerNote is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.CloseNote is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error) {

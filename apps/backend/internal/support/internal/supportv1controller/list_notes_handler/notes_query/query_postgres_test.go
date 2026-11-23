@@ -14,6 +14,8 @@ import (
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/postgres_conversation_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
@@ -70,13 +72,13 @@ func (s *testSuite) suggested(n byte, account notes.AccountID, text string, at t
 }
 
 func (s *testSuite) suggestedFrom(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
-	note, err := notes.NewSuggestion(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said}, at)
+	note, err := notes.NewSuggestion(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said, ReplyAddress: "ada@example.com"}, at)
 	s.Require().NoError(err)
 	return s.kept(note, supportv1.NoteKind_NOTE_KIND_SUGGESTION)
 }
 
 func (s *testSuite) reported(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
-	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said}, at)
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said, ReplyAddress: "ada@example.com"}, at)
 	s.Require().NoError(err)
 	return s.kept(note, supportv1.NoteKind_NOTE_KIND_BUG)
 }
@@ -94,13 +96,14 @@ func (s *testSuite) kept(note notes.Note, kind supportv1.NoteKind) *supportv1.No
 		})
 	}
 	return &supportv1.Note{
-		Attachments: attachments,
-		Id:          uuid.UUID(sent.ID).String(),
-		Kind:        kind,
-		AccountId:   sent.Account.String(),
-		Text:        sent.Text,
-		SubmittedAt: timestamppb.New(sent.At),
-		UserAgent:   said.UserAgent,
+		Attachments:  attachments,
+		Id:           uuid.UUID(sent.ID).String(),
+		Kind:         kind,
+		AccountId:    sent.Account.String(),
+		Text:         sent.Text,
+		ReplyAddress: string(sent.ReplyAddress),
+		SubmittedAt:  timestamppb.New(sent.At),
+		UserAgent:    said.UserAgent,
 		Context: &supportv1.PageContext{
 			Build: said.Build, ViewportWidth: said.ViewportWidth, ViewportHeight: said.ViewportHeight,
 			ConnectionDown: said.ConnectionDown, PixelRatio: said.PixelRatio,
@@ -115,7 +118,7 @@ func (s *testSuite) read(since time.Time, limit uint32) []*supportv1.Note {
 }
 
 func (s *testSuite) readKind(since time.Time, kind supportv1.NoteKind, limit uint32) []*supportv1.Note {
-	answer, err := s.query.Notes(s.T().Context(), since, kind, limit)
+	answer, err := s.query.Notes(s.T().Context(), since, kind, limit, false)
 	s.Require().NoError(err)
 	return answer.GetNotes()
 }
@@ -154,7 +157,7 @@ var files = []notes.Attachment{
 }
 
 func (s *testSuite) carrying(n byte, account notes.AccountID, text string, at time.Time) notes.Note {
-	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text}, at)
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, ReplyAddress: "ada@example.com"}, at)
 	s.Require().NoError(err)
 	note, err = note.Attaching(files, notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 50_000_000})
 	s.Require().NoError(err)
@@ -191,7 +194,7 @@ func (s *testSuite) TestALinkThatCannotBeMadeRefusesTheRead() {
 	s.Require().NoError(s.notes.Save(s.T().Context(), s.carrying(1, ada, "the globe is black", start)))
 	s.links.err = errors.New("no bucket")
 
-	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
+	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0, false)
 
 	s.Require().ErrorIs(err, s.links.err)
 }
@@ -220,7 +223,7 @@ func (s *testSuite) TestAKindAskedForLeavesTheOthersOut() {
 }
 
 func (s *testSuite) TestAKindThatIsNotOneIsRefused() {
-	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind(99), 0)
+	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind(99), 0, false)
 
 	s.Require().ErrorIs(err, notes_query.ErrInvalidKind)
 }
@@ -238,11 +241,11 @@ func (s *testSuite) TestEveryKindTheStoreKeepsIsRead() {
 
 func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsTextItsDiagnosticsAndNoAccount() {
 	sent := s.reported(1, ada, "the globe is black", phone, start)
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black", Diagnostics: phone}, start)
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black", Diagnostics: phone, ReplyAddress: "ada@example.com"}, start)
 	s.Require().NoError(err)
 	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
 
-	sent.AccountId = ""
+	sent.AccountId, sent.ReplyAddress = "", ""
 	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
 }
 
@@ -281,7 +284,7 @@ func (s *testSuite) TestAKindTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead
 		uuid.New(), uuid.UUID(ada), start)
 	s.Require().NoError(err)
 
-	_, err = s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
+	_, err = s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0, false)
 
 	s.Require().ErrorIs(err, notes_query.ErrUnknownKind)
 }
@@ -290,7 +293,63 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := s.query.Notes(ctx, time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
+	_, err := s.query.Notes(ctx, time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0, false)
 
 	s.Error(err, "not an empty list")
+}
+
+func (s *testSuite) talked(snapshot conversations.Snapshot) {
+	conversation, err := snapshot.Restore()
+	s.Require().NoError(err)
+	s.Require().NoError(postgres_conversation_store.New(s.db).Save(s.T().Context(), conversation))
+}
+
+func (s *testSuite) TestANoteComesWithItsAnswersItsRepliesAndWhenItWasClosed() {
+	sent := s.suggested(1, ada, "a night mode", start)
+	s.talked(conversations.Snapshot{
+		Note:     notes.NoteID{15: 1},
+		Answers:  []conversations.Answer{{Text: "Which colors?", Mail: "a1@clickplanet.lol", At: start.Add(time.Hour)}},
+		Replies:  []conversations.Reply{{Mail: "r1@example.com", From: "ada@example.org", Text: "Dark blue", At: start.Add(2 * time.Hour)}},
+		ClosedAt: start.Add(3 * time.Hour),
+	})
+
+	sent.Answers = []*supportv1.NoteAnswer{{Text: "Which colors?", SentAt: timestamppb.New(start.Add(time.Hour))}}
+	sent.Replies = []*supportv1.NoteReply{{Text: "Dark blue", From: "ada@example.org", ReceivedAt: timestamppb.New(start.Add(2 * time.Hour))}}
+	sent.ClosedAt = timestamppb.New(start.Add(3 * time.Hour))
+	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
+}
+
+func (s *testSuite) TestTheOpenNotesAreTheOnesWithAnAddressWhosePlayerWroteLast() {
+	fresh := s.suggested(1, ada, "fresh", start)
+	s.suggested(2, ada, "answered", start)
+	s.talked(conversations.Snapshot{Note: notes.NoteID{15: 2}, Answers: []conversations.Answer{
+		{Text: "Thanks", Mail: "a2@clickplanet.lol", At: start.Add(time.Hour)},
+	}})
+	repliedAgain := s.suggested(3, ada, "replied again", start)
+	s.talked(conversations.Snapshot{
+		Note:    notes.NoteID{15: 3},
+		Answers: []conversations.Answer{{Text: "Which phone?", Mail: "a3@clickplanet.lol", At: start.Add(time.Hour)}},
+		Replies: []conversations.Reply{{Mail: "r3@example.com", Text: "An iPhone", At: start.Add(2 * time.Hour)}},
+	})
+	s.suggested(4, ada, "closed", start)
+	s.talked(conversations.Snapshot{Note: notes.NoteID{15: 4}, ClosedAt: start.Add(time.Hour)})
+	reopened := s.suggested(5, ada, "replied after the close", start)
+	s.talked(conversations.Snapshot{
+		Note:     notes.NoteID{15: 5},
+		Replies:  []conversations.Reply{{Mail: "r5@example.com", Text: "Still broken", At: start.Add(2 * time.Hour)}},
+		ClosedAt: start.Add(time.Hour),
+	})
+	silent, err := notes.NewSuggestion(notes.NoteID{15: 6}, notes.Sent{Account: ada, Text: "no address", ReplyAddress: "ada@example.com"}, start)
+	s.Require().NoError(err)
+	s.Require().NoError(s.notes.Save(s.T().Context(), silent.Anonymized()))
+
+	answer, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0, true)
+	s.Require().NoError(err)
+
+	ids := make([]string, 0, len(answer.GetNotes()))
+	for _, note := range answer.GetNotes() {
+		ids = append(ids, note.GetId())
+	}
+	s.ElementsMatch([]string{fresh.GetId(), repliedAgain.GetId(), reopened.GetId()}, ids)
+	s.Len(s.read(time.Time{}, 0), 6)
 }

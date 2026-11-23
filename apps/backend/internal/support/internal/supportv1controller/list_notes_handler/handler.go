@@ -12,7 +12,7 @@ import (
 )
 
 type Query interface {
-	Notes(ctx context.Context, since time.Time, kind supportv1.NoteKind, limit uint32) (*supportv1.ListNotesResponse, error)
+	Notes(ctx context.Context, since time.Time, kind supportv1.NoteKind, limit uint32, openOnly bool) (*supportv1.ListNotesResponse, error)
 }
 
 func New(query Query) ListNotesHandler {
@@ -32,7 +32,7 @@ func (h ListNotesHandler) ListNotes(
 		since = asked.AsTime()
 	}
 
-	notes, err := h.query.Notes(ctx, since, req.Msg.GetKind(), req.Msg.GetLimit())
+	notes, err := h.query.Notes(ctx, since, req.Msg.GetKind(), req.Msg.GetLimit(), req.Msg.GetOpenOnly())
 	switch {
 	case errors.Is(err, notes_query.ErrInvalidKind):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

@@ -2,7 +2,6 @@ package suggest_feature_usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -55,7 +54,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 	defer cancel()
 
 	address, err := notes.ReplyAddress(ctx, in.ReplyAddress, in.Account, u.addresses)
-	if err != nil && !errors.Is(err, notes.ErrNoReplyAddress) {
+	if err != nil {
 		return fmt.Errorf("failed to read where to answer the suggestion: %w", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/inmemory_conversation_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
@@ -22,7 +23,7 @@ func TestADeletedAccountsNotesKeepTheirTextAndLoseTheirSender(t *testing.T) {
 	kept := notes.Snapshot{ID: notes.NoteID{15: 2}, Kind: notes.KindSuggestion, Account: bob, Text: "more flags", At: at.Add(time.Minute)}
 	store.Seed(notes.Snapshot{ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", At: at}, kept)
 
-	err := player_forgotten_subscriber.New(anonymize_notes_usecase.New(store)).Handle(t.Context(),
+	err := player_forgotten_subscriber.New(anonymize_notes_usecase.New(store, inmemory_conversation_storage.New())).Handle(t.Context(),
 		&playerv1.PlayerForgotten{AccountId: ada.String()})
 
 	require.NoError(t, err)
@@ -33,7 +34,7 @@ func TestADeletedAccountsNotesKeepTheirTextAndLoseTheirSender(t *testing.T) {
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
-	err := player_forgotten_subscriber.New(anonymize_notes_usecase.New(inmemory_note_storage.New())).Handle(t.Context(),
+	err := player_forgotten_subscriber.New(anonymize_notes_usecase.New(inmemory_note_storage.New(), inmemory_conversation_storage.New())).Handle(t.Context(),
 		&playerv1.PlayerForgotten{})
 
 	require.ErrorIs(t, err, notes.ErrInvalidAccount)

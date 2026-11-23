@@ -14,6 +14,18 @@ import (
 
 type NoteID uuid.UUID
 
+func (id NoteID) String() string {
+	return uuid.UUID(id).String()
+}
+
+func NoteIDOf(value string) (NoteID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return NoteID{}, fmt.Errorf("%w: %q", ErrInvalidNoteID, value)
+	}
+	return NoteID(id), nil
+}
+
 type Kind string
 
 const (
@@ -28,6 +40,9 @@ func (k Kind) known() bool {
 var (
 	ErrInvalidNote    = errors.New("the note is invalid")
 	ErrNoReplyAddress = errors.New("the note has no address to answer at")
+	ErrUnknownNote    = errors.New("no note kept under this id")
+	ErrInvalidNoteID  = errors.New("not a note id")
+	ErrNotSent        = errors.New("the mail could not be sent")
 )
 
 type Note struct {
@@ -63,10 +78,13 @@ func NewBugReport(id NoteID, note Sent, at time.Time) (Note, error) {
 	})
 }
 
-// A note sent has a sender. A note read back may have none: it was anonymized.
+// A note sent has a sender and an address to answer at. A note read back may have neither: it was anonymized.
 func sent(note Snapshot) (Note, error) {
 	if note.Account == (AccountID{}) {
 		return Note{}, fmt.Errorf("%w: no account", ErrInvalidNote)
+	}
+	if note.ReplyAddress == "" {
+		return Note{}, ErrNoReplyAddress
 	}
 	return note.Restore()
 }
@@ -86,6 +104,14 @@ func (n Note) Anonymized() Note {
 	n.account = AccountID{}
 	n.replyAddress = ""
 	return n
+}
+
+func IDsOf(sent []Note) []NoteID {
+	ids := make([]NoteID, 0, len(sent))
+	for _, note := range sent {
+		ids = append(ids, note.id)
+	}
+	return ids
 }
 
 func AllAnonymized(sent []Note) []Note {
@@ -155,6 +181,8 @@ func (s Snapshot) Restore() (Note, error) {
 type Storage interface {
 	// A note saved again replaces itself. All of them, or none.
 	Save(ctx context.Context, notes ...Note) error
+	// ErrUnknownNote for an id no note has.
+	Note(ctx context.Context, id NoteID) (Note, error)
 	// Oldest first.
 	SentBy(ctx context.Context, account AccountID) ([]Note, error)
 	// The notes sent before the cutoff that still have their sender: oldest first, limit at most.

@@ -402,17 +402,33 @@ func (p *gamer) uploaded(sent file) string {
 func (p *gamer) reportBug(text string, attachments ...string) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&supportv1.ReportBugRequest{Text: text, AttachmentIds: attachments})
+	address := "player@example.com"
+	req := connect.NewRequest(&supportv1.ReportBugRequest{Text: text, AttachmentIds: attachments, ReplyAddress: &address})
 	p.send(req.Header())
 	_, err := p.support().ReportBug(p.t.Context(), req)
 	require.NoError(p.t, err)
 }
 
+func (s gameStack) supportAdmin() supportv1connect.AdminServiceClient {
+	return supportv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL)
+}
+
+func (s gameStack) openNotes(t check) []string {
+	t.Helper()
+
+	res, err := s.supportAdmin().ListNotes(t.Context(), connect.NewRequest(&supportv1.ListNotesRequest{OpenOnly: true}))
+	require.NoError(t, err)
+	ids := make([]string, 0, len(res.Msg.GetNotes()))
+	for _, note := range res.Msg.GetNotes() {
+		ids = append(ids, note.GetId())
+	}
+	return ids
+}
+
 func (s gameStack) noteOf(t check, text string) *supportv1.Note {
 	t.Helper()
 
-	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL).ListNotes(t.Context(),
-		connect.NewRequest(&supportv1.ListNotesRequest{}))
+	res, err := s.supportAdmin().ListNotes(t.Context(), connect.NewRequest(&supportv1.ListNotesRequest{}))
 	require.NoError(t, err)
 	for _, note := range res.Msg.GetNotes() {
 		if note.GetText() == text {

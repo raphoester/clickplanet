@@ -125,6 +125,17 @@ const columns = `
 	), '[]')
 `
 
+func (s *Store) Note(ctx context.Context, id notes.NoteID) (notes.Note, error) {
+	found, err := s.restored(ctx, `SELECT `+columns+` FROM notes WHERE id = $1`, uuid.UUID(id))
+	if err != nil {
+		return notes.Note{}, err
+	}
+	if len(found) == 0 {
+		return notes.Note{}, fmt.Errorf("%w: %s", notes.ErrUnknownNote, id)
+	}
+	return found[0], nil
+}
+
 func (s *Store) SentBy(ctx context.Context, account notes.AccountID) ([]notes.Note, error) {
 	return s.restored(ctx, `
 		SELECT `+columns+`

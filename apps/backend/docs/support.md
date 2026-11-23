@@ -1,6 +1,6 @@
 # Support (`internal/support/`)
 
-**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it, and where to answer a note.
+**What a player sends the operator, and the operator's answers by email.** A feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it, and where to answer a note.
 
 ```
 internal/support/internal/
@@ -16,6 +16,7 @@ internal/support/internal/
     inmemory_attachment_bucket/     the same with no bucket, and Put for a file a test uploads — behind the testing tag, tests only
     uuid_id_provider/               IDProvider: a UUIDv7 per note; AttachmentIDProvider: a random UUID per file
     rpc_addresses/                  AddressBook: the account's address, from player.v1.InternalService/GetEmail
+    mail_post/                      the operator's answer as a mail: from support.email, Reply-To the note's own address, threaded
     usecases/create_upload_usecase/     draws a file's id, checks it against the rules, keeps its room on the shelf,
                                         answers the link to put it at — AttachmentIDProvider, Shelf, Uploads
     usecases/suggest_feature_usecase/   draws an id, reads where to answer, reads the files named from the bucket, builds a
@@ -25,6 +26,14 @@ internal/support/internal/
     usecases/prune_usecase/             reads the notes past retention that still have a sender, anonymizes them, saves;
                                         Runner, which runs each prune — Notes
       log_prune/                        logs how many a prune went through
+  conversations/                    Conversation (Answered, Replied, Closed, Anonymized, Thread, TakeSnapshot), Snapshot
+                                    (Restore), Answer, Reply, ReplyTextOf; the Storage port and the StorageContractSuite
+    postgres_conversation_store/    Storage, over support.note_answers, note_replies and note_closings
+    inmemory_conversation_storage/  Storage in a slice of snapshots, with KeepNote, Seed and Kept — behind the testing tag
+    usecases/answer_note_usecase/   reads the note and its conversation, has the note write the letter, mails it, keeps
+                                    the answer — Notes, Conversations, Post
+      audit_answer_note/            logs every answer at Warn
+    usecases/close_note_usecase/    reads the conversation, closes it, saves — Conversations
   uploads/                          Upload (NewUpload, Discarded, TakeSnapshot), Snapshot (Restore), Shelf (Reserve, Room),
                                     FilesOf; the Storage port and the StorageContractSuite
     postgres_upload_store/          Storage, over support.uploads, and the attachments that name them
@@ -48,8 +57,9 @@ internal/support/internal/
       audit_decide_report/          logs every decision at Warn
   supportv1controller/              SupportService and AdminService (bags), the interceptors
     suggest_feature_handler/  report_bug_handler/  report_player_handler/  get_attachment_rules_handler/
-    create_upload_handler/  decide_report_handler/
-    list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file — Links
+    create_upload_handler/  decide_report_handler/  answer_note_handler/  close_note_handler/
+    list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file and the
+                                    conversation, the open ones alone if asked — Links
     list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Players
       rpc_players/                  Players, from player.v1.InternalService/GetPlayers, as player.v1.Player
     caller/                         the account on the context, or Unauthenticated
@@ -81,7 +91,7 @@ internal/support/internal/
 - **Ten suggestions and bug reports a day, per account and per address** (`support.noteLimiter`): a call spends from the account's allowance and the address's together, or from neither (`supportv1controller.NewNoteLimitInterceptor`, `cpratelimit.Limiter.TakeAll`), so neither a new guest on one network nor one account on many networks sends more. It is a bucket of 10 refilled over a day, so a day is a rolling one. A player report is not a note: it has its own rule, once a day per player. **It is in memory**, like every limiter here: a restart forgets it. **The session check is outside the limiter**: the client answers a refused token by minting and sending again, and that first try must not cost one of the three. The order is the module's, so the smoke test `TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt` pins it.
 - **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `diagnostics`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`diagnostics` is `jsonb NOT NULL`** (migration `20261012100000_note_diagnostics`, which gives `{}` to the notes kept before it): every row has one, so no column is there for one kind alone. The store writes every key, and the keys are the JSON names of `PageContext` plus `userAgent`: `notes_query` decodes the object as a `PageContext` and skips a key it does not know, so a new diagnostic is a proto field and a key, and no migration. `migrations_test.go` starts from a note kept before the column. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type, as `bug` is. **No IP address is kept**: the account is enough to find a player again, and the limiter holds the IP in memory only.
 - **The account does not outlive its reason; a note's text does.** A note goes one way: read, `Anonymized()`, save. The prune reads the notes sent before `support.retention` (90 days) ago that still have a sender, 500 at a time until none is left, then forgets the reports filed before it (`prune_reports_usecase`), at boot and every `support.pruneInterval`; an anonymized note is not read again, which is what ends the loop. `player.v1.PlayerForgotten`, which player tells for every account auth deletes, reads the notes the account sent and anonymizes them at once (`support-notes-forgotten`), and forgets every report it filed or is named in (`support-reports-forgotten`): each concept has its own subscription. Until 2026-11-04 both heard `auth.v1.AccountDeleted` (`support-notes-accounts`, `support-reports-accounts`); why the new groups miss no deletion is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events). **What stays of a note is free text and its files**: a player who wrote a name or an address in it, or showed one, left it there. The privacy page says both are kept and asks for no personal details in them.
-- **The operator reads them with `support.v1.AdminService/ListNotes(since, kind, limit)`**, on the admin listener (see [Operator tools](admin.md)): newest first, 100 unless asked, 500 at most, every kind unless one is asked. Every note comes with its `context` and `user_agent`. It is a query (`notes_query`): a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`: a kind a newer migration added to the type, read by an older build), and a kind asked for that the proto does not name is `InvalidArgument` (`ErrInvalidKind`). Each note carries its `account_id`, which is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take; it is empty once the note is anonymized.
+- **The operator reads them with `support.v1.AdminService/ListNotes(since, kind, limit, open_only)`**, on the admin listener (see [Operator tools](admin.md)): newest first, 100 unless asked, 500 at most, every kind unless one is asked. Every note comes with its `context` and `user_agent`. It is a query (`notes_query`): a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`: a kind a newer migration added to the type, read by an older build), and a kind asked for that the proto does not name is `InvalidArgument` (`ErrInvalidKind`). Each note carries its `account_id`, which is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take; it is empty once the note is anonymized.
 - **Nothing of a note is pushed.** No event tells a note, and nothing of one leaves the server but the files it
   carries, which go to the bucket: the operator asks.
 - **A note carries up to 10 photos or videos**, a suggestion as a bug report: every note has the list, most of them empty. A `notes.Attachment` is an id, a media type and a size, plain data in the snapshot. The id (`notes.AttachmentID`) is the file's name in the bucket.
@@ -119,14 +129,63 @@ internal/support/internal/
   never asks auth**. `notes.ReplyAddress` is the rule: the one given, or else the account's.
 - **The page knows whether to ask**: auth's `GetMeResponse.has_email` says the account holds a verified address. A
   guest holds none, and is asked for one.
-- **An account with none, and no address given, is still kept with none, for now**: the frontend that asks for one
-  ships first (see [A server restart reloads the page](../../../docs/reload-on-restart.md)), then the backend refuses
-  it (`FailedPrecondition`, `NO_REPLY_ADDRESS`).
+- **Every new note has one**: no address given and none on the account is `notes.ErrNoReplyAddress`, which
+  `NewSuggestion` and `NewBugReport` refuse too, answered `FailedPrecondition` with a `NoteRefusal` detail
+  (`NO_REPLY_ADDRESS`): the page shows its email field. The frontend that asks for one shipped first (see
+  [A server restart reloads the page](../../../docs/reload-on-restart.md)).
 - **Kept in `support.notes.reply_address`** (`text NOT NULL`, empty for none; migration
   `20261123115501_note_reply_address`): every note has the field, and the notes sent before it have none, so they
   cannot be answered. `Restore` checks a stored one with `cpmail.AddressOf`.
 - **`Anonymized()` blanks it with the account**: the prune at 90 days and `PlayerForgotten` take both. The privacy page
   says so.
+
+## Answering a note
+
+**The operator answers a note by email, and the player's replies come back to it.** What was said after a note is
+sent is its conversation, a concept of its own (`conversations/`, which imports `notes`, never the other way): the
+operator's answers, the player's replies, and when the operator last closed it with no answer. Player reports are not
+answered.
+
+- **A conversation has no getter: it has a snapshot**, as a note does. `Answered(text, mail, at)` adds an answer,
+  `Replied(reply)` a reply (one whose Message-ID it holds already is `ErrReceivedAlready`), `Closed(at)` closes it,
+  `Anonymized()` blanks each reply's sender, and `Thread()` is every mail's id, oldest first. `Restore` checks each
+  mail's id (`cpmail.MessageIDOf`) and time, an answer's text (`notes.AnswerTextOf`: the rule of a note's text, up to
+  5,000 characters) and cleans a reply's (`ReplyTextOf`: control characters dropped, lines kept, cut past 10,000
+  characters, never refused).
+- **Kept in three tables, one shape each** (migration `20261123124402_note_conversations`): `note_answers` and
+  `note_replies`, each keyed by the note and the mail's Message-ID (a reply also keeps its `sender`, empty once
+  anonymized), and `note_closings`, one row per note closed. An answer and a reply are two tables, not one table with a
+  kind, since only a reply has a sender. Each goes with its note (`ON DELETE CASCADE`), though a note is never deleted.
+- **Its storage finds and saves.** `Conversations(notes...)` answers one per note asked, in that order, empty for a
+  note nobody wrote about; `Save` upserts every answer, reply and closing a snapshot holds, by key, and deletes
+  nothing. A row about a note not kept is `notes.ErrUnknownNote` (the foreign key's refusal). An empty conversation
+  writes nothing. `conversations.StorageContractSuite` runs on both stores.
+- **`AdminService/AnswerNote(note_id, text)`** (`answer_note_usecase`): reads the note (`notes.Storage.Note`, or
+  `NotFound`) and its conversation, has the note write the letter (`Note.Answer`: no address is `FailedPrecondition`, a
+  text the rule refuses `InvalidArgument`), mails it (`mail_post`), then keeps the answer with the Message-ID
+  Cloudflare answered, and answers when it was sent. **A mail that did not go keeps nothing** (`notes.ErrNotSent`,
+  `Unavailable`): the page says so, and the operator sends again. A mail that went and could not be kept is the error
+  net's `internal`; sent again, the player gets it twice. `audit_answer_note` logs each one at Warn, with the app that
+  called (Claude's, through the connector). Its proto comment is its description as Claude's tool.
+- **The letter** (`notes.Letter`, `Note.Answer`): to the note's address, subject by kind ("Re: your idea", "Re: your bug
+  report"), plain text: the answer, then "On <the day>, you wrote:" and the note quoted line by line with `> `.
+- **The mail** (`mail_post`): from `support.email` (`ClickPlanet <support@clickplanet.lol>`), **Reply-To the note's own
+  address**, `support+<note id>@clickplanet.lol` (`notes.Inbox.Of`, which the reply's way in reads back with
+  `NoteOf`), and, past the first, `In-Reply-To` the last mail of the thread and `References` every one, so the player's
+  client keeps one thread. Through `cpmail`, with the token auth's codes use.
+- **`AdminService/CloseNote(note_id)`** (`close_note_usecase`): the note leaves the open ones with no answer, until the
+  player writes again. Closed again, the last time stays. `NotFound` for a note not kept.
+- **`ListNotes` carries each note's `reply_address`, its `answers`, its `replies` (each with its sender) and
+  `closed_at`**, read in its one statement. **`open_only` lists the notes waiting for an answer**: an address, and the
+  player wrote last, the note or a reply after the last answer and the last close. The rule is the query's
+  (`notes_query`): no command needs it.
+- **Anonymized with its note**: `anonymize_notes_usecase` (`PlayerForgotten`) and the prune anonymize the conversations
+  of the notes they read, then the notes, so a save that fails is read again: once a note has no sender, nothing finds
+  it.
+- **`support.email`** is a `cpmail.Config`: `delivery` (`log` unless set), `from` (`support@clickplanet.lol`),
+  `fromName` (`ClickPlanet`), `cloudflare.accountId`, `cloudflare.apiToken`. A `from` that is not an address refuses
+  the boot. Production sends through Cloudflare with auth's token (`env://CLOUDFLARE_EMAIL_TOKEN`); locally the answer
+  is logged at Warn.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 

@@ -406,6 +406,14 @@ support:
       name: clickplanet-media
       accessKeyId: ""
       secretAccessKey: ""
+  # Where the operator answers notes from. log writes each answer to the server log instead of sending it.
+  email:
+    delivery: log
+    from: support@clickplanet.lol
+    fromName: ClickPlanet
+    cloudflare:
+      accountId: ""
+      apiToken: ""
 
 # The game's Discord server: a player's link, its flag's role, and the pings. Off, nothing is served or pinged, and a
 # Discord sign-in joins no server. A player joins by signing in with Discord: see auth.discord.joinServer.

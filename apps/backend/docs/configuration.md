@@ -54,7 +54,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
 - `bonuses.Config` — an incomplete `bonuses.database` or `bonuses.redis` block
 - `boxes.Config` — an incomplete `boxes.database` or `boxes.redis` block
-- `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
+- `support.Config` — an incomplete `support.database` block; a `support.email` that `cpmail.Config` refuses; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
@@ -124,7 +124,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.crazyGames.gameId` — the game's id in the CrazyGames developer portal; every token must name it. Set, and
   `auth.signIn.enabled` on, `CompleteCrazyGamesSignIn` is offered; unset, it answers `Unimplemented`. Not a secret.
 - `auth.email.enabled` — off, `StartEmailSignIn` and `CompleteEmailSignIn` answer `Unimplemented` (404) and `GetSignInOptions` does not list email. Apart from `auth.signIn`: it needs no provider
-- `auth.email.delivery` — `cloudflare`, or `log` for a local backend; anything else refuses the boot while email is on
+- `auth.email.delivery` — `cloudflare`, or `log` for a local backend; anything else refuses the boot while email is on. The block is a `cpmail.Config` (see [Shared](shared.md)), as `support.email` is
 - `auth.email.from`, `auth.email.fromName` — the sender, on a domain onboarded to Cloudflare Email Sending; not an address refuses the boot
 - `auth.email.cloudflare.accountId` — the account the domain is onboarded on, written in `deploy/vps/backend.yaml` as it is: it is not a secret
 - `auth.email.cloudflare.apiToken` — `env://CLOUDFLARE_EMAIL_TOKEN` in `deploy/vps/backend.yaml`; it or the account id empty, with email on and `delivery: cloudflare`, refuses the boot
@@ -176,6 +176,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `support.rateLimiter.*` — the per-IP throttle on the notes and the reports, same shape as `rateLimiter` (default one a minute, three in hand)
 - `support.noteLimiter.*` — suggestions and bug reports a day, per account and per address together, same shape (default a burst of 10, refilled over a day: unset, `perSecond` is the burst over a day)
 - `support.uploadLimiter.*` — files a day, per account and per address together, same shape (default 100 a day)
+- `support.email.delivery`, `from`, `fromName`, `cloudflare.accountId`, `cloudflare.apiToken` — where the operator answers notes from, as `auth.email`: `log` unless set (each answer written to the log at Warn), `support@clickplanet.lol` and `ClickPlanet`. Each note's replies come back to its own address under `from` (`support+<note id>@…`). Production sends through Cloudflare with `env://CLOUDFLARE_EMAIL_TOKEN`, auth's token. See [Support](support.md#answering-a-note)
 - `support.attachments.enabled` — off, a note carries no file and the bucket block is not read
 - `support.attachments.maxPerNote`, `support.attachments.maxBytes` — the most files a note carries (10) and the most bytes of one (52428800, 50 MiB). The page reads both from `GetAttachmentRules`
 - `support.attachments.maxStoredBytes` — the most bytes the bucket holds, the files notes carry and the files that may still come (9 GiB)

@@ -107,12 +107,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionheader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cloudflare_mailer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cpmail_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/crazygames_identity_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/discord_identity_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/embedded_disposable_domains"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/google_identity_provider"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_crazygames_sign_in_usecase"
@@ -204,30 +203,24 @@ type signIns struct {
 
 const mailerTimeout = 10 * time.Second
 
-const (
-	deliveryCloudflare = "cloudflare"
-	deliveryLog        = "log"
-)
-
 type mailing struct {
 	mailer signin.Mailer
 	codes  signin.Codes
 }
 
 func newMailer(config EmailConfig, logger *slog.Logger) (signin.Mailer, error) {
-	if !config.Enabled || config.Delivery != deliveryCloudflare {
-		if config.Enabled {
-			logger.Warn("auth.email.delivery is log: sign-in codes are written to the log, not sent")
-		}
-		return log_mailer.New(logger), nil
+	if !config.Enabled {
+		return cpmail_mailer.New(cpmail.NewLog(logger), config.Sender()), nil
+	}
+	if config.Delivery == cpmail.DeliveryLog {
+		logger.Warn("auth.email.delivery is log: sign-in codes are written to the log, not sent")
 	}
 
-	mailer, err := cloudflare_mailer.New(config.Cloudflare, cloudflare_mailer.Sender{Address: config.From, Name: config.FromName},
-		cloudflare_mailer.Production, &http.Client{Timeout: mailerTimeout})
+	mail, err := cpmail.New(config.Config, logger, &http.Client{Timeout: mailerTimeout})
 	if err != nil {
-		return nil, fmt.Errorf("failed to build the cloudflare mailer: %w", err)
+		return nil, fmt.Errorf("failed to build the mailer of the codes: %w", err)
 	}
-	return mailer, nil
+	return cpmail_mailer.New(mail, config.Sender()), nil
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns signIns) error {
@@ -532,12 +525,7 @@ type CrazyGamesConfig struct {
 type EmailConfig struct {
 	Enabled bool
 
-	Delivery string
-
-	From     string
-	FromName string
-
-	Cloudflare cloudflare_mailer.Config
+	cpmail.Config `koanf:",squash"`
 
 	SendLimiter cpratelimit.Config
 }
@@ -630,24 +618,8 @@ func (c Config) emailError() error {
 	if !c.Email.Enabled {
 		return nil
 	}
-
-	switch c.Email.Delivery {
-	case deliveryLog:
-		return nil
-	case deliveryCloudflare:
-	default:
-		return fmt.Errorf("auth.email.delivery %q is neither %q nor %q", c.Email.Delivery, deliveryCloudflare, deliveryLog)
+	if err := c.Email.Validate(); err != nil {
+		return fmt.Errorf("auth.email: %w", err)
 	}
-
-	var errs []error
-	if _, err := cpmail.AddressOf(c.Email.From); err != nil {
-		errs = append(errs, fmt.Errorf("auth.email.from %q: %w", c.Email.From, err))
-	}
-	if c.Email.Cloudflare.AccountID == "" {
-		errs = append(errs, errors.New("auth.email.cloudflare.accountId is empty while auth.email.delivery is cloudflare"))
-	}
-	if c.Email.Cloudflare.APIToken == "" {
-		errs = append(errs, errors.New("auth.email.cloudflare.apiToken is empty while auth.email.delivery is cloudflare"))
-	}
-	return errors.Join(errs...)
+	return nil
 }

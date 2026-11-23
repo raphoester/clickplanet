@@ -97,6 +97,7 @@ func TestEmailLoggedLocallyNeedsNoCloudflare(t *testing.T) {
 	config := validConfig()
 	config.Email.Enabled = true
 	config.Email.Delivery = "log"
+	config.Email.From = "noreply@example.com"
 
 	assert.NoError(t, config.Validate())
 }
@@ -110,10 +111,10 @@ func TestEmailOffChecksNothingOfIt(t *testing.T) {
 
 func TestAnEmailConfigMissingAPartIsRefused(t *testing.T) {
 	for want, change := range map[string]func(*auth.Config){
-		`auth.email.delivery "" is neither`:        func(c *auth.Config) { c.Email.Delivery = "" },
-		`auth.email.from "noreply"`:                func(c *auth.Config) { c.Email.From = "noreply" },
-		"auth.email.cloudflare.accountId is empty": func(c *auth.Config) { c.Email.Cloudflare.AccountID = "" },
-		"auth.email.cloudflare.apiToken is empty":  func(c *auth.Config) { c.Email.Cloudflare.APIToken = "" },
+		`auth.email: delivery "" is neither`:        func(c *auth.Config) { c.Email.Delivery = "" },
+		`auth.email: from "noreply"`:                func(c *auth.Config) { c.Email.From = "noreply" },
+		"auth.email: cloudflare.accountId is empty": func(c *auth.Config) { c.Email.Cloudflare.AccountID = "" },
+		"auth.email: cloudflare.apiToken is empty":  func(c *auth.Config) { c.Email.Cloudflare.APIToken = "" },
 	} {
 		t.Run(want, func(t *testing.T) {
 			config := emailConfig()
