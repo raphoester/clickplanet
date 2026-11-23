@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/descriptors"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -32,7 +33,7 @@ import (
 
 func catalog(t *testing.T) *tools.Catalog {
 	t.Helper()
-	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.LeftOut, tools.Hidden)
+	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.Hidden)
 	require.NoError(t, err)
 	return catalog
 }
@@ -59,9 +60,13 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 	} {
 		assert.NotContains(t, names, hidden)
 	}
+	var auth []string
 	for name := range names {
-		assert.NotRegexp(t, "^auth_", name, "an app never signs in or lets an app in")
+		if strings.HasPrefix(name, "auth_") {
+			auth = append(auth, name)
+		}
 	}
+	assert.Equal(t, []string{"auth_count_arrivals"}, auth, "an app never signs in or lets an app in: it reads what the gate lets a token read")
 }
 
 func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
@@ -75,7 +80,7 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 
 	offered := 0
 	for _, pkg := range []string{
-		"alerts.v1", "antibot.v1", "bonuses.v1", "boxes.v1", "chat.v1", "clips.v1", "gamemaster.v1", "missions.v1", "planet.v1",
+		"alerts.v1", "antibot.v1", "auth.v1", "bonuses.v1", "boxes.v1", "chat.v1", "clips.v1", "gamemaster.v1", "missions.v1", "planet.v1",
 		"player.v1", "progression.v1", "promo.v1", "publishing.v1", "quizzes.v1", "support.v1", "vandalsquad.v1",
 	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))
@@ -97,7 +102,7 @@ func TestAReadIsAMethodMarkedNoSideEffects(t *testing.T) {
 	for name, reads := range map[string]bool{
 		"planet_top_players": true, "antibot_inspect_player": true, "support_list_notes": true, "chat_get_message": true,
 		"antibot_ban_player": false, "chat_mute": false, "planet_revert_player": false,
-		"chat_get_raid_mode": true, "chat_set_raid_mode": false,
+		"chat_get_raid_mode": true, "chat_set_raid_mode": false, "auth_count_arrivals": true,
 	} {
 		tool, err := c.Tool(name)
 		require.NoError(t, err, name)

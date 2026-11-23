@@ -54,7 +54,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to read mcp.url: %w", err)
 	}
 
-	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.LeftOut, tools.Hidden)
+	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.Hidden)
 	if err != nil {
 		return fmt.Errorf("failed to read the admin services' tools: %w", err)
 	}

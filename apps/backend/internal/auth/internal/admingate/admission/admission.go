@@ -34,10 +34,13 @@ type Page struct {
 	origin      string
 	signIn      []string
 	sessionOnly string
+	appReads    []string
 }
 
-func (p Page) WithSessionOnly(service string) Page {
+// Every call of the service is the page's own, a call added later too, but the reads named, which an app may make.
+func (p Page) WithSessionOnly(service string, appReads ...string) Page {
 	p.sessionOnly = service
+	p.appReads = appReads
 	return p
 }
 
@@ -53,7 +56,8 @@ func (p Page) OriginError(origin string) error {
 }
 
 func (p Page) TokenError(procedure string) error {
-	if p.SignIn(procedure) || (p.sessionOnly != "" && strings.HasPrefix(procedure, p.sessionOnly)) {
+	pageOwn := p.sessionOnly != "" && strings.HasPrefix(procedure, p.sessionOnly) && !slices.Contains(p.appReads, procedure)
+	if p.SignIn(procedure) || pageOwn {
 		return fmt.Errorf("%w: %s", ErrSessionOnly, procedure)
 	}
 	return nil

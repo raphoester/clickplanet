@@ -2,7 +2,10 @@ syntax = "proto3";
 
 package auth.v1;
 
-// The admin page's own sign-in: Google only, an account flagged operator only, a session of its own (cp_admin).
+import "google/protobuf/timestamp.proto";
+
+// The admin page's own sign-in: Google only, an account flagged operator only, a session of its own (cp_admin). And
+// where the accounts came from, counted.
 service AdminService {
   rpc StartSignIn(AdminStartSignInRequest) returns (AdminStartSignInResponse);
 
@@ -24,6 +27,14 @@ service AdminService {
   // The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
   // tokens. Only the page's session makes this call, and the code is for the account of that session.
   rpc ApproveConnection(ApproveConnectionRequest) returns (ApproveConnectionResponse);
+
+  // How many accounts came from each source on each UTC day of a window: TikTok (clickplanet.lol/t), YouTube (/y), a
+  // player's link or video, CrazyGames, or unknown. Read from the address the browser first opened, when the account was
+  // made, guests included. A deleted account's arrival still counts, so a day's count never shrinks. A day and a source
+  // with no account are not listed. TikTok was counted apart from 2026-11-20; before, its arrivals are unknown.
+  rpc CountArrivals(CountArrivalsRequest) returns (CountArrivalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message AdminStartSignInRequest {}
@@ -70,4 +81,41 @@ message ApproveConnectionRequest {
 
 message ApproveConnectionResponse {
   string redirect_url = 1;
+}
+
+// Where an account came from, by the tag of the first address it opened.
+enum ArrivalSource {
+  ARRIVAL_SOURCE_UNSPECIFIED = 0;
+  // A tag nobody posted, or none: the site typed alone, an old link, a streamer's own link.
+  ARRIVAL_SOURCE_UNKNOWN = 1;
+  // clickplanet.lol/y, and the old ?s=yt.
+  ARRIVAL_SOURCE_YOUTUBE = 2;
+  // clickplanet.lol/t.
+  ARRIVAL_SOURCE_TIKTOK = 3;
+  // A player's link, pressed: clickplanet.lol/r.
+  ARRIVAL_SOURCE_RECRUIT = 4;
+  // The address a player's video shows, typed: clickplanet.lol/v.
+  ARRIVAL_SOURCE_RECRUIT_VIDEO = 5;
+  // The game framed on CrazyGames.
+  ARRIVAL_SOURCE_CRAZYGAMES = 6;
+}
+
+message CountArrivalsRequest {
+  // The accounts made in [since, until). Unset is from the first arrival kept, and until now. A day cut by either is
+  // counted for its part in the window only.
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+}
+
+message CountArrivalsResponse {
+  // The oldest day first.
+  repeated ArrivalCount counts = 1;
+}
+
+message ArrivalCount {
+  // The UTC day, as YYYY-MM-DD.
+  string day = 1;
+  ArrivalSource source = 2;
+  // The accounts made that day by an arrival from that source.
+  uint32 accounts = 3;
 }

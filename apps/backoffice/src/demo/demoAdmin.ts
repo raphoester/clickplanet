@@ -1,4 +1,5 @@
 import {textBody, wordsIn} from "../chat/said.ts"
+import {labOf} from "./demoLab.ts"
 import {Duration, PartialMessage, Timestamp} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
@@ -160,6 +161,9 @@ export class DemoAdmin extends FakeAdmin {
 
     constructor() {
         super()
+        const lab = labOf(NOW, random(1120))
+        this.rowPages = [lab.rows]
+        this.arrivals = lab.arrivals
         const roll = random(42)
         const pick = <T, >(list: T[]) => list[Math.floor(roll() * list.length)]
         const hex = (n: number) => Array.from({length: n}, () => Math.floor(roll() * 16).toString(16)).join("")

@@ -208,7 +208,9 @@ chat crown: `player.profiles.admin` is a display flag, and holding one never gra
   domain. `cp_sid` never opens the admin page, and signing out of one leaves the other. A session goes with its
   account (cascade); one that expired stays until then, a row per sign-in.
 - **`auth.v1.AdminService` is that sign-in** (`StartSignIn`, `CompleteSignIn`, `SignOut`) and `WhoAmI`, mounted with
-  `props.AdminRPC`: on the console listener, and behind the admin gate. The sign-in spends the mint budget
+  `props.AdminRPC`: on the console listener, and behind the admin gate. Beside them, `CountArrivals`, the accounts
+  made each day by source (see [Arrivals](arrivals.md#counting-them)), the one call of the service an app's token
+  makes too (see [Claude as a connector](connector.md)). The sign-in spends the mint budget
   (`NewAdminRateLimitInterceptor`). `CompleteSignIn` answers `failed_precondition` to start again and
   `permission_denied` for anybody but an operator, and clears `cp_admin_oauth` on every answer it maps.
 - **`InternalService/GetOperator(cookie)` and `WhoAmI` are who a browser is, as an operator**:

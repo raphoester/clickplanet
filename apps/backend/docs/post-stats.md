@@ -5,7 +5,8 @@ post was (its metadata), set side by side, for the experiments of the clips (see
 "Experiments") and for the operator. **The publishing module takes it, in the server** (2026-11-10): until then the
 clips job's `clips stats` took it in a workflow and sent it to the clips module over ssh. The server has the key, the
 posts and a clock, and a day missed is lost for good, so the snapshot moved where no workflow has to run. The
-backoffice reads it and makes the table (its [Clip stats](../../backoffice/docs/clip-stats.md)).
+backoffice reads it and makes the table (its [Clip stats](../../backoffice/docs/clip-stats.md)), and the video lab's
+readout, each experiment against the control of the same days (its [The Lab](../../backoffice/docs/lab.md)).
 
 ```
 internal/publishing/internal/

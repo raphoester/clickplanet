@@ -39,6 +39,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [A country on the page](docs/countries.md) — typed by its id and named below it; a flag is an emoji.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.
+- [The Lab](docs/lab.md) — the video lab's readout: each experiment on each platform against the control of the same
+  days, counted on the page from the snapshot rows, and each day's arrivals by platform (`auth.v1`'s `CountArrivals`).
 - [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.
 - [Promo](docs/promo.md) — the battle teasers: the background library (upload, remove) and each rule set's cards, written with
   `{path}` placeholders of the rules (planet's, the bonuses' under `bonuses.`, the boxes' under `boxes.` and the quizzes' under `quizzes.`) or the battle's points from a picker and shown as players will read them, in a ×3

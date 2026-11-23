@@ -52,6 +52,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_crazygames_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/count_arrivals_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/count_arrivals_handler/arrivals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/describe_connection_handler"
@@ -397,6 +399,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 			approve_connection_usecase.New(config.Connector.Issuer, connectionSealer, random_secret_generator.Generator{}, clock),
 			props.Logger,
 		)),
+		CountArrivalsHandler: count_arrivals_handler.New(arrivals_query.NewPostgresQuery(db)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAdminServiceHandler(adminService, options...)

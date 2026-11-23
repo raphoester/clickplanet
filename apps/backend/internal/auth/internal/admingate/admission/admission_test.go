@@ -31,3 +31,12 @@ func TestATokenMakesNoneOfThePagesOwnCalls(t *testing.T) {
 	require.NoError(t, page.TokenError("/planet.v1.AdminService/BanPlayer"))
 	assert.False(t, page.SignIn("/auth.v1.AdminService/ApproveConnection"), "letting an app in still needs the session")
 }
+
+func TestATokenMakesTheReadsNamedApart(t *testing.T) {
+	page := admission.NewPage("https://backoffice.clickplanet.lol", "/auth.v1.AdminService/StartSignIn").
+		WithSessionOnly("/auth.v1.AdminService/", "/auth.v1.AdminService/CountArrivals")
+
+	require.NoError(t, page.TokenError("/auth.v1.AdminService/CountArrivals"))
+	require.ErrorIs(t, page.TokenError("/auth.v1.AdminService/ApproveConnection"), admission.ErrSessionOnly)
+	require.ErrorIs(t, page.TokenError("/auth.v1.AdminService/CountArrivalsAndMore"), admission.ErrSessionOnly)
+}

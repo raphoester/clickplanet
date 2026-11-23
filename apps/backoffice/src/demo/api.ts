@@ -24,7 +24,9 @@ const admin = new DemoAdmin()
 const transport = createRouterTransport(router => {
     router.service(AlertsAdmin, admin.demoAlerts)
     router.service(AntibotAdmin, admin.demoAntibot)
-    router.service(AuthAdmin, {whoAmI: () => ({accountId: OPERATOR}), signOut: () => ({})})
+    router.service(AuthAdmin, {
+        whoAmI: () => ({accountId: OPERATOR}), signOut: () => ({}), countArrivals: request => admin.countArrivals(request),
+    })
     router.service(BonusesAdmin, admin.bonuses)
     router.service(BoxesAdmin, admin.boxes)
     router.service(ChatAdmin, admin)

@@ -1,10 +1,11 @@
 import {PromiseClient} from "@connectrpc/connect"
 import {
-    alertsAdmin, antibotAdmin, bonusesAdmin, boxesAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin,
+    alertsAdmin, antibotAdmin, authAdmin, bonusesAdmin, boxesAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin,
     progressionAdmin, promoAdmin, publishingAdmin, quizzesAdmin, supportAdmin, vandalsquadAdmin,
 } from "./api.ts"
 import {AdminService as AlertsAdminService} from "./gen/grpc/alerts/v1/admin_connect.ts"
 import {AdminService as AntibotAdminService} from "./gen/grpc/antibot/v1/admin_connect.ts"
+import {AdminService as AuthAdminService} from "./gen/grpc/auth/v1/admin_connect.ts"
 import {AdminService as BonusesAdminService} from "./gen/grpc/bonuses/v1/admin_connect.ts"
 import {AdminService as BoxesAdminService} from "./gen/grpc/boxes/v1/admin_connect.ts"
 import {AdminService as ChatAdminService} from "./gen/grpc/chat/v1/admin_connect.ts"
@@ -44,6 +45,9 @@ export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "list
 // The videos the operator posts by hand.
 export type ClipsAdmin = Pick<PromiseClient<typeof ClipsAdminService>, "createVideoUpload" | "keepVideo" | "listVideos" | "removeVideo">
 
+// Where the accounts came from, counted. Its sign-in and connection calls are App's and the Connect page's.
+export type AuthAdmin = Pick<PromiseClient<typeof AuthAdminService>, "countArrivals">
+
 // The posts' numbers, a snapshot a day the server takes.
 export type PublishingAdmin = Pick<PromiseClient<typeof PublishingAdminService>, "listSnapshots" | "listRows">
 
@@ -57,13 +61,13 @@ export type PromoAdmin = Pick<
 export type VandalsquadAdmin = PromiseClient<typeof VandalsquadAdminService>
 
 export type Clients = {
-    alerts: AlertsAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin, boxes: BoxesAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin,
+    alerts: AlertsAdmin, antibot: AntibotAdmin, auth: AuthAdmin, bonuses: BonusesAdmin, boxes: BoxesAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin,
     progression: ProgressionAdmin, gamemaster: GamemasterAdmin, missions: MissionsAdmin, support: SupportAdmin, clips: ClipsAdmin,
     promo: PromoAdmin, publishing: PublishingAdmin, quizzes: QuizzesAdmin, vandalsquad: VandalsquadAdmin,
 }
 
 export const CLIENTS: Clients = {
-    alerts: alertsAdmin, antibot: antibotAdmin, bonuses: bonusesAdmin, boxes: boxesAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin,
+    alerts: alertsAdmin, antibot: antibotAdmin, auth: authAdmin, bonuses: bonusesAdmin, boxes: boxesAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin,
     progression: progressionAdmin, gamemaster: gamemasterAdmin, missions: missionsAdmin, support: supportAdmin, clips: clipsAdmin,
     promo: promoAdmin, publishing: publishingAdmin, quizzes: quizzesAdmin, vandalsquad: vandalsquadAdmin,
 }
