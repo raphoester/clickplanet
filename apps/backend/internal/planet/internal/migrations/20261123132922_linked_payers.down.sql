@@ -1,0 +1,2 @@
+ALTER TABLE viruses DROP COLUMN linked;
+ALTER TABLE mines DROP COLUMN linked;

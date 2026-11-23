@@ -35,6 +35,10 @@ describe("parseStoredCountry", () => {
     it("rejects a country code we cannot render", () => {
         expect(parseStoredCountry(JSON.stringify({code: "zz", name: "Atlantis"}))).toBeUndefined()
     })
+
+    it("keeps a flag opened since the build, which the page knows only once it reads the list", () => {
+        expect(parseStoredCountry(JSON.stringify({code: "r-k3p9x2ma0b"}))).toEqual({code: "r-k3p9x2ma0b"})
+    })
 })
 
 describe("resolveCountry", () => {

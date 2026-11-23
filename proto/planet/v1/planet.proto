@@ -48,6 +48,14 @@ service ClickService {
   // now, and a cached one lies.
   rpc GetMines(GetMinesRequest) returns (GetMinesResponse);
 
+  // Lays a trap on a tile of the caller's flag with no trap, a mine on it or not: a take by another flag springs it, and
+  // the taker loses clicks from its bank.
+  rpc LayTrap(LayTrapRequest) returns (LayTrapResponse);
+
+  // The traps of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+  // now, and a cached one lies.
+  rpc GetTraps(GetTrapsRequest) returns (GetTrapsResponse);
+
   // Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
   // ring costs less.
   rpc CallRally(CallRallyRequest) returns (CallRallyResponse);
@@ -165,8 +173,8 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally
-// answer while the rules in force freeze the map, or an arena's freeze holds it.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, LayTrap and
+// CallRally answer while the rules in force freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
 // The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
@@ -185,12 +193,16 @@ message VirusRefusal {}
 // is a capital while the knock-out plays: the mine stays held.
 message MineRefusal {}
 
+// The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, or holds a trap already:
+// the trap stays held.
+message TrapRefusal {}
+
 // The detail of the FailedPrecondition that CallRally answers while a rally the caller called is still on: the rally
 // stays held.
 message RallyRefusal {}
 
-// The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine and CallRally answer a banned
-// caller.
+// The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine, LayTrap and CallRally answer a
+// banned caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
@@ -344,7 +356,37 @@ message PlanetEvent {
     ProvinceFortified province_fortified = 18;
 
     CutOff cut_off = 19;
+
+    // Only on a stream whose caller plays for the trap's flag: no other flag hears of it.
+    TrapLaid trap_laid = 20;
+
+    TrapSprung trap_sprung = 21;
   }
+}
+
+// A trap a player of the flag laid. The tile holds it only while it has not changed since version.
+message TrapLaid {
+  string country_id = 1;
+
+  uint32 tile_id = 2;
+
+  // The map's version as it was laid: no change, so streams count none.
+  MapVersion version = 3;
+}
+
+// A trap a take by another flag sprang, told after the take's own event: the taker kept the tile, and lost clicks from
+// its bank to nobody. The trap is gone.
+message TrapSprung {
+  uint32 tile_id = 1;
+
+  // The trap's flag.
+  string country_id = 2;
+
+  // What left the taker's bank: charges.trap.clicks, or less when the bank was near its floor, minus one bank.
+  double clicks = 3;
+
+  // Only on the streams of the taker's account: its bank is lower now, so the page reads it again.
+  bool yours = 4;
 }
 
 // A rally a player called for its flag: until it ends, a click of that flag on a tile inside the ring costs
@@ -583,6 +625,8 @@ message ChargesHeld {
   uint32 mines = 7;
 
   uint32 rallies = 8;
+
+  uint32 traps = 12;
 }
 
 message GetChargesRequest {}
@@ -677,6 +721,12 @@ message GetChargeRulesResponse {
 
   // No rally is called, and no hand takes one: the page hides the rally slot.
   bool rallies_off = 30;
+
+  // How many traps a hand holds at most.
+  uint32 traps = 31;
+
+  // How many clicks a trap takes from the bank of the player whose take sprang it.
+  uint32 trap_clicks = 32;
 }
 
 message TollStep {
@@ -706,6 +756,8 @@ enum BonusKind {
   BONUS_KIND_MINE = 8;
 
   BONUS_KIND_RALLY = 9;
+
+  BONUS_KIND_TRAP = 10;
 }
 
 message UseRefillRequest {
@@ -805,6 +857,26 @@ message GetMinesResponse {
   repeated uint32 tile_ids = 2;
 
   // The map's version as they were read: a tile changed after it holds no mine.
+  MapVersion version = 3;
+}
+
+message LayTrapRequest {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+}
+
+message LayTrapResponse {}
+
+message GetTrapsRequest {}
+
+message GetTrapsResponse {
+  // The flag the caller plays for, whose traps these are: empty for no flag, and no trap.
+  string country_id = 1;
+
+  repeated uint32 tile_ids = 2;
+
+  // The map's version as they were read: a tile changed after it holds no trap.
   MapVersion version = 3;
 }
 

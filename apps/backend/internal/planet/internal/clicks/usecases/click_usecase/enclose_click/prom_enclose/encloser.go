@@ -34,13 +34,14 @@ type Encloser struct {
 
 var _ enclose_click.Encloser = (*Encloser)(nil)
 
-func (e *Encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
-	if err := e.implementation.Enclose(ctx, enclosure, inside); err != nil {
-		return err //nolint:wrapcheck // a pure delegation: the encloser already named what failed.
+func (e *Encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) ([]clicks.TrapSnapshot, error) {
+	sprung, err := e.implementation.Enclose(ctx, enclosure, inside)
+	if err != nil {
+		return sprung, err //nolint:wrapcheck // a pure delegation: the encloser already named what failed.
 	}
 
 	e.shapes.Inc()
 	e.tiles.Add(float64(len(inside)))
 
-	return nil
+	return sprung, nil
 }

@@ -174,8 +174,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
     each the globe aimed at its place with its rank, its flag, its name and its numbers ("TOOK 1,887 · LOST 3,946 ·
     MOSTLY AGAINST TURKEY"); and the whole globe last, with `clickplanet.lol`. No address before the last photo.
   - **Three lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
-    **fight the most in 3 days** (for each flag, the tiles it took from other flags plus the tiles they took from it
-    in the replay), **farthest from home** (each flag's land outside its country, the farthest from it, from the size
+    **fight the most in 3 days** (each flag ranked by the tiles it took from other flags in the replay; a tile lost is
+    no fight, so the tiles it lost show on its photo but do not rank it), **farthest from home** (each flag's land outside its country, the farthest from it, from the size
     of a painted flag read from far) and **biggest empires** (each flag's share of the land now). The post keeps its list in its metadata
     (`carouselList`), so the lists can be compared later. A list whose 5 are the 5 of its last post is not told
     again, and the control's next story takes the pick.
@@ -301,7 +301,8 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 - **carousel**: designed and built 2026-11-20, on from the merge of PR 3. The same day, from the owner's review, the
   list of the countries that do not hold their own land went: on this map most countries are held by another flag, so
   it is no news, and the owner found it unappealing. Most attacked became fight the most, the headline the owner
-  liked: the tiles a flag took plus the tiles it lost.
+  liked: the tiles a flag took plus the tiles it lost. On 2026-11-23 the owner ruled that a tile lost is no fight: the
+  list ranks by the tiles taken alone, and the tiles lost stay on the photo.
 - **war-report**: round 1 of the bench on 2026-11-23, in a session: 3 stories of clips run 45077041875 in the 5 tones,
   on Opus. **The storyteller won**, the best or among the best of every story (3.7 of 5 on "sounds like a person", 4.0
   on "I'd watch to the end"), the commentator second. **The story mattered more than the tone**: a front of two

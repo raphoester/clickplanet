@@ -8,6 +8,7 @@ func TestRules() Rules {
 	return Rules{
 		Kinds: map[Kind]float64{
 			KindRefill: 5, KindSpreadClicks: 3, KindEncloseClicks: 2, KindBomb: 1, KindShields: 3, KindVirus: 0, KindMine: 0, KindRally: 0,
+			KindTrap: 0,
 		},
 		Gates:   GateRules{Open: map[Kind]bool{KindRefill: true, KindSpreadClicks: true, KindShields: true}},
 		Spread:  SpreadRules{MaxPerBox: 4},
@@ -15,6 +16,7 @@ func TestRules() Rules {
 		Shield:  ShieldRules{MinPerBox: 5, MaxPerBox: 20},
 		Mine:    MineRules{MaxPerBox: 2},
 		Rally:   RallyRules{MaxPerBox: 1},
+		Trap:    TrapRules{MaxPerBox: 2},
 	}
 }
 

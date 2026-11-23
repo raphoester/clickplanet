@@ -51,6 +51,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules.Bomb.Held = 3
 	rules.Refill.Held = 4
 	rules.Mine = charges.MineRules{Held: 5, Rings: 3}
+	rules.Trap = charges.TrapRules{Held: 4, Clicks: 12}
 	rules.Rally = charges.RallyRules{Held: 2, Rings: 20, Lasts: 2 * time.Minute, Cost: 0.25}
 	got := answered(t, handler)
 
@@ -67,6 +68,8 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.Equal(t, uint32(15_000), got.GetVirusEveryMs())
 	assert.Equal(t, uint32(5), got.GetMines())
 	assert.Equal(t, uint32(3), got.GetMineRings())
+	assert.Equal(t, uint32(4), got.GetTraps())
+	assert.Equal(t, uint32(12), got.GetTrapClicks())
 	assert.Equal(t, uint32(2), got.GetRallies())
 	assert.InDelta(t, 0.08, got.GetRallyRadius(), 1e-9, "20 tile spacings")
 	assert.Equal(t, uint32(120_000), got.GetRallyLastsMs())

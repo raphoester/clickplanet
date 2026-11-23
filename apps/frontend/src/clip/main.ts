@@ -650,7 +650,7 @@ async function choose(): Promise<Chosen> {
             onEnclosed: (enclosure) => takenOf(enclosure).forEach((tile) => own(tile, enclosure.countryId)),
             onVirusSpread: (spread) => spread.taken.forEach((tile) => own(tile, spread.countryId)),
             onMinesExploded: (explosion) => explosion.blasts.forEach((blast) => blast.taken.forEach((tile) => own(tile, blast.countryId))),
-            onMines: () => {}, onMineLaid: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+            onMines: () => {}, onMineLaid: () => {}, onTraps: () => {}, onTrapLaid: () => {}, onTrapSprung: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         const subtitles = said === undefined ? [] : subtitlesOf(said)

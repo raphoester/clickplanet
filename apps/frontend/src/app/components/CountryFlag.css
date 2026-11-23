@@ -13,3 +13,7 @@
     border-radius: 1px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 35%, transparent);
 }
+
+.country-flag-blank {
+    background: var(--text-faint);
+}

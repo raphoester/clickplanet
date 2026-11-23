@@ -135,7 +135,7 @@ why in its bubble, and the tray stays. All again, Escape or a press anywhere out
 clicks" open one at a time, and a sheet that opens closes the tray.
 
 **The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
-at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields, virus, mine, rally) among one level.
+at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields, virus, mine, rally, trap) among one level.
 The gates on or off, the order is the ladder's; while no open kind is told (before `GetGrantRules` answers) it is
 `CHARGE_KINDS`' order alone.
 
@@ -156,7 +156,7 @@ load, on each new session (`listenForSessions`: a guest's first click makes one)
 clicks settle. A level reached on the stream opens the kinds at once. With no session held it reads nothing, so a page
 that has not clicked makes none, and a gated kind shows "Locked for now" until then. A guest, or an account no fact has
 raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. In the fake the ladder is
-the server's (spread 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 15), a guest at level 0 and a signed-in player at its fake level (`giveXp()` raises it), and
+the server's (spread 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, trap 15, rally 17), a guest at level 0 and a signed-in player at its fake level (`giveXp()` raises it), and
 `playGates()` turns the gates on, `playGates(false)` off.
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
@@ -184,6 +184,7 @@ rallies are off ([Rally](rally.md)).
 - **Bomb** aims one, or puts it away (`Globe.setArmed`), counted once they stack (`2/3`).
 - **Virus** aims one, or puts it away (`Globe.setVirusAimed`), counted the same way.
 - **Mine** aims the mines, or puts them away (`Globe.setMineAimed`), counted against the most a hand holds (`2/3`).
+- **Trap** aims the traps, or puts them away (`Globe.setTrapAimed`), counted the same way (see [Trap](trap.md)).
 - **Rally** aims a rally, or puts it away (`Globe.setRallyAimed`), counted the same way (`1/3`). See [Rally](rally.md).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.

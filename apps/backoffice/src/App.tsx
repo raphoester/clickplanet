@@ -1,4 +1,4 @@
-import {ReactNode, useCallback, useMemo, useState} from "react"
+import {ReactNode, useCallback, useEffect, useMemo, useState} from "react"
 import {authAdmin} from "./api.ts"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
@@ -31,6 +31,7 @@ import {useCall} from "./useCall.ts"
 import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
 import {PromoPage} from "./promo/PromoPage.tsx"
+import {readFlags, useListedFlags} from "./flags.ts"
 import {VideosPage} from "./videos/VideosPage.tsx"
 
 export function App({callback}: {callback: Callback | undefined}) {
@@ -82,6 +83,13 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
     const wide = useWide()
     // What the page that opened a player knew of it (its name, its row): the address bar keeps its id alone.
     const [known, setKnown] = useState<Opened | undefined>(undefined)
+    // The pages name a flag opened since from the server's list: they draw again once it is read.
+    useListedFlags()
+    useEffect(() => {
+        const reading = new AbortController()
+        void readFlags(CLIENTS.flags, reading.signal)
+        return () => reading.abort()
+    }, [])
 
     // A report opens its player on the Players page, where every tool on it is. The player already open keeps its row.
     const openPlayer = useCallback((opened: Opened) => {

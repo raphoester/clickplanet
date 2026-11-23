@@ -1,6 +1,6 @@
 import {PromiseClient} from "@connectrpc/connect"
 import {
-    alertsAdmin, antibotAdmin, authAdmin, bonusesAdmin, boxesAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin,
+    alertsAdmin, antibotAdmin, authAdmin, bonusesAdmin, boxesAdmin, chatAdmin, clipsAdmin, flagsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin,
     progressionAdmin, promoAdmin, publishingAdmin, quizzesAdmin, supportAdmin, vandalsquadAdmin,
 } from "./api.ts"
 import {AdminService as AlertsAdminService} from "./gen/grpc/alerts/v1/admin_connect.ts"
@@ -10,6 +10,7 @@ import {AdminService as BonusesAdminService} from "./gen/grpc/bonuses/v1/admin_c
 import {AdminService as BoxesAdminService} from "./gen/grpc/boxes/v1/admin_connect.ts"
 import {AdminService as ChatAdminService} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdminService} from "./gen/grpc/clips/v1/admin_connect.ts"
+import {AdminService as FlagsAdminService} from "./gen/grpc/flags/v1/admin_connect.ts"
 import {AdminService as PlanetAdminService} from "./gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdminService} from "./gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as ProgressionAdminService} from "./gen/grpc/progression/v1/admin_connect.ts"
@@ -63,14 +64,17 @@ export type PromoAdmin = Pick<
 // The swastikas the vandal squad flagged on the map.
 export type VandalsquadAdmin = PromiseClient<typeof VandalsquadAdminService>
 
+// The flags the game ships with and the ones opened since, which name a code the page does not.
+export type FlagsAdmin = PromiseClient<typeof FlagsAdminService>
+
 export type Clients = {
     alerts: AlertsAdmin, antibot: AntibotAdmin, auth: AuthAdmin, bonuses: BonusesAdmin, boxes: BoxesAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin,
     progression: ProgressionAdmin, gamemaster: GamemasterAdmin, missions: MissionsAdmin, support: SupportAdmin, clips: ClipsAdmin,
-    promo: PromoAdmin, publishing: PublishingAdmin, quizzes: QuizzesAdmin, vandalsquad: VandalsquadAdmin,
+    promo: PromoAdmin, publishing: PublishingAdmin, quizzes: QuizzesAdmin, vandalsquad: VandalsquadAdmin, flags: FlagsAdmin,
 }
 
 export const CLIENTS: Clients = {
     alerts: alertsAdmin, antibot: antibotAdmin, auth: authAdmin, bonuses: bonusesAdmin, boxes: boxesAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin,
     progression: progressionAdmin, gamemaster: gamemasterAdmin, missions: missionsAdmin, support: supportAdmin, clips: clipsAdmin,
-    promo: promoAdmin, publishing: publishingAdmin, quizzes: quizzesAdmin, vandalsquad: vandalsquadAdmin,
+    promo: promoAdmin, publishing: publishingAdmin, quizzes: quizzesAdmin, vandalsquad: vandalsquadAdmin, flags: flagsAdmin,
 }

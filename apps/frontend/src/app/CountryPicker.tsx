@@ -1,10 +1,11 @@
 import {useEffect, useMemo, useState} from "react";
-import {Countries, Country} from "../domain/countries.ts";
+import {Country} from "../domain/countries.ts";
 import {Allegiance, Lock, lockOf} from "../domain/allegiance.ts";
 import {describeEnd} from "./endTime.ts";
 import {AllegianceLockedError} from "../backends/backend.ts";
 import SelectWithSearch from "./components/SelectWithSearch.tsx";
 import {useStanding} from "./knockout/standingStore.ts";
+import {useFlags} from "./flags/flagsStore.ts";
 import {stands} from "../domain/standing.ts";
 import {Key} from "../i18n/translator.ts";
 import {t, translator} from "../i18n/page.ts";
@@ -31,13 +32,14 @@ function ruleLineOf(lock: Lock | undefined, now: number): string {
 export default function CountryPicker(props: CountryPickerProps) {
     const now = useNowUntilUnlocked(props.allegiance)
     const standing = useStanding((store) => store.standing)
+    const catalog = useFlags((store) => store.catalog)
     const locked = lockOf(props.allegiance, now, standing)
     const values = useMemo(
-        () => Array.from(Countries.keys())
+        () => catalog.playableCodes()
             .filter((code) => stands(standing, code))
             .map((code) => ({code, name: translator().country(code)}))
             .sort((a, b) => translator().compare(a.name, b.name)),
-        [standing],
+        [standing, catalog],
     )
     const [sending, setSending] = useState(false)
     const [failed, setFailed] = useState(false)
@@ -63,7 +65,7 @@ export default function CountryPicker(props: CountryPickerProps) {
         {failed && <p className="country-picker-failed" role="alert">{t("picker.failed")}</p>}
         {!locked && <div className="country-picker-list" aria-busy={sending || undefined}>
             <SelectWithSearch
-                onChange={(value) => pick(Countries.get(value.code) ?? {code: value.code})}
+                onChange={(value) => pick({code: value.code})}
                 selected={values.find((value) => value.code === props.country.code)}
                 values={values}
             />

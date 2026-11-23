@@ -68,7 +68,7 @@ describe("the game rules page", () => {
             "Enclosures held", "Shields held", "Shields on a tile, at most", "Viruses held", "Virus infections, at most",
             "Virus spreads every (s)", "Mines held",
             "Mine blast rings, 1 to 3", "Rallies held", "Rally ring, in tile spacings, 1 to 50", "Rally lasts (s)",
-            "A click inside a rally costs, 0.1 to 1",
+            "A click inside a rally costs, 0.1 to 1", "Traps held", "Clicks a trap takes, at least 1",
         ])
         expect(screen.queryByLabelText("Shortest box wait (s)")).toBeNull()
         expect(screen.queryByLabelText("Quizzes on")).toBeNull()

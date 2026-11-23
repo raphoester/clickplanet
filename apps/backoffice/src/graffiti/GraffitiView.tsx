@@ -3,7 +3,8 @@ import {loadPlaces, Places} from "../boards/places.ts"
 import {Clients, CLIENTS} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {Ago} from "../components/When.tsx"
-import {flagOf} from "../countries.ts"
+import {blankFlag, flagOf} from "../countries.ts"
+import {FlagMark} from "../components/FlagMark.tsx"
 import {Graffiti} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {Reading} from "../players/actions.ts"
 import {Call, useCall} from "../useCall.ts"
@@ -156,7 +157,9 @@ function GraffitiList({graffiti, all, names, standings, placesOf, opened, onOpen
                                 : <span className="graffiti-thumb" aria-hidden="true"/>}
                             <span className="graffiti-row-text">
                                 <span className="row-head">
-                                    <span className="flag" aria-hidden="true">{flagOf(each.countryId)}</span>
+                                    {blankFlag(each.countryId)
+                                        ? <FlagMark id={each.countryId}/>
+                                        : <span className="flag" aria-hidden="true">{flagOf(each.countryId)}</span>}
                                     <span className={each.accountId === "" ? "muted" : "name"}>{name}</span>
                                     {count > 1 && each.accountId !== "" && (
                                         <span className="count" title="Graffiti by this account">×{count}</span>

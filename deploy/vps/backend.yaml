@@ -212,8 +212,9 @@ player:
     dbName: clickplanet
     sslMode: disable
     schema: player
+    # Three since the flags module took the fourth (2026-11-23), so the sum below max_connections did not grow.
     pool:
-      maxOpenConns: 4
+      maxOpenConns: 3
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
@@ -339,6 +340,23 @@ missions:
     schema: missions
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+# The catalog of flags: the ones the game ships with are in the code, the ones opened since in this schema. Each
+# flag opened or closed is told to planet, which keeps what it heard in its own schema, and to the pages on its stream.
+flags:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: flags
+    pool:
+      maxOpenConns: 1
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD

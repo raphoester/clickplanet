@@ -90,8 +90,9 @@ an unknown board refused, and the way back and up again. It is the one test of a
 
 - **The tile map plays one stage, on its board's ground** (`inmemory_tile_storage.Storage.stage`, read by `Stage()`).
   `Load` takes it, sizes the map from its board's ground (`clicks.Grounds`) and makes that ground the one played
-  (`clicks.Played`); every flush writes the stage on each tile, lock, mine and virus (`Persistence.Save`, `SaveMines`,
-  `SaveViruses` and `Open` take a `clicks.Stage`). `Blank` plays an arena on the stage it is given, its board the one
+  (`clicks.Played`); every flush writes the stage on each tile, lock, mine, trap and virus (`Persistence.Save`,
+  `SaveMines`, `SaveTraps`, `SaveViruses` and `Open` take a `clicks.Stage`). `traps` (2026-11-23) was made with its
+  `board` column. `Blank` plays an arena on the stage it is given, its board the one
   its set names (`arena.board`, see [Arena battles](arenas.md)) or the world's, and hands that stage to `keep`, so
   `open_arena_usecase` starts the arena's era in the open's transaction (`eras.Store.Start`). `PutBack` plays the world
   again on the stage of its era, which `close_arena_usecase` reads (`eras.Maps.Playing`): the world's era resumes,
@@ -181,11 +182,11 @@ over, once** (PR 6 of [Boards](../../../docs/boards.md), 2026-11-18). An MCP too
 - **`Storage.Switch`**, under the staging, flush and tiles locks: it reads the stage again (`clicks.ErrNotInPlay` while
   an arena plays, `clicks.ErrPlaysAlready` for a second call), saves what changed, and carries memory over
   (`carryLocked`): each new tile takes its parent's flag and holder, and its share of the parent's shields
-  (`Carryover.Share`: split evenly in id order, the remainder to the first children, 10 → 3, 3, 2, 2); each mine moves
-  to its tile's child nearest it (`Carryover.Heir`), and one on a tile with no child is lost; live viruses end; the
+  (`Carryover.Share`: split evenly in id order, the remainder to the first children, 10 → 3, 3, 2, 2); each mine and
+  each trap moves to its tile's child nearest it (`Carryover.Heir`), and one on a tile with no child is lost; live viruses end; the
   flags out stay. Then **one transaction** (`Persistence.Carry`): the use case's keep starts the world's era on the new
-  board (`eras.Store.Start`), the map's tiles, locks, viruses and mines are deleted, the carried tiles are `COPY`ed and
-  the mines written. After the commit memory plays the new board's ground, filled from the carried rows as the boot
+  board (`eras.Store.Start`), the map's tiles, locks, viruses, mines and traps are deleted, the carried tiles are
+  `COPY`ed and the mines and traps written. After the commit memory plays the new board's ground, filled from the carried rows as the boot
   fills it from postgres (`fillFromLocked`, so each province is settled again: fortify locks are dropped and the new
   board's taken), and **one `board_switched` event** is appended to the ledger on the new stage while no write runs. A
   new epoch, and every stream cut: every page reloads onto the new board.
@@ -197,7 +198,8 @@ over, once** (PR 6 of [Boards](../../../docs/boards.md), 2026-11-18). An MCP too
   with ([Chat](chat.md#announcements), [Discord pings](alerts.md#the-pings-pings)).
 - **The dry run** (`Storage.Carried`, under the tiles read lock) answers the same counts and changes nothing:
   `clicks.Carried`, the response's `tiles`, `carried`, `blank`, `held_before`, `held_after`, `dropped`, `dropped_held`,
-  `shields_before`, `shields_after`, `mines_moved`, `mines_lost`, `viruses_ended` and `locks_dropped`.
+  `shields_before`, `shields_after`, `mines_moved`, `mines_lost`, `traps_moved`, `traps_lost`, `viruses_ended` and
+  `locks_dropped`.
 - **A log line times the locks** (`carried the map onto its new board under the locks`: the flush, the carry, the
   transaction, the fill). Rehearsed on production's map: 1.9 to 6.1 s, the transaction most of it.
 - **The process holds both grounds from the switch on**, `earth-1`'s for the events before it (the relay, the history);

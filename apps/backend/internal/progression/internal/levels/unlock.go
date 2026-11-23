@@ -47,11 +47,18 @@ type MineUnlock struct{}
 func (MineUnlock) Kind() Kind   { return "mine" }
 func (MineUnlock) Level() Level { return 13 }
 
-// RallyUnlock comes last, after about a month for a regular player: the first charge a flag plays together.
+// TrapUnlock comes after about a month for a regular player (38,416 XP): the first charge that costs the enemy clicks,
+// not land.
+type TrapUnlock struct{}
+
+func (TrapUnlock) Kind() Kind   { return "trap" }
+func (TrapUnlock) Level() Level { return 15 }
+
+// RallyUnlock comes last, after about 45 days for a regular player (57,344 XP): the first charge a flag plays together.
 type RallyUnlock struct{}
 
 func (RallyUnlock) Kind() Kind   { return "rally" }
-func (RallyUnlock) Level() Level { return 15 }
+func (RallyUnlock) Level() Level { return 17 }
 
 // Ladder is every kind a level unlocks. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses'
 // open kinds.
@@ -59,7 +66,14 @@ type Ladder struct{}
 
 func (Ladder) Unlocks() []Unlock {
 	return []Unlock{
-		SpreadUnlock{}, ShieldsUnlock{}, EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}, RallyUnlock{},
+		SpreadUnlock{},
+		ShieldsUnlock{},
+		EncloseUnlock{},
+		BombUnlock{},
+		VirusUnlock{},
+		MineUnlock{},
+		TrapUnlock{},
+		RallyUnlock{},
 	}
 }
 

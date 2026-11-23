@@ -19,7 +19,8 @@ type Reach interface {
 }
 
 type Spreader interface {
-	Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) error
+	// Spread answers the traps its takes sprang, the ones before a failure too.
+	Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) ([]clicks.TrapSnapshot, error)
 }
 
 type Publisher interface {
@@ -65,7 +66,9 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	tiles := u.reach.Around(in.CountryID, in.TileID, rings)
-	if err := u.spreader.Spread(ctx, in.TileID, in.CountryID, tiles); err != nil {
+	sprung, err := u.spreader.Spread(ctx, in.TileID, in.CountryID, tiles)
+	out.Sprung = append(out.Sprung, sprung...)
+	if err != nil {
 		return out, fmt.Errorf("failed to spread from tile %d: %w", in.TileID, err)
 	}
 	u.publisher.PublishSpread(notices.Spread{CountryID: in.CountryID, Tile: in.TileID, Neighbours: tiles})

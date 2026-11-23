@@ -24,16 +24,12 @@ type Clearer interface {
 	Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error)
 }
 
-type CountryChecker interface {
-	CheckCountry(country string) bool
-}
-
 type In struct {
 	Target    clicks.Vec3
 	CountryID string
 }
 
-func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules charges.Bombing) *UseCase {
+func New(bombs Bombs, geography Map, clearer Clearer, countries clicks.Flags, rules charges.Bombing) *UseCase {
 	return &UseCase{
 		bombs:     bombs,
 		geography: geography,
@@ -47,7 +43,7 @@ type UseCase struct {
 	bombs     Bombs
 	geography Map
 	clearer   Clearer
-	countries CountryChecker
+	countries clicks.Flags
 	rules     charges.Bombing
 }
 
@@ -57,8 +53,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 	if err := u.rules.Refuses(); err != nil {
 		return clicks.Blast{}, err //nolint:wrapcheck // the sentinel, for the handler.
 	}
-	if !u.countries.CheckCountry(in.CountryID) {
-		return clicks.Blast{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)
+	if err := clicks.CheckFlag(ctx, u.countries, in.CountryID); err != nil {
+		return clicks.Blast{}, err //nolint:wrapcheck // the check names it.
 	}
 
 	tile, arc := u.geography.Nearest(in.Target)

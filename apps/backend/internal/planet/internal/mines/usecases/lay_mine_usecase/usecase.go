@@ -71,7 +71,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 	var version clicks.MapVersion
 	account, err := uuid.Parse(payer.Account)
 	if err == nil {
-		mine := clicks.NewMine(cpsession.AccountID(account), payer.Scope, in.CountryID, in.TileID)
+		mine := clicks.NewMine(cpsession.AccountID(account), payer.Scope, payer.Linked, in.CountryID, in.TileID)
 		version, err = u.minefield.Lay(ctx, mine)
 	}
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 type Limiter interface {
 	TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State)
+	Peek(key cpratelimit.Key) cpratelimit.State
 }
 
 type Pricer interface {
@@ -42,7 +43,8 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	cost, _ := u.discount.Cost(ctx, in.CountryID, in.TileID)
 
 	payer := clicks.PayerOf(ctx)
-	allowed, states := u.limiter.TakeAll(cost, u.buckets.Keys(payer, price)...)
+	keys := u.buckets.Keys(payer, price)
+	allowed, states := u.limiter.TakeAll(cost, keys...)
 	budget := u.buckets.BudgetOf(payer, states, price)
 	budget.Spent = cost
 
@@ -51,6 +53,14 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	out, err := u.implementation.Execute(ctx, in)
+	if len(out.Sprung) > 0 {
+		// The traps the click sprang drained the bank: the answer says what it holds now.
+		for i, key := range keys {
+			states[i] = u.limiter.Peek(key)
+		}
+		budget = u.buckets.BudgetOf(payer, states, price)
+		budget.Spent = cost
+	}
 	out.Budget, out.Limited = budget, true
 
 	return out, err

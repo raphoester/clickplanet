@@ -38,7 +38,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Graffiti](docs/graffiti.md) — the swastikas the vandal squad flagged, each drawn from the tiles' places on the board
   it names, north up over the land around it, for a person to judge; its painter's ban and revert beside it.
 - [The map tools](docs/map-tools.md) — download a replay, its eras kept: each board the world played, and when.
-- [A country on the page](docs/countries.md) — typed by its id and named below it; a flag is an emoji.
+- [A country on the page](docs/countries.md) — typed by its id and named below it, a flag opened since by the server's
+  list, read once at load; a flag is an emoji, or a plain grey flag for one opened since or one it does not know.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.
 - [The Lab](docs/lab.md) — the video lab's readout: each experiment on each platform against the control of the same

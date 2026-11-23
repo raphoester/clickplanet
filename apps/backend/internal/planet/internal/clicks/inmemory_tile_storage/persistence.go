@@ -20,7 +20,7 @@ var ErrOtherBoard = errors.New("the map's rows name a board other than its era's
 // Persistence keeps each map's tiles, the fortify lock of each province and the flags out: the world's, and each arena's.
 // Each row names the board its tile is on.
 type Persistence interface {
-	// Boards are the boards a map's tiles, locks, mines and viruses name.
+	// Boards are the boards a map's tiles, locks, mines, traps and viruses name.
 	Boards(ctx context.Context, played clicks.MapID) ([]clicks.BoardID, error)
 	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
 	// LoadProvinces reads the locks of the provinces of that provinces file alone: another cut numbers them again.
@@ -29,22 +29,25 @@ type Persistence interface {
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
+	LoadTraps(ctx context.Context, played clicks.MapID, visit func(trap clicks.TrapSnapshot)) error
 	Save(ctx context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []clicks.OutFlag) error
 	// SaveViruses keeps a map's live viruses in place of the ones it kept before.
 	SaveViruses(ctx context.Context, played clicks.Stage, live []clicks.VirusSnapshot) error
 	// SaveMines keeps each mine laid, in place of what its tile kept, and deletes the mine of each tile gone.
 	SaveMines(ctx context.Context, played clicks.Stage, laid []clicks.MineSnapshot, gone []uint32) error
+	// SaveTraps keeps each trap laid, in place of what its tile kept, and deletes the trap of each tile gone.
+	SaveTraps(ctx context.Context, played clicks.Stage, laid []clicks.TrapSnapshot, gone []uint32) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// Carry moves a map onto another board in one transaction with keep, once keep says to: every tile, province's lock,
-	// virus and mine of the board before deleted, and the tiles and mines carried written on the new one. The flags out
-	// stay: they name no tile.
-	Carry(ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot,
+	// virus, mine and trap of the board before deleted, and the tiles, mines and traps carried written on the new one.
+	// The flags out stay: they name no tile.
+	Carry(ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot, traps []clicks.TrapSnapshot,
 		keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Wipe deletes every tile, every province's lock, every flag out, every virus and every mine of a map, in one
-	// transaction with keep, once keep says to.
+	// Wipe deletes every tile, every province's lock, every flag out, every virus, every mine and every trap of a map, in
+	// one transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// ForgetHolder takes an account off every tile of every map, and takes its mines off them.
+	// ForgetHolder takes an account off every tile of every map, and takes its mines and traps off them.
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
 }
 
@@ -113,6 +116,7 @@ type Rows interface {
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out clicks.OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
+	LoadTraps(ctx context.Context, played clicks.MapID, visit func(trap clicks.TrapSnapshot)) error
 }
 
 func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
@@ -182,6 +186,11 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 		return fmt.Errorf("failed to read the stored mines: %w", err)
 	}
 
+	err = rows.LoadTraps(ctx, s.stage.Map, s.traps.restore)
+	if err != nil {
+		return fmt.Errorf("failed to read the stored traps: %w", err)
+	}
+
 	s.provinces.each(s.settleProvinceLocked)
 
 	if outside > 0 {
@@ -193,7 +202,8 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 
 	s.logger.Info("loaded the tile map", slog.String("map", string(s.stage.Map)), slog.Int("board", int(s.stage.Board)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
 		slog.Int("fortifiedProvinces", fortified), slog.Int("flagsOut", len(s.out.flags())),
-		slog.Int("viruses", len(s.viruses.live)), slog.Int("mines", len(s.mines.laid)))
+		slog.Int("viruses", len(s.viruses.live)), slog.Int("mines", len(s.mines.laid)),
+		slog.Int("traps", len(s.traps.laid)))
 
 	return nil
 }
@@ -262,19 +272,21 @@ type unsaved struct {
 	out       []clicks.OutFlag
 	viruses   Viruses
 	mines     Mines
+	traps     Traps
 	placed    []clicks.PlacementID
 }
 
 func (s *Storage) drainLocked() unsaved {
 	return unsaved{
 		tiles: s.board.drainDirty(), provinces: s.provinces.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
-		viruses: s.viruses.drainUnsaved(), mines: s.mines.drainUnsaved(), placed: s.drainPlacedLocked(),
+		viruses: s.viruses.drainUnsaved(), mines: s.mines.drainUnsaved(),
+		traps: s.traps.drainUnsaved(), placed: s.drainPlacedLocked(),
 	}
 }
 
 func (s *Storage) save(ctx context.Context, playing clicks.Stage, changes unsaved) error {
 	if len(changes.tiles) == 0 && len(changes.provinces) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 &&
-		!changes.viruses.Changed && changes.mines.empty() {
+		!changes.viruses.Changed && changes.mines.empty() && changes.traps.empty() {
 		return nil
 	}
 	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
@@ -288,6 +300,11 @@ func (s *Storage) save(ctx context.Context, playing clicks.Stage, changes unsave
 		}
 		if !changes.mines.empty() {
 			if err := s.persistence.SaveMines(ctx, playing, changes.mines.Laid, changes.mines.Gone); err != nil {
+				return err //nolint:wrapcheck // wrapped once below.
+			}
+		}
+		if !changes.traps.empty() {
+			if err := s.persistence.SaveTraps(ctx, playing, changes.traps.Laid, changes.traps.Gone); err != nil {
 				return err //nolint:wrapcheck // wrapped once below.
 			}
 		}
@@ -309,6 +326,7 @@ func (s *Storage) markDirtyLocked(changes unsaved) {
 	s.out.markUnsaved(changes.out)
 	s.viruses.markUnsaved(changes.viruses)
 	s.mines.markUnsaved(changes.mines)
+	s.traps.markUnsaved(changes.traps)
 	s.placed = append(s.placed, changes.placed...)
 }
 

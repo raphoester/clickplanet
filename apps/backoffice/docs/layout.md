@@ -16,11 +16,13 @@ src/
   usePageVisible.ts whether the tab is shown
   navigation.ts     MENU, the pages by group, the route (routeOf, hashOf) and OpenPlayer
   countries.ts      a country id's name and its flag
+  flags.ts          the server's list of flags, read once at load, which names a flag opened since
   main.tsx          takes the sign-in callback and a connector's request off the address bar, then renders App
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   connect/          ConnectPage (Allow or Deny an app), pending.ts (the request kept for the tab)
-  components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
+  components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, FlagMark (a
+                    flag's emoji or a grey flag), CountryField,
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
   boards/           the boards: boards.ts (BOARDS by name, boardOf), places.ts (a board's places, read once by name),

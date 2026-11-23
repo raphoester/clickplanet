@@ -144,3 +144,38 @@ func TestARallyReachesEveryStreamWhateverItsFlag(t *testing.T) {
 		assert.Equal(t, called, *rally)
 	}
 }
+
+func TestATrapLaidReachesTheStreamsOfItsFlagAlone(t *testing.T) {
+	board := notices.New()
+	french, german, none := attendFor(t, board, ada, "fr"), attendFor(t, board, grace, "de"), attend(t, board, charges.NoHolder)
+	laid := notices.TrapLaid{Flag: "fr", Tile: 9, Version: clicks.MapVersion{Epoch: 7, Seq: 3}}
+
+	board.PublishTrapLaid(laid)
+
+	require.Len(t, french, 1)
+	got := (<-french).TrapLaid
+	require.NotNil(t, got)
+	assert.Equal(t, laid, *got)
+	assert.Empty(t, german, "another flag never learns of it")
+	assert.Empty(t, none)
+}
+
+func TestATrapSprungReachesEveryStreamAndTheTakersOwnHearItIsTheirs(t *testing.T) {
+	board := notices.New()
+	takers, others, none := attendFor(t, board, ada, "de"), attendFor(t, board, grace, "fr"), attend(t, board, charges.NoHolder)
+	sprung := notices.TrapSprung{Tile: 9, Flag: "fr", Clicks: 10, Taker: ada}
+
+	board.PublishTrapSprung(sprung)
+
+	yours := sprung
+	yours.Yours = true
+	for name, each := range map[string]struct {
+		events <-chan notices.Event
+		want   notices.TrapSprung
+	}{"the taker's": {takers, yours}, "the trap's flag's": {others, sprung}, "nobody's": {none, sprung}} {
+		require.Len(t, each.events, 1, name)
+		got := (<-each.events).TrapSprung
+		require.NotNil(t, got, name)
+		assert.Equal(t, each.want, *got, name)
+	}
+}

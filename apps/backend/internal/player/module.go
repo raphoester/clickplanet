@@ -86,7 +86,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -255,7 +255,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(introducer, visits, cpcountries.New(), clock, tagSalt),
+			announce_usecase.New(introducer, visits, cpflags.Codes{}, clock, tagSalt),
 		),
 		LeaveHandler: leave_handler.New(forgetVisit),
 		ListenForEventsHandler: listen_for_events_handler.New(

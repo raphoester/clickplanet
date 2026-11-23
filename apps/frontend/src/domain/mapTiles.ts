@@ -1,19 +1,22 @@
-import type {MapVersion, MineLaid, Minefield, MinesExploded, Ownerships, TileRange, Update, VirusSpread} from "../backends/backend.ts"
+import type {
+    MapVersion, MineLaid, Minefield, MinesExploded, Ownerships, TileRange, TrapLaid, Trapline, Update, VirusSpread,
+} from "../backends/backend.ts"
 import {MapClock} from "./mapClock.ts"
 import {OwnerChange, TileOwnership} from "./tileOwnership.ts"
 import {ShieldChange, TileShields} from "./shields.ts"
 import {InfectionChange, TileInfections} from "./infections.ts"
-import {MineChange, TileMines} from "./mines.ts"
+import {FlagMarks, MarkChange} from "./flagMarks.ts"
 
 export type TileChanges = {
     owners: OwnerChange[]
     shields: ShieldChange[]
     infections: InfectionChange[]
-    mines: MineChange[]
+    mines: MarkChange[]
+    traps: MarkChange[]
 }
 
 export function noTileChanges(): TileChanges {
-    return {owners: [], shields: [], infections: [], mines: []}
+    return {owners: [], shields: [], infections: [], mines: [], traps: []}
 }
 
 type Fortifying = {
@@ -34,13 +37,14 @@ export function tileRanges(size: number, batchSize: number): TileRange[] {
     return ranges
 }
 
-// Every tile's flag, shields and virus, and the page's flag's mines. Whatever brings a tile's value, a read or the stream,
-// it is taken only when its version is newer than the tile's.
+// Every tile's flag, shields and virus, and the page's flag's mines and traps. Whatever brings a tile's value, a read or
+// the stream, it is taken only when its version is newer than the tile's.
 export class MapTiles {
     readonly ownership: TileOwnership
     readonly shields: TileShields
     readonly infections: TileInfections
-    readonly mines: TileMines
+    readonly mines: FlagMarks
+    readonly traps: FlagMarks
     readonly ranges: readonly TileRange[]
     private readonly seen: Float64Array
     private readonly reads: (MapVersion | undefined)[]
@@ -51,14 +55,15 @@ export class MapTiles {
     // The flags knocked out, in the epoch they were heard in: they only grow until a new epoch.
     private out = new Set<string>()
     private outEpoch: number | undefined
-    // The mines' seqs are of this epoch's map.
-    private minesEpoch: number | undefined
+    // The mines' and the traps' seqs are of this epoch's map.
+    private marksEpoch: number | undefined
 
     constructor(size: number, private readonly batchSize: number, private readonly clock: MapClock) {
         this.ownership = new TileOwnership(size)
         this.shields = new TileShields(size)
         this.infections = new TileInfections(size)
-        this.mines = new TileMines(size)
+        this.mines = new FlagMarks(size)
+        this.traps = new FlagMarks(size)
         this.ranges = tileRanges(size, batchSize)
         this.seen = new Float64Array(size + 1).fill(UNKNOWN)
         this.reads = new Array(this.ranges.length)
@@ -120,7 +125,7 @@ export class MapTiles {
 
         for (let tile = range.start; tile <= range.end; tile++) {
             if (!this.take(tile, version.seq)) continue
-            if (this.ownership.ownerOf(tile) !== bindings.get(tile)) this.mines.takeOff(tile, version.seq, changes.mines)
+            if (this.ownership.ownerOf(tile) !== bindings.get(tile)) this.takeOffMarks(tile, version.seq, changes)
             this.ownership.take(tile, bindings.get(tile), changes.owners)
             this.shields.set(tile, shields.get(tile) ?? 0, changes.shields)
             this.infections.set(tile, infected.get(tile), changes.infections)
@@ -147,7 +152,7 @@ export class MapTiles {
             this.shields.set(tile, shields, changes.shields)
             if (newCountry !== previousCountry) {
                 this.infections.set(tile, undefined, changes.infections)
-                this.mines.takeOff(tile, version.seq, changes.mines)
+                this.takeOffMarks(tile, version.seq, changes)
             }
         }
     }
@@ -155,15 +160,15 @@ export class MapTiles {
     public applyBlast(cleared: readonly number[], struck: readonly {tile: number, shields: number}[], version: MapVersion, changes: TileChanges): void {
         if (!this.clock.counts(version)) return
         for (const tile of cleared) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
+            this.takeOffMarks(tile, version.seq, changes)
             if (!this.take(tile, version.seq)) continue
             this.ownership.set(tile, undefined, changes.owners)
             this.shields.set(tile, 0, changes.shields)
             this.infections.set(tile, undefined, changes.infections)
         }
-        // A bomb takes off the mine of a tile it struck too.
+        // A bomb takes off the mine and the trap of a tile it struck too.
         for (const {tile, shields} of struck) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
+            this.takeOffMarks(tile, version.seq, changes)
             if (this.take(tile, version.seq)) this.shields.set(tile, shields, changes.shields)
         }
     }
@@ -192,7 +197,7 @@ export class MapTiles {
     ): void {
         if (!this.clock.counts(version)) return
         for (const tile of taken) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
+            this.takeOffMarks(tile, version.seq, changes)
             if (!this.take(tile, version.seq)) continue
             this.ownership.set(tile, flag, changes.owners)
             this.shields.set(tile, 0, changes.shields)
@@ -219,7 +224,7 @@ export class MapTiles {
 
     private blank(cleared: readonly number[], {seq}: MapVersion, changes: TileChanges) {
         for (const tile of cleared) {
-            this.mines.takeOff(tile, seq, changes.mines)
+            this.takeOffMarks(tile, seq, changes)
             if (!this.take(tile, seq)) continue
             this.ownership.set(tile, undefined, changes.owners)
             this.shields.set(tile, 0, changes.shields)
@@ -230,7 +235,7 @@ export class MapTiles {
     // The flag's mines as the server read them: they replace the ones known before, but a tile changed since keeps none.
     public readMines({tiles, version}: Minefield, changes: TileChanges): void {
         if (!this.clock.counts(version)) return
-        this.minesIn(version, changes)
+        this.marksIn(version, changes)
         const read = new Set(tiles)
         for (const tile of this.mines.tiles()) {
             if (!read.has(tile)) this.mines.takeOff(tile, version.seq + 1, changes.mines)
@@ -242,7 +247,7 @@ export class MapTiles {
 
     public applyMineLaid({tile, version}: MineLaid, changes: TileChanges): void {
         if (!this.clock.counts(version)) return
-        this.minesIn(version, changes)
+        this.marksIn(version, changes)
         if (tile >= 1 && tile < this.seen.length && this.seen[tile] <= version.seq) this.mines.lay(tile, version.seq, changes.mines)
     }
 
@@ -252,12 +257,12 @@ export class MapTiles {
         if (!this.clock.counts(version)) return
         const left = new Map<number, {flag?: string, shields: number}>()
         for (const {tile, countryId, taken, struck} of blasts) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
+            this.takeOffMarks(tile, version.seq, changes)
             for (const each of taken) left.set(each, {flag: countryId, shields: 0})
             for (const {tile: each, shields} of struck) left.set(each, {flag: left.get(each)?.flag, shields})
         }
         for (const [tile, {flag, shields}] of left) {
-            if (flag !== undefined) this.mines.takeOff(tile, version.seq, changes.mines)
+            if (flag !== undefined) this.takeOffMarks(tile, version.seq, changes)
             if (!this.take(tile, version.seq)) continue
             if (flag !== undefined) {
                 this.ownership.set(tile, flag, changes.owners)
@@ -267,15 +272,42 @@ export class MapTiles {
         }
     }
 
-    public forgetMines(changes: TileChanges): void {
-        this.mines.forget(changes.mines)
+    // The flag's traps as the server read them, as its mines are.
+    public readTraps({tiles, version}: Trapline, changes: TileChanges): void {
+        if (!this.clock.counts(version)) return
+        this.marksIn(version, changes)
+        const read = new Set(tiles)
+        for (const tile of this.traps.tiles()) {
+            if (!read.has(tile)) this.traps.takeOff(tile, version.seq + 1, changes.traps)
+        }
+        for (const tile of tiles) {
+            if (this.seen[tile] <= version.seq) this.traps.lay(tile, version.seq, changes.traps)
+        }
     }
 
-    // A map of another epoch numbers its versions again: the mines known before it are forgotten.
-    private minesIn({epoch}: MapVersion, changes: TileChanges) {
-        if (this.minesEpoch === epoch) return
-        this.minesEpoch = epoch
+    public applyTrapLaid({tile, version}: TrapLaid, changes: TileChanges): void {
+        if (!this.clock.counts(version)) return
+        this.marksIn(version, changes)
+        if (tile >= 1 && tile < this.seen.length && this.seen[tile] <= version.seq) this.traps.lay(tile, version.seq, changes.traps)
+    }
+
+    // A mine or a trap on a tile that changed at seq is gone: a change of owner takes either off, as on the server.
+    private takeOffMarks(tile: number, seq: number, changes: TileChanges) {
+        this.mines.takeOff(tile, seq, changes.mines)
+        this.traps.takeOff(tile, seq, changes.traps)
+    }
+
+    // The page plays for another flag, or none: the mines and traps known are another flag's.
+    public forgetMarks(changes: TileChanges): void {
         this.mines.forget(changes.mines)
+        this.traps.forget(changes.traps)
+    }
+
+    // A map of another epoch numbers its versions again: the mines and traps known before it are forgotten.
+    private marksIn({epoch}: MapVersion, changes: TileChanges) {
+        if (this.marksEpoch === epoch) return
+        this.marksEpoch = epoch
+        this.forgetMarks(changes)
     }
 
     // The server raised every tile of the landmass below the most: its flag held them all.

@@ -1840,7 +1840,8 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
   few seconds without the database. Since 2026-11-11 promo holds 1 and the bonuses module the other (its rule sets
   alone), since 2026-11-12 support holds 1 and the vandal squad the other (its graffiti alone), since 2026-11-13
   the alerts module holds 1 and the quizzes module the other (its rule sets and the answers counted), and since
-  2026-11-15 progression holds 3 and the boxes module the fourth (its rule sets and each box caught), so
+  2026-11-15 progression holds 3 and the boxes module the fourth (its rule sets and each box caught), and since
+  2026-11-23 player holds 3 and the flags module the fourth (the flags opened since the game shipped), so
   `max_connections` stayed 42.
 
 ## 14. Answering notes by email

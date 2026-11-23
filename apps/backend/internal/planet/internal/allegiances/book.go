@@ -20,10 +20,6 @@ type Store interface {
 	Change(ctx context.Context, account Account, change func(Allegiance) (Allegiance, error)) error
 }
 
-type CountryChecker interface {
-	CheckCountry(country string) bool
-}
-
 // Tells the other modules a flag an account set or changed, once it is written: no previous for a first flag.
 type Teller interface {
 	Pledged(account Account, flag string, previous string)
@@ -39,14 +35,14 @@ func (t Tellers) Pledged(account Account, flag string, previous string) {
 }
 
 func NewBook(
-	store Store, countries CountryChecker, lock func() Lock, standing Standing, clock cptime.Clock, teller Teller,
+	store Store, countries clicks.Flags, lock func() Lock, standing Standing, clock cptime.Clock, teller Teller,
 ) Book {
 	return Book{store: store, countries: countries, lock: lock, standing: standing, clock: clock, teller: teller}
 }
 
 type Book struct {
 	store     Store
-	countries CountryChecker
+	countries clicks.Flags
 	lock      func() Lock
 	standing  Standing
 	clock     cptime.Clock
@@ -58,8 +54,8 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 	if account == NoAccount {
 		return ErrNoAccount
 	}
-	if !b.countries.CheckCountry(flag) {
-		return fmt.Errorf("%q: %w", flag, clicks.ErrUnknownCountry)
+	if err := clicks.CheckFlag(ctx, b.countries, flag); err != nil {
+		return err //nolint:wrapcheck // the check names it.
 	}
 
 	at, lock := b.clock.Now(), b.lock()
@@ -108,7 +104,14 @@ func (b Book) FlagOf(ctx context.Context, payer clicks.Payer) (string, error) {
 
 func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) error {
 	account := AccountOf(payer)
-	if account == NoAccount || !b.countries.CheckCountry(flag) {
+	if account == NoAccount {
+		return nil
+	}
+	playable, err := b.countries.Playable(ctx, flag)
+	if err != nil {
+		return fmt.Errorf("failed to read whether %q may be played: %w", flag, err)
+	}
+	if !playable {
 		return nil
 	}
 

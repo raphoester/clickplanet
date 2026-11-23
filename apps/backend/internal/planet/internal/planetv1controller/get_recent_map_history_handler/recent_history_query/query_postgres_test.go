@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/world_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/forgetting"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
@@ -117,8 +118,23 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) query() *recent_history_query.PostgresQuery {
+	forgettings := forgetting.NewPostgresQuery(s.db)
+	world := world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), noCarries{})
 	return recent_history_query.NewPostgresQuery(s.db, s.tiles, postgres_era_store.New(s.db), postgres_reset_store.New(s.db),
-		forgetting.NewPostgresQuery(s.db), s.clock)
+		forgettings, world_replay.NewErasures(world, forgettings, s.clock), s.clock)
+}
+
+type noCarries struct{}
+
+func (noCarries) Carry(eras.Board, eras.Board) (ledger.Carry, error) { return noCarry{}, nil }
+
+type noCarry struct{}
+
+func (noCarry) Each(func(child, parent uint32)) {}
+
+func (s *testSuite) moveHead(head ledger.Position) {
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE ledger_head SET head = $1`, int64(head)) //nolint:gosec // a few events.
+	s.Require().NoError(err)
 }
 
 func (s *testSuite) record(forgotten map[ledger.Caller]ledger.Position, events ...ledger.Event) {
@@ -173,13 +189,6 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 		}},
 		take(ada, 5, "pl", "cz", until.Add(5*time.Minute)),
 	)
-	// Read, it would fail the history: an event before the head is never read.
-	_, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO ledger_events (position, map, board, tile, scope, country, previous, taken_at, kind, payload)
-		VALUES (0, 'world', 1, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-time.Second))
-	s.Require().NoError(err)
-	_, err = s.db.On(ctx).ExecContext(ctx, `UPDATE ledger_head SET head = 1`)
-	s.Require().NoError(err)
 
 	history, next, err := s.query().RecentHistory(ctx)
 	s.Require().NoError(err)
@@ -227,6 +236,61 @@ func (s *testSuite) TestARevertedDrawingPaintedOverOpensOnWhatWasBeneathIt() {
 		Hits: []*planetv1.TileHits{{Tile: 2, Hits: 1}},
 		Eras: worldOnEarth1,
 	}, history), "the drawing before the day never shows, and Ireland painting over it changed nothing: %v", history)
+}
+
+func (s *testSuite) TestADrawingForgottenBeforeTheHeadAndPaintedOverInTheDayOpensOnWhatWasBeneathIt() {
+	ctx := s.T().Context()
+	s.tiles.now = mapOf("ie", "fr")
+	s.record(map[ledger.Caller]ledger.Position{{Account: eve}: 3},
+		take(eve, 1, "ie", "cn", since.Add(-80*time.Hour)),
+		take(eve, 2, "ie", "cn", since.Add(-80*time.Hour)),
+		take(ada, 1, "cn", "ie", since.Add(10*time.Minute)),
+		take(bob, 2, "cn", "fr", since.Add(10*time.Minute)),
+	)
+	s.moveHead(3)
+
+	history, _, err := s.query().RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: frames(since, map[time.Time][]*planetv1.TileOwner{
+			since:                       {{Tile: 1, CountryId: "ie"}, {Tile: 2, CountryId: "ie"}},
+			since.Add(30 * time.Minute): {{Tile: 2, CountryId: "fr", SecondsIntoStep: 600}},
+		}),
+		Hits: []*planetv1.TileHits{{Tile: 2, Hits: 1}},
+		Eras: worldOnEarth1,
+	}, history), "the drawing behind the ledger's head never shows either: %v", history)
+}
+
+func (s *testSuite) TestARevertReadsWhatItForgotBeforeTheHeadAgain() {
+	ctx := s.T().Context()
+	s.tiles.now = mapOf("fr")
+	s.record(map[ledger.Caller]ledger.Position{},
+		take(eve, 1, "ie", "cn", since.Add(-80*time.Hour)),
+		take(bob, 1, "cn", "fr", since.Add(10*time.Minute)),
+	)
+	s.moveHead(2)
+	query := s.query()
+	drawn, _, err := query.RecentHistory(ctx)
+	s.Require().NoError(err)
+	s.True(proto.Equal(wholeOf([]*planetv1.TileOwner{{Tile: 1, CountryId: "cn"}}), drawn.GetFrames()[0].GetWhole()), "%v", drawn)
+
+	s.Require().NoError(s.store.Save(ctx, inmemory_ledger_storage.Changes{
+		From:    3,
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{}),
+		Marks:   inmemory_ledger_storage.Marks{Head: 2, Forgotten: map[ledger.Caller]ledger.Position{{Account: eve}: 3}},
+	}))
+	erased, _, err := query.RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: frames(since, map[time.Time][]*planetv1.TileOwner{
+			since:                       {{Tile: 1, CountryId: "ie"}},
+			since.Add(30 * time.Minute): {{Tile: 1, CountryId: "fr", SecondsIntoStep: 600}},
+		}),
+		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
+		Eras: worldOnEarth1,
+	}, erased), "%v", erased)
 }
 
 func (s *testSuite) TestARevertBuildsTheStepsHistoryAgain() {

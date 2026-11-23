@@ -21,7 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -124,7 +124,7 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
 	send := send_message_usecase.New(s.messages, silentFeed{}, everyoneAPlayer{},
-		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpflags.Codes{},
 			messages.NewRooms(messages.FakeFlags{})),
 		messages.NewThread(s.messages, clock, window))
 
@@ -157,7 +157,7 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 
 	clock := cptime.NewFixedClock(now.Add(-time.Hour))
 	send := send_message_usecase.New(s.messages, silentFeed{}, everyoneAPlayer{},
-		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpflags.Codes{},
 			messages.NewRooms(messages.FakeFlags{})),
 		messages.NewThread(s.messages, clock, messages.NewWindow(size, historyRetention)))
 

@@ -135,6 +135,18 @@ ALTER TABLE mines_remapped DROP COLUMN remapped_tile;
 DELETE FROM mines;
 INSERT INTO mines SELECT * FROM mines_remapped;
 
+-- A trap follows its tile too.
+CREATE TEMP TABLE traps_remapped ON COMMIT DROP AS
+SELECT p.*, r.to_id + (p.tile - r.from_id) AS remapped_tile
+FROM traps p
+JOIN tile_remap r ON p.tile >= r.from_id AND p.tile < r.from_id + r.span;
+
+UPDATE traps_remapped SET tile = remapped_tile;
+ALTER TABLE traps_remapped DROP COLUMN remapped_tile;
+
+DELETE FROM traps;
+INSERT INTO traps SELECT * FROM traps_remapped;
+
 DELETE FROM ledger_events e
 WHERE e.payload IS NULL AND NOT EXISTS (
     SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span

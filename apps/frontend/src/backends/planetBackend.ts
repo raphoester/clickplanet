@@ -50,6 +50,11 @@ import {
     MineLaid,
     Minefield,
     MinesExploded,
+    TrapLaid,
+    Trapline,
+    TrapRefusedError,
+    Trapper,
+    TrapSprung,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {Allegiance} from "../domain/allegiance.ts";
@@ -71,6 +76,7 @@ import {
     SharedWith,
     VirusRefusal,
     MineRefusal,
+    TrapRefusal,
     RallyRefusal,
     Rally as RallyMessage,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
@@ -106,7 +112,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Trapper, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -519,6 +525,23 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                // A trap laid counts no version either.
+                const trapLaid = trapLaidOf(event)
+                if (trapLaid) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onTrapLaid(trapLaid))
+                    return
+                }
+
+                // A trap sprung changes no tile: the take that sprang it goes first. A take of the page's account's that
+                // came with no answer of its own, a virus's or a mine's, left the bank lower: it is read again.
+                const sprung = trapSprungOf(event)
+                if (sprung) {
+                    this.flushUpdates()
+                    if (sprung.yours) void this.readBudget()
+                    this.bonusCallbacks.forEach(handlers => handlers.onTrapSprung(sprung))
+                    return
+                }
+
                 const granted = grantedOf(event)
                 if (granted) {
                     this.holdCharges(granted)
@@ -551,8 +574,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.flushUpdates()
         this.streamVersion = version
         this.openingCallbacks.forEach(callback => callback(version))
-        // A gap may have hidden a mine laid or a rally called, and a new session may play for another flag.
+        // A gap may have hidden a mine or a trap laid or a rally called, and a new session may play for another flag.
         void this.readMines()
+        void this.readTraps()
         void this.readRallies()
     }
 
@@ -570,6 +594,23 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the flag's mines", e)
+        }
+    }
+
+    // The traps of the flag the server says the caller plays for: no other flag's.
+    private async readTraps(): Promise<void> {
+        const token = this.streamToken ?? this.session.heldIdentity()
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        try {
+            const res = await retrying(() => this.client.getTraps({}, {headers}), "getTraps")
+            if (token !== (this.streamToken ?? this.session.heldIdentity())) return
+            const traps: Trapline = {countryId: res.countryId, tiles: [...res.tileIds], version: versionOf(res.version)}
+            this.bonusCallbacks.forEach(handlers => handlers.onTraps(traps))
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the flag's traps", e)
         }
     }
 
@@ -626,6 +667,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 rallyRadius: res.rallyRadius,
                 rallyLastsMs: res.rallyLastsMs,
                 rallyCost: res.rallyCost,
+                traps: res.traps,
+                trapClicks: res.trapClicks,
             }
             this.holdRules(rules)
         } catch (e) {
@@ -765,7 +808,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const moved = allegiance?.countryId !== this.allegiance?.countryId
         this.allegiance = allegiance
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
-        if (moved) void this.readMines()
+        if (moved) {
+            void this.readMines()
+            void this.readTraps()
+        }
         return true
     }
 
@@ -971,30 +1017,44 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges({...this.charges, mines: Math.max(0, this.charges.mines - 1)})
 
         try {
-            await this.layRetried(tileId, countryId)
+            await this.layRetried(countryId, asMineError, (headers) => this.client.layMine({tileId, countryId}, {headers}))
         } catch (e) {
             this.holdCharges({...this.charges, mines: e instanceof BonusLostError ? 0 : this.charges.mines + 1})
             throw e
         }
     }
 
-    private async layRetried(tileId: number, countryId: string): Promise<void> {
+    // The trap leaves the hand at once, and comes back unless the server says it holds none.
+    public async layTrap(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, traps: Math.max(0, this.charges.traps - 1)})
+
         try {
-            await this.lay(tileId, countryId)
+            await this.layRetried(countryId, asTrapError, (headers) => this.client.layTrap({tileId, countryId}, {headers}))
         } catch (e) {
-            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asMineError(e)
+            this.holdCharges({...this.charges, traps: e instanceof BonusLostError ? 0 : this.charges.traps + 1})
+            throw e
+        }
+    }
+
+    private async layRetried(
+        countryId: string, asError: (e: unknown) => unknown, send: (headers: Headers) => Promise<unknown>,
+    ): Promise<void> {
+        try {
+            await this.lay(countryId, send)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asError(e)
 
             this.session.invalidate()
 
             try {
-                await this.lay(tileId, countryId)
+                await this.lay(countryId, send)
             } catch (retried) {
-                throw asMineError(retried)
+                throw asError(retried)
             }
         }
     }
 
-    private async lay(tileId: number, countryId: string): Promise<void> {
+    private async lay(countryId: string, send: (headers: Headers) => Promise<unknown>): Promise<void> {
         const sessionToken = await this.session.token()
         await this.ensureFlag(sessionToken, countryId)
 
@@ -1002,7 +1062,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
         try {
-            await this.client.layMine({tileId, countryId}, {headers})
+            await send(headers)
             this.followSession(sessionToken)
         } catch (e) {
             this.holdRefusal(e)
@@ -1165,6 +1225,20 @@ export function mineLaidOf(event: PlanetEvent): MineLaid | undefined {
     return {countryId: laid.countryId, tile: laid.tileId, version: versionOf(laid.version)}
 }
 
+export function trapLaidOf(event: PlanetEvent): TrapLaid | undefined {
+    if (event.event.case !== "trapLaid") return undefined
+
+    const laid = event.event.value
+    return {countryId: laid.countryId, tile: laid.tileId, version: versionOf(laid.version)}
+}
+
+export function trapSprungOf(event: PlanetEvent): TrapSprung | undefined {
+    if (event.event.case !== "trapSprung") return undefined
+
+    const sprung = event.event.value
+    return {tile: sprung.tileId, countryId: sprung.countryId, clicks: sprung.clicks, yours: sprung.yours}
+}
+
 export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
     if (event.event.case !== "tilesEnclosed") return undefined
 
@@ -1255,6 +1329,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
         viruses: held.viruses,
         mines: held.mines,
         rallies: held.rallies,
+        traps: held.traps,
     }
 }
 
@@ -1316,6 +1391,17 @@ export function asMineError(e: unknown): unknown {
     if (locked) return new AllegianceLockedError(locked, {cause: e})
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
         if (e.findDetails(MineRefusal).length > 0) return new MineRefusedError({cause: e})
+        if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
+    }
+
+    return asBonusError(e)
+}
+
+export function asTrapError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
+        if (e.findDetails(TrapRefusal).length > 0) return new TrapRefusedError({cause: e})
         if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
     }
 

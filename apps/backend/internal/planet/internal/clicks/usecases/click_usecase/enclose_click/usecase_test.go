@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type honeycomb struct{ size int }
@@ -48,9 +49,12 @@ func (t tiles) Owner(tile uint32) (string, bool) { return t[tile], true }
 
 type shields map[uint32]int
 
+type traps map[uint32]clicks.Trap
+
 type board struct {
 	tiles
 	shields
+	traps
 }
 
 func (b board) Tile(id uint32) (clicks.Tile, error) {
@@ -81,7 +85,11 @@ func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortificati
 	return clicks.Fortification{}, clicks.ErrNotWhole
 }
 
-func (board) Trip(uint32) {}
+func (b board) Trip(tile uint32) (clicks.Trap, bool) {
+	trap, ok := b.traps[tile]
+	delete(b.traps, tile)
+	return trap, ok
+}
 
 func (b board) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
 	return clicks.KnockOut{}, clicks.ErrNoKnockOut
@@ -124,15 +132,16 @@ type encloser struct {
 	recorder *recorder
 }
 
-func (e encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
+func (e encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) ([]clicks.TrapSnapshot, error) {
 	e.recorder.published = append(e.recorder.published, shape{
 		CountryID: enclosure.Country, ClosingTile: enclosure.ClosingTile, Wall: enclosure.Wall, Filled: inside,
 	})
-	if _, err := e.claiming.Enclose(ctx, enclosure, inside); err != nil {
-		return fmt.Errorf("failed to claim the pocket: %w", err)
+	impacts, err := e.claiming.Enclose(ctx, enclosure, inside)
+	if err != nil {
+		return nil, fmt.Errorf("failed to claim the pocket: %w", err)
 	}
 
-	return nil
+	return clicks.Sprung(impacts), nil
 }
 
 const caller charges.Holder = "a-player"
@@ -147,6 +156,7 @@ type fixture struct {
 	grid      honeycomb
 	tiles     tiles
 	shields   shields
+	traps     traps
 	hands     *charges.MemoryStore
 	published *recorder
 	rules     *charges.Rules
@@ -158,6 +168,7 @@ func setup(charged bool, err error) fixture {
 		grid:      honeycomb{size: 12},
 		tiles:     tiles{},
 		shields:   shields{},
+		traps:     traps{},
 		hands:     charges.NewMemoryStore(),
 		published: &recorder{},
 	}
@@ -165,7 +176,7 @@ func setup(charged bool, err error) fixture {
 		f.hands.Keep(caller, charges.Held{Enclosures: 1})
 	}
 
-	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, func() int { return 10 })
+	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields, traps: f.traps}, func() int { return 10 }, clicks.NewSnareLog())
 	rules := charges.TestRules()
 	rules.Enclose.MaxTiles = 10
 	f.rules = &rules
@@ -207,6 +218,19 @@ func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
 	assert.Equal(t, []uint32{centre}, enclosed.Filled)
 	assert.ElementsMatch(t, ring, enclosed.Wall)
 	assert.Zero(t, f.hands.Kept(caller).Enclosures, "the charge is one shape, and this was it")
+}
+
+func TestTheTrapsAShapesTakesSprangAreInTheAnswer(t *testing.T) {
+	f := setup(true, nil)
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+	f.traps[centre] = clicks.NewTrap(cpsession.NoAccount, "de", centre)
+
+	out, err := f.useCase.Execute(played(t), click_usecase.In{TileID: ring[0], CountryID: "fr", Enclose: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, []clicks.TrapSnapshot{{Tile: centre, Flag: "de"}}, out.Sprung, "the encloser pays for it")
 }
 
 func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {

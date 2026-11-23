@@ -28,7 +28,8 @@ one shield from each shielded tile in the blast, whoever's it is, and clears the
 rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
 and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
 client sets its shields at impact. See [Shields](shields.md). **It takes off every mine it hits, with no blast**, a
-struck tile's too: the counter to a mine (see [The mine](mine.md)).
+struck tile's too: the counter to a mine (see [The mine](mine.md)). **And every trap**, with no spring: the counter to a
+trap (see [The trap](trap.md)).
 
 **No bomb while the rules in force hold `charges.bomb.off`** (Capital Siege slice 4; a knob of its own, on any map,
 2026-11-10). `Bombing.Refuses` answers `ErrBombsOff`, and `drop_bomb_usecase` asks it first, before the country, the

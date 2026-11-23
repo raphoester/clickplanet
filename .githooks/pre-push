@@ -10,7 +10,7 @@ cd "$(git rev-parse --show-toplevel)"
 PUSHED=$(cat || true)
 
 # What the backend's checks read: its code, the shared files it copies, and the deploy files its tests load.
-BACKEND_INPUTS=(apps/backend proto quiz docs/moderation.md deploy)
+BACKEND_INPUTS=(apps/backend proto quiz docs/moderation.md apps/frontend/static/countries/countries.json deploy)
 
 # True when a pushed commit changes a backend input, and when the hook cannot tell.
 touches_backend() {
@@ -43,6 +43,7 @@ STEPS=(
   'cd apps/backend && make lint-ci'
   'cd apps/backend && make check-format'
   'cd apps/backend && make check-quiz'
+  'cd apps/backend && make check-flags'
   'cd apps/backend && make check-moderation'
   'cd apps/backend && make check-migrations BASE=origin/main'
 )

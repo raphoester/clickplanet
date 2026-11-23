@@ -53,7 +53,7 @@ const found: Found = {
         day: {season: 0, number: 18, finale: false, own: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
     anthems: ["dz", "eu", "fr"],
     lists: {
-        fightTheMost: [{flag: "tr", fought: 41200, took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
+        fightTheMost: [{flag: "tr", took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
         farFromHome: [{flag: "hu", country: "id", tiles: 2100, km: 10400}],
         biggestEmpires: [{flag: "pw", tiles: 74000, share: 0.28456, country: "ru"}],
     },
@@ -140,7 +140,7 @@ describe("the carousel's lists", () => {
 
     it("hold each list as ranked, its shares rounded, with when fight-the-most counts from", () => {
         expect(json.lists).toEqual({
-            fightTheMost: [{flag: "tr", fought: 41200, took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
+            fightTheMost: [{flag: "tr", took: 30000, lost: 11200, rival: "fr", rivalTiles: 9000, country: "sy"}],
             farFromHome: [{flag: "hu", country: "id", tiles: 2100, km: 10400}],
             biggestEmpires: [{flag: "pw", tiles: 74000, share: 0.285, country: "ru"}],
             foughtSince: "2026-10-23T20:00:00Z",

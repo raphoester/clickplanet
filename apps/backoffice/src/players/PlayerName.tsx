@@ -1,4 +1,5 @@
-import {countryLabel, flagOf} from "../countries.ts"
+import {countryLabel} from "../countries.ts"
+import {FlagMark} from "../components/FlagMark.tsx"
 
 type Props = {
     name: string
@@ -10,10 +11,9 @@ type Props = {
 
 // Who a player is, as a person reads it: its flag and its name, never an id.
 export function PlayerName({name, flag, unnamed}: Props) {
-    const emoji = flagOf(flag)
     return (
         <span className="player-name">
-            {emoji !== "" && <span className="flag" aria-hidden="true">{emoji}</span>}
+            <FlagMark id={flag}/>
             <span className={name === "" ? "muted" : "name"}>{name === "" ? unnamed : name}</span>
             {flag !== "" && <> <span className="muted">{countryLabel(flag)}</span></>}
         </span>

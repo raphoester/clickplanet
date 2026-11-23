@@ -14,7 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -42,7 +42,7 @@ func setup(t *testing.T) fixture {
 	return fixture{
 		store:   store,
 		visits:  visits,
-		useCase: announce_usecase.New(introducer, visits, cpcountries.New(), clock, "pepper"),
+		useCase: announce_usecase.New(introducer, visits, cpflags.Codes{}, clock, "pepper"),
 	}
 }
 

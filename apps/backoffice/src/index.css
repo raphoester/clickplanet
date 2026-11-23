@@ -432,6 +432,15 @@ button:disabled {
     line-height: 1;
 }
 
+.flag-blank {
+    display: inline-block;
+    width: 1em;
+    height: 0.7em;
+    border-radius: 2px;
+    background: var(--muted);
+    vertical-align: -0.05em;
+}
+
 .fronts {
     display: flex;
     flex-wrap: wrap;

@@ -18,6 +18,7 @@ import (
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -80,7 +81,8 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 
 	offered := 0
 	for _, pkg := range []string{
-		"alerts.v1", "antibot.v1", "auth.v1", "bonuses.v1", "boxes.v1", "chat.v1", "clips.v1", "gamemaster.v1", "missions.v1", "planet.v1",
+		"alerts.v1", "antibot.v1", "auth.v1", "bonuses.v1", "boxes.v1", "chat.v1", "clips.v1", "flags.v1", "gamemaster.v1", "missions.v1",
+		"planet.v1",
 		"player.v1", "progression.v1", "promo.v1", "publishing.v1", "quizzes.v1", "support.v1", "vandalsquad.v1",
 	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))

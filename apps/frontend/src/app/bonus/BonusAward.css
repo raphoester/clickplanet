@@ -57,6 +57,12 @@
     --bonus-box: var(--rally);
 }
 
+.bonus-award--trap,
+.inventory-slot--trap {
+    --bonus-accent: var(--trap-light);
+    --bonus-box: var(--trap);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

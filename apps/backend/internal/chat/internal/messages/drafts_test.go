@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -23,7 +23,7 @@ type failingIDs struct{}
 func (failingIDs) NewID() (messages.MessageID, error) { return "", errors.New("no entropy") }
 
 func drafts(ids messages.IDProvider) messages.Drafts {
-	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpcountries.New(),
+	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpflags.Codes{},
 		messages.NewRooms(messages.FakeFlags{ada: "fr"}))
 }
 

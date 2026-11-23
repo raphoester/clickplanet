@@ -8,7 +8,7 @@ bank instead of one. The chat tells the flag's room: "le professeur calls a rall
 
 **It is built and dormant**: no box and no right answer is a rally yet, as the bonuses' `kinds.rally` weighs 0 in
 `default` and `gates.open.rally` is off there (migration `20261116152259_rally_offers`), and no other set holds either.
-`unlocked_kind` has `rally` (`20261116152258_unlocked_rally`), and level 15 unlocks it ([Levels](levels.md#the-unlocks)).
+`unlocked_kind` has `rally` (`20261116152258_unlocked_rally`), and level 17 unlocks it, the last rung, since 2026-11-23 (15 before; [Levels](levels.md#the-unlocks)).
 The operator's `GrantCharges` (`rallies`) gives some, and so does the fake on the page.
 
 ## The rules

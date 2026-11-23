@@ -108,7 +108,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -184,7 +184,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 	limits := messages.NewLimits(config.Service.MaxTextLength).WithBanned(
 		messages.NewBanned(slices.Concat(messages.DefaultBannedPhrases, config.Service.BannedPhrases)...))
-	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, cpcountries.New(), rooms)
+	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, cpflags.Codes{}, rooms)
 	thread := messages.NewThread(messageStore, cptime.SystemClock{}, window)
 
 	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",

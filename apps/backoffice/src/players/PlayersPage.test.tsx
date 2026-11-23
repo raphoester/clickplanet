@@ -448,7 +448,7 @@ describe("one player", () => {
 
         expect(screen.queryByRole("checkbox")).toBeNull()
         expect(screen.getAllByRole("spinbutton").map(field => field.closest("label")?.textContent)).toEqual([
-            "Refills", "Bombs", "Enclosures", "Spread clicks", "Shields", "Viruses", "Mines", "Rallies",
+            "Refills", "Bombs", "Enclosures", "Spread clicks", "Shields", "Viruses", "Mines", "Rallies", "Traps",
         ])
         fireEvent.change(screen.getByRole("spinbutton", {name: "Bombs"}), {target: {value: "2"}})
         fireEvent.change(screen.getByRole("spinbutton", {name: "Enclosures"}), {target: {value: "3"}})
@@ -458,7 +458,7 @@ describe("one player", () => {
 
         expect(await screen.findByText("It held 2 enclosures. It holds 2 bombs and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refills: 0, bombs: 2, enclosures: 3, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
+            accountId: ACCOUNT, refills: 0, bombs: 2, enclosures: 3, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0, traps: 0,
         }])
     })
 
@@ -473,7 +473,7 @@ describe("one player", () => {
 
         expect(await screen.findByText("It held 2 enclosures. It holds 2 bombs and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refills: 99, bombs: 99, enclosures: 99, spreadClicks: 99, shields: 99, viruses: 99, mines: 99, rallies: 99,
+            accountId: ACCOUNT, refills: 99, bombs: 99, enclosures: 99, spreadClicks: 99, shields: 99, viruses: 99, mines: 99, rallies: 99, traps: 99,
         }])
     })
 

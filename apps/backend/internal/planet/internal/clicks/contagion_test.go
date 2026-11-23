@@ -25,7 +25,7 @@ func (line) Neighbours(id uint32) []uint32 {
 func first(int) int { return 0 }
 
 func contagion(tiles *inmemory_tile_storage.Storage) clicks.Contagion {
-	return clicks.NewContagion(tiles, line{}, first, tenAShield)
+	return clicks.NewContagion(tiles, line{}, first, tenAShield, clicks.NewSnareLog())
 }
 
 func owners(tiles *inmemory_tile_storage.Storage, ids ...uint32) []string {
@@ -164,7 +164,7 @@ func TestATileTakenBackIsCuredAndSpreadsNoMore(t *testing.T) {
 	_, _, err := contagion(tiles).Spread(t.Context(), "v-1", 32, noon)
 	require.NoError(t, err)
 
-	_, err = clicks.NewClaiming(tiles, tenAShield).Click(t.Context(), 4, "de")
+	_, err = clicks.NewClaiming(tiles, tenAShield, clicks.NewSnareLog()).Click(t.Context(), 4, "de")
 	require.NoError(t, err)
 
 	assert.Equal(t, []uint32{5}, tiles.Viruses()[0].TakeSnapshot().Infected)
@@ -229,7 +229,7 @@ func (b brokenLine) Neighbours(id uint32) []uint32 {
 
 func TestATickCutByAFailureKeepsAndTellsWhatItTook(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{3: "de", 4: "de", 5: "de", 6: "de"})
-	broken := clicks.NewContagion(tiles, brokenLine{}, first, tenAShield)
+	broken := clicks.NewContagion(tiles, brokenLine{}, first, tenAShield, clicks.NewSnareLog())
 	_, _, err := broken.Start(t.Context(), aimedAt(5), 32, noon)
 	require.NoError(t, err)
 	_, _, err = broken.Spread(t.Context(), "v-1", 32, noon)

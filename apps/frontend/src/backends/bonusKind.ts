@@ -19,6 +19,8 @@ export function chargeKindOf(kind: BonusKind): ChargeKind | undefined {
             return "mine"
         case BonusKind.RALLY:
             return "rally"
+        case BonusKind.TRAP:
+            return "trap"
         default:
             return undefined
     }
@@ -50,6 +52,8 @@ export function rewardOf(
             return {kind: "mine", mines: amount}
         case BonusKind.RALLY:
             return {kind: "rally", rallies: amount}
+        case BonusKind.TRAP:
+            return {kind: "trap", traps: amount}
         default:
             return undefined
     }

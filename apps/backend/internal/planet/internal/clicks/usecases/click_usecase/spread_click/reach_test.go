@@ -36,11 +36,11 @@ func (f *field) Execute(_ context.Context, in click_usecase.In) (click_usecase.O
 	return click_usecase.Out{Outcome: clicks.Taken}, nil
 }
 
-func (f *field) Spread(_ context.Context, _ uint32, flag string, tiles []uint32) error {
+func (f *field) Spread(_ context.Context, _ uint32, flag string, tiles []uint32) ([]clicks.TrapSnapshot, error) {
 	for _, tile := range tiles {
 		f.owners[tile] = flag
 	}
-	return nil
+	return nil, nil
 }
 
 type noBridges struct{}

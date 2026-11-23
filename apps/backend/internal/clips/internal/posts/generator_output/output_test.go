@@ -345,8 +345,8 @@ func TestFightersOfNoCastAreAnError(t *testing.T) {
 
 func TestTheFindingsHoldTheCarouselsThreeListsAsTheGeneratorRankedThem(t *testing.T) {
 	file := write(t, t.TempDir(), "findings.json", `{"lists": {
-  "fightTheMost": [{"flag": "fr", "fought": 41200, "took": 30000, "lost": 11200, "rival": "pw", "rivalTiles": 9000, "country": "fr"},
-    {"flag": "tr", "fought": 20000, "lost": 20000, "rival": "fr", "rivalTiles": 8000, "country": "tr"}],
+  "fightTheMost": [{"flag": "fr", "took": 30000, "lost": 11200, "rival": "pw", "rivalTiles": 9000, "country": "fr"},
+    {"flag": "tr", "lost": 20000, "rival": "fr", "rivalTiles": 8000, "country": "tr"}],
   "farFromHome": [{"flag": "hu", "country": "id", "tiles": 2100, "km": 10400}],
   "biggestEmpires": [{"flag": "pw", "tiles": 74000, "share": 0.28, "country": "ru"}],
   "foughtSince": "2026-10-23T20:29:17Z"
@@ -357,8 +357,8 @@ func TestTheFindingsHoldTheCarouselsThreeListsAsTheGeneratorRankedThem(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, posts.Lists{
 		FightTheMost: []posts.FightEntry{
-			{Flag: "fr", Fought: 41200, Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
-			{Flag: "tr", Fought: 20000, Lost: 20000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
+			{Flag: "fr", Took: 30000, Lost: 11200, Rival: "pw", RivalTiles: 9000, Country: "fr"},
+			{Flag: "tr", Lost: 20000, Rival: "fr", RivalTiles: 8000, Country: "tr"},
 		},
 		FarFromHome:    []posts.FarLandEntry{{Flag: "hu", Country: "id", Tiles: 2100, Km: 10400}},
 		BiggestEmpires: []posts.EmpireEntry{{Flag: "pw", Tiles: 74000, Share: 0.28, Country: "ru"}},

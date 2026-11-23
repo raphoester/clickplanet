@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/world_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -62,8 +64,25 @@ func (t *tiles) Kept(_ context.Context, kept clicks.Stage) (clicks.DenseBatch, e
 	return batchOf(1, t.kept), t.err
 }
 
+type behind struct {
+	entries []ledger.Entry
+	asked   []ledger.Position
+}
+
+func (b *behind) Before(_ context.Context, position ledger.Position) (*ledger.Erasure, error) {
+	b.asked = append(b.asked, position)
+	erasure := ledger.NewErasure()
+	for _, entry := range b.entries {
+		if _, _, err := erasure.Read(entry); err != nil {
+			return nil, fmt.Errorf("failed to read an event behind the head: %w", err)
+		}
+	}
+	return erasure, nil
+}
+
 type harness struct {
 	book    *inmemory_ledger_storage.Storage
+	behind  *behind
 	now     *tiles
 	resets  *resets.MemoryStore
 	arenas  *arenas.MemoryStore
@@ -76,10 +95,10 @@ func setup(t *testing.T, owners ...string) harness {
 	h := harness{
 		book: inmemory_ledger_storage.New(inmemory_ledger_storage.Config{},
 			inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
-		now: &tiles{owners: owners}, resets: resets.NewMemoryStore(), arenas: arenas.NewMemoryStore(),
+		behind: &behind{}, now: &tiles{owners: owners}, resets: resets.NewMemoryStore(), arenas: arenas.NewMemoryStore(),
 		eras: eras.NewMemoryStore(),
 	}
-	h.useCase = replay_usecase.New(h.book, h.resets, h.arenas, h.eras, h.now, cptime.NewFixedClock(start.Add(time.Hour)))
+	h.useCase = replay_usecase.New(world_replay.NewKeptReplay(h.book, h.behind), h.resets, h.arenas, h.eras, h.now, cptime.NewFixedClock(start.Add(time.Hour)))
 	return h
 }
 
@@ -284,4 +303,40 @@ func TestAReplayOpensARevertedDrawingPaintedOverOnWhatWasBeneathIt(t *testing.T)
 	assert.Equal(t, []string{"ie", "ie"}, ownersOf(out.Opening), "the drawing never shows")
 	require.Len(t, out.Scenes, 1, "Ireland painting over it changed nothing")
 	assert.Equal(t, clicks.TileUpdate{Tile: 2, Value: "fr", Previous: "ie", Clicked: true}, out.Scenes[0].Change.TileUpdate)
+}
+
+func TestAReplayOpensADrawingForgottenBeforeTheLedgersHeadAndPaintedOverOnWhatWasBeneathIt(t *testing.T) {
+	h := setup(t, "ie", "fr")
+	painted := start.Add(-80 * time.Hour)
+	paint := []ledger.Taking{
+		{Tile: 1, Scope: "v", Country: "cn", Previous: "ie", At: painted},
+		{Tile: 2, Scope: "v", Country: "cn", Previous: "ie", At: painted},
+	}
+	for _, taking := range paint {
+		h.book.Append(clicks.WorldStage, taking)
+		entry, err := taking.Entry()
+		require.NoError(t, err)
+		entry.Stage, entry.Forgotten = clicks.WorldStage, true
+		h.behind.entries = append(h.behind.entries, entry)
+	}
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "ie", Previous: "cn", At: start.Add(3 * time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "c", Country: "fr", Previous: "cn", At: start.Add(4 * time.Minute)})
+	h.book.ForgetBefore(start.Add(-72 * time.Hour))
+
+	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+	require.NoError(t, err)
+
+	assert.Equal(t, []ledger.Position{2}, h.behind.asked, "the erasure before the head, which memory no longer keeps")
+	assert.Equal(t, []string{"ie", "ie"}, ownersOf(out.Opening), "the drawing never shows")
+	require.Len(t, out.Scenes, 1, "Ireland painting over it changed nothing")
+	assert.Equal(t, clicks.TileUpdate{Tile: 2, Value: "fr", Previous: "ie", Clicked: true}, out.Scenes[0].Change.TileUpdate)
+}
+
+func TestAReplayFailsWhenTheErasureBeforeTheHeadCannotBeRead(t *testing.T) {
+	h := setup(t, "de")
+	h.behind.entries = []ledger.Entry{{Stage: clicks.WorldStage, Kind: "spread", Payload: []byte(`{"taken":"not a list"}`)}}
+
+	_, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+
+	require.Error(t, err)
 }

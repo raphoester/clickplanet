@@ -72,6 +72,8 @@ import {
     VirusRefusedError,
     Miner,
     MineRefusedError,
+    Trapper,
+    TrapRefusedError,
     Rallier,
     RallyRefusedError,
     VirusSpread,
@@ -79,15 +81,16 @@ import {
 import {clickCostOf, Rallies, WHOLE_CLICK} from "../../domain/rallies.ts";
 import {createRallyMarks, RallyCallers} from "./rallyMarks.ts";
 import {createRallyPops} from "./rallyPops.ts";
+import {createTrapSnaps} from "./trapSnaps.ts";
 import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
-import {layingOf, MineChange, mineMarksOf} from "../../domain/mines.ts";
+import {layingOf} from "../../domain/mines.ts";
+import {marksOf} from "../../domain/flagMarks.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange} from "../../domain/tileOwnership.ts";
-import {MapTiles, noTileChanges} from "../../domain/mapTiles.ts";
+import {MapTiles, noTileChanges, TileChanges} from "../../domain/mapTiles.ts";
 import {MapClock} from "../../domain/mapClock.ts";
 import {Holdings, Recount} from "../../domain/holdings.ts";
-import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
 import {maxZoomOf, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
@@ -357,6 +360,8 @@ export type GlobeOptions = {
     onVirusAimChange?: (aimed: boolean) => void
     miner?: Miner
     onMineAimChange?: (aimed: boolean) => void
+    trapper?: Trapper
+    onTrapAimChange?: (aimed: boolean) => void
     rallier?: Rallier
     onRallyAimChange?: (aimed: boolean) => void
     // Who called each rally: the name its flag on the globe carries.
@@ -388,6 +393,7 @@ export type Globe = {
     setArmed(armed: boolean): void
     setVirusAimed(aimed: boolean): void
     setMineAimed(aimed: boolean): void
+    setTrapAimed(aimed: boolean): void
     setRallyAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
@@ -444,6 +450,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onVirusAimChange = () => {},
         miner,
         onMineAimChange = () => {},
+        trapper,
+        onTrapAimChange = () => {},
         rallier,
         onRallyAimChange = () => {},
         rallyCallers,
@@ -816,7 +824,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         showShields(changes.shields)
         playShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
     }
 
     const flushInfections = (upTo: number) => {
@@ -834,13 +842,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         ...pendingInfections.filter(({spread}) => spread.virus === virus).flatMap(({spread}) => spread.taken),
     ]
 
-    const markMines = (changes: readonly MineChange[]) => {
-        if (changes.length === 0) return
-        const {on, off} = mineMarksOf(changes)
-        field.setMineMarks(off, false)
-        field.setMineMarks(on, true)
+    // The page's flag's mines and traps, which only its players see.
+    const markArmed = ({mines, traps}: TileChanges) => {
+        if (mines.length === 0 && traps.length === 0) return
+        const mined = marksOf(mines)
+        field.setMineMarks(mined.off, false)
+        field.setMineMarks(mined.on, true)
+        const trapped = marksOf(traps)
+        field.setTrapMarks(trapped.off, false)
+        field.setTrapMarks(trapped.on, true)
         invalidate()
     }
+
+    // A tile of the page's flag with a mine or a trap: no ghost takes it.
+    const armedTile = (tile: number) => tiles.mines.has(tile) || tiles.traps.has(tile)
 
     const recount = ({countries, landmasses, provinces: moved}: Recount, live: boolean) => {
         if (landmasses.length > 0) territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
@@ -887,6 +902,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         height: renderer.domElement.height / renderer.getPixelRatio(),
     })
     const rallyPops = createRallyPops(eventTarget)
+    const trapSnaps = createTrapSnaps(eventTarget)
     const pointAt = (tile: number) => {
         const at = (tile - 1) * 3
         return new THREE.Vector3(geometryData.positions[at], geometryData.positions[at + 1], geometryData.positions[at + 2])
@@ -907,6 +923,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let virusAimed = false
     let mineAimed = false
+    let trapAimed = false
     let rallyAimed = false
 
     let restSwitchedOff = false
@@ -914,7 +931,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
 
     const switchTo = (next: Switches) => {
-        const settled = atRest(next, restSwitchedOff || armed || virusAimed || mineAimed || rallyAimed ? undefined : restingSwitch(rules))
+        const settled = atRest(next, restSwitchedOff || armed || virusAimed || mineAimed || trapAimed || rallyAimed
+            ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
         onSwitchesChange(settled)
@@ -1278,6 +1296,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(switches)
     }
 
+    const stopAimingTrap = () => {
+        if (!trapAimed) return
+        trapAimed = false
+        eventTarget.classList.remove("viewer-canvas--trapping")
+        onTrapAimChange(false)
+    }
+
+    const putTrapAway = () => {
+        stopAimingTrap()
+        switchTo(switches)
+    }
+
     const stopAimingRally = () => {
         if (!rallyAimed) return
         rallyAimed = false
@@ -1295,6 +1325,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         disarm()
         stopAimingVirus()
         stopAimingMine()
+        stopAimingTrap()
         rallyAimed = true
         eventTarget.classList.add("viewer-canvas--rallying")
         onRallyAimChange(true)
@@ -1305,6 +1336,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (mineAimed || charges.mines === 0 || !miner) return
         disarm()
         stopAimingVirus()
+        stopAimingTrap()
         stopAimingRally()
         mineAimed = true
         eventTarget.classList.add("viewer-canvas--mining")
@@ -1312,10 +1344,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(ALL_OFF)
     }
 
+    const aimTrap = () => {
+        if (trapAimed || charges.traps === 0 || !trapper) return
+        disarm()
+        stopAimingVirus()
+        stopAimingMine()
+        stopAimingRally()
+        trapAimed = true
+        eventTarget.classList.add("viewer-canvas--trapping")
+        onTrapAimChange(true)
+        switchTo(ALL_OFF)
+    }
+
     const aimVirus = () => {
         if (virusAimed || charges.viruses === 0 || !infector) return
         disarm()
         stopAimingMine()
+        stopAimingTrap()
         stopAimingRally()
         virusAimed = true
         eventTarget.classList.add("viewer-canvas--infecting")
@@ -1327,6 +1372,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (armed || charges.bombs === 0 || !bomber || !rules || rules.bombsOff) return
         stopAimingVirus()
         stopAimingMine()
+        stopAimingTrap()
         stopAimingRally()
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
@@ -1339,6 +1385,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (held.bombs === 0) disarm()
         if (held.viruses === 0) stopAimingVirus()
         if (held.mines === 0) stopAimingMine()
+        if (held.traps === 0) stopAimingTrap()
         if (held.rallies === 0) stopAimingRally()
         switchTo(switchesHeld(switches, held, rules))
         onCharges(held)
@@ -1372,7 +1419,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             applyChanges(changes.owners)
             showShields(changes.shields)
             markInfections(changes.infections)
-            markMines(changes.mines)
+            markArmed(changes)
             playShields(changes.shields)
             enclosures.play(enclosure)
             if (!enclosure.yours) return
@@ -1396,14 +1443,34 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onMines: (read) => {
             const changes = noChanges()
             if (read.countryId === country.code) tiles.readMines(read, changes)
-            else tiles.forgetMines(changes)
-            markMines(changes.mines)
+            else tiles.forgetMarks(changes)
+            markArmed(changes)
+        },
+        onTraps: (read) => {
+            const changes = noChanges()
+            if (read.countryId === country.code) tiles.readTraps(read, changes)
+            else tiles.forgetMarks(changes)
+            markArmed(changes)
+        },
+        onTrapLaid: (laid) => {
+            if (laid.countryId !== country.code) return
+            const changes = noChanges()
+            tiles.applyTrapLaid(laid, changes)
+            markArmed(changes)
+        },
+        // Every page that sees the tile sees the jaws shut; the take that sprang them landed before. The page's own flag's
+        // trap and the page's own take sound full.
+        onTrapSprung: (sprung) => {
+            const clicks = sprung.clicks > 0 ? translator().number(-sprung.clicks, {maximumFractionDigits: 1}) : undefined
+            trapSnaps.snap(pointAt(sprung.tile), camera, clicks)
+            const near = sprung.yours || sprung.countryId === country.code
+            playSound("trap", {volume: near ? 1 : 0.4})
         },
         onMineLaid: (laid) => {
             if (laid.countryId !== country.code) return
             const changes = noChanges()
             tiles.applyMineLaid(laid, changes)
-            markMines(changes.mines)
+            markArmed(changes)
         },
         onRallies: (read) => {
             rallies.replace(read)
@@ -1423,7 +1490,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             showShields(changes.shields)
             playShields(changes.shields)
             markInfections(changes.infections)
-            markMines(changes.mines)
+            markArmed(changes)
             explode(explosion.blasts.map((blast) => blast.tile), explosion.blasts.some((blast) => blast.countryId === country.code))
         },
         onSpread: (spread) => {
@@ -1475,7 +1542,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
         playShields(changes.shields)
     }
 
@@ -1548,6 +1615,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         miner.layMine(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             if (e instanceof MineRefusedError) onNotice("mineNotYours")
+            else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
+        })
+    }
+
+    // The tap decides the tile first (`layingOf`); the server checks again. The trap stays aimed while one is held, as the
+    // mine does.
+    const layTrap = (tile: number) => {
+        if (!trapper) return
+        playSound("click")
+        plainClicks.playOwnClick(tile, camera)
+        trapper.layTrap(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            if (e instanceof TrapRefusedError) onNotice("trapNotYours")
             else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
             else reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
@@ -1789,11 +1870,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        if (!regions.get(country.code)) {
-            warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
-            return
-        }
-
         const owner = ownership.ownerOf(tile)
         const shields = shielded.shieldsOf(tile)
         const ghost = ghosts.flagOf(tile)
@@ -1827,6 +1903,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             }
             if (laying === "lay") {
                 layMine(tile)
+                return
+            }
+        }
+
+        if (trapAimed && trapper) {
+            const laying = layingOf(owner, country.code, tiles.traps.has(tile), false)
+            if (laying === "refused") {
+                onNotice("trapNotYours")
+                playSound("refused")
+                return
+            }
+            if (laying === "lay") {
+                layTrap(tile)
                 return
             }
         }
@@ -1875,6 +1964,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined
         const mining = mineAimed && miner !== undefined
+        const trapping = trapAimed && trapper !== undefined
         const enclosing = switches.enclose && outcome === "taken" && !enclosuresUnlimited()
         tileClicker.clickTile(tile, clicked, switches, cost).then(() => {
             if (lifetime.signal.aborted) return
@@ -1882,6 +1972,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             onClickAccepted({country: clicked, took: outcome === "taken"})
             if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
             if (mining) onNotice(outcome === "taken" ? "mineTaken" : "mineNotYours")
+            if (trapping) onNotice(outcome === "taken" ? "trapTaken" : "trapNotYours")
             if (enclosing) setTimeout(() => {
                 if (lifetime.signal.aborted || ownEnclosures.has(tile, clicked, performance.now() / 1000)) return
                 onNotice("nothingEnclosed")
@@ -1913,7 +2004,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
         playShields(changes.shields)
 
         const seconds = performance.now() / 1000
@@ -1945,7 +2036,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners, false)
         showShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
         if (capitals) publishStanding()
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
@@ -2044,7 +2135,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
         publishStanding()
     })
 
@@ -2054,7 +2145,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
-        markMines(changes.mines)
+        markArmed(changes)
     })
 
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
@@ -2101,7 +2192,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (!army || inBattle || virusAtWork || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
         const sight = ghostSight()
         const take = sight && army.march(now, sight)
-        if (take && !tiles.mines.has(take.tile)) ghostTook(take)
+        if (take && !armedTile(take.tile)) ghostTook(take)
     }
 
     // The zoom crossed the provinces' line: the flags fade to the other frames, and the pointer finds its territory by
@@ -2218,8 +2309,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (changed) {
                 lost = undefined
                 const changes = noChanges()
-                tiles.forgetMines(changes)
-                markMines(changes.mines)
+                tiles.forgetMarks(changes)
+                markArmed(changes)
                 showRallies()
             }
             if (front && changed) lightFront(front.follow(newCountry.code))
@@ -2246,6 +2337,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setArmed: (on: boolean) => on ? arm() : putAway(),
         setVirusAimed: (on: boolean) => on ? aimVirus() : putVirusAway(),
         setMineAimed: (on: boolean) => on ? aimMine() : putMineAway(),
+        setTrapAimed: (on: boolean) => on ? aimTrap() : putTrapAway(),
         setRallyAimed: (on: boolean) => on ? aimRally() : putRallyAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             if (name === restingSwitch(rules)) restSwitchedOff = !on
@@ -2254,6 +2346,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 disarm()
                 stopAimingVirus()
                 stopAimingMine()
+                stopAimingTrap()
                 stopAimingRally()
             }
             switchTo(next)
@@ -2336,6 +2429,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             blastPointer.dispose()
             rallyMarks.dispose()
             rallyPops.dispose()
+            trapSnaps.dispose()
             tapPointer?.dispose()
             blasts.dispose()
             field.dispose()

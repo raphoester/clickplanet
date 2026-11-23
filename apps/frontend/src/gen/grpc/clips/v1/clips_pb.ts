@@ -156,7 +156,7 @@ export class Lists extends Message<Lists> {
   foughtSince?: Timestamp;
 
   /**
-   * The flags that took and lost the most tiles to other flags since fought_since, the most first.
+   * The flags that took the most tiles from other flags since fought_since, the most first: a tile lost is no fight.
    *
    * @generated from field: repeated clips.v1.FightingFlag fight_the_most = 6;
    */
@@ -203,13 +203,6 @@ export class FightingFlag extends Message<FightingFlag> {
   flag = "";
 
   /**
-   * Tiles it took from other flags plus tiles other flags took from it.
-   *
-   * @generated from field: uint32 fought = 2;
-   */
-  fought = 0;
-
-  /**
    * @generated from field: uint32 took = 3;
    */
   took = 0;
@@ -247,7 +240,6 @@ export class FightingFlag extends Message<FightingFlag> {
   static readonly typeName = "clips.v1.FightingFlag";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "fought", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "took", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "rival", kind: "scalar", T: 9 /* ScalarType.STRING */ },

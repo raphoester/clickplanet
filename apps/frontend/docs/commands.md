@@ -76,7 +76,7 @@ fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
 closes the next day, so the reveal plays again.
 `playGates()` turns the bonuses' gates on and `playGates(false)` off; the fake's ladder is the server's (spread at
-level 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 15), and a guest plays level 0, so those show locked in
+level 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, trap 15, rally 17), and a guest plays level 0, so those show locked in
 the tray (see [Charges](charges.md#the-inventory)).
 `playReach()` plays the reach on the page: the bridges drawn and the front rung across them (see
 [The reach](reach.md)); `playReach(false)` stops it. The fake refuses no click out of reach.
@@ -112,7 +112,8 @@ click by hand (it answers them); the fake fortifies as the server does, and ever
 landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.unlockFlag()` ends the
 wait for another flag; `lockFlags()` locks the flags as a battle's rule set does, and `openFlags()` opens them (see
-[The flag played for](flag.md)), and `fakeBackend.shareClicks()` as the
+[The flag played for](flag.md)); `openFlag("Bavaria")` opens a new flag and `closeFlag(code)` closes it (see [The list
+of flags](flag-catalog.md)), and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `unlimitEnclosures()` plays a set with unlimited enclosures (enclose on, ∞, nothing spent), and
