@@ -135,15 +135,16 @@ func (s *Storage) Fuse() <-chan struct{} {
 	return s.fuse
 }
 
-// tripLocked sets off the tile's mine, and lights the fuse.
-func (s *Storage) tripLocked(tile uint32) {
-	if !s.mines.trip(tile) {
-		return
+// tripLocked sets off the tile's mine, and lights the fuse, and springs its trap, which it answers.
+func (s *Storage) tripLocked(tile uint32) (clicks.Trap, bool) {
+	if s.mines.trip(tile) {
+		select {
+		case s.fuse <- struct{}{}:
+		default:
+		}
 	}
-	select {
-	case s.fuse <- struct{}{}:
-	default:
-	}
+
+	return s.traps.take(tile)
 }
 
 func (s *Storage) MinesOf(flag string) ([]uint32, clicks.MapVersion) {
@@ -249,8 +250,8 @@ func (e *insideExplosion) KnockOut(ctx context.Context, tile uint32, flag string
 	return knockOut, nil
 }
 
-func (e *insideExplosion) Trip(tile uint32) {
-	e.storage.tripLocked(tile)
+func (e *insideExplosion) Trip(tile uint32) (clicks.Trap, bool) {
+	return e.storage.tripLocked(tile)
 }
 
 func (e *insideExplosion) TakeTripped() (clicks.Mine, bool) {

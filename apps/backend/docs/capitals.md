@@ -17,7 +17,8 @@ storage only does the atomic work under its lock.
 (`capitalLocked`). A capital keeps the shields it has, the seed's on a fresh map. See [Shields](shields.md).
 
 **No mine goes on a capital while the knock-out plays** (`CapitalPlay.KnocksOut`, `mines.Gate`): its take would clear
-the flag's land, the mine with it, before the mine went off. See [The mine](mine.md).
+the flag's land, the mine with it, before the mine went off. See [The mine](mine.md). **A trap goes on one**: it springs
+inside the take's own claim, before the knock-out. See [The trap](trap.md).
 
 ## The knock-out (`capitals.knockOut`)
 

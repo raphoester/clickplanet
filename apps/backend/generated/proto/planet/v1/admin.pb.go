@@ -108,6 +108,9 @@ type SwitchBoardResponse struct {
 	// The mines moved to a new tile, and the ones on an old tile dropped.
 	MinesMoved uint32 `protobuf:"varint,12,opt,name=mines_moved,json=minesMoved,proto3" json:"mines_moved,omitempty"`
 	MinesLost  uint32 `protobuf:"varint,13,opt,name=mines_lost,json=minesLost,proto3" json:"mines_lost,omitempty"`
+	// The traps moved to a new tile, and the ones on an old tile dropped.
+	TrapsMoved uint32 `protobuf:"varint,17,opt,name=traps_moved,json=trapsMoved,proto3" json:"traps_moved,omitempty"`
+	TrapsLost  uint32 `protobuf:"varint,18,opt,name=traps_lost,json=trapsLost,proto3" json:"traps_lost,omitempty"`
 	// Live viruses, which end.
 	VirusesEnded uint32 `protobuf:"varint,14,opt,name=viruses_ended,json=virusesEnded,proto3" json:"viruses_ended,omitempty"`
 	// Provinces locked on the old board, whose locks are dropped; the new board settles its own.
@@ -235,6 +238,20 @@ func (x *SwitchBoardResponse) GetMinesMoved() uint32 {
 func (x *SwitchBoardResponse) GetMinesLost() uint32 {
 	if x != nil {
 		return x.MinesLost
+	}
+	return 0
+}
+
+func (x *SwitchBoardResponse) GetTrapsMoved() uint32 {
+	if x != nil {
+		return x.TrapsMoved
+	}
+	return 0
+}
+
+func (x *SwitchBoardResponse) GetTrapsLost() uint32 {
+	if x != nil {
+		return x.TrapsLost
 	}
 	return 0
 }
@@ -524,7 +541,9 @@ type GrantChargesRequest struct {
 	// Mines, up to what a hand holds.
 	Mines uint32 `protobuf:"varint,8,opt,name=mines,proto3" json:"mines,omitempty"`
 	// Rallies, up to what a hand holds.
-	Rallies       uint32 `protobuf:"varint,9,opt,name=rallies,proto3" json:"rallies,omitempty"`
+	Rallies uint32 `protobuf:"varint,9,opt,name=rallies,proto3" json:"rallies,omitempty"`
+	// Traps, up to what a hand holds.
+	Traps         uint32 `protobuf:"varint,13,opt,name=traps,proto3" json:"traps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -618,6 +637,13 @@ func (x *GrantChargesRequest) GetMines() uint32 {
 func (x *GrantChargesRequest) GetRallies() uint32 {
 	if x != nil {
 		return x.Rallies
+	}
+	return 0
+}
+
+func (x *GrantChargesRequest) GetTraps() uint32 {
+	if x != nil {
+		return x.Traps
 	}
 	return 0
 }
@@ -1484,7 +1510,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x12SwitchBoardRequest\x12\x10\n" +
 	"\x03map\x18\x01 \x01(\tR\x03map\x12\x14\n" +
 	"\x05board\x18\x02 \x01(\tR\x05board\x12\x17\n" +
-	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\x8f\x04\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\xcf\x04\n" +
 	"\x13SwitchBoardResponse\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
 	"\x02to\x18\x02 \x01(\tR\x02to\x12\x14\n" +
@@ -1503,7 +1529,11 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\vmines_moved\x18\f \x01(\rR\n" +
 	"minesMoved\x12\x1d\n" +
 	"\n" +
-	"mines_lost\x18\r \x01(\rR\tminesLost\x12#\n" +
+	"mines_lost\x18\r \x01(\rR\tminesLost\x12\x1f\n" +
+	"\vtraps_moved\x18\x11 \x01(\rR\n" +
+	"trapsMoved\x12\x1d\n" +
+	"\n" +
+	"traps_lost\x18\x12 \x01(\rR\ttrapsLost\x12#\n" +
 	"\rviruses_ended\x18\x0e \x01(\rR\fvirusesEnded\x12#\n" +
 	"\rlocks_dropped\x18\x0f \x01(\rR\flocksDropped\x12;\n" +
 	"\vswitched_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -1523,7 +1553,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"i\n" +
 	"\rReplayedEvent\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xb4\x02\n" +
+	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xca\x02\n" +
 	"\x13GrantChargesRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
@@ -1537,7 +1567,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\ashields\x18\x06 \x01(\rR\ashields\x12\x18\n" +
 	"\aviruses\x18\f \x01(\rR\aviruses\x12\x14\n" +
 	"\x05mines\x18\b \x01(\rR\x05mines\x12\x18\n" +
-	"\arallies\x18\t \x01(\rR\aralliesJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\a\x10\bR\x06refillR\x04bombR\x05virus\"\x93\x01\n" +
+	"\arallies\x18\t \x01(\rR\arallies\x12\x14\n" +
+	"\x05traps\x18\r \x01(\rR\x05trapsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\a\x10\bR\x06refillR\x04bombR\x05virus\"\x93\x01\n" +
 	"\x14GrantChargesResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +

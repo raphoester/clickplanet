@@ -145,10 +145,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler/tiles_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_traps_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_traps_handler/traps_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_fill_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_mine_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_trap_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_arena_handler"
@@ -180,6 +183,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/traps"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/traps/log_snare"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/traps/usecases/lay_trap_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/usecases/spread_viruses_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/usecases/spread_viruses_usecase/log_spread_viruses"
@@ -357,6 +363,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				func() cpratelimit.Policy { return throttle().Policy(inForce.Since()) }, config.RateLimiter.SweepInterval, clock)
 			props.Runners.Add(limiter)
 			buckets := clicks.NewBuckets(throttle, clock)
+			snare := log_snare.New(traps.NewSnare(limiter, buckets, chargeRules, board), props.Logger)
 
 			pricer := clicks.NewToll(cprules.Reader(inForce, clicks.TollPart), tilesStorage)
 
@@ -365,7 +372,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			flags := log_allegiances.New(book, props.Logger)
 
 			writer := ledger.NewRecording(tilesStorage,
-				clicks.NewClaiming(tilesStorage, func() int { return chargeRules().Shield.PerTile }), takings, clock)
+				clicks.NewClaiming(tilesStorage, func() int { return chargeRules().Shield.PerTile }, snare), takings, clock)
 
 			bombing := charges.NewBombing(chargeRules, played)
 
@@ -438,11 +445,12 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			shieldsPerTile := func() int { return chargeRules().Shield.PerTile }
 			infections := ledger.NewVirusRecording(
-				clicks.NewContagion(tilesStorage, played, rand.IntN, shieldsPerTile), tilesStorage, takings, clock) //nolint:gosec // which tile a virus takes is no secret.
+				clicks.NewContagion(tilesStorage, played, rand.IntN, shieldsPerTile, snare), tilesStorage, takings, clock) //nolint:gosec // which tile a virus takes is no secret.
 			outbreak := viruses.NewOutbreak(chargeRules, clock)
 			props.Runners.Add(spread_viruses_usecase.NewRunner(virusesInterval, log_spread_viruses.New(
 				spread_viruses_usecase.New(tilesStorage, infections, outbreak, freezing), props.Logger)))
-			minefield := ledger.NewMineRecording(clicks.NewMinefield(tilesStorage, played, shieldsPerTile), tilesStorage, takings, clock)
+			minefield := ledger.NewMineRecording(clicks.NewMinefield(tilesStorage, played, shieldsPerTile, snare), tilesStorage,
+				takings, clock)
 			props.Runners.Add(detonate_mines_usecase.NewRunner(tilesStorage.Fuse(), minesInterval, log_detonate_mines.New(
 				detonate_mines_usecase.New(minefield, mines.NewBlasting(chargeRules)), props.Logger)))
 			internalService := planetv1controller.InternalService{
@@ -526,6 +534,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				LayMineHandler: lay_mine_handler.New(lay_mine_usecase.New(
 					mines.NewGate(tilesStorage, capitalPlay, countries, flags, refusing), hands, minefield, board)),
 				GetMinesHandler: get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
+				LayTrapHandler: lay_trap_handler.New(lay_trap_usecase.New(
+					traps.NewGate(tilesStorage, countries, flags, refusing), hands, clicks.NewTrapline(tilesStorage), board)),
+				GetTrapsHandler: get_traps_handler.New(traps_query.NewMemoryQuery(tilesStorage, book)),
 				CallRallyHandler: call_rally_handler.New(call_rally_usecase.New(
 					rallies.NewGate(countries, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
 					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, played, played)})),

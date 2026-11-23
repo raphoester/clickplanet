@@ -37,6 +37,7 @@ type Rules struct {
 	Gates         *GateRules  `protobuf:"bytes,13,opt,name=gates,proto3" json:"gates,omitempty"`
 	Mine          *MineRules  `protobuf:"bytes,14,opt,name=mine,proto3" json:"mine,omitempty"`
 	Rally         *RallyRules `protobuf:"bytes,15,opt,name=rally,proto3" json:"rally,omitempty"`
+	Trap          *TrapRules  `protobuf:"bytes,16,opt,name=trap,proto3" json:"trap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -127,6 +128,13 @@ func (x *Rules) GetRally() *RallyRules {
 	return nil
 }
 
+func (x *Rules) GetTrap() *TrapRules {
+	if x != nil {
+		return x.Trap
+	}
+	return nil
+}
+
 // Whether a box or a right answer is drawn only from the kinds open to everyone and the ones progression unlocked for the
 // account (bonuses.v1.KeepUnlocks), or from every kind. A guest has none unlocked. Off in every set until the levels are
 // shown; a battle's set keeps them off. They decide only what is drawn: a charge held stays usable.
@@ -194,6 +202,7 @@ type OpenKinds struct {
 	Virus         *bool                  `protobuf:"varint,6,opt,name=virus,proto3,oneof" json:"virus,omitempty"`
 	Mine          *bool                  `protobuf:"varint,7,opt,name=mine,proto3,oneof" json:"mine,omitempty"`
 	Rally         *bool                  `protobuf:"varint,8,opt,name=rally,proto3,oneof" json:"rally,omitempty"`
+	Trap          *bool                  `protobuf:"varint,9,opt,name=trap,proto3,oneof" json:"trap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,6 +293,13 @@ func (x *OpenKinds) GetRally() bool {
 	return false
 }
 
+func (x *OpenKinds) GetTrap() bool {
+	if x != nil && x.Trap != nil {
+		return *x.Trap
+	}
+	return false
+}
+
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be, whatever
 // the hand holds. A kind the account may not be drawn while the gates are on (gates) is never drawn for it. Planet's
 // wallet keeps what fits: a kind drawn into a full stack, or one planet's rules turn off, pays nothing, so a set weighs
@@ -298,6 +314,7 @@ type KindWeights struct {
 	Virus         *float64               `protobuf:"fixed64,6,opt,name=virus,proto3,oneof" json:"virus,omitempty"`
 	Mine          *float64               `protobuf:"fixed64,7,opt,name=mine,proto3,oneof" json:"mine,omitempty"`
 	Rally         *float64               `protobuf:"fixed64,8,opt,name=rally,proto3,oneof" json:"rally,omitempty"`
+	Trap          *float64               `protobuf:"fixed64,9,opt,name=trap,proto3,oneof" json:"trap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -384,6 +401,13 @@ func (x *KindWeights) GetMine() float64 {
 func (x *KindWeights) GetRally() float64 {
 	if x != nil && x.Rally != nil {
 		return *x.Rally
+	}
+	return 0
+}
+
+func (x *KindWeights) GetTrap() float64 {
+	if x != nil && x.Trap != nil {
+		return *x.Trap
 	}
 	return 0
 }
@@ -617,12 +641,56 @@ func (x *RallyRules) GetMaxPerBox() uint32 {
 	return 0
 }
 
+type TrapRules struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MaxPerBox     *uint32                `protobuf:"varint,1,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TrapRules) Reset() {
+	*x = TrapRules{}
+	mi := &file_bonuses_v1_rules_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrapRules) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrapRules) ProtoMessage() {}
+
+func (x *TrapRules) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_rules_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrapRules.ProtoReflect.Descriptor instead.
+func (*TrapRules) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TrapRules) GetMaxPerBox() uint32 {
+	if x != nil && x.MaxPerBox != nil {
+		return *x.MaxPerBox
+	}
+	return 0
+}
+
 var File_bonuses_v1_rules_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"\x16bonuses/v1/rules.proto\x12\n" +
-	"bonuses.v1\"\xfe\x03\n" +
+	"bonuses.v1\"\xa9\x04\n" +
 	"\x05Rules\x12-\n" +
 	"\x05kinds\x18\x02 \x01(\v2\x17.bonuses.v1.KindWeightsR\x05kinds\x12/\n" +
 	"\x06spread\x18\x06 \x01(\v2\x17.bonuses.v1.SpreadRulesR\x06spread\x122\n" +
@@ -631,7 +699,8 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01\x12+\n" +
 	"\x05gates\x18\r \x01(\v2\x15.bonuses.v1.GateRulesR\x05gates\x12)\n" +
 	"\x04mine\x18\x0e \x01(\v2\x15.bonuses.v1.MineRulesR\x04mine\x12,\n" +
-	"\x05rally\x18\x0f \x01(\v2\x16.bonuses.v1.RallyRulesR\x05rallyB\x11\n" +
+	"\x05rally\x18\x0f \x01(\v2\x16.bonuses.v1.RallyRulesR\x05rally\x12)\n" +
+	"\x04trap\x18\x10 \x01(\v2\x15.bonuses.v1.TrapRulesR\x04trapB\x11\n" +
 	"\x0f_sign_in_refillJ\x04\b\n" +
 	"\x10\vJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
 	"J\x04\b\f\x10\rR\x04quizR\x05boxesR\toffer_ttlR\n" +
@@ -639,7 +708,7 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\tGateRules\x12\x13\n" +
 	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x12)\n" +
 	"\x04open\x18\x02 \x01(\v2\x15.bonuses.v1.OpenKindsR\x04openB\x05\n" +
-	"\x03_on\"\xe7\x02\n" +
+	"\x03_on\"\x89\x03\n" +
 	"\tOpenKinds\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\bH\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\bH\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
@@ -648,7 +717,8 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\ashields\x18\x05 \x01(\bH\x04R\ashields\x88\x01\x01\x12\x19\n" +
 	"\x05virus\x18\x06 \x01(\bH\x05R\x05virus\x88\x01\x01\x12\x17\n" +
 	"\x04mine\x18\a \x01(\bH\x06R\x04mine\x88\x01\x01\x12\x19\n" +
-	"\x05rally\x18\b \x01(\bH\aR\x05rally\x88\x01\x01B\t\n" +
+	"\x05rally\x18\b \x01(\bH\aR\x05rally\x88\x01\x01\x12\x17\n" +
+	"\x04trap\x18\t \x01(\bH\bR\x04trap\x88\x01\x01B\t\n" +
 	"\a_refillB\x10\n" +
 	"\x0e_spread_clicksB\x11\n" +
 	"\x0f_enclose_clicksB\a\n" +
@@ -657,7 +727,8 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\b_shieldsB\b\n" +
 	"\x06_virusB\a\n" +
 	"\x05_mineB\b\n" +
-	"\x06_rally\"\xe9\x02\n" +
+	"\x06_rallyB\a\n" +
+	"\x05_trap\"\x8b\x03\n" +
 	"\vKindWeights\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\x01H\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\x01H\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
@@ -666,7 +737,8 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\ashields\x18\x05 \x01(\x01H\x04R\ashields\x88\x01\x01\x12\x19\n" +
 	"\x05virus\x18\x06 \x01(\x01H\x05R\x05virus\x88\x01\x01\x12\x17\n" +
 	"\x04mine\x18\a \x01(\x01H\x06R\x04mine\x88\x01\x01\x12\x19\n" +
-	"\x05rally\x18\b \x01(\x01H\aR\x05rally\x88\x01\x01B\t\n" +
+	"\x05rally\x18\b \x01(\x01H\aR\x05rally\x88\x01\x01\x12\x17\n" +
+	"\x04trap\x18\t \x01(\x01H\bR\x04trap\x88\x01\x01B\t\n" +
 	"\a_refillB\x10\n" +
 	"\x0e_spread_clicksB\x11\n" +
 	"\x0f_enclose_clicksB\a\n" +
@@ -675,7 +747,8 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\b_shieldsB\b\n" +
 	"\x06_virusB\a\n" +
 	"\x05_mineB\b\n" +
-	"\x06_rally\"B\n" +
+	"\x06_rallyB\a\n" +
+	"\x05_trap\"B\n" +
 	"\vSpreadRules\x12#\n" +
 	"\vmax_per_box\x18\x01 \x01(\rH\x00R\tmaxPerBox\x88\x01\x01B\x0e\n" +
 	"\f_max_per_box\"C\n" +
@@ -692,6 +765,9 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\f_max_per_box\"A\n" +
 	"\n" +
 	"RallyRules\x12#\n" +
+	"\vmax_per_box\x18\x01 \x01(\rH\x00R\tmaxPerBox\x88\x01\x01B\x0e\n" +
+	"\f_max_per_box\"@\n" +
+	"\tTrapRules\x12#\n" +
 	"\vmax_per_box\x18\x01 \x01(\rH\x00R\tmaxPerBox\x88\x01\x01B\x0e\n" +
 	"\f_max_per_boxB\xb9\x01\n" +
 	"\x0ecom.bonuses.v1B\n" +
@@ -711,7 +787,7 @@ func file_bonuses_v1_rules_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_rules_proto_rawDescData
 }
 
-var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_bonuses_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),        // 0: bonuses.v1.Rules
 	(*GateRules)(nil),    // 1: bonuses.v1.GateRules
@@ -722,6 +798,7 @@ var file_bonuses_v1_rules_proto_goTypes = []any{
 	(*ShieldRules)(nil),  // 6: bonuses.v1.ShieldRules
 	(*MineRules)(nil),    // 7: bonuses.v1.MineRules
 	(*RallyRules)(nil),   // 8: bonuses.v1.RallyRules
+	(*TrapRules)(nil),    // 9: bonuses.v1.TrapRules
 }
 var file_bonuses_v1_rules_proto_depIdxs = []int32{
 	3, // 0: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
@@ -731,12 +808,13 @@ var file_bonuses_v1_rules_proto_depIdxs = []int32{
 	1, // 4: bonuses.v1.Rules.gates:type_name -> bonuses.v1.GateRules
 	7, // 5: bonuses.v1.Rules.mine:type_name -> bonuses.v1.MineRules
 	8, // 6: bonuses.v1.Rules.rally:type_name -> bonuses.v1.RallyRules
-	2, // 7: bonuses.v1.GateRules.open:type_name -> bonuses.v1.OpenKinds
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	9, // 7: bonuses.v1.Rules.trap:type_name -> bonuses.v1.TrapRules
+	2, // 8: bonuses.v1.GateRules.open:type_name -> bonuses.v1.OpenKinds
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_rules_proto_init() }
@@ -753,13 +831,14 @@ func file_bonuses_v1_rules_proto_init() {
 	file_bonuses_v1_rules_proto_msgTypes[6].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[7].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[8].OneofWrappers = []any{}
+	file_bonuses_v1_rules_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_rules_proto_rawDesc), len(file_bonuses_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

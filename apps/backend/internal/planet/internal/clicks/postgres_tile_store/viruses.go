@@ -13,7 +13,7 @@ import (
 
 func (s *Store) LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT id, account, scope, flag, victim, tile, infected, infections, next_at FROM viruses WHERE map = $1
+		SELECT id, account, scope, linked, flag, victim, tile, infected, infections, next_at FROM viruses WHERE map = $1
 	`, string(played))
 	if err != nil {
 		return fmt.Errorf("failed to read the viruses: %w", err)
@@ -27,7 +27,7 @@ func (s *Store) LoadViruses(ctx context.Context, played clicks.MapID, visit func
 			account  uuid.UUID
 			infected []int64
 		)
-		if err := rows.Scan(&id, &account, &virus.Scope, &virus.Flag, &virus.Victim, &virus.Tile, pq.Array(&infected),
+		if err := rows.Scan(&id, &account, &virus.Scope, &virus.Linked, &virus.Flag, &virus.Victim, &virus.Tile, pq.Array(&infected),
 			&virus.Infections, &virus.Next); err != nil {
 			return fmt.Errorf("failed to read a virus: %w", err)
 		}
@@ -56,10 +56,10 @@ func (s *Store) SaveViruses(ctx context.Context, played clicks.Stage, live []cli
 				infected[i] = int64(tile)
 			}
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO viruses (map, board, id, account, scope, flag, victim, tile, infected, infections, next_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-			`, string(played.Map), played.Board, string(virus.ID), virus.Account.String(), virus.Scope, virus.Flag, virus.Victim, virus.Tile,
-				pq.Array(infected), virus.Infections, virus.Next); err != nil {
+				INSERT INTO viruses (map, board, id, account, scope, linked, flag, victim, tile, infected, infections, next_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			`, string(played.Map), played.Board, string(virus.ID), virus.Account.String(), virus.Scope, virus.Linked, virus.Flag,
+				virus.Victim, virus.Tile, pq.Array(infected), virus.Infections, virus.Next); err != nil {
 				return fmt.Errorf("failed to keep virus %s: %w", virus.ID, err)
 			}
 		}

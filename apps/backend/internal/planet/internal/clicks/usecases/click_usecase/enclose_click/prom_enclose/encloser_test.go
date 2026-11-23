@@ -20,9 +20,9 @@ type encloser struct {
 	err      error
 }
 
-func (e *encloser) Enclose(_ context.Context, enclosure clicks.Enclosure, _ []uint32) error {
+func (e *encloser) Enclose(_ context.Context, enclosure clicks.Enclosure, _ []uint32) ([]clicks.TrapSnapshot, error) {
 	e.enclosed = append(e.enclosed, enclosure)
-	return e.err
+	return nil, e.err
 }
 
 func TestEveryShapeIsCountedWithTheTilesItTookAndStillEnclosed(t *testing.T) {
@@ -31,8 +31,10 @@ func TestEveryShapeIsCountedWithTheTilesItTookAndStillEnclosed(t *testing.T) {
 
 	counted := prom_enclose.New(inner, registry)
 
-	require.NoError(t, counted.Enclose(t.Context(), clicks.Enclosure{ClosingTile: 1}, []uint32{1, 2, 3}))
-	require.NoError(t, counted.Enclose(t.Context(), clicks.Enclosure{ClosingTile: 4}, []uint32{4}))
+	_, err := counted.Enclose(t.Context(), clicks.Enclosure{ClosingTile: 1}, []uint32{1, 2, 3})
+	require.NoError(t, err)
+	_, err = counted.Enclose(t.Context(), clicks.Enclosure{ClosingTile: 4}, []uint32{4})
+	require.NoError(t, err)
 
 	assert.Len(t, inner.enclosed, 2)
 	require.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`
@@ -49,7 +51,7 @@ func TestAFailedEnclosureIsNotCounted(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	failed := errors.New("tile out of range")
 
-	err := prom_enclose.New(&encloser{err: failed}, registry).Enclose(t.Context(), clicks.Enclosure{}, []uint32{1})
+	_, err := prom_enclose.New(&encloser{err: failed}, registry).Enclose(t.Context(), clicks.Enclosure{}, []uint32{1})
 
 	require.ErrorIs(t, err, failed)
 	require.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`

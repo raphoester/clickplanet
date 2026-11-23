@@ -70,6 +70,7 @@ func (s *Storage) forgetHolderInMemory(account cpsession.AccountID) int {
 	defer s.mu.Unlock()
 
 	s.mines.forget(account)
+	s.traps.forget(account)
 	id, ok := s.board.holders.idOf(account)
 	if !ok {
 		return 0

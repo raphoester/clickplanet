@@ -48,7 +48,7 @@ func (s *testSuite) TestATakeThatCutsLandFromItsCapitalClearsItInOneChangeAfterT
 	changes, before, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(cpctx.AddAccountToContext(ctx, uuid.NewString()), 3, "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(cpctx.AddAccountToContext(ctx, uuid.NewString()), 3, "de")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(impact.CutOff)
@@ -75,7 +75,7 @@ func (s *testSuite) TestATakeThatCutsLandFromItsCapitalClearsItInOneChangeAfterT
 func (s *testSuite) TestATakeAtTheTipOfTheLandCutsNothing() {
 	storage := s.inTheCorridor(franceInTheCorridor(), clicks.CapitalRules{CutOff: true})
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(context.Background(), 6, "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(context.Background(), 6, "de")
 
 	s.Require().NoError(err)
 	s.Equal(clicks.Taken, impact.Outcome)
@@ -86,7 +86,7 @@ func (s *testSuite) TestATakeAtTheTipOfTheLandCutsNothing() {
 func (s *testSuite) TestATakeCutsNothingWhileTheCutOffDoesNotPlay() {
 	storage := s.inTheCorridor(franceInTheCorridor(), clicks.CapitalRules{KnockOut: true})
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(context.Background(), 3, "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(context.Background(), 3, "de")
 
 	s.Require().NoError(err)
 	s.Nil(impact.CutOff)
@@ -97,7 +97,7 @@ func (s *testSuite) TestATakeCutsNothingWhileTheCutOffDoesNotPlay() {
 func (s *testSuite) TestACapitalTakenKnocksItsFlagOutAndCutsNothingMore() {
 	storage := s.inTheCorridor(franceInTheCorridor(), clicks.CapitalRules{KnockOut: true, CutOff: true})
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(context.Background(), 1, "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(context.Background(), 1, "de")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(impact.KnockedOut)
@@ -108,7 +108,7 @@ func (s *testSuite) TestACapitalTakenKnocksItsFlagOutAndCutsNothingMore() {
 func (s *testSuite) TestACapitalTakenWithNoKnockOutCutsTheWholeLand() {
 	storage := s.inTheCorridor(franceInTheCorridor(), clicks.CapitalRules{CutOff: true})
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(context.Background(), 1, "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(context.Background(), 1, "de")
 
 	s.Require().NoError(err)
 	s.Nil(impact.KnockedOut)
@@ -124,7 +124,7 @@ func (s *testSuite) TestAnEnclosureCutsOnceItsPocketIsWritten() {
 	changes, _, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	impacts, err := clicks.NewClaiming(storage, tenShields).Enclose(ctx, clicks.Enclosure{Country: "de"}, []uint32{3, 4})
+	impacts, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Enclose(ctx, clicks.Enclosure{Country: "de"}, []uint32{3, 4})
 
 	s.Require().NoError(err)
 	s.Require().Len(impacts, 2)

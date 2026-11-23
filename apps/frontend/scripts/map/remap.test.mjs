@@ -83,6 +83,13 @@ describe("remapSQL", () => {
         expect(sql).toContain("DELETE FROM mines;\nINSERT INTO mines SELECT * FROM mines_remapped;")
     })
 
+    it("moves every trap with its tile, and drops one whose tile the new map lost", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("SELECT p.*, r.to_id + (p.tile - r.from_id) AS remapped_tile\n")
+        expect(sql).toContain("JOIN tile_remap r ON p.tile >= r.from_id AND p.tile < r.from_id + r.span;")
+        expect(sql).toContain("DELETE FROM traps;\nINSERT INTO traps SELECT * FROM traps_remapped;")
+    })
+
     it("deletes the ledger's takes on tiles the new map does not have", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM ledger_events e\nWHERE e.payload IS NULL")
     })

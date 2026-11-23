@@ -224,6 +224,22 @@ func MinesExploded(explosion *clicks.Explosion, version clicks.MapVersion) *plan
 	}
 }
 
+func TrapLaid(flag string, tile uint32, version clicks.MapVersion) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_TrapLaid{
+			TrapLaid: &planetv1.TrapLaid{CountryId: flag, TileId: tile, Version: Version(version)},
+		},
+	}
+}
+
+func TrapSprung(tile uint32, flag string, clicks float64, yours bool) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_TrapSprung{
+			TrapSprung: &planetv1.TrapSprung{TileId: tile, CountryId: flag, Clicks: clicks, Yours: yours},
+		},
+	}
+}
+
 func MineLaid(flag string, tile uint32, version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_MineLaid{

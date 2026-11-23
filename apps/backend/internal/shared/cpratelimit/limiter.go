@@ -236,6 +236,45 @@ func (l *Limiter) add(key Key, n float64) (bool, State) {
 	return true, l.state(b)
 }
 
+// Drained is what left a bucket, and what it holds after.
+type Drained struct {
+	Taken float64
+	State State
+}
+
+// Drain takes n from each bucket, which may go below empty down to minus its capacity: a debt the refill pays back
+// before a take passes again. A bucket it does not know is made at what a new one holds, and kept for the debt.
+func (l *Limiter) Drain(n float64, keys ...Key) []Drained {
+	now := l.clock.Now()
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.follow(now)
+
+	drained := make([]Drained, len(keys))
+	for i, key := range keys {
+		b, ok := l.buckets[key.Name]
+		if !ok {
+			b = l.newBucket(key, now)
+			l.buckets[key.Name] = b
+		}
+
+		l.refill(b, now)
+		if scale := max(key.Scale, 1); scale != b.scale {
+			b.scale = scale
+			b.tokens = math.Min(b.tokens, l.capacity(b))
+		}
+
+		before := b.tokens
+		// Never up: a smaller burst may leave a debt deeper than the floor, which a drain does not pay back.
+		b.tokens = math.Min(b.tokens, math.Max(b.tokens-max(n, 0), -l.capacity(b)))
+		drained[i] = Drained{Taken: before - b.tokens, State: l.state(b)}
+	}
+
+	return drained
+}
+
 func (l *Limiter) newBucket(key Key, now time.Time) *bucket {
 	scale := max(key.Scale, 1)
 	b := &bucket{last: now, scale: scale, pace: 1, since: key.Since, start: key.Start}

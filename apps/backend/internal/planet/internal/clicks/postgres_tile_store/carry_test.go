@@ -34,6 +34,7 @@ func (s *testSuite) TestACarryMovesTheMapOntoTheNewBoardInTheEraStartsTransactio
 	carried[0].Shields = 3
 
 	switched, err := s.store.Carry(ctx, earth2, carried, []clicks.MineSnapshot{mineOn(3, "fr")},
+		[]clicks.TrapSnapshot{{Tile: 4, Flag: "fr", Account: mineOn(3, "fr").Account}},
 		func(ctx context.Context) (bool, error) { return true, kept.Start(ctx, earth2, at) })
 
 	s.Require().NoError(err)
@@ -45,6 +46,7 @@ func (s *testSuite) TestACarryMovesTheMapOntoTheNewBoardInTheEraStartsTransactio
 	var mines []clicks.MineSnapshot
 	s.Require().NoError(s.store.LoadMines(ctx, clicks.World, func(mine clicks.MineSnapshot) { mines = append(mines, mine) }))
 	s.Equal([]clicks.MineSnapshot{mineOn(3, "fr")}, mines)
+	s.Equal([]clicks.TrapSnapshot{{Tile: 4, Flag: "fr", Account: sapper}}, s.trapsOn(clicks.World))
 	var viruses []clicks.VirusSnapshot
 	s.Require().NoError(s.store.LoadViruses(ctx, clicks.World, func(virus clicks.VirusSnapshot) { viruses = append(viruses, virus) }))
 	s.Empty(viruses, "live viruses end")
@@ -66,7 +68,7 @@ func (s *testSuite) TestACarryThatFailsKeepsTheMapOnItsBoardAndNoEra() {
 	kept := postgres_era_store.New(s.db)
 	broken := errors.New("broken")
 
-	_, err := s.store.Carry(ctx, earth2, owned("fr", 7), nil, func(ctx context.Context) (bool, error) {
+	_, err := s.store.Carry(ctx, earth2, owned("fr", 7), nil, nil, func(ctx context.Context) (bool, error) {
 		s.Require().NoError(kept.Start(ctx, earth2, time.Now()))
 		return false, broken
 	})
