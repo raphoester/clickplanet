@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
-
-	"golang.org/x/text/unicode/norm"
 )
 
 type NameGenerator interface {
@@ -30,14 +27,7 @@ func NewGeneratedNames(store ProfileCreator, generator NameGenerator) GeneratedN
 }
 
 // Assign answers whether it made the profile: false for an account that had one.
-func (g GeneratedNames) Assign(ctx context.Context, account AccountID, suggested string, at time.Time) (bool, error) {
-	if name, err := suggestedNameOf(suggested); err == nil {
-		created, err := g.create(ctx, account, name, at)
-		if !errors.Is(err, ErrNameTaken) {
-			return created, err
-		}
-	}
-
+func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.Time) (bool, error) {
 	for range maxDraws {
 		name, err := g.generator.NewName()
 		if err != nil {
@@ -62,13 +52,4 @@ func (g GeneratedNames) create(ctx context.Context, account AccountID, name Name
 		return false, fmt.Errorf("failed to save the name: %w", err)
 	}
 	return true, nil
-}
-
-// CrazyGames' usernames hold dots and run to 20 characters.
-func suggestedNameOf(value string) (Name, error) {
-	value = strings.ReplaceAll(norm.NFC.String(value), ".", "_")
-	if runes := []rune(value); len(runes) > MaxNameLength {
-		value = string(runes[:MaxNameLength])
-	}
-	return NameOf(value)
 }

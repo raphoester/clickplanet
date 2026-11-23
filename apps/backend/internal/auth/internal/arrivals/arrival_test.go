@@ -30,7 +30,6 @@ func TestTheTagSaysWhereTheAccountCameFrom(t *testing.T) {
 		"the TikTok address":     {tag: "t", source: arrivals.SourceTikTok, kept: "t"},
 		"a player's old link":    {tag: "rc", source: arrivals.SourceRecruit, kept: "rc"},
 		"the old YouTube link":   {tag: "YT", source: arrivals.SourceYouTube, kept: "yt"},
-		"the CrazyGames page":    {tag: "cg", source: arrivals.SourceCrazyGames, kept: "cg"},
 		"a word, not the letter": {tag: "tiktok", source: arrivals.SourceUnknown, kept: "tiktok"},
 		"no tag":                 {tag: "", source: arrivals.SourceUnknown, kept: ""},
 		"a streamer's link":      {tag: "2poko2", source: arrivals.SourceUnknown, kept: "2poko2"},
@@ -106,7 +105,7 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 }
 
 func TestOnlyARecruitHasARecruiter(t *testing.T) {
-	for _, tag := range []string{"y", "yt", "t", "cg", "", "tiktok"} {
+	for _, tag := range []string{"y", "yt", "t", "", "tiktok"} {
 		arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tag, Recruiter: bob}, at)
 		require.NoError(t, err)
 

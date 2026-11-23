@@ -21,9 +21,6 @@ service AuthService {
 
   rpc CompleteEmailSignIn(CompleteEmailSignInRequest) returns (CompleteEmailSignInResponse);
 
-  // One step: the CrazyGames SDK already signed the player in, and its token says who.
-  rpc CompleteCrazyGamesSignIn(CompleteCrazyGamesSignInRequest) returns (CompleteCrazyGamesSignInResponse);
-
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
 
   rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
@@ -80,7 +77,9 @@ enum Provider {
   PROVIDER_GOOGLE = 1;
   PROVIDER_DISCORD = 2;
   PROVIDER_EMAIL = 3;
-  PROVIDER_CRAZYGAMES = 4;
+
+  reserved 4;
+  reserved "PROVIDER_CRAZYGAMES";
 }
 
 enum AccountKind {
@@ -161,22 +160,6 @@ message CompleteEmailSignInRequest {
 }
 
 message CompleteEmailSignInResponse {
-  string account_id = 1;
-
-  SignInOutcome outcome = 2;
-
-  // The account had asked to be deleted, and this sign-in brought it back.
-  bool restored = 3;
-}
-
-message CompleteCrazyGamesSignInRequest {
-  // The JWT of the SDK's user.getUserToken({signingKeyType: "IN_GAME_AUTH"}).
-  string token = 1;
-
-  Landing landing = 2;
-}
-
-message CompleteCrazyGamesSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;

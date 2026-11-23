@@ -113,17 +113,11 @@ type Claim struct {
 	subject       string
 	email         string
 	emailVerified bool
-	name          string
 	serverToken   string
 }
 
 func ClaimOf(subject string, email string, emailVerified bool) Claim {
 	return Claim{subject: subject, email: email, emailVerified: emailVerified}
-}
-
-func (c Claim) WithName(name string) Claim {
-	c.name = name
-	return c
 }
 
 // A token the provider traded that may join the game's Discord server: kept sealed with the sign-in for a few minutes,
@@ -139,10 +133,6 @@ func (c Claim) ServerToken() string {
 
 func (c Claim) Subject() string {
 	return c.subject
-}
-
-func (c Claim) Name() string {
-	return c.name
 }
 
 func (c Claim) VerifiedEmail() string {

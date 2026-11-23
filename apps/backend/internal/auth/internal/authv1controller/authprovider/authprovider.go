@@ -7,10 +7,9 @@ import (
 )
 
 var names = map[authv1.Provider]string{
-	authv1.Provider_PROVIDER_GOOGLE:     signin.Google,
-	authv1.Provider_PROVIDER_DISCORD:    signin.Discord,
-	authv1.Provider_PROVIDER_EMAIL:      signin.Email,
-	authv1.Provider_PROVIDER_CRAZYGAMES: signin.CrazyGames,
+	authv1.Provider_PROVIDER_GOOGLE:  signin.Google,
+	authv1.Provider_PROVIDER_DISCORD: signin.Discord,
+	authv1.Provider_PROVIDER_EMAIL:   signin.Email,
 }
 
 func NameOf(provider authv1.Provider) string {
