@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 )
 
 type NoteID uuid.UUID
@@ -23,24 +25,42 @@ func (k Kind) known() bool {
 	return k == KindSuggestion || k == KindBug
 }
 
-var ErrInvalidNote = errors.New("the note is invalid")
+var (
+	ErrInvalidNote    = errors.New("the note is invalid")
+	ErrNoReplyAddress = errors.New("the note has no address to answer at")
+)
 
 type Note struct {
-	id          NoteID
-	kind        Kind
-	account     AccountID
-	text        string
-	diagnostics Diagnostics
-	attachments []Attachment
-	at          time.Time
+	id           NoteID
+	kind         Kind
+	account      AccountID
+	text         string
+	diagnostics  Diagnostics
+	attachments  []Attachment
+	replyAddress cpmail.Address
+	at           time.Time
 }
 
-func NewSuggestion(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
-	return sent(Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, Diagnostics: diagnostics, At: at})
+// What a player sends with a note, whatever its kind.
+type Sent struct {
+	Account      AccountID
+	Text         string
+	Diagnostics  Diagnostics
+	ReplyAddress cpmail.Address
 }
 
-func NewBugReport(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
-	return sent(Snapshot{ID: id, Kind: KindBug, Account: account, Text: text, Diagnostics: diagnostics, At: at})
+func NewSuggestion(id NoteID, note Sent, at time.Time) (Note, error) {
+	return sent(Snapshot{
+		ID: id, Kind: KindSuggestion, Account: note.Account, Text: note.Text, Diagnostics: note.Diagnostics,
+		ReplyAddress: note.ReplyAddress, At: at,
+	})
+}
+
+func NewBugReport(id NoteID, note Sent, at time.Time) (Note, error) {
+	return sent(Snapshot{
+		ID: id, Kind: KindBug, Account: note.Account, Text: note.Text, Diagnostics: note.Diagnostics,
+		ReplyAddress: note.ReplyAddress, At: at,
+	})
 }
 
 // A note sent has a sender. A note read back may have none: it was anonymized.
@@ -64,6 +84,7 @@ func (n Note) Attaching(files []Attachment, rules AttachmentRules) (Note, error)
 // The note with nothing that says who sent it: the text and the files stay.
 func (n Note) Anonymized() Note {
 	n.account = AccountID{}
+	n.replyAddress = ""
 	return n
 }
 
@@ -78,7 +99,7 @@ func AllAnonymized(sent []Note) []Note {
 func (n Note) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, Diagnostics: n.diagnostics,
-		Attachments: slices.Clone(n.attachments), At: n.at,
+		Attachments: slices.Clone(n.attachments), ReplyAddress: n.replyAddress, At: n.at,
 	}
 }
 
@@ -92,7 +113,9 @@ type Snapshot struct {
 	Diagnostics Diagnostics
 	// In the order they were sent.
 	Attachments []Attachment
-	At          time.Time
+	// Empty once the note is anonymized, and for a note sent before addresses were kept.
+	ReplyAddress cpmail.Address
+	At           time.Time
 }
 
 func (s Snapshot) Restore() (Note, error) {
@@ -115,9 +138,16 @@ func (s Snapshot) Restore() (Note, error) {
 		return Note{}, err
 	}
 
+	address := s.ReplyAddress
+	if address != "" {
+		if address, err = cpmail.AddressOf(string(address)); err != nil {
+			return Note{}, fmt.Errorf("%w: the reply address: %w", ErrInvalidNote, err)
+		}
+	}
+
 	return Note{
 		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: s.Diagnostics.cleaned(),
-		attachments: attachments, at: s.At,
+		attachments: attachments, replyAddress: address, at: s.At,
 	}, nil
 }
 

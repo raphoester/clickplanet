@@ -21,15 +21,15 @@ var phone = notes.Diagnostics{
 func diagnosticsKept(t *testing.T, said notes.Diagnostics) notes.Diagnostics {
 	t.Helper()
 
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", said, sentAt)
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black", Diagnostics: said}, sentAt)
 	require.NoError(t, err)
 	return note.TakeSnapshot().Diagnostics
 }
 
 func TestEveryKindOfNoteKeepsWhatThePageSaid(t *testing.T) {
-	bug, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", phone, sentAt)
+	bug, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black", Diagnostics: phone}, sentAt)
 	require.NoError(t, err)
-	suggestion, err := notes.NewSuggestion(notes.NoteID{15: 2}, ada, "a night mode", phone, sentAt)
+	suggestion, err := notes.NewSuggestion(notes.NoteID{15: 2}, notes.Sent{Account: ada, Text: "a night mode", Diagnostics: phone}, sentAt)
 	require.NoError(t, err)
 
 	assert.Equal(t, phone, bug.TakeSnapshot().Diagnostics)
@@ -83,7 +83,7 @@ func TestANoteWhosePageSaidNothingKeepsEmptyDiagnostics(t *testing.T) {
 }
 
 func TestABugReportNeedsTheAccountThatSendsIt(t *testing.T) {
-	_, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.AccountID{}, "the globe is black", notes.Diagnostics{}, sentAt)
+	_, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: notes.AccountID{}, Text: "the globe is black"}, sentAt)
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
 }

@@ -84,6 +84,26 @@ func (s *testSuite) TestALinkedAccountListsItsProvidersOldestLinkFirstThenByName
 	}, me), "got %v", me)
 }
 
+func (s *testSuite) TestAnAccountHasAnEmailOnceAnIdentityVerifiedOne() {
+	s.guest(ada, "token-1")
+	identity := accounts.NewIdentity("discord", accounts.ClaimOf("d", "ada@example.com", false), ada, start.Add(time.Hour))
+	session := accounts.LinkedSession(ada, accounts.TokenOf("token-2"), lifetime, start.Add(time.Hour))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
+
+	unverified, err := s.me("cp_sid=token-1", start)
+	s.Require().NoError(err)
+	s.False(unverified.GetHasEmail())
+
+	s.link(ada, "google", "g", "token-3", start.Add(2*time.Hour))
+	identity = accounts.NewIdentity("email", accounts.ClaimOf("ada@example.com", "ada@example.com", true), ada, start.Add(3*time.Hour))
+	session = accounts.LinkedSession(ada, accounts.TokenOf("token-4"), lifetime, start.Add(3*time.Hour))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
+
+	verified, err := s.me("cp_sid=token-1", start)
+	s.Require().NoError(err)
+	s.True(verified.GetHasEmail())
+}
+
 func (s *testSuite) TestASessionLivesUntilItsExpiryAndNotAtIt() {
 	session := s.guest(ada, "token-1")
 

@@ -41,8 +41,7 @@ var sentAt = time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
 
 // A bug report naming the files, kept by the note store.
 func (s *testSuite) send(ids ...notes.AttachmentID) {
-	note, err := notes.NewBugReport(notes.NoteID{15: byte(len(ids))}, notes.AccountID{15: 1}, "the globe is black",
-		notes.Diagnostics{}, sentAt)
+	note, err := notes.NewBugReport(notes.NoteID{15: byte(len(ids))}, notes.Sent{Account: notes.AccountID{15: 1}, Text: "the globe is black"}, sentAt)
 	s.Require().NoError(err)
 
 	files := make([]notes.Attachment, 0, len(ids))

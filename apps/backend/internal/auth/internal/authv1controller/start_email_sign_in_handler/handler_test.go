@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 )
 
 type stubUseCase struct {
@@ -67,7 +68,7 @@ func TestAnUnsetIntentSignsIn(t *testing.T) {
 
 func TestARefusedAddressSaysWhyInADetail(t *testing.T) {
 	for want, err := range map[authv1.EmailRefusalReason]error{
-		authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID:    fmt.Errorf("failed to read the address: %w", signin.ErrAddressInvalid),
+		authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID:    fmt.Errorf("failed to read the address: %w", cpmail.ErrAddressInvalid),
 		authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_DISPOSABLE: fmt.Errorf("%w: mailinator.com", signin.ErrAddressDisposable),
 	} {
 		t.Run(want.String(), func(t *testing.T) {
