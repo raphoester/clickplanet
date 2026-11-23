@@ -20,15 +20,16 @@ type stubQuery struct {
 	answer *supportv1.ListNotesResponse
 	err    error
 
-	since time.Time
-	kind  supportv1.NoteKind
-	limit uint32
+	since    time.Time
+	kind     supportv1.NoteKind
+	limit    uint32
+	openOnly bool
 }
 
 func (s *stubQuery) Notes(
-	_ context.Context, since time.Time, kind supportv1.NoteKind, limit uint32,
+	_ context.Context, since time.Time, kind supportv1.NoteKind, limit uint32, openOnly bool,
 ) (*supportv1.ListNotesResponse, error) {
-	s.since, s.kind, s.limit = since, kind, limit
+	s.since, s.kind, s.limit, s.openOnly = since, kind, limit, openOnly
 	return s.answer, s.err
 }
 
@@ -47,10 +48,11 @@ func TestTheWindowReachesTheQueryAndItsAnswerComesBack(t *testing.T) {
 	query := &stubQuery{answer: &supportv1.ListNotesResponse{Notes: []*supportv1.Note{{Text: "a night mode"}}}}
 
 	answer, err := list(t, query, &supportv1.ListNotesRequest{
-		Since: timestamppb.New(since), Limit: 20, Kind: supportv1.NoteKind_NOTE_KIND_BUG,
+		Since: timestamppb.New(since), Limit: 20, Kind: supportv1.NoteKind_NOTE_KIND_BUG, OpenOnly: true,
 	})
 	require.NoError(t, err)
 
+	assert.True(t, query.openOnly)
 	assert.True(t, since.Equal(query.since))
 	assert.Equal(t, supportv1.NoteKind_NOTE_KIND_BUG, query.kind)
 	assert.Equal(t, uint32(20), query.limit)

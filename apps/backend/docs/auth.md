@@ -27,7 +27,7 @@ internal/auth/internal/
                                            Address, Challenge, Challenges, Post, Letter, the cp_email cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
     aes_flow_sealer/  random_secret_generator/  random_code_generator/
-    cloudflare_mailer/  log_mailer/  embedded_disposable_domains/
+    cpmail_mailer/  embedded_disposable_domains/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
     usecases/start_email_sign_in_usecase/  complete_email_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
@@ -144,7 +144,7 @@ internal/auth/internal/
 - **`CompleteEmailSignIn(code)`** opens the cookie, spends a guess, checks the code (constant time) and the expiry, then signs in exactly as `CompleteSignIn` does: **`signin.Admitter` is the one place both paths go through** — the caller's account (`Visitor`), `accounts.OutcomeOf`, `SaveSignIn` and `auth.v1.SignedIn` recorded in one transaction, and the retry on `ErrIdentityTaken`. A wrong code is `InvalidArgument` and **keeps** `cp_email`, so the player types again; everything else clears it. Spent guesses, a lapsed challenge or no cookie are `FailedPrecondition`: ask for a new code.
 - **A code is not burnt by its success.** The cookie is cleared, and a replay needs both the HttpOnly cookie and the code — that is the player who just signed in, and a replay signs them in to the same account again.
 - **An email account is linked**: it is never pruned, it refills at the linked multiplier, and it may pick a username.
-- **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
+- **`auth.email.delivery` is `cloudflare` or `log`**, through the shared `cpmail` (see [Shared](shared.md)), which support answers notes with too; `cpmail_mailer` hands it auth's letter from `auth.email.from`. `cpmail.Cloudflare` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `cpmail.Log` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
 - `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, ….
 
 ## Operators

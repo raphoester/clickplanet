@@ -60,6 +60,20 @@ func (s *Storage) Save(_ context.Context, saved ...notes.Note) error {
 	return nil
 }
 
+func (s *Storage) Note(_ context.Context, id notes.NoteID) (notes.Note, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.err != nil {
+		return notes.Note{}, s.err
+	}
+	found := s.oldestFirst(func(kept notes.Snapshot) bool { return kept.ID == id })
+	if len(found) == 0 {
+		return notes.Note{}, fmt.Errorf("%w: %s", notes.ErrUnknownNote, id)
+	}
+	return found[0].Restore() //nolint:wrapcheck // the test reads the rule's own error.
+}
+
 func (s *Storage) SentBy(_ context.Context, account notes.AccountID) ([]notes.Note, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

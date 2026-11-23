@@ -61,6 +61,9 @@ func (h ReportBugHandler) ReportBug(
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
 	case errors.Is(err, notes.ErrNotUploaded):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, notes.ErrNotUploaded)
+	case errors.Is(err, notes.ErrNoReplyAddress):
+		return nil, replyaddress.Refusal(connect.CodeFailedPrecondition, notes.ErrNoReplyAddress,
+			supportv1.NoteRefusalReason_NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
 	}

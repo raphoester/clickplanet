@@ -88,6 +88,14 @@ export class ListNotesRequest extends Message<ListNotesRequest> {
    */
   kind = NoteKind.UNSPECIFIED;
 
+  /**
+   * Only the notes waiting for an answer: an address to answer at, and the player wrote last (the note, or a reply
+   * after the last answer and the last close).
+   *
+   * @generated from field: bool open_only = 4;
+   */
+  openOnly = false;
+
   constructor(data?: PartialMessage<ListNotesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -99,6 +107,7 @@ export class ListNotesRequest extends Message<ListNotesRequest> {
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(NoteKind) },
+    { no: 4, name: "open_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotesRequest {
@@ -203,6 +212,34 @@ export class Note extends Message<Note> {
    */
   attachments: NoteAttachment[] = [];
 
+  /**
+   * Where an answer goes. Empty: the note cannot be answered (sent before addresses were kept, or anonymized).
+   *
+   * @generated from field: string reply_address = 9;
+   */
+  replyAddress = "";
+
+  /**
+   * Oldest first.
+   *
+   * @generated from field: repeated support.v1.NoteAnswer answers = 10;
+   */
+  answers: NoteAnswer[] = [];
+
+  /**
+   * What the player wrote back by email, oldest first.
+   *
+   * @generated from field: repeated support.v1.NoteReply replies = 11;
+   */
+  replies: NoteReply[] = [];
+
+  /**
+   * The last time the operator closed it with no answer; unset if never.
+   *
+   * @generated from field: google.protobuf.Timestamp closed_at = 12;
+   */
+  closedAt?: Timestamp;
+
   constructor(data?: PartialMessage<Note>) {
     super();
     proto3.util.initPartial(data, this);
@@ -219,6 +256,10 @@ export class Note extends Message<Note> {
     { no: 6, name: "context", kind: "message", T: PageContext },
     { no: 7, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "attachments", kind: "message", T: NoteAttachment, repeated: true },
+    { no: 9, name: "reply_address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "answers", kind: "message", T: NoteAnswer, repeated: true },
+    { no: 11, name: "replies", kind: "message", T: NoteReply, repeated: true },
+    { no: 12, name: "closed_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Note {
@@ -235,6 +276,102 @@ export class Note extends Message<Note> {
 
   static equals(a: Note | PlainMessage<Note> | undefined, b: Note | PlainMessage<Note> | undefined): boolean {
     return proto3.util.equals(Note, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.NoteAnswer
+ */
+export class NoteAnswer extends Message<NoteAnswer> {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp sent_at = 2;
+   */
+  sentAt?: Timestamp;
+
+  constructor(data?: PartialMessage<NoteAnswer>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.NoteAnswer";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "sent_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NoteAnswer {
+    return new NoteAnswer().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NoteAnswer {
+    return new NoteAnswer().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NoteAnswer {
+    return new NoteAnswer().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NoteAnswer | PlainMessage<NoteAnswer> | undefined, b: NoteAnswer | PlainMessage<NoteAnswer> | undefined): boolean {
+    return proto3.util.equals(NoteAnswer, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.NoteReply
+ */
+export class NoteReply extends Message<NoteReply> {
+  /**
+   * With the quoted mails cut off.
+   *
+   * @generated from field: string text = 1;
+   */
+  text = "";
+
+  /**
+   * The mail's From; empty once the note is anonymized.
+   *
+   * @generated from field: string from = 2;
+   */
+  from = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp received_at = 3;
+   */
+  receivedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<NoteReply>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.NoteReply";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "from", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "received_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NoteReply {
+    return new NoteReply().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NoteReply {
+    return new NoteReply().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NoteReply {
+    return new NoteReply().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NoteReply | PlainMessage<NoteReply> | undefined, b: NoteReply | PlainMessage<NoteReply> | undefined): boolean {
+    return proto3.util.equals(NoteReply, a, b);
   }
 }
 
@@ -612,6 +749,162 @@ export class DecideReportResponse extends Message<DecideReportResponse> {
 
   static equals(a: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined, b: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined): boolean {
     return proto3.util.equals(DecideReportResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.AnswerNoteRequest
+ */
+export class AnswerNoteRequest extends Message<AnswerNoteRequest> {
+  /**
+   * @generated from field: string note_id = 1;
+   */
+  noteId = "";
+
+  /**
+   * Plain text, up to 5,000 characters. Lines are kept.
+   *
+   * @generated from field: string text = 2;
+   */
+  text = "";
+
+  constructor(data?: PartialMessage<AnswerNoteRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.AnswerNoteRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "note_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerNoteRequest {
+    return new AnswerNoteRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerNoteRequest {
+    return new AnswerNoteRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerNoteRequest {
+    return new AnswerNoteRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerNoteRequest | PlainMessage<AnswerNoteRequest> | undefined, b: AnswerNoteRequest | PlainMessage<AnswerNoteRequest> | undefined): boolean {
+    return proto3.util.equals(AnswerNoteRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.AnswerNoteResponse
+ */
+export class AnswerNoteResponse extends Message<AnswerNoteResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp sent_at = 1;
+   */
+  sentAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AnswerNoteResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.AnswerNoteResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sent_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerNoteResponse {
+    return new AnswerNoteResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerNoteResponse {
+    return new AnswerNoteResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerNoteResponse {
+    return new AnswerNoteResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerNoteResponse | PlainMessage<AnswerNoteResponse> | undefined, b: AnswerNoteResponse | PlainMessage<AnswerNoteResponse> | undefined): boolean {
+    return proto3.util.equals(AnswerNoteResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.CloseNoteRequest
+ */
+export class CloseNoteRequest extends Message<CloseNoteRequest> {
+  /**
+   * @generated from field: string note_id = 1;
+   */
+  noteId = "";
+
+  constructor(data?: PartialMessage<CloseNoteRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.CloseNoteRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "note_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseNoteRequest {
+    return new CloseNoteRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseNoteRequest {
+    return new CloseNoteRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseNoteRequest {
+    return new CloseNoteRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseNoteRequest | PlainMessage<CloseNoteRequest> | undefined, b: CloseNoteRequest | PlainMessage<CloseNoteRequest> | undefined): boolean {
+    return proto3.util.equals(CloseNoteRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.CloseNoteResponse
+ */
+export class CloseNoteResponse extends Message<CloseNoteResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp closed_at = 1;
+   */
+  closedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<CloseNoteResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.CloseNoteResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "closed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseNoteResponse {
+    return new CloseNoteResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseNoteResponse {
+    return new CloseNoteResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseNoteResponse {
+    return new CloseNoteResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseNoteResponse | PlainMessage<CloseNoteResponse> | undefined, b: CloseNoteResponse | PlainMessage<CloseNoteResponse> | undefined): boolean {
+    return proto3.util.equals(CloseNoteResponse, a, b);
   }
 }
 

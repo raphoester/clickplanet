@@ -25,6 +25,12 @@ func TestASuggestionNeedsTheAccountThatSendsIt(t *testing.T) {
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
 }
 
+func TestANoteSentWithNoAddressIsRefused(t *testing.T) {
+	_, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black"}, sentAt)
+
+	require.ErrorIs(t, err, notes.ErrNoReplyAddress)
+}
+
 func TestANoteKeepsTheAddressItIsAnsweredAtInLowerCase(t *testing.T) {
 	note, err := notes.NewBugReport(notes.NoteID{15: 1},
 		notes.Sent{Account: ada, Text: "the globe is black", ReplyAddress: "Ada@Example.com"}, sentAt)

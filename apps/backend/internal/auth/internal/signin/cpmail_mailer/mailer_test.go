@@ -1,4 +1,4 @@
-package log_mailer_test
+package cpmail_mailer_test
 
 import (
 	"bytes"
@@ -9,16 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cpmail_mailer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 )
 
-func TestALetterIsLoggedWithItsCode(t *testing.T) {
+func TestTheLetterGoesFromTheSenderWithItsCode(t *testing.T) {
 	var logs bytes.Buffer
-	m := log_mailer.New(slog.New(slog.NewTextHandler(&logs, nil)))
+	m := cpmail_mailer.New(cpmail.NewLog(slog.New(slog.NewTextHandler(&logs, nil))),
+		cpmail.Named{Address: "noreply@example.com", Name: "ClickPlanet"})
 
 	require.NoError(t, m.Send(t.Context(), "player@example.com", signin.CodeLetter("123456")))
 
-	assert.Contains(t, logs.String(), "level=WARN")
 	assert.Contains(t, logs.String(), "to=player@example.com")
 	assert.Contains(t, logs.String(), `subject="Your ClickPlanet code: 123456"`)
+	assert.Contains(t, logs.String(), "@example.com>")
 }

@@ -181,6 +181,20 @@ func (s *StorageContractSuite) TestANoteIsKeptWithTheAddressItIsAnsweredAtAndANo
 	s.Equal([]Snapshot{answerable, silent}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
 }
 
+func (s *StorageContractSuite) TestANoteIsFoundByItsIDAndAnIDNoNoteHasIsUnknown() {
+	s.saved("other", contractBob, contractStart)
+	wanted := s.saved("wanted", contractAda, contractStart.Add(time.Minute))
+	wanted.Attachments = contractFiles
+	s.Require().NoError(s.save(wanted))
+
+	found, err := s.storage.Note(s.T().Context(), wanted.ID)
+	s.Require().NoError(err)
+	s.Equal(wanted, found.TakeSnapshot())
+
+	_, err = s.storage.Note(s.T().Context(), contractID("nobody's"))
+	s.ErrorIs(err, ErrUnknownNote)
+}
+
 func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsNoAddress() {
 	anonymized := s.anonymized(s.saved("sent", contractAda, contractStart))
 

@@ -136,3 +136,9 @@ func TestTheAddressThePlayerGaveIsHandedOnAndOneMailCannotGoToIsRefused(t *testi
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Len(t, useCase.asked, 1)
 }
+
+func TestNoAddressAnywhereIsAFailedPrecondition(t *testing.T) {
+	err := suggest(asAda(t), &stubUseCase{err: fmt.Errorf("cannot take the suggestion: %w", notes.ErrNoReplyAddress)}, "a night mode")
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
