@@ -112,10 +112,9 @@ animations (see [Endless animations](styling.md#endless-animations)).
   An infected tile's virus turns on `time`, so it stops wherever it is: it has
   no bright or faint point. `TROUGH_SLACK` keeps a held clock from creeping on
   to the next trough by rounding (32 of 1000 troughs would).
-- **No rule on focus or blur.** On `crazygames.clickplanet.lol` the game is in
-  an iframe that has no focus until the first click (see
-  [CrazyGames](crazygames.md)): a blur rule would stop the spin on load for
-  every visitor there. The minute covers a player who switches windows.
+- **No rule on focus or blur.** A page in an iframe has no focus until the first
+  click: a blur rule would stop the spin on load. The minute covers a player who
+  switches windows.
 - **Everything else still draws when it changes**: claims and batches
   (`invalidate()`), blasts, the box, flights, a resize, `capture()`. The glints
   of other players' claims are paced, as below.

@@ -2,7 +2,6 @@ import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 import {DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "./components/icons.tsx"
 import DiscordButton from "./alerts/DiscordButton.tsx"
 import {DiscordOffer} from "./alerts/useDiscordAlerts.ts"
-import {ON_CRAZYGAMES} from "../platform.ts"
 import {t} from "../i18n/page.ts"
 import "./About.css"
 
@@ -42,15 +41,15 @@ export default function About({discord}: AboutProps) {
                      className="about-photo"/>
             </div>
             <h3>Raphaël Oester</h3>
-            {!ON_CRAZYGAMES && <p className="center-align">{t("about.freelance")}</p>}
-            {!ON_CRAZYGAMES && <div className="about-social">
+            <p className="center-align">{t("about.freelance")}</p>
+            <div className="about-social">
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/raphael-oester/"><b>in</b></a>
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://x.com/raphael_oester"><b>X</b></a>
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://github.com/raphoester"><b>GitHub</b></a>
-            </div>}
+            </div>
         </div>
         <p className="about-legal">
-            {!ON_CRAZYGAMES && <a href="/#home">{t("menu.homePage")}</a>}
+            <a href="/#home">{t("menu.homePage")}</a>
             <a href="/privacy" target="_blank" rel="noopener noreferrer">{t("about.privacy")}</a>
             <a href="/terms" target="_blank" rel="noopener noreferrer">{t("about.terms")}</a>
         </p>

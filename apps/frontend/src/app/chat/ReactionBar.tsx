@@ -6,7 +6,6 @@ import {AddReactionIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {REACTION_IMAGES} from "./reactionsAsset.ts";
 import {reactionLabelOf} from "./reactionLabel.ts";
-import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {useNameplates} from "../nameplates/nameplatesStore.ts";
 import {t} from "../../i18n/page.ts";
 import {Key} from "../../i18n/translator.ts";
@@ -164,7 +163,6 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
     const nameplates = useNameplates((store) => store.nameplates)
     useEffect(() => count.reactorAccountIds.forEach(useNameplates.getState().ask), [count.reactorAccountIds])
     const {names, more} = whoReacted(count, (accountId) => nameplates[accountId]?.name)
-    const words = useWordFilter()
 
     // On the body: the log scrolls and clips whatever is drawn inside it.
     return createPortal(
@@ -174,7 +172,7 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
              style={{left: `${at.left}px`, top: `${at.top}px`, maxWidth: `${WHO_MAX_WIDTH_PX}px`}}>
             <span className="chat-reaction-who-label">{t(label)}</span>
             <ul className="chat-reaction-who-names">
-                {names.map((name, index) => <li key={`${index}-${name}`}>{truncate(words.masked(name), WHO_MAX_LENGTH)}</li>)}
+                {names.map((name, index) => <li key={`${index}-${name}`}>{truncate(name, WHO_MAX_LENGTH)}</li>)}
                 {more > 0 && <li className="chat-reaction-who-more">{restOf(names.length, more)}</li>}
             </ul>
         </div>,

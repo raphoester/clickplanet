@@ -59,7 +59,7 @@ shows the card. The card shows the
 flag and the country, then, for a player with a username, what `PlayerCards` reads: who
 it is from `player.v1.PlayerService/GetPlayer`, with **"Previously known as"** and the
 last names it left under the country (`PlayerInfo.pastNames`: 5 at most, newest first, never
-the name it holds now, and no line when there are none; masked on CrazyGames as the title is;
+the name it holds now, and no line when there are none;
 see the backend's [Player](../../backend/docs/player.md#the-names-a-player-left)), and from
 `progression.v1.ProgressionService/GetProgress` the titles it shows, under the title it wears, which is its badge
 (see [Titles](titles.md) and [Badges](badges.md)), then tiles taken, the current and best

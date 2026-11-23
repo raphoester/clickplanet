@@ -16,7 +16,6 @@ import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {metalOf, OG} from "../titles/titleArt.ts"
 import {truncate} from "../truncate.ts"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import PlayerFronts from "./PlayerFronts.tsx"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import {t, translator} from "../../i18n/page.ts"
@@ -37,7 +36,6 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
     const [reporting, setReporting] = useState(false)
     const state = usePlayerInfo(backend, player)
     const badge = useBadge(player.accountId)
-    const words = useWordFilter()
     const country = translator().country(player.countryCode)
 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
@@ -45,7 +43,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
     const info = state.kind === "ready" ? state.info : undefined
     const title = <span className="player-card-title" style={authorStyle({...player, color})}>
         {info?.level && <LevelChip level={info.level.level}/>}
-        {truncate(words.masked(player.name), NAME_MAX_LENGTH)}
+        {truncate(player.name, NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
         {info?.titles.some((held) => held.id === OG) && <OgStamp/>}
     </span>
@@ -88,10 +86,9 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
 
 // The names the player went by before, so the others know who it was.
 function PastNames({names}: {names: PastName[]}) {
-    const words = useWordFilter()
     if (names.length === 0) return null
 
-    const list = translator().list(names.map((past) => words.masked(past.name)), "unit")
+    const list = translator().list(names.map((past) => past.name), "unit")
     return <p className="player-card-past-names">
         {rich("player.pastNames", {names: <span className="player-card-past-names-list">{list}</span>})}
     </p>

@@ -1,8 +1,8 @@
 import {create} from "zustand"
 
-export type MenuTab = "board" | "missions" | "share" | "invite" | "settings"
+export type MenuTab = "board" | "missions" | "share" | "settings"
 
-export type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings" | "season" | "battle" | "clicks"
+export type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "battle" | "clicks"
 
 export type PopoverName = "season" | "battle" | "clicks" | "bonuses"
 

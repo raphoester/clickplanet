@@ -557,8 +557,8 @@ pixels show: 0.04 to 0.5% of a view from orbit, all on the outline. Kept (the ow
 difference"). Every view where the tiles have the frame (zoom 6,
 12, 40, the flags off, a bomb, a virus, the front's rings) is the same to the pixel, with HD graphics on and off.
 
-**Still to do:** a real low-end phone, and a school-style laptop with integrated graphics, which is much of CrazyGames'
-audience. A headless M2 Max shows the work removed; it cannot show what a phone's GPU makes of it.
+**Still to do:** a real low-end phone, and a school-style laptop with integrated graphics. A headless M2 Max shows the
+work removed; it cannot show what a phone's GPU makes of it.
 
 **If a device still struggles**, it cannot have a smaller board: everyone shares the tile ids. But with HD graphics
 off, the painted flags can stay on until the player is closer in, and they cost per pixel, not per tile.

@@ -6,7 +6,7 @@
   "scripts": {
     "dBuild": "docker build -t clickplanet-front:local .",
     "dev": "vite --host 0.0.0.0",
-    "build": "npm run crazygames:words && tsc -b && vite build && npm run copy:static",
+    "build": "tsc -b && vite build && npm run copy:static",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
@@ -34,7 +34,6 @@
     "flagFit": "node scripts/generateFlagFit.mjs",
     "anthems": "node scripts/generateAnthems.mjs && npm run clip:highlights",
     "reactions": "node scripts/generateReactions.mjs",
-    "crazygames:words": "node scripts/fetchCrazyGamesWords.mjs",
     "regions": "node scripts/generateRegions.mjs",
     "landmassNames": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateLandmassNames.mjs --",
     "provinces": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateProvinces.ts --",

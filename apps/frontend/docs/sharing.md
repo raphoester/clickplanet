@@ -35,7 +35,7 @@ each space of the name is a `-` (no username holds one), its case is kept, and
 as a person reads them. The home page's first script opens it on the game (see
 [Pages and routes](routes.md)), and the name in it tells the backend who
 recruited the account that comes by it (see [Arrivals](arrivals.md)). Old `?f=`
-links still open the game on their flag. CrazyGames' Invite is unchanged.
+links still open the game on their flag.
 
 - **A phone gets its share sheet, a desktop a copy** (`linkDeliveryOffered`,
   `deliverLink` in `deliverShare.ts`). The sheet takes the link and the sentence
@@ -53,9 +53,6 @@ links still open the game on their flag. CrazyGames' Invite is unchanged.
 - **The button is `RecruitButton.tsx`**, so the frozen dock sends the same address
   (see [A frozen map](backends.md#a-frozen-map)): there it is "Invite" with the
   flag, and the sentence is `breakHeadline` (`app/share/shareLines.ts`), the next season on a blank map.
-- **On CrazyGames, Invite takes Share's place** (`InviteFriends.tsx`,
-  `InviteButton.tsx`): Share's links lead off CrazyGames. See
-  [CrazyGames](crazygames.md#multiplayer).
 
 **Its label never changes.** What answers the press is the preview opening.
 Working is said by the tile dimming (`aria-busy`, disabled).

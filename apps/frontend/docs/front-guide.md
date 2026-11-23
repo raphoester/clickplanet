@@ -26,8 +26,7 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   once, and on the next pages by the stored count (`firstTakeAhead`, `useGlobe`'s `showTap`). It follows the tile as
   the camera moves, and hides while the tile is off the screen or behind the globe, in orbit, while a bomb is armed and
   on a frozen map. When the tile stops being open (taken, shielded), it moves to the open tile nearest the middle of
-  the screen, looked for once a second. No text: the owner allows no label that explains a rule, and CrazyGames asks
-  for pictures over text.
+  the screen, looked for once a second. No text: the owner allows no label that explains a rule.
   - **A DOM element, not the GPU layer**, placed each tick from the tile's projected point, as the bonus box's pointer
     is: the loop draws a frame only when something changed (see [Drawing only when something changed](render-on-demand.md)),
     and a press drawn on the GPU would draw one every frame for a minute. As CSS, the press runs on the compositor,

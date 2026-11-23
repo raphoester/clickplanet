@@ -19,7 +19,6 @@ import {useNameplate} from "../nameplates/nameplatesStore.ts";
 import {Nameplate} from "../../backends/nameplates.ts";
 import QuoteLine from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
-import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {usePlayerCard} from "../players/playerCardStore.ts";
 import {useChat} from "./chatStore.ts";
 import {partsOf} from "../missions/orderParts.tsx";
@@ -242,8 +241,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
     // Nobody to open a card of, or to report, once the account is gone.
     const author = lineOf(message.authorAccountId, message.countryCode, nameplate)
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
-    const words = useWordFilter()
-    const name = words.masked(nameOf(nameplate))
+    const name = nameOf(nameplate)
     const openPlayer = usePlayerCard((card) => card.open)
     const onReport = author && !message.removed ? props.onReport : undefined
 
@@ -291,8 +289,8 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                        decoding="async"/>
                 : <p className="chat-message-text">
                     {messageParts(message, guestOf(nameplate)).map((part, index) => part.kind === "link"
-                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{words.masked(part.text)}</a>
-                        : <Fragment key={index}>{words.masked(part.text)}</Fragment>)}
+                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
+                        : <Fragment key={index}>{part.text}</Fragment>)}
                 </p>}
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
@@ -371,8 +369,7 @@ function WorldGrewLine({announcement}: {announcement: WorldGrewAnnouncement}) {
 }
 
 function RallyLine({announcement}: {announcement: RallyAnnouncement}) {
-    const words = useWordFilter()
-    const player = <strong>{words.masked(announcement.name)}</strong>
+    const player = <strong>{announcement.name}</strong>
 
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">📣</span>
@@ -475,14 +472,13 @@ function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
 }
 
 function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
-    const words = useWordFilter()
     const length = muteLengthOf(announcement.seconds)
 
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
         <span className="chat-announcement-text">
             {rich(MUTE_LINES[announcement.muteKind][length.unit], {
-                player: <strong>{words.masked(announcement.name)}</strong>,
+                player: <strong>{announcement.name}</strong>,
                 count: length.count,
             })}
         </span>

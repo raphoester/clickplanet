@@ -8,7 +8,6 @@ import PointerCard from "../components/PointerCard.tsx"
 import Streak from "../badges/Streak.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
 import {truncate} from "../truncate.ts"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
 import {HolderShown} from "./tileHolderStore.ts"
@@ -29,7 +28,7 @@ export type HolderCardProps = {
 export default function HolderCard({holder, missions, now = Date.now(), onHold, onClose}: HolderCardProps) {
     const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = translator().country(line.countryCode)
-    const name = useWordFilter().masked(line.name)
+    const name = line.name
     const openPlayer = usePlayerCard((card) => card.open)
 
     return <PointerCard point={point}

@@ -20,13 +20,11 @@ app/       components
 
 ## The backends reach the page as one object
 
-**`main.tsx` builds one `Backends` and `App` hands it to `PlayScreen` whole.** `Backends` is declared in
+**`main.tsx` builds one `Backends` and hands it to `PlayScreen` whole.** `Backends` is declared in
 `app/play/PlayScreen.tsx`, the one place that reads it. Each branch of `main.tsx`, the fake and the real one, fills it,
-and one `start` renders the page with it. A new backend is a field of `Backends` and a line in each branch: `App` does
-not change.
+and one `start` renders the page with it. A new backend is a field of `Backends` and a line in each branch.
 
-- **A field is always there**, so `PlayScreen` does not check for it. Only three can be `undefined`: `crazyGames` off
-  the CrazyGames page, `alerts` on it (no Discord sign-in there), and `gifs` on it or with no KLIPY key.
+- **A field is always there**, so `PlayScreen` does not check for it. Only `gifs` can be `undefined`, with no KLIPY key.
 - **`PlayScreen` still gives each feature its backend as a prop.** The components and hooks take what they use as a
   required input, and do not check for it. Their tests give them a fake, never `undefined`. A backend is optional
   below `PlayScreen` only where it can really be absent: the flag's chat room before a flag is held, the card's reporter
