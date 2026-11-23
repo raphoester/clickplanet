@@ -143,10 +143,10 @@ plays (see [In a clip](clip-appearances.md)). `localStorage.removeItem("clickpla
 makes the clips shown new again.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
-`"reported-already"`, `"failed"`) refuses what Settings and a player's card
-send next, `fakeSupport.refuse("upload-failed")` fails each file half way up,
+`"reported-already"`, `"no-reply-address"`, `"invalid-reply-address"`, `"failed"`) refuses what Settings and a
+player's card send next, `fakeSupport.refuse("upload-failed")` fails each file half way up,
 and `fakeSupport.refuse()` takes it all again; `fakeSupport.sent` is what it
-took, with the ids of each note's files, and `fakeSupport.uploaded` the files
+took, with the ids of each note's files and its address, and `fakeSupport.uploaded` the files
 behind those ids (`fake-file-<n>` is its place there).
 `fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
 `scheduleBattle(90, 60)` plans a battle within a day, which a returning page teases at once with the fake promo's

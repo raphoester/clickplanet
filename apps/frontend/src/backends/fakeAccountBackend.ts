@@ -49,7 +49,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
     }
 
     public async me(): Promise<Me> {
-        return {linked: [...this.linked]}
+        return {linked: [...this.linked], hasEmail: this.linked.includes("google")}
     }
 
     // Straight back to the callback page, as the provider would after the player agreed.

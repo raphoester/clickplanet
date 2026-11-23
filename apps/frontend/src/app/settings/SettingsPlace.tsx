@@ -2,6 +2,8 @@ import {useState} from "react";
 import {MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
+import {AccountStore} from "../account/accountStore.ts";
+import {useAccount} from "../account/useAccount.ts";
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
 import Choices from "../components/Choices.tsx";
@@ -21,6 +23,7 @@ import "./SettingsPlace.css"
 export type SettingsPlaceProps = {
     sound?: SoundSettingsPanelProps,
     support: FeedbackBackend,
+    account: AccountStore,
     pageContext?: () => PageContext,
     discord?: DiscordOffer,
 }
@@ -33,10 +36,11 @@ const MAP_VIEWS: {value: MapView, label: Key}[] = [
     {value: "tiles", label: "settings.mapViewOff"},
 ]
 
-export default function SettingsPlace({sound, support, pageContext = pageAlone, discord}: SettingsPlaceProps) {
+export default function SettingsPlace({sound, support, account: accountStore, pageContext = pageAlone, discord}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
     const display = useDisplaySettings()
+    const account = useAccount(accountStore)
 
     return <div className="settings">
         <ul className="switch-list panel-box">
@@ -80,6 +84,7 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
 
         {open === "feedback" && <FeedbackModal support={support}
                                                pageContext={pageContext}
+                                               hasEmail={account.kind === "ready" && account.me.hasEmail === true}
                                                onClose={close}/>}
     </div>
 }

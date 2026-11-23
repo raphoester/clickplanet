@@ -485,6 +485,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const settings = {
         sound: {preview: sound.preview},
         support: backends.support,
+        account: backends.account,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
         discord,
     }

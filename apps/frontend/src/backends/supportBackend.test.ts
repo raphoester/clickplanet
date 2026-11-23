@@ -4,12 +4,14 @@ import {SupportService} from "../gen/grpc/support/v1/support_connect.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {
     NO_ATTACHMENTS,
+    SupportInvalidReplyAddressError,
+    SupportNoReplyAddressError,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
     SupportReportedAlreadyError,
 } from "./support.ts"
-import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
+import {NoteRefusal, NoteRefusalReason, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {ConnectSupportBackend} from "./supportBackend.ts"
 
 const session = (...tokens: string[]): SessionProvider => {
@@ -131,6 +133,37 @@ describe("ConnectSupportBackend.reportBug", () => {
         await expect(backendOf(limited, session("token-1")).reportBug("the globe is black", phone))
             .rejects.toBeInstanceOf(SupportRateLimitedError)
         expect(limited).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectSupportBackend and the address a note is answered at", () => {
+    const backendOf = (calls: object) =>
+        new ConnectSupportBackend(calls as unknown as PromiseClient<typeof SupportService>, session("token-1"))
+
+    it.each(["suggestFeature", "reportBug"] as const)("%s sends the address given", async (procedure) => {
+        const call = vi.fn().mockResolvedValue({})
+
+        await backendOf({[procedure]: call})[procedure]("the globe is black", phone, [], "ana@example.com")
+
+        expect(call.mock.calls[0][0].replyAddress).toBe("ana@example.com")
+    })
+
+    it.each(["suggestFeature", "reportBug"] as const)("%s sends none when none is given", async (procedure) => {
+        const call = vi.fn().mockResolvedValue({})
+
+        await backendOf({[procedure]: call})[procedure]("the globe is black", phone)
+
+        expect(call.mock.calls[0][0].replyAddress).toBeUndefined()
+    })
+
+    it.each([
+        [Code.FailedPrecondition, NoteRefusalReason.NO_REPLY_ADDRESS, SupportNoReplyAddressError],
+        [Code.InvalidArgument, NoteRefusalReason.INVALID_REPLY_ADDRESS, SupportInvalidReplyAddressError],
+    ])("reads a refusal %s by its NoteRefusal detail", async (code, reason, expected) => {
+        const refused = new ConnectError("refused", code, undefined, [new NoteRefusal({reason})])
+
+        await expect(backendOf({reportBug: vi.fn().mockRejectedValue(refused)}).reportBug("the globe is black", phone))
+            .rejects.toBeInstanceOf(expected)
     })
 })
 
