@@ -56,8 +56,9 @@ map too.
   change past the lock and the hour). **It can be closed, to watch** (the owner, 2026-11-10); a click out of reach opens
   it again (`useStanding.ask`). **A pick asks to be confirmed** (the owner, 2026-11-14, in a Capital Siege): the window
   opens under a player still clicking the globe, whose next click picked the flag under the finger and locked it. A
-  country in the list turns the window into "Play for Germany?", its flag, and when the flag can change again (under
-  the rules' lock, not unless it is knocked out too; otherwise in an hour, or at once if it is); "Confirm" pledges it,
+  country in the list turns the window into "Play for Germany?", its flag, and under the rules' lock that it cannot
+  change again unless it is knocked out too (with no lock nothing: the forced change starts no wait, so the flag can
+  change at once, and once the battle ends it changes back once at once); "Confirm" pledges it,
   "Back" returns to the list. **Confirm takes no click for 1 s after it shows** (`CONFIRM_ARM_MS`), each pick anew,
   so a double click on a country pledges nothing. A pick that failed says so on the confirm step.
 - **The menu's picker** lists only the flags still in while the knock-out plays, and is open to a player whose flag does

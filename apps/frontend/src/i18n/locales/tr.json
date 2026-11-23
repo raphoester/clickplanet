@@ -517,7 +517,6 @@
   "knockout.pickFailed": "Bayrağın değiştirilemedi. Tekrar dene.",
   "knockout.confirmTitle": "{country} için oynamak ister misin?",
   "knockout.keepLocked": "Bu bayrak da elenmedikçe bayrağını bir daha değiştiremezsin.",
-  "knockout.keepHour": "Bayrağını bir saat sonra yeniden değiştirebilirsin; bu bayrak da elenirse hemen.",
   "archive.title": "Arşiv",
   "archive.backToGame": "Oyuna dön",
   "archive.seasonPicker": "Sezon",

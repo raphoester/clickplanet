@@ -88,14 +88,14 @@ describe("the out window", () => {
         expect(onPick).toHaveBeenCalledWith(Countries.get("de"))
     })
 
-    it("says when the flag picked can change again", async () => {
+    it("says the flag picked is kept under the rules' lock, and nothing with no lock", async () => {
         useStanding.getState().follow(standing)
         const {rerender} = render(<OutModal flag={france} allegiance={{countryId: "fr", locked: true}} onPick={vi.fn()}/>)
         await click(option("Italy"))
         expect(screen.getByText("You can't change your flag again unless this one is knocked out too.")).toBeDefined()
 
         rerender(<OutModal flag={france} allegiance={{countryId: "fr"}} onPick={vi.fn()}/>)
-        expect(screen.getByText("You can change your flag again in an hour, or at once if this one is knocked out too.")).toBeDefined()
+        expect(screen.queryByText(/change your flag again/)).toBeNull()
     })
 
     it("tells a region flag's player that it has no capital", () => {

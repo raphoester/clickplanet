@@ -105,8 +105,22 @@ func TestAnAccountWhoseFlagIsOutChangesAtOncePastTheLockAndTheWait(t *testing.T)
 	changed, err := kept.Pledged("de", at.Add(time.Minute), locked, allegiances.StandingFlags{"de"})
 	require.NoError(t, err)
 
-	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at.Add(time.Minute)}, changed.TakeSnapshot(),
-		"it starts the wait as any change does")
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, changed.TakeSnapshot(), "a change forced by the knock-out starts no wait")
+}
+
+func TestAnAccountWhoseFlagWasOutChangesBackOnceAtOnceAfterTheKnockOut(t *testing.T) {
+	forced, err := allegiances.Snapshot{Flag: "fr", ChangedAt: at}.Restore().
+		Pledged("de", at.Add(time.Minute), locked, allegiances.StandingFlags{"de"})
+	require.NoError(t, err)
+	_, err = forced.Pledged("it", at.Add(2*time.Minute), locked, allegiances.StandingFlags{"de", "it"})
+	require.ErrorIs(t, err, allegiances.ErrLocked, "the lock still holds while the battle plays")
+
+	back, err := forced.Pledged("fr", at.Add(3*time.Minute), open, world)
+	require.NoError(t, err)
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(3 * time.Minute)}, back.TakeSnapshot())
+
+	_, err = back.Pledged("de", at.Add(4*time.Minute), open, world)
+	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon, "the change back starts the wait")
 }
 
 func TestAnAccountWhoseFlagStandsIsHeldByTheLockInAnArena(t *testing.T) {

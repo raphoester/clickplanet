@@ -50,7 +50,8 @@ and so is one from an account that pledged none.
   matches a part of the name in the page's language, and keeps the selected flag in the list.
 - **While the knock-out plays the picker lists only the flags still in** (`useStanding`, see [The capitals](capitals.md)),
   with no flag selected when the one played is out, and `lockOf(allegiance, now, standing)` locks nothing for a flag held that
-  does not stand: the server lets it change at once. The same goes for the Change button and the out window.
+  does not stand: the server lets it change at once. The same goes for the Change button and the out window. That
+  change starts no wait, so once the battle ends the Change button is open and the player changes back once.
 - **The Change button shows the lock**: a padlock and the minutes left
   (`minutesLeftOf`), named with the time of the next change; under the rules' lock, a padlock and "Locked".
 - **A refused click is rolled back, plays the refusal, and says why** in a bubble

@@ -22,10 +22,15 @@ player could paint for one country and defend another click to click. **Only
 - **While the knock-out plays, only a flag still in may be picked** (the owner, 2026-11-09): `Pledged(flag, at, lock, standing)` reads
   `Standing.Stands`, which the tile storage answers (see [The knock-out](capitals.md#the-knock-out-capitalsknockout)). A flag knocked
   out, or with no capital (England, Scotland, Wales, Brittany), is refused, `ErrDown` (`FailedPrecondition`), to a
-  newcomer too. **An account whose flag does not stand changes at once, past the lock and the hour**: the change
-  starts the hour's wait as any change does. While the knock-out does not play every flag stands, so nothing changes
-  there. After the battle everybody keeps the flag picked. `PlayError` is not touched: with the reach, a flag with no
-  land reaches nothing already (without it, see [Arena battles](arenas.md#known-gaps)).
+  newcomer too. **An account whose flag does not stand changes at once, past the lock and the hour, and the change
+  starts no wait** (the owner, 2026-11-23): the account keeps no `changed_at`, as after a release. While the battle
+  plays, its lock still holds the flag picked, unless that one is knocked out too. **Once the knock-out ends, such an
+  account changes back once, at once**, to any flag, and that change starts the hour. The other accounts are free too:
+  under the lock no flag that stands changes, and a knock-out battle plays more than the hour (Capital Siege, 80 to 87
+  minutes). Before this the forced change started the hour, and after the Capital Siege of 2026-11-21 the operator
+  released each player by hand. While the knock-out does not play every flag stands, so nothing changes there.
+  `PlayError` is not touched: with the reach, a flag with no land reaches nothing already (without it, see
+  [Arena battles](arenas.md#known-gaps)).
 - **`allegiances.Book.Pledge(ctx, payer, flag)`** applies `Pledged` at the clock's
   time, in the store's `Change`: one transaction under `pg_advisory_xact_lock` on the
   account, so two tabs pledging two flags at once cannot both change it. A caller with

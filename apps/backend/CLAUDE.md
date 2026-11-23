@@ -90,7 +90,7 @@ and says what is in it. Read the doc before you change its area.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the
   rate limiter; what it costs iCloud Private Relay; `cmd/prefixdiff`.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour; a battle's rule
-  set locks it.
+  set locks it; a change the knock-out forces starts no wait, so after the battle the player changes back once.
 - [Rules](docs/rules.md) — planet's game rules, in rule sets kept in postgres (the wallet's `charges.*` among them; the
   offers keep their own); `default` holds every value, another set only what it changes; the set in force in one atomic
   pointer; what a change does to what is already there; a frozen set.
