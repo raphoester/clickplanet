@@ -19,8 +19,9 @@ earth's shader and the tiles' layout are fixed when the globe is built, so
 `rendering` is in `useGlobe`'s dependencies and the map loads again.
 
 **With HD graphics on and a build with `VITE_ADAPTIVE_RATIO=on`, slow frames lower
-the ratio by themselves**, from 2 to 1.5 to 1, and the next visit starts at the
-lowered one (see [Slow frames lower the
+the ratio by themselves**, from 2 to 1.5 to 1, for the visit only: a step that does
+not make the frames faster is undone, and the next visit starts at the screen's
+ratio again (see [Slow frames lower the
 ratio](pixel-ratio.md#slow-frames-lower-the-ratio)). Only the ratio: the earth's
 shader and the compact layout stay. The setting does not change, and nothing on
 screen says so. Built without the flag, HD graphics keeps the screen's ratio.

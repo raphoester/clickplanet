@@ -1,17 +1,17 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {sharpOf} from "./graphics.ts"
-import {RATIO_STORAGE_KEY} from "./ratioStore.ts"
 import {Sharpness} from "./sharpness.ts"
 
 const ADAPTIVE = sharpOf(true)
 
 const AT_60HZ = 1_000 / 60
 
+const OLD_KEY = "clickplanet-pixel-ratio"
+
 function storeOf(entries: Record<string, string> = {}) {
     const values = new Map(Object.entries(entries))
     return {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => void values.set(key, value),
+        removeItem: (key: string) => void values.delete(key),
         values,
     }
 }
@@ -22,7 +22,7 @@ let at = 0
 beforeEach(() => {
     frames = []
     at = performance.now()
-    vi.stubGlobal("window", {devicePixelRatio: 3})
+    vi.stubGlobal("window", {devicePixelRatio: 3, localStorage: storeOf()})
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => frames.push(callback))
 })
 
@@ -30,7 +30,6 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
-// The browser's ticks while the board loads, before the loop draws.
 function load(ticks: number) {
     for (let i = 0; i < ticks; i++) {
         at += AT_60HZ
@@ -40,66 +39,81 @@ function load(ticks: number) {
     }
 }
 
-// The loop's ticks, each drawing a frame at 30 a second; how many times the ratio went down.
-function drawSlowly(sharpness: Sharpness, ticks: number): number {
-    let lowered = 0
-    for (let i = 0; i < ticks; i++) {
-        at += 2 * AT_60HZ
+function measuredSharpness(graphics = ADAPTIVE, measured = true): Sharpness {
+    const sharpness = new Sharpness(graphics, measured, new AbortController().signal)
+    load(60)
+    sharpness.startMeasuring(at)
+    return sharpness
+}
+
+function drawFor(sharpness: Sharpness, seconds: number, frameOf: (ratio: number) => number): number[] {
+    const until = at + seconds * 1_000
+    const ratios: number[] = []
+    while (at < until) {
+        at += frameOf(sharpness.ratio())
         sharpness.tick(at)
-        if (sharpness.drew()) lowered++
+        if (sharpness.drew()) ratios.push(sharpness.ratio())
     }
-    return lowered
+    return ratios
 }
 
 describe("Sharpness", () => {
-    it("starts at the ratio a slow visit lowered it to", () => {
-        const sharpness = new Sharpness(ADAPTIVE, true, new AbortController().signal, () => storeOf({[RATIO_STORAGE_KEY]: "1.5"}))
+    it("forgets the ratio an old visit kept, and starts at the screen's", () => {
+        const store = storeOf({[OLD_KEY]: "1"})
+        vi.stubGlobal("window", {devicePixelRatio: 3, localStorage: store})
 
-        expect(sharpness.ratio()).toBe(1.5)
+        const sharpness = new Sharpness(ADAPTIVE, true, new AbortController().signal)
+
+        expect(store.values.has(OLD_KEY)).toBe(false)
+        expect(sharpness.ratio()).toBe(2)
     })
 
-    it("goes from 2 to 1.5 to 1 on slow frames, and keeps it", () => {
-        const store = storeOf()
-        const sharpness = new Sharpness(ADAPTIVE, true, new AbortController().signal, () => store)
-        load(60)
-        sharpness.startMeasuring(at)
+    it("starts when the storage is blocked", () => {
+        vi.stubGlobal("window", {
+            devicePixelRatio: 3,
+            get localStorage(): Storage {
+                throw new DOMException("blocked", "SecurityError")
+            },
+        })
 
-        expect(drawSlowly(sharpness, 200)).toBe(1)
-        expect(sharpness.ratio()).toBe(1.5)
-        expect(store.values.get(RATIO_STORAGE_KEY)).toBe("1.5")
+        expect(new Sharpness(ADAPTIVE, true, new AbortController().signal).ratio()).toBe(2)
+    })
 
-        expect(drawSlowly(sharpness, 1_000)).toBe(1)
-        expect(sharpness.ratio()).toBe(1)
-        expect(store.values.get(RATIO_STORAGE_KEY)).toBe("1")
+    it("goes from 2 to 1.5 to 1 while the pixels make the frames slow", () => {
+        const sharpness = measuredSharpness()
+
+        expect(drawFor(sharpness, 60, (ratio) => 16 * ratio * ratio)).toEqual([1.5, 1])
+    })
+
+    it("puts the ratio back to 2 when a step does not make the frames faster", () => {
+        const sharpness = measuredSharpness()
+
+        expect(drawFor(sharpness, 60, () => 2 * AT_60HZ)).toEqual([1.5, 2])
+        expect(drawFor(sharpness, 60, () => 2 * AT_60HZ)).toEqual([])
     })
 
     it("keeps the screen's ratio when the URL names it", () => {
-        const store = storeOf({[RATIO_STORAGE_KEY]: "1"})
-        const sharpness = new Sharpness({...ADAPTIVE, ratio: "screen"}, true, new AbortController().signal, () => store)
-        load(60)
-        sharpness.startMeasuring(at)
+        const sharpness = measuredSharpness({...ADAPTIVE, ratio: "screen"})
 
         expect(sharpness.ratio()).toBe(2)
-        expect(drawSlowly(sharpness, 1_000)).toBe(0)
+        expect(drawFor(sharpness, 60, () => 2 * AT_60HZ)).toEqual([])
     })
 
     it("keeps the screen's ratio for a clip, which draws every frame", () => {
-        const sharpness = new Sharpness(ADAPTIVE, false, new AbortController().signal, () => storeOf({[RATIO_STORAGE_KEY]: "1"}))
-        load(60)
-        sharpness.startMeasuring(at)
+        const sharpness = measuredSharpness(ADAPTIVE, false)
 
         expect(sharpness.ratio()).toBe(2)
-        expect(drawSlowly(sharpness, 1_000)).toBe(0)
+        expect(drawFor(sharpness, 60, () => 2 * AT_60HZ)).toEqual([])
     })
 
     it("stays at 1 with HD graphics off", () => {
-        const sharpness = new Sharpness({...ADAPTIVE, ratio: "one"}, true, new AbortController().signal, () => storeOf())
+        const sharpness = new Sharpness({...ADAPTIVE, ratio: "one"}, true, new AbortController().signal)
 
         expect(sharpness.ratio()).toBe(1)
     })
 
     it("stops the browser's ticks once the loop ticks", () => {
-        const sharpness = new Sharpness(ADAPTIVE, true, new AbortController().signal, () => storeOf())
+        const sharpness = new Sharpness(ADAPTIVE, true, new AbortController().signal)
         load(5)
 
         sharpness.tick(at)
@@ -110,7 +124,7 @@ describe("Sharpness", () => {
 
     it("stops the browser's ticks when the load is let go", () => {
         const loading = new AbortController()
-        new Sharpness(ADAPTIVE, true, loading.signal, () => storeOf())
+        new Sharpness(ADAPTIVE, true, loading.signal)
         load(5)
 
         loading.abort()
