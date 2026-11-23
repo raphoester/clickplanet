@@ -2,6 +2,7 @@
 import {describe, expect, it} from "vitest"
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Day, Story, THE_WORLD} from "../domain/clip/story.ts"
+import {subtitlesOf} from "../domain/clip/voice.ts"
 import {createOverlay, hashtagsOf, wordsOf, Written} from "./overlay.ts"
 import {nameOf, said} from "./names.ts"
 
@@ -186,6 +187,43 @@ describe("a lab story's hook", () => {
 
         expect(root.querySelector(".clip-hook")).toBeNull()
         expect(root.querySelector<HTMLElement>(".clip-top")?.style.opacity).toBe("1")
+    })
+})
+
+describe("a war report's subtitles", () => {
+    const saga: Story = {...story("battle", {country: "in"}, "tr"), kind: "saga", attacker: "bg", victims: ["tr"]}
+    const hooked: Written = {...written, hook: "WHY IS BULGARIA IN INDIA?"}
+    const subtitles = subtitlesOf([{text: "Yeah, Bulgaria.", from: 0, to: 1}])
+    const overlaid = (seconds: number[], told: Written = written) => {
+        const root = document.createElement("div")
+        const overlay = createOverlay(root, saga, {...wordsOf(saga, told), subtitles}, new Map(), [])
+        return {root, shown: seconds.map((at) => {
+            overlay.show({seconds: at, replayAt: 0, played: 0, held: new Map(), ending: at - 5})
+            return root.querySelector(".clip-subtitle")?.textContent
+        })}
+    }
+
+    it("are drawn in place of the headline and its line, and of a hook", () => {
+        const {root} = overlaid([0], hooked)
+
+        expect(root.querySelector(".clip-top .clip-subtitle")).not.toBeNull()
+        expect(root.querySelector(".clip-headline")).toBeNull()
+        expect(root.querySelector(".clip-line")).toBeNull()
+        expect(root.querySelector(".clip-hook")).toBeNull()
+    })
+
+    it("show what the voice says, in capitals, a piece at a time", () => {
+        expect(overlaid([0, 0.5, 1.3, 2]).shown).toEqual(["", "YEAH,", "BULGARIA.", ""])
+    })
+
+    it("are drawn in the font that has their letters, whatever the headline's", () => {
+        const root = document.createElement("div")
+        createOverlay(root, saga, {...wordsOf(saga, {...written, headline: "BULGARIA RULES İNDIA"}), subtitles}, new Map(), [])
+        const fallback = document.createElement("div")
+        createOverlay(fallback, saga, {...wordsOf(saga, written), subtitles: subtitlesOf([{text: "Łódź", from: 0, to: 1}])}, new Map(), [])
+
+        expect(root.classList.contains("clip--fallback-font")).toBe(false)
+        expect(fallback.classList.contains("clip--fallback-font")).toBe(true)
     })
 })
 

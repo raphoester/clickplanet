@@ -1,7 +1,8 @@
 # Clips
 
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
-the map moving under it from the first frame, and the link at the end. `npm run clip` makes one from a replay and a
+the map moving under it from the first frame, and the link at the end. A war report is a clip given a voice, its
+subtitles in place of the headline (`--voice`, below). `npm run clip` makes one from a replay and a
 story: **the generator measures, the editor judges** (2026-10-27). `--findings` writes what the replay holds, every
 front, tour and place with its numbers and nothing decided; a model in the backend's job writes the stories from it;
 `--story` renders one of them, and chooses the camera's path, the length and the music's start itself. Each comes with a
@@ -265,6 +266,30 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   `from` and `to` in seconds), which subtitles are timed from; the workflow turns each into an MP3. Adam (`am_adam`) is the default, the owner's pick by ear. **A package of its own**, with its lock and an
   `.npmrc` that skips onnxruntime's CUDA download, so none of it is in the game's dependencies. Its model comes from
   Hugging Face on the first call, which the runner reaches.
+- **A war report is a clip given a voice** (`--voice <wav>`, built 2026-11-23; the root's [The video
+  lab](../../../docs/video-lab.md), "The formats"): any story, played as its clip is, with the voice over the globe and
+  every word it says on screen. `render.mjs` reads the voice's lines and their times from the `voices.json` that
+  `voice.mjs` wrote beside the WAV, and hands them to the page (`voice`).
+  - **The voice starts 0.4 s in** (`VOICE_AT_SECONDS`, `domain/clip/voice.ts`), over the anthem, which plays at 16% of
+    its volume under it (`MUSIC_UNDER_VOICE`, ffmpeg's `amix`). With `--silent`, the voice alone.
+  - **The clip lasts as long as the voice** (`voicedTimelineOf`): 0.4 s, the voice, 0.4 s more to read its last
+    words, then the call's 2.5 s (4 s after a day's podium), so the call never crosses the last words: the first
+    render, with the 0.4 s inside the call, faded "AND INDIA COULD BE TURKEY'S" into "FIGHT BACK". `--seconds` goes with
+    no voice. **It passes 22 s when the voice needs it**: the writer's 45 to 65 words at 1.15 take 15.4 to 19.3 s (the
+    ten scripts of 2026-11-23), so the clips run 18.7 to 22.6 s, two of the ten past 22, and cutting the voice would
+    cut its last sentence, the question it ends on. 30 s at most, the design's ceiling, inside the render job's 60
+    minutes; a longer voice fails the render.
+  - **The subtitles** (`subtitlesOf`): each line is cut at its commas, semicolons and colons, then evenly into pieces
+    of 6 words at most ("Okay," / "so it's day twenty three," / "and Bulgaria rules India."), each timed by its share
+    of the line's characters between the line's `from` and `to`. A piece shows until the next one starts, over the
+    breath between two lines too, and the last until its line ends and 0.4 s more. The page shows the piece of each
+    frame on the recorder's clock, so every frame is exact.
+  - **Layout A, the owner's pick of 2026-11-23**: no headline, no line under it and no hook; the subtitles where the
+    headline was (`.clip-subtitle`), in capitals, Luckiest Guy, white on `--text-outline-l`, 36px on the 540-wide page,
+    centred, two lines at most (`text-wrap: balance`; a piece that would take a third is set smaller by `fit`), the
+    spaces widened to 0.22em, since Luckiest Guy's read as none. The headline stays the `Clip`'s title and the
+    `.txt`'s. The date, the counters, the address and the call stay as they are.
+  - **Not built yet**: the writer in the clips job, the lab's experiment and the posting, the next PR.
 - **A lab story's hook is read alone first** (`.clip-hook`, `HOOK_SECONDS`): big gold words over the first 1.5 s,
   "WHY IS HUNGARY IN INDONESIA?", below where the headline then fades in over half a second as the hook fades out, so
   the two never cross. The map plays under it from the first frame, and the counter shows. A hook in letters Luckiest
@@ -435,7 +460,8 @@ virtual clock, `cameraOf`), drawn on a canvas in the player's browser: see [Play
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
   go**: 6s for a fight in one place, however many hours it lasted (room for the close-ups and the pull back out), and 1.2s more for every screen the fighting
-  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s but
+  a war report, which lasts as long as its voice (above).
   So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 6.5 to 19, by its stops; only `--seconds`
   reaches 22.
 

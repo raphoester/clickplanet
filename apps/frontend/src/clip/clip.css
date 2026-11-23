@@ -22,7 +22,7 @@ html, body {
     --font-display: "Rubik", system-ui, sans-serif;
 }
 
-.clip--fallback-font :is(.clip-headline, .clip-hook, .clip-counter, .clip-site, .clip-call, .clip-when, .clip-url, .clip-podium-place,
+.clip--fallback-font :is(.clip-headline, .clip-subtitle, .clip-hook, .clip-counter, .clip-site, .clip-call, .clip-when, .clip-url, .clip-podium-place,
     .clip-fighters-title, .clip-fighter, .carousel-hook, .carousel-rank, .carousel-title, .carousel-number, .carousel-line, .carousel-site) {
     font-weight: 900;
 }
@@ -52,6 +52,27 @@ html, body {
     -webkit-text-stroke: 5px var(--ink);
     paint-order: stroke fill;
     text-shadow: 0 3px 0 var(--ink);
+}
+
+/* A war report's voice, said where the headline was, in a box two lines tall so a piece of one line does not jump.
+   Luckiest Guy's spaces read as none: they are widened. */
+.clip-subtitles {
+    display: grid;
+    place-items: center;
+    height: 84px;
+}
+
+.clip-subtitle {
+    margin: 0;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: normal;
+    line-height: 1.12;
+    word-spacing: 0.22em;
+    text-wrap: balance;
+    color: var(--text);
+    text-shadow: var(--text-outline-l);
 }
 
 /* A lab story's opening words, alone over the first second and a half, under where the headline then comes in, so the

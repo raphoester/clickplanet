@@ -1,5 +1,6 @@
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
+import {Subtitle, subtitleAt} from "../domain/clip/voice.ts"
 import {ordinalOf} from "./ordinal.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
@@ -22,6 +23,8 @@ export type Words = {
     table?: Standing[]
     when?: string
     speech?: Speech
+    // A war report's voice, said: drawn where the headline was, which then stays the post's title alone.
+    subtitles?: Subtitle[]
 }
 
 export type Standing = {rank: number, country: string, name: string, points: string}
@@ -199,6 +202,34 @@ function tilesSaid(count: number): string {
     return `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
 }
 
+const MOST_SUBTITLE_LINES = 2
+
+const subtitleText = ({text}: Subtitle) => text.toUpperCase()
+
+function linesOf(box: HTMLElement): number {
+    const style = getComputedStyle(box)
+    const height = box.clientHeight - parseFloat(style.paddingTop || "0") - parseFloat(style.paddingBottom || "0")
+    return Math.round(height / (parseFloat(style.lineHeight) || 1))
+}
+
+// The size each piece too long for two lines is set at, a pixel smaller at a time: a long word can make a third.
+function subtitleSizesOf(box: HTMLElement, pieces: readonly Subtitle[]): Map<Subtitle, string> {
+    const base = parseFloat(getComputedStyle(box).fontSize)
+    const sizes = new Map<Subtitle, string>()
+    for (const piece of pieces) {
+        box.textContent = subtitleText(piece)
+        let size = base
+        while (linesOf(box) > MOST_SUBTITLE_LINES && size > base / 2) {
+            size -= 1
+            box.style.fontSize = `${size}px`
+        }
+        if (size < base) sizes.set(piece, `${size}px`)
+        box.style.fontSize = ""
+    }
+    box.textContent = ""
+    return sizes
+}
+
 // named: the players the end card names, by side. ground: the tiles of the place, when the counter says what share of
 // it a side holds rather than how many tiles.
 export function createOverlay(
@@ -211,8 +242,11 @@ export function createOverlay(
 ): Overlay {
     const sides = sidesOf(story)
     const speech = words.speech
+    const subtitles = words.subtitles ?? []
+    const voiced = subtitles.length > 0
     const said = [
-        words.headline, words.hook ?? "", words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
+        ...voiced ? subtitles.map(subtitleText) : [words.headline, words.hook ?? ""],
+        words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
         ...speech === undefined ? [] : [0, 1, 2, 5, 22, 1234].map(speech.tiles),
         ...named.length === 0 ? [] : [TOP_FIGHTERS],
         ...named.flatMap(({fighters}) => fighters.map(({name, took}) => `${name} ${tilesSaid(took)}`)),
@@ -220,10 +254,16 @@ export function createOverlay(
     if (!said.every((text) => DISPLAY_FONT_DRAWS.test(text))) root.classList.add("clip--fallback-font")
 
     const top = element("header", "clip-top", root)
-    const headline = element("h1", "clip-headline", top)
-    for (const side of sides) flag(side, "clip-headline-flag", headline)
-    element("span", "", headline).textContent = words.headline
-    if (words.line !== undefined) element("p", "clip-line", top).textContent = words.line
+    // A voice's words are read where the headline was, and nothing else is: no headline, no line, no hook.
+    const subtitle = voiced ? element("p", "clip-subtitle", element("div", "clip-subtitles", top)) : undefined
+    if (!voiced) {
+        const headline = element("h1", "clip-headline", top)
+        for (const side of sides) flag(side, "clip-headline-flag", headline)
+        element("span", "", headline).textContent = words.headline
+        if (words.line !== undefined) element("p", "clip-line", top).textContent = words.line
+    }
+    let subtitleSizes = new Map<Subtitle, string>()
+    let saying: Subtitle | undefined
 
     const bottom = element("footer", "clip-bottom", root)
     // A saga is days long: the day it is at reads as big as its counters.
@@ -244,7 +284,7 @@ export function createOverlay(
     const track = element("div", "clip-track", bottom)
     const progress = element("div", "clip-progress", track)
 
-    const hook = words.hook === undefined ? undefined : element("p", "clip-hook", root)
+    const hook = words.hook === undefined || voiced ? undefined : element("p", "clip-hook", root)
     if (hook !== undefined) hook.textContent = words.hook ?? ""
 
     const ending = element("section", "clip-ending", root)
@@ -294,6 +334,12 @@ export function createOverlay(
             const over = faded(into)
             const opened = hook === undefined ? 1 : faded(seconds - HOOK_SECONDS)
             if (hook !== undefined) hook.style.opacity = String(1 - opened)
+            const now = subtitleAt(subtitles, seconds)
+            if (subtitle !== undefined && now !== saying) {
+                subtitle.textContent = now === undefined ? "" : subtitleText(now)
+                subtitle.style.fontSize = now === undefined ? "" : subtitleSizes.get(now) ?? ""
+                saying = now
+            }
             for (const {side, tiles, delta} of shown) {
                 const count = held.get(side) ?? 0
                 const moved = count - (opening.get(side) ?? 0)
@@ -314,6 +360,10 @@ export function createOverlay(
         },
         fit() {
             fitFlags(endingFlags, callFlags)
+            if (subtitle !== undefined) {
+                subtitleSizes = subtitleSizesOf(subtitle, subtitles)
+                saying = undefined
+            }
             for (const name of names) {
                 if (name.scrollWidth > name.clientWidth) name.style.fontSize = `${Math.floor(name.clientWidth / name.scrollWidth * 100) / 100}em`
             }

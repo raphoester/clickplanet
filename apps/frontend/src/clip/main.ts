@@ -37,6 +37,7 @@ import {Flip, flippedTo, flipsOf, Look, LOOKS} from "../domain/clip/look.ts"
 import {blendedPaceOf, paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {framedTilesOf, pathsOf, sagasOf} from "../domain/clip/saga.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
+import {Said, subtitlesOf, VOICE_AT_SECONDS, voicedTimelineOf} from "../domain/clip/voice.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
@@ -73,6 +74,8 @@ export type Recording = {
     // A carousel's photos, each a still frame, and how long the slideshow shows each; none for a video.
     photos: number
     secondsPerPhoto: number
+    // A war report's voice: when it starts in the clip, how long it says, and the pieces of its subtitles.
+    voice: {at: number, seconds: number, subtitles: number} | undefined
 }
 
 export type Recorder = {
@@ -206,6 +209,17 @@ function windowParam(replay: ReplayBackend): Window | undefined {
         since: since === null ? replay.since : Math.max(replay.since, Date.parse(since)),
         until: until === null ? replay.until : Math.min(replay.until, Date.parse(until)),
     }
+}
+
+// The lines of a war report's voice, as voice.mjs timed them.
+function voiceParam(): Said[] | undefined {
+    const json = params.get("voice")
+    if (json === null) return undefined
+    const lines: unknown = JSON.parse(json)
+    const read = Array.isArray(lines) && lines.length > 0
+        && lines.every((line) => typeof line?.text === "string" && typeof line.from === "number" && typeof line.to === "number")
+    if (!read) throw new Error(`a voice's lines are each a text, a from and a to: ${json.slice(0, 200)}`)
+    return lines
 }
 
 function storyParam(): ReturnType<typeof toldOf> {
@@ -559,6 +573,7 @@ async function choose(): Promise<Chosen> {
             }).toJson(),
             photos: photos.length,
             secondsPerPhoto: SECONDS_PER_PHOTO,
+            voice: undefined,
         }
     }
 
@@ -603,7 +618,10 @@ async function choose(): Promise<Chosen> {
         const switched = new Set(flippedTo(flips, story.attacker).map(({landmass}) => landmass))
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf, (tile) => switched.has(borders.assignment[tile - 1])), aspect) : []
         if (world && stops.length === 0) throw new Error(`no painted flag switches to ${nameOf(story.attacker)}: a tour shows nothing`)
-        const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
+        // A war report is a clip given a voice: it lasts as long as the voice says.
+        const said = voiceParam()
+        const timeline = said !== undefined ? voicedTimelineOf(said, seasonal ? PODIUM_ENDING_SECONDS : undefined)
+            : world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
             : saga ? timelineFor(SAGA_PLAY_SECONDS, numberParam("seconds"))
             : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight, scale))
@@ -635,7 +653,8 @@ async function choose(): Promise<Chosen> {
             onMines: () => {}, onMineLaid: () => {}, onRallies: () => {}, onRallyCalled: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
-        const words = wordsOf(story, written, params.get("headline") ?? undefined)
+        const subtitles = said === undefined ? [] : subtitlesOf(said)
+        const words = {...wordsOf(story, written, params.get("headline") ?? undefined), ...said === undefined ? {} : {subtitles}}
         const overlay = createOverlay(root, story, words, opening, named, ground)
         // A seasonal story plays its flag's anthem: no editor chose one.
         const music = params.has("silent") ? undefined : musicOf(seasonal ? story.attacker : written?.anthem, timeline.seconds)
@@ -700,6 +719,7 @@ async function choose(): Promise<Chosen> {
             music,
             photos: 0,
             secondsPerPhoto: 0,
+            voice: said === undefined ? undefined : {at: VOICE_AT_SECONDS, seconds: said.at(-1)?.to ?? 0, subtitles: subtitles.length},
         }
     }
 

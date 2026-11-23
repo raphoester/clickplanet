@@ -3,7 +3,7 @@ export type Timeline = {
     ending: number
 }
 
-const ENDING_SECONDS = 2.5
+export const ENDING_SECONDS = 2.5
 
 // A clip lasts as long as its camera has somewhere to go: a fight in one place is over in a few seconds, however
 // long it went on, and only one that crosses the map gets long. The shortest still has room for the dive in, the
