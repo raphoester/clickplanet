@@ -14,6 +14,10 @@ import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBac
 import {API_BASE_URL} from "./backends/transport.ts"
 import {languageInterceptor} from "./backends/language.ts"
 import {speakChosenLanguage} from "./i18n/start.ts"
+import {FlagLister} from "./backends/flags.ts"
+import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
+import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
+import {useFlags} from "./app/flags/flagsStore.ts"
 
 const speaking = speakChosenLanguage()
 
@@ -33,14 +37,16 @@ function geometry(name: string): Promise<BoardGeometry> {
     return reading
 }
 
+const faked = import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND
+
+const config = {
+    baseUrl: API_BASE_URL,
+    timeoutMs: 10_000,
+    interceptors: [languageInterceptor(speaking.then((translator) => translator.language))],
+}
+
 function turnBackend(): TurnBackend {
-    if (!(import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND)) {
-        return new ConnectTurnBackend(newGamemasterServiceClient({
-            baseUrl: API_BASE_URL,
-            timeoutMs: 10_000,
-            interceptors: [languageInterceptor(speaking.then((translator) => translator.language))],
-        }))
-    }
+    if (!faked) return new ConnectTurnBackend(newGamemasterServiceClient(config))
     const fake = new FakeTurnBackend(undefined, Date.now, [SEASON_ZERO])
     fake.replayOn(() => loadBorders(boardOf(FIRST_BOARD).urls.borders).then(({assignment, codes}) => new Map(
         [...assignment].flatMap((land, i) => land && codes[land] ? [[i + 1, codes[land]] as const] : []),
@@ -48,7 +54,13 @@ function turnBackend(): TurnBackend {
     return fake
 }
 
+// The flags opened since the build, named once: the archive has no stream to say the list changed.
+function flagLister(): FlagLister {
+    return faked ? new FakeFlagsBackend() : new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true))
+}
+
 const turn = turnBackend()
+useFlags.getState().serve(flagLister())
 void speaking.then(() => createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <SeasonMap turn={turn} geometry={geometry}/>

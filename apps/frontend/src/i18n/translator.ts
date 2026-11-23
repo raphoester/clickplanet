@@ -3,6 +3,7 @@ import englishCountries from "./countries/en.json"
 import {Language, SOURCE_LANGUAGE} from "./languages.ts"
 import {formatMessage, MissingValueError, Node, parseMessage, Speech, Value} from "./message.ts"
 import type {Countdown} from "../domain/seasonClock.ts"
+import {isOpenedCode} from "../domain/flags.ts"
 
 export type Key = keyof typeof en
 
@@ -33,6 +34,13 @@ export type RichValues<T> = Readonly<Record<string, Value<T>>>
 // The flags ISO has no code for, and the codes CLDR names in a way that reads badly on a board ("Congo - Kinshasa",
 // "Saint-Martin (partie néerlandaise)", "État de la Cité du Vatican"): each has its own line, `country.<code>`.
 export const OWN_COUNTRY_NAMES: ReadonlySet<string> = new Set(["xb", "xk", "gb-eng", "gb-sct", "gb-wls", "cd", "cg", "sx", "va"])
+
+// The server's list names a flag opened since the build, in English, after the page draws.
+let openedNameOf: (code: string) => string | undefined = () => undefined
+
+export function nameOpenedFlags(names: (code: string) => string | undefined): void {
+    openedNameOf = names
+}
 
 const COUNTDOWN_UNITS = ["day", "hour", "minute", "second"] as const
 
@@ -110,7 +118,9 @@ export class Translator {
         return a.localeCompare(b, this.locale)
     }
 
+    // An opened flag the list does not name yet reads as its code, and is not kept: the list names it later.
     country(code: string): string {
+        if (isOpenedCode(code)) return openedNameOf(code) ?? code
         const known = this.countries.get(code)
         if (known !== undefined) return known
         const name = this.countryNameOf(code)
@@ -155,6 +165,7 @@ export class Translator {
     }
 
     private countryInNodesOf(code: string): Node[] {
+        if (isOpenedCode(code)) return [{kind: "slot", name: "flag"}, {kind: "text", text: ` ${this.country(code)}`}]
         const known = this.countriesIn.get(code)
         if (known) return known
         const key = `in.${code}`

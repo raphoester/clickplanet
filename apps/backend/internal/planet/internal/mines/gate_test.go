@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 )
 
 const alice = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
@@ -55,7 +55,7 @@ func (r refusals) Refusal(context.Context, clicks.Payer) (clicks.Refusal, bool, 
 var tiles = board{7: "fr", 8: "de", 9: "fr"}
 
 func gateWith(allegiance flags, refused refusals) mines.Gate {
-	return mines.NewGate(tiles, capitals{9}, cpcountries.New(), allegiance, refused)
+	return mines.NewGate(tiles, capitals{9}, catalog.NewOpenCatalog(), allegiance, refused)
 }
 
 func lay(g mines.Gate, t *testing.T, tile uint32, country string) error {

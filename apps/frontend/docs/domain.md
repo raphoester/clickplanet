@@ -25,7 +25,8 @@ them in the page's language. See [Translation](i18n.md).
   retires one `DELTA_HOLD_MS` after its last tile.
   **Both hand back the map they were given when nothing moved**, so a quiet
   leaderboard costs no render.
-- `countries.ts` — the country list, keyed by code.
+- `countries.ts` — the flags the game ships with, keyed by code. `flags.ts` — `FlagCatalog`, those flags merged with
+  the server's list, and `FlagReads`, when the page reads the list again. See [The list of flags](flag-catalog.md).
 - `chatLog.ts` — `addMessages`, the merge of the history fetch and the live
   stream into one bounded list. **The two sources overlap**: your own message
   arrives twice (the `SendMessage` response and the broadcast that follows), and

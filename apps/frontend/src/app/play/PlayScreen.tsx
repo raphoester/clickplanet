@@ -50,7 +50,7 @@ import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import type {BoardAsset} from "../../domain/board.ts"
 import {shareAddress, shareStats} from "../../domain/shareCard.ts";
-import {Countries, Country} from "../../domain/countries.ts";
+import {Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
 import {useAllegiance} from "../useAllegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
@@ -120,6 +120,8 @@ import Moments from "../announcements/Moments.tsx";
 import {runningSeason, useSchedule} from "../battle/scheduleStore.ts";
 import {useScheduleFeed} from "../battle/useScheduleFeed.ts";
 import {useTeaserCardsFeed} from "../battle/useTeaserCardsFeed.ts";
+import {FlagLister, FlagStream} from "../../backends/flags.ts";
+import {useFlagsFeed} from "../flags/flagsStore.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
@@ -202,6 +204,8 @@ export type Backends = {
     // Which names a player's video, and its address, may show.
     shownNames: ShownNamesBackend
     landings: LandingStore
+    // The list of flags, and the flags module's stream.
+    flags: FlagLister & FlagStream
 }
 
 export type PlayScreenProps = {
@@ -218,14 +222,12 @@ export default function PlayScreen(props: PlayScreenProps) {
     const handleSetCountry = useCountry((store) => store.choose)
     const allegiance = useAllegiance(backends.allegiance)
     useEffect(() => {
-        const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
-        if (held) handleSetCountry(held)
+        if (allegiance && allegiance.countryId !== countryState.code) handleSetCountry({code: allegiance.countryId})
     }, [allegiance, countryState.code, handleSetCountry])
     const {chatBackend} = backends
     const heldFlag = allegiance?.countryId
     const flagRoom = useMemo(() => {
-        const country = heldFlag === undefined ? undefined : Countries.get(heldFlag)
-        return country ? {country, backend: chatBackend.flagRoom(country.code)} : undefined
+        return heldFlag === undefined ? undefined : {country: {code: heldFlag}, backend: chatBackend.flagRoom(heldFlag)}
     }, [chatBackend, heldFlag])
     const pickCountry = async (country: Country) => {
         if (country.code !== countryState.code) await backends.allegiance.pledgeAllegiance(country.code)
@@ -273,6 +275,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const crowd = useRoster(onlineCount)
     useScheduleFeed(backends.turn, backends.standings)
     useTeaserCardsFeed(backends.promo)
+    useFlagsFeed(backends.flags)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
     const seasons = useSchedule((schedule) => schedule.seasons)

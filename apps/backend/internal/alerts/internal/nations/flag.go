@@ -1,27 +1,22 @@
 package nations
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
-
-var ErrUnknownFlag = errors.New("no flag has this code")
 
 type Flag string
 
-var flags = cpcountries.New()
-
-func FlagOf(code string) (Flag, error) {
-	if !flags.CheckCountry(code) {
-		return "", fmt.Errorf("%w: %q", ErrUnknownFlag, code)
+// FlagOf is the flag of a role in the server: none for a flag opened since the game shipped, which has no role yet.
+func FlagOf(code string) (Flag, bool) {
+	if !cpflags.IsBuiltIn(code) {
+		return "", false
 	}
-	return Flag(code), nil
+	return Flag(code), true
 }
 
 var invented = map[Flag]string{"xb": "Brittany"}

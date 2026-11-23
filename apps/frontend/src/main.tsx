@@ -58,7 +58,7 @@ import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
 import {FakePromoBackend} from "./backends/fakePromoBackend.ts"
 import {ConnectPromoBackend, newPromoServiceClient} from "./backends/promoBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
-import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
+import {SHARE_FLAG_PARAM, sharedCountry, sharedFlagCode, withoutSharedFlag} from "./domain/shareCard.ts"
 import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
 import {discordJoinAsked, withoutDiscordJoin} from "./domain/discordJoin.ts"
 import {enterFrontGuide} from "./app/frontGuide.ts"
@@ -84,6 +84,10 @@ import {FakeRecentHistory} from "./backends/fakeRecentHistory.ts"
 import {FakeShownNames} from "./backends/fakeShownNames.ts"
 import {languageInterceptor} from "./backends/language.ts"
 import {speakChosenLanguage} from "./i18n/start.ts"
+import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
+import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
+import {afterFirstRead} from "./app/flags/flagsStore.ts"
+import {isOpenedCode} from "./domain/flags.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -92,6 +96,7 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
 if (shared) useCountry.getState().choose(shared)
+else chooseOnceListed(sharedFlagCode(page))
 const shot = linkedShot(page)
 const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
@@ -156,6 +161,16 @@ const FAKE_GRANT_LANDS_MS = 1_200
 // Alerts hears auth's DiscordJoinGranted over Redis, auth's outbox sends once a second, then alerts asks Discord.
 const FAKE_JOIN_LANDS_MS = 1_500
 
+// A flag opened since the build is known once the page reads the list: its link plays it then, if it is open.
+function chooseOnceListed(code: string | undefined) {
+    if (code === undefined || !isOpenedCode(code)) return
+    const linked = useCountry.getState().country.code
+    afterFirstRead((catalog) => {
+        const {country, choose} = useCountry.getState()
+        if (catalog.playable(code) && country.code === linked) choose({code})
+    })
+}
+
 function start(backends: Backends) {
     void speaking.then(() => root.render(
         <StrictMode>
@@ -194,6 +209,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const alerts = new DiscordAlerts(new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS),
         () => account.connectDiscord(), joinDiscord)
     const fakeClips = new FakeClipsBackend()
+    const fakeFlags = new FakeFlagsBackend()
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -255,6 +271,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.lockFlags(false)
             return "the flags may change again"
         },
+        openFlag: (name = "Bavaria") => `${name} is open as ${fakeFlags.open(name)}: its tiles wear the blank flag`,
+        closeFlag: (code: string) => fakeFlags.close(code)
+            ? `${code} is closed: the picker leaves it out, and history still names it`
+            : `no open flag ${code}: openFlag(name) answers one`,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
@@ -441,6 +461,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         recentHistory: new FakeRecentHistory(fake, () => borders.then(({assignment}) => assignment.length)),
         shownNames: new FakeShownNames(fakeNameplates),
         landings: localLandingStore(),
+        flags: fakeFlags,
     })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config), boards)
@@ -510,5 +531,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         recentHistory: new ConnectRecentHistory(newClickServiceClient(config)),
         shownNames: clips,
         landings: localLandingStore(),
+        flags: new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true)),
     })
 }

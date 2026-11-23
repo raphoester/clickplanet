@@ -74,12 +74,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 }
 
 func (u *UseCase) swap(ctx context.Context, move links.Move) error {
-	granted, err := u.roles.Ensure(ctx, roles.Nation(move.To))
-	if err != nil {
-		return err //nolint:wrapcheck // the book named it.
-	}
-	if err := u.members.Grant(ctx, move.User, granted); err != nil {
-		return err //nolint:wrapcheck // the client named it.
+	if move.To != "" {
+		granted, err := u.roles.Ensure(ctx, roles.Nation(move.To))
+		if err != nil {
+			return err //nolint:wrapcheck // the book named it.
+		}
+		if err := u.members.Grant(ctx, move.User, granted); err != nil {
+			return err //nolint:wrapcheck // the client named it.
+		}
 	}
 	if move.From == "" {
 		return nil

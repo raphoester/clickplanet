@@ -12,15 +12,15 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/log_allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const alice = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 
 func logged(store *allegiances.MemoryStore, out *bytes.Buffer) *log_allegiances.Logged {
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
+	book := allegiances.NewBook(store, catalog.NewOpenCatalog(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
 		cptime.NewFixedClock(time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)), &allegiances.RecordedPledges{})
 	return log_allegiances.New(book, slog.New(slog.NewTextHandler(out, nil)))
 }

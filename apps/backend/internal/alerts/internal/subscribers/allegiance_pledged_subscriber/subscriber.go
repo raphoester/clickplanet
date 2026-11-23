@@ -30,10 +30,8 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.AllegiancePledge
 	if err != nil {
 		return err //nolint:wrapcheck // the rule named it.
 	}
-	flag, err := nations.FlagOf(event.GetCountry())
-	if err != nil {
-		return err //nolint:wrapcheck // the flag named it.
-	}
+	// A flag with no role takes the user's off.
+	flag, _ := nations.FlagOf(event.GetCountry())
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()

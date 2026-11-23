@@ -26,6 +26,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/close_arena_usecase/log_close_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase/log_open_arena"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog/postgres_catalog_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
@@ -181,6 +183,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/usecases/reset_map_usecase/log_reset_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_opened_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/traps"
@@ -193,7 +197,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/uuid_virus_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -221,10 +225,9 @@ func NewModule(config Config) cpbootstrap.Module {
 		Enabled: true,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			clock := cptime.SystemClock{}
-			countries := cpcountries.New()
 
 			// Every board this process carries, each one's ground built when first needed: the map in play's at the boot.
-			registry := embedded_board.New(cpboards.Files(), mapdata.Carries(), countries.CheckCountry, props.Logger)
+			registry := embedded_board.New(cpboards.Files(), mapdata.Carries(), cpflags.IsBuiltIn, props.Logger)
 			if err := registry.Load(); err != nil {
 				return fmt.Errorf("failed to read the boards: %w", err)
 			}
@@ -351,11 +354,26 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			refusing := log_refusals.New(refusalBook, props.Logger)
 
+			flagCatalog := catalog.NewCatalog(postgres_catalog_store.New(db))
+			flagsOpened, err := cpredis.Subscribe(ctx, streams, "planet-flags-opened",
+				log_subscriber.New(flag_opened_subscriber.New(flagCatalog), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagOpened: %w", err)
+			}
+			// Its players and its land stay as they are: no click, pledge or charge plays for the flag from now.
+			flagsClosed, err := cpredis.Subscribe(ctx, streams, "planet-flags-closed",
+				log_subscriber.New(flag_closed_subscriber.New(flagCatalog), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
+			}
+
 			told := facts.NewLog(clock)
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -367,7 +385,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(cprules.Reader(inForce, clicks.TollPart), tilesStorage)
 
-			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, tilesStorage, clock,
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), flagCatalog, lock, tilesStorage, clock,
 				allegiances.Tellers{allegiance_facts.New(told), allegiance_streams.New(board)})
 			flags := log_allegiances.New(book, props.Logger)
 
@@ -380,7 +398,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			muster := rallies.NewMuster(chargeRules, played, uuid_rally_ids.Provider{}, clock)
 			discount := log_discount.New(rallies.NewDiscount(rallyStore, played, chargeRules, clock), props.Logger)
 
-			var clickUseCase click_usecase.IUseCase = click_usecase.New(played, writer, countries)
+			var clickUseCase click_usecase.IUseCase = click_usecase.New(played, writer, flagCatalog)
 			clickUseCase = spread_click.New(clickUseCase, hands, reach, writer, board)
 
 			clickUseCase = enclose_click.New(clickUseCase, hands,
@@ -417,7 +435,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock, eraStore))
 			adminService := planetv1controller.AdminService{
 				FindPlayersHandler: find_players_handler.New(
-					find_players_usecase.New(takings, tilesStorage, played, refusalBook, countries)),
+					find_players_usecase.New(takings, tilesStorage, played, refusalBook, flagCatalog)),
 				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, refusalBook)),
 				RevertPlayerHandler: revert_player_handler.New(
 					audit_revert.New(revert_player_usecase.New(takings, world_replay.NewToNow(world, clock), tilesStorage, pace), props.Logger)),
@@ -509,7 +527,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			dropBomb := prom_drop_bomb.New(
-				refusal_drop_bomb.New(drop_bomb_usecase.New(hands, played, writer, countries, bombing), refusing),
+				refusal_drop_bomb.New(drop_bomb_usecase.New(hands, played, writer, flagCatalog, bombing), refusing),
 				props.Metrics)
 
 			service := planetv1controller.ClickService{
@@ -526,19 +544,19 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, muster, pricer,
 					cprules.Reader(inForce, clicks.ReachPart), cprules.Reader(inForce, clicks.CapitalsPart)),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
+					place_shield_usecase.New(placements.NewGate(tilesStorage, flagCatalog, flags, chargeRules), escrow, writer),
 					refusing)),
 				UseVirusHandler: use_virus_handler.New(use_virus_usecase.New(
-					viruses.NewGate(tilesStorage, countries, flags, reach, refusing), uuid_virus_ids.Provider{}, hands, infections,
+					viruses.NewGate(tilesStorage, flagCatalog, flags, reach, refusing), uuid_virus_ids.Provider{}, hands, infections,
 					outbreak)),
 				LayMineHandler: lay_mine_handler.New(lay_mine_usecase.New(
-					mines.NewGate(tilesStorage, capitalPlay, countries, flags, refusing), hands, minefield, board)),
+					mines.NewGate(tilesStorage, capitalPlay, flagCatalog, flags, refusing), hands, minefield, board)),
 				GetMinesHandler: get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
 				LayTrapHandler: lay_trap_handler.New(lay_trap_usecase.New(
-					traps.NewGate(tilesStorage, countries, flags, refusing), hands, clicks.NewTrapline(tilesStorage), board)),
+					traps.NewGate(tilesStorage, flagCatalog, flags, refusing), hands, clicks.NewTrapline(tilesStorage), board)),
 				GetTrapsHandler: get_traps_handler.New(traps_query.NewMemoryQuery(tilesStorage, book)),
 				CallRallyHandler: call_rally_handler.New(call_rally_usecase.New(
-					rallies.NewGate(countries, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
+					rallies.NewGate(flagCatalog, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
 					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, played, played)})),
 				GetRalliesHandler:    get_rallies_handler.New(rallies_query.NewPostgresQuery(db, clock)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),

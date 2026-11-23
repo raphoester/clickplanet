@@ -36,8 +36,7 @@ func (k Key) flag() (nations.Flag, bool) {
 	if !found {
 		return "", false
 	}
-	flag, err := nations.FlagOf(code)
-	return flag, err == nil
+	return nations.FlagOf(code)
 }
 
 const (

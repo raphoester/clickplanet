@@ -58,7 +58,7 @@ return []cpbootstrap.Module{
   **The process asks `auth` for the key** over the internal listener, rather than reading one: `cpbootstrap` builds one `cpsessionverifier` and hands it to every module (`props.Sessions`) — see [Calling another module](#calling-another-module) and [Sessions](sessions.md). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
 
   Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
-- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+- **`shared/cpflags`** is the flags the game ships with, embedded from the page's `countries.json`, and the shape of a flag opened since. It is stateless, so each module just calls `cpflags.IsBuiltIn` or takes `cpflags.Codes{}`, as it calls `cptime.SystemClock{}`. Which flags opened since are open is planet's alone, from the flags module's facts — see [The flags module](flags.md).
 
 **This is why `auth.secret` is now required** rather than invented at boot — see [Sessions](sessions.md).
 
@@ -211,6 +211,8 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `chat-judge-reports` | the judge keeps a judgement per report (`chat.judgements`, in the transaction that acts on it): a report told again finds it and does nothing; many reports of one message are judged once, by the first that judged it |
 | `commands:bonuses.v1.PayLevelUp` (the bonuses module's `handler`) | fills every stack through planet's `FillCharges` under progression's `grant_id`, one per account and level, which planet keeps for good in `charge_grants` |
 | `commands:bonuses.v1.KeepUnlocks` (the bonuses module's `handler`) | each command names the whole list and when it was decided; the bonuses module keeps the latest per account (`unlocks.Unlocks.Decided`), under an advisory lock, so one sent again, late or out of order changes nothing |
+| `planet-flags-opened`, `planet-flags-closed` | each fact names when the flag was opened or closed; the catalog keeps the latest per flag (`catalog.Heard`), under an advisory lock, so a fact told again (at each boot) or older than the one kept changes nothing |
+| `flags-streams-opened`, `flags-streams-closed` (the flags module's own) | each tells the open streams the flag as its table holds it now: told twice, a page merges the same flag twice; a fact decided before the boot is not told |
 | `commands:support.v1.DecideReport` (support's `handler`) | the report's id is the command's: `SaveOnce` keeps a decision only for a report not decided yet, so one told again, or one the operator decided first, changes nothing |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
@@ -245,6 +247,9 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   mission's use cases record it beside the `scoring.v1.GrantPoints` of its points, in the transaction that finishes it.
 - `support.v1.PlayerReported`: a lost one is a report the chat's judge never reads, left to the operator's eyes alone.
   `report_player_usecase` records it in the transaction that keeps the report.
+- `flags.v1.FlagOpened` and `FlagClosed`: a lost one leaves planet refusing an open flag, or playing a closed one,
+  for good. `open_flag_usecase` and `close_flag_usecase` record it in the transaction that keeps the flag, and
+  `restate_flags_usecase` records every flag again at each boot (see [The flags module](flags.md)).
 - `support.v1.DecideReport`, a command, and the `chat.v1.AccountMuted` of a mute the judge gave: a lost decision leaves a
   report open that the chat acted on, and a lost announcement a mute nobody saw. `judge_report_usecase` records both in
   the transaction that removes, mutes and keeps the judgement; the relay sends the command to support's stream and the
@@ -369,6 +374,7 @@ The events today:
 | `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
 | `gamemaster.v1.SeasonStarted{season, book_id, starts_at, ends_at}`, `BattleStarted{season, number, entry_id, times, ends_season, round_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the season and the battle (the finale too) that run, once as each starts; a boot tells one that runs if it was never told, never one that ended | `alerts`, which pings the server |
 | `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion; `progression`, which records a season's finale fighters from scoring (`SeasonEnded`) |
+| `flags.v1.FlagOpened{flag, name, opened_at}`, `FlagClosed{flag, closed_at}` | `flags`, through its outbox, from `open_flag_usecase` and `close_flag_usecase`, and every flag again at each boot from `restate_flags_usecase` | a flag opened since the game shipped, or closed: of one flag, the latest time holds | `planet` (`planet-flags-opened`, `planet-flags-closed`), which keeps it in its catalog; `flags` itself (`flags-streams-opened`, `flags-streams-closed`), which tells its open streams a fact decided since its boot |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, one line in the slice, and a `handle` for its public service in `deploy/vps/caddy/Caddyfile`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit; but Caddy answers 404 for a path it does not list, and the client reads that 404 as a service the server does not offer. `TestCaddyRoutesEveryPublicService` fails for a public service Caddy does not route.
 

@@ -71,7 +71,8 @@ there is none (see [Missions](missions.md)), and, after the wave of this browser
 components.** The badges ([Badges](badges.md)) and the nameplates ([Nameplates](nameplates.md)) are the two so far: a
 name anywhere asks for its account's nameplate and badge. `useTeaserCards` (`app/battle/teaserCardsStore.ts`) is a
 smaller one: a battle's cards, asked by its key by the teaser and the "See the rules" buttons, read once a page, with
-no batch and no freshness (see [Battles](battle.md#the-rules-asked-for)).
+no batch and no freshness (see [Battles](battle.md#the-rules-asked-for)). `useFlags` (`app/flags/flagsStore.ts`) reads
+the whole list of flags again for a code it does not know, once a code (see [The list of flags](flag-catalog.md)).
 
 - **A component asks, and reads a plain value**: `useBadge(accountId)` selects `badges[accountId]`, the store's
   own object, and asks the store in an effect after every render. Asking an entry that is fresh or being read costs

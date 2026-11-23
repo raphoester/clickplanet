@@ -57,7 +57,8 @@ cache entirely:
   `BOARDS` as `page.provinceNames`, and nothing fetches it yet. `npm run provinces -- <board>` writes it with the board's
   provinces file; the translate skill writes each language's names in `src/i18n/provinces/<board>/`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
-  size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
+  size in `atlasAsset.ts`. Regenerate with `npm run atlas`. A flag with no picture in it wears a blank of it, which the
+  page finds where no picture is: a repack must leave some room (see [The list of flags](flag-catalog.md)).
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
   `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
   [Reactions](chat.md#reactions).

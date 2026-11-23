@@ -59,6 +59,10 @@ player could paint for one country and defend another click to click. **Only
 - **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
   (`allegiancemessage.Refusal`): the flag held, `changeable_at_unix_ms` and `locked`. The
   client snaps back to that flag. With no flag held, the detail has no country.
+- **A flag must be playable** (`clicks.CheckFlag`, planet's catalog: see [The flags module](flags.md)): one the game
+  ships with, or one opened since and not closed. A closed one is refused as an unknown flag (`ErrUnknownCountry`) for a
+  pledge and for a click; the accounts that play for it keep it, and its land stays. What a close does to them is step
+  2 of the regional flags: planet's `planet-flags-closed` subscriber is where it goes.
 - **The operator may lift the wait** (`AdminService/ReleaseAllegiance`, see [Operator tools](admin.md)):
   `Released()` keeps the flag and forgets the change, so the next change is free as the first one is. A lock still
   holds.
