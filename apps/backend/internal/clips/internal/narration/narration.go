@@ -65,8 +65,8 @@ type Script struct {
 	Why   string
 }
 
-// A narrator's pace: 156 words a minute.
-const wordsASecond = 2.6
+// Adam's pace at 1.15 times Kokoro's, his short breaths in: about 200 words a minute, measured 2026-11-23.
+const wordsASecond = 3.3
 
 func (s Script) Said() string {
 	return strings.Join(s.Lines, " ")
@@ -108,5 +108,5 @@ var machineTurns = slices.Sorted(slices.Values([]string{
 	"turn of events", "little did", "buckle up", "let that sink in", "it's not just", "it is not just",
 	"here's the thing", "only time will tell", "the stage is set", "in a world where", "epic", "showdown",
 	"unfold", "testament", "tapestry", "delve", "embark", "against all odds", "game-changer", "game changer",
-	"make no mistake", "the question remains", "one thing is clear", "stay tuned", "folks",
+	"make no mistake", "the question remains", "one thing is clear", "stay tuned", "folks", "honestly",
 }))

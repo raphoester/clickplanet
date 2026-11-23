@@ -22,6 +22,17 @@ export function wavOf(samples, rate) {
     return buffer
 }
 
+// The sound without the silence Kokoro leaves before and after it, a margin kept so a soft first or last sound stays.
+export function trimmed(samples, rate, threshold = 0.01, marginSeconds = 0.04) {
+    let first = 0
+    while (first < samples.length && Math.abs(samples[first]) < threshold) first++
+    let last = samples.length - 1
+    while (last > first && Math.abs(samples[last]) < threshold) last--
+    if (first >= last) return samples
+    const margin = Math.round(rate * marginSeconds)
+    return samples.subarray(Math.max(0, first - margin), Math.min(samples.length, last + 1 + margin))
+}
+
 // The sentences one after the other, a pause between two.
 export function joined(parts, rate, pauseSeconds) {
     const pause = Math.round(rate * pauseSeconds)

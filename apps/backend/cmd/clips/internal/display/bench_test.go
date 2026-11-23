@@ -44,11 +44,11 @@ func TestTheBenchFileHoldsEachScriptWithItsIDWhatItSaysAndHowItMeasures(t *testi
 	assert.Equal(t, map[string]any{
 		"id": "1-deadpan-opus", "story": float64(1), "tone": "deadpan", "model": "claude-opus-5-5",
 		"title": "DAY 9: PALAU STILL OWNS RUSSIA", "lines": []any{"Day nine.", "Palau still owns Russia!"},
-		"said": "Day nine. Palau still owns Russia!", "words": float64(6), "seconds": 2.3, "tells": []any{}, "usd": 0.05,
+		"said": "Day nine. Palau still owns Russia!", "words": float64(6), "seconds": 1.8, "tells": []any{}, "usd": 0.05,
 	}, entries[0])
 	assert.Equal(t, "1-storyteller-haiku", entries[1].(map[string]any)["id"])
 	assert.Equal(t, "the model refused (general_harms)", entries[1].(map[string]any)["failed"])
 
-	assert.Equal(t, "1-deadpan-opus: 6 words, 2.3 s, 0 tells []\n1-storyteller-haiku: failed: the model refused (general_harms)\n"+
+	assert.Equal(t, "1-deadpan-opus: 6 words, 1.8 s, 0 tells []\n1-storyteller-haiku: failed: the model refused (general_harms)\n"+
 		"2 scripts of 1 stories, about $0.052\n", out.String())
 }
