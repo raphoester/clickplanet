@@ -241,3 +241,40 @@ func TestAnEventTheLedgerCannotWriteDownIsNotKept(t *testing.T) {
 	assert.Equal(t, []ledger.Taking{take(1, "a", "fr", "", start)}, replay(storage))
 	assert.Equal(t, ledger.Position(1), storage.Replay(func(clicks.Stage, ledger.Event) {}))
 }
+
+func TestAReplayThroughReadsFromTheHeadThroughTheErasureOfTheEventsBeforeIt(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+	paint := take(7, "vandal", "cn", "ie", start)
+	storage.Append(clicks.WorldStage, paint)
+	storage.Append(clicks.WorldStage, take(7, "1.2.3.4", "ie", "cn", start.Add(time.Hour)))
+	storage.Append(clicks.WorldStage, take(8, "1.2.3.4", "fr", "de", start.Add(time.Hour)))
+	storage.ForgetBefore(start.Add(time.Minute))
+	entry, err := paint.Entry()
+	require.NoError(t, err)
+	entry.Stage, entry.Forgotten = clicks.WorldStage, true
+	erased := ledger.NewErasure()
+	_, _, err = erased.Read(entry)
+	require.NoError(t, err)
+
+	var (
+		asked   []ledger.Position
+		takings []ledger.Taking
+	)
+	end, err := storage.ReplayThrough(func(head ledger.Position) (*ledger.Erasure, error) {
+		asked = append(asked, head)
+		return erased, nil
+	}, func(_ clicks.Stage, event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []ledger.Position{1}, asked)
+	assert.Equal(t, ledger.Position(3), end)
+	assert.Equal(t, []ledger.Taking{take(8, "1.2.3.4", "fr", "de", start.Add(time.Hour))}, takings,
+		"a take back to what was under the forgotten paint is none")
+
+	failed := errors.New("postgres is gone")
+	_, err = storage.ReplayThrough(func(ledger.Position) (*ledger.Erasure, error) { return nil, failed },
+		func(clicks.Stage, ledger.Event) { t.Fatal("nothing is replayed without the erasure") })
+	require.ErrorIs(t, err, failed)
+}

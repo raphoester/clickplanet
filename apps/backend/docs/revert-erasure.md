@@ -74,8 +74,8 @@ what the history shows, "LaS…" included, as if the reverted player never playe
 | read | who reads it | before 2026-11-23 | now |
 | --- | --- | --- | --- |
 | `GetMapHistory` (`history_query`, `ledger.History`) | the clips' sagas and paths, the `/archive` replay and heatmap | every take, forgotten or not | erased |
-| `GetReplay` (memory `Replay`, `ledger.Footage`) | the clips' replay | forgotten takes skipped, a tile painted over them opened on the drawing | erased |
-| `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the players' videos | the same, and the answer kept for the step | erased, read from the head, built again after a revert |
+| `GetReplay` (memory `ReplayThrough`, `ledger.Footage`) | the clips' replay | forgotten takes skipped, a tile painted over them opened on the drawing | erased, from the erasure before the head |
+| `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the players' videos | the same, and the answer kept for the step | erased, from the erasure before the head, built again after a revert |
 | `GetLedger` (`changes_query`) | the clips' cast, the vandal squad, the backoffice Home | every take | the forgotten events left out (`NOT forgotten`) |
 | `GetSeasonReplay` (the gamemaster) | `/archive` | `GetMapHistory` kept for good, and a day in the browser | asked again each time, kept until a revert, half an hour in the browser |
 | `FindPlayers`, `TopPlayers` (memory `Replay`) | the operator | forgotten takes skipped | erased |
@@ -87,6 +87,26 @@ and `FindPlayers`.
 
 The Hall of Fame's race reads scoring's points and shares, and draws no map: nothing to erase.
 
+## The erasure before the head
+
+**The two rewinds see through a drawing older than the ledger's head** (2026-11-23). `GetRecentMapHistory` and
+`GetReplay` read the ledger from its head (72 hours back) and rewind from the map now: each tile opens on what its first
+change took it from. Until then each started its erasure empty at the head. So a drawing a revert forgot, painted more
+than 72 hours before the window and painted over inside it, opened on its paint: the paint was the previous owner of the
+take over it.
+
+`world_replay.Erasures` keeps the erasure of every event before the head. It reads postgres as `world_replay` reads the
+season: from the last reset, every stage apart, wiped at each reset and each switch of board.
+
+- **`Before(position)` gives each caller a copy** (`Erasure.Clone`). The 24 hours ask it at `ledger_head`. `GetReplay`
+  asks it at memory's head: `world_replay.KeptReplay` gives it to memory's `ReplayThrough`, which reads its events from
+  the head through it.
+- **It moves on with the head**: it reads only the rows between the position it keeps and the new one, by the primary
+  key, with the resets and switches between them.
+- **It is read again from the reset** when the forgetting changes (a revert, or the head passing a mark), and for a
+  position behind the one it keeps (memory's head is ahead of postgres's for a second after each sweep).
+- **A failed read keeps what was kept**: it moves a copy on, and keeps the copy only when the read ends well.
+
 ## The caches
 
 **What the reverts forgot is named by `forgetting.Forgetting`** (`planetv1controller/forgetting`): a hash of every mark
@@ -94,6 +114,8 @@ in `ledger_forgotten` and `ledger_forgotten_accounts`, which names no caller. A 
 and so does the head passing a mark, 72 hours after its revert (one build more, for nothing).
 
 - **`GetRecentMapHistory` keeps its answer by step and forgetting**: a revert builds the step again at the next call.
+- **The erasure before the head is kept by forgetting** ([above](#the-erasure-before-the-head)): a revert reads it again
+  from the reset at the next call of either rewind.
 - **`GetMapHistory` answers `kept`** (`GetMapHistoryResponse.kept`, no history) when the caller sends the forgetting of
   the history it keeps (`kept_forgetting`) and no revert forgot more. The gamemaster asks it at each `GetSeasonReplay`,
   so an ended season's map, which a revert of an account changes too, is read again only after a revert.
@@ -104,9 +126,8 @@ and so does the head passing a mark, 72 hours after its revert (one build more, 
 - **The posts already made.** A clip posted before the revert is on TikTok and YouTube: take it down by hand.
 - **A browser's copy**: `GetRecentMapHistory` up to its step, half an hour; `GetSeasonReplay` half an hour.
 - **A revert by scope** reaches the last 72 hours alone: revert a vandal by its account.
-- **A take forgotten more than 72 hours before a rewind's start, painted over inside its window**: the 24 hours and
-  `GetReplay` erase from the ledger's head, so they open the tile on its paint. The season's history reads from the
-  reset, and sees through it.
+- **`FindPlayers` and `TopPlayers`** read memory's ledger from an empty erasure at its head: a take back to what was
+  under a drawing forgotten before the head counts as a take. They draw no map.
 - **A swastika nobody reverted**: the vandal squad flags what it sees, and the operator reverts its painter.
 - **A reset after a forgotten bomb** that left a tile blank, retaken after the reset, reads it taken from what was under
   the paint before the reset: a flag, never the drawing.
@@ -118,6 +139,13 @@ through a drawing older than the window: about three times the rows sent, once p
 An event the erasure reads costs three more walks of it while a forgotten paint is not painted over, and none
 otherwise.
 
+**The erasure before the head** (measured 2026-11-23, laptop): a synthetic season of 3.5 million takes over 22 days
+(Season 1 since its reset on 1 Nov, at production's ~157,000 rows a day), 1 in 100 forgotten, the head 470,000 rows from
+the end. The first read, 3,030,000 rows, took 3.6 s warm and 10 to 15 s cold. Postgres read them in 1.9 s by the
+primary key; the rest is the rows sent to the backend. It kept 1.6 MB. The next read, 5 minutes on (550 rows), took 4 to
+16 ms. The first read comes at the first call after a boot, and again after each revert. Not measured on production's
+box (2 vCPUs).
+
 ## Deploy
 
 One backend deploy. No migration and no rebuild of stored frames: no frame is stored. Each history is built at its
@@ -126,6 +154,9 @@ next read; `/archive`'s from the boot on, as after every deploy. The frontend an
 
 **The revert of the whole season** (2026-11-23): one backend deploy, no migration. The frontend and the backoffice
 regenerated `planet/v1/admin` bindings for `RevertPlayer`'s description, which the connector reads too.
+
+**The erasure before the head** (2026-11-23): one backend deploy, no migration and no wire change. The first call of
+either rewind after the boot reads the season once.
 
 ## Production's rows
 
@@ -153,3 +184,9 @@ run back to where it started, an account across scopes, an arena's take, a rever
 under the caller's, a take carried over a switch of board, a reset), and `revert_player_usecase`'s (the batches, a
 dry run, the interleaving, an interrupted run, an account, a bomb, an arena, a switch of board, a revert run again).
 `history_query`'s postgres suite reads through `world_replay`.
+
+The erasure before the head: `world_replay`'s postgres suite (what a revert forgot before a position; moved on with no
+row read twice; read again after a revert and for a position behind; a reset and a switch of board; the primary key),
+memory's `ReplayThrough`, `rewind_test.go` (a rewind from an erasure), and `replay_usecase` and `recent_history_query`
+(a drawing forgotten before the head and painted over in the window opens on what was under it; a revert reads what it
+forgot before the head again).
