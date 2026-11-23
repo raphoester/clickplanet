@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {type FlagNeed, rankSlots, SlotLayout} from "./slotRanking.ts"
+import {type FlagNeed, joinedNeeds, rankSlots, SlotLayout} from "./slotRanking.ts"
 
 const BUDGET = {roots: 1, largest: 1}
 
@@ -8,6 +8,13 @@ const flag = (need: number, area = 1e6): FlagNeed => ({need, area, aspect: 1.5, 
 const needs = (entries: Record<string, FlagNeed>) => new Map(Object.entries(entries))
 
 const levels = (ranked: {code: string, level: number}[]) => Object.fromEntries(ranked.map(({code, level}) => [code, level]))
+
+describe("joinedNeeds", () => {
+    it("asks for a flag in both as wide as its widest need, with all its land", () => {
+        const joined = joinedNeeds(needs({fr: flag(300, 10), de: flag(200, 5)}), needs({fr: flag(500, 20), it: flag(150, 1)}))
+        expect(Object.fromEntries(joined)).toEqual({fr: flag(500, 30), de: flag(200, 5), it: flag(150, 1)})
+    })
+})
 
 describe("rankSlots", () => {
     it("leaves a flag no wider on screen than its sprite on the atlas", () => {
