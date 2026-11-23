@@ -9,7 +9,7 @@ import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/bac
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {firstTakeAhead} from '../frontGuide.ts';
 import {Switches} from '../../domain/bonus.ts';
-import {Bomber, BonusListener, BoxCatcher, Infector, Miner, Rallier, Shielder} from '../../backends/backend.ts';
+import {Bomber, BonusListener, BoxCatcher, Infector, Miner, Rallier, Shielder, Trapper} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from '../clicks/acceptedClicks.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
@@ -50,6 +50,7 @@ export type UseGlobeOptions = {
     shielder?: Shielder
     infector?: Infector
     miner?: Miner
+    trapper?: Trapper
     rallier?: Rallier
     // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
@@ -70,7 +71,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
+    const {container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, trapper, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -168,6 +169,8 @@ export function useGlobe(options: UseGlobeOptions) {
             onVirusAimChange: bonus.setVirusAimed,
             miner,
             onMineAimChange: bonus.setMineAimed,
+            trapper,
+            onTrapAimChange: bonus.setTrapAimed,
             rallier,
             onRallyAimChange: bonus.setRallyAimed,
             rallyCallers: rallyCallers.current,
@@ -210,7 +213,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
+    }, [container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, trapper, rallier, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
 
     useEffect(() => () => {
         useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
@@ -270,6 +273,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!useBonus.getState().bombArmed), [])
     const toggleVirus = useCallback(() => globeRef.current?.setVirusAimed(!useBonus.getState().virusAimed), [])
     const toggleMine = useCallback(() => globeRef.current?.setMineAimed(!useBonus.getState().mineAimed), [])
+    const toggleTrap = useCallback(() => globeRef.current?.setTrapAimed(!useBonus.getState().trapAimed), [])
     const toggleRally = useCallback(() => globeRef.current?.setRallyAimed(!useBonus.getState().rallyAimed), [])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !useBonus.getState().switches[name]), [])
 
@@ -284,6 +288,7 @@ export function useGlobe(options: UseGlobeOptions) {
         toggleBomb,
         toggleVirus,
         toggleMine,
+        toggleTrap,
         toggleRally,
         toggleSwitch,
         pointing,

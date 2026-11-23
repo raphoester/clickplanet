@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -23,6 +24,10 @@ type painting struct {
 
 func NewErasure() *Erasure {
 	return &Erasure{painted: map[stagedTile]painting{}}
+}
+
+func (e *Erasure) Clone() *Erasure {
+	return &Erasure{painted: maps.Clone(e.painted)}
 }
 
 // Read takes each entry in position order: false for one forgotten, which shows nothing.

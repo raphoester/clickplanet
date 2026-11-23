@@ -1,4 +1,4 @@
-# Charges (refill, bomb, enclose, spread, shields, virus, mine, rally)
+# Charges (refill, bomb, enclose, spread, shields, virus, mine, rally, trap)
 
 **The charges are the wallet, `internal/planet/internal/charges/`**: what an account holds and spends. What grants them,
 a box caught, a right answer or a guest's first sign-in, is the bonuses module's, which reaches the wallet only through
@@ -19,7 +19,7 @@ its own.
   is offered nothing. Every client mints a guest account, so this leaves
   out only a caller with no token at all.
 - **The rules are a value, `charges.Held`**: **every kind is a count** (`Refills`, `Bombs`, `Enclosures`,
-  `SpreadClicks`, `Shields`, `Viruses`, `Mines`, `Rallies`), with one path for all of them: `Granted` stacks a kind up
+  `SpreadClicks`, `Shields`, `Viruses`, `Mines`, `Rallies`, `Traps`), with one path for all of them: `Granted` stacks a kind up
   to its size (`Rules.Size(kind)`), the `After…` spends take one, the `With…Back` returns give one back. They build a new
   `Held` and change nothing; `charges.Charges` writes it. `Count(kind)` is how many of a kind are held. The sizes are
   the wallet's rules (`charges.Rules`, `charges.*` in a set); the bonuses module never reads one. Until 2026-11-16 a
@@ -37,8 +37,8 @@ its own.
 - **How much fits.** Each kind stacks to its size in the rule set: refills to `charges.refill.held`, bombs to
   `charges.bomb.held` and viruses to `charges.virus.held` (1 each, which is what stops a stockpile of bombs being
   dropped all at once; the operator may raise them), enclosures to `charges.enclose.held` (3), spread clicks to
-  `charges.spread.clicks` (8), shields to `charges.shield.held` (30), mines to `charges.mine.held` (3) and rallies to
-  `charges.rally.held` (3) (see [Rules](rules.md); the numbers are the migrations' `default`). **A kind the rules turn
+  `charges.spread.clicks` (8), shields to `charges.shield.held` (30), mines to `charges.mine.held` (3), rallies to
+  `charges.rally.held` (3) and traps to `charges.trap.held` (3) (see [Rules](rules.md); the numbers are the migrations' `default`). **A kind the rules turn
   off is kept none of** (`Rules.Off`: a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`, a
   spread click while `charges.spread.off`, a rally while `charges.rally.off`), a
   box's, a quiz's or an operator's grant alike; what is held of it stays. A box draws its amount evenly from 1 to
@@ -100,7 +100,7 @@ its own.
   each.
 - **No memory copy: every grant, spend and read goes to postgres**, one row per
   account in `planet.charges` (`refills`, `bombs`, `enclosures`, `spread_clicks`,
-  `shields`, `viruses`, `mines`, `rallies`, each a count that cannot go below 0). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
+  `shields`, `viruses`, `mines`, `rallies`, `traps`, each a count that cannot go below 0). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
   is no row. A failing database fails the call; a spread click fails with its tile
   taken. A deleted account's row stays until something removes it. The boxes'

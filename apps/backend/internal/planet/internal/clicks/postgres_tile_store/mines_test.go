@@ -64,3 +64,12 @@ func (s *testSuite) TestAForgottenHoldersMinesAreDeletedFromEveryMap() {
 	s.Equal([]clicks.MineSnapshot{other}, s.minesOn(clicks.World))
 	s.Empty(s.minesOn(battle))
 }
+
+func (s *testSuite) TestAMineKeepsWhetherItsPlayerWasSignedIn() {
+	signedIn := mineOn(5, "fr")
+	signedIn.Linked = true
+
+	s.Require().NoError(s.store.SaveMines(context.Background(), clicks.WorldStage, []clicks.MineSnapshot{signedIn}, nil))
+
+	s.Equal([]clicks.MineSnapshot{signedIn}, s.minesOn(clicks.World))
+}

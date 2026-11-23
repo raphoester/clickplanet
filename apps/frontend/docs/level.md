@@ -61,7 +61,7 @@ slots, which are taller than the clicks. Picked by
   full-screen moment at a time. It is the title unlock's stage (`TitleUnlocked.css`, `TITLE_REVEAL`, the `title`
   sound) with the level's number in a gold block where the medal lands. Under the level, each kind the raise unlocked
   ("New bonus unlocked: Mine", `unlockedBy` from the level shown before, `from`), and the next one ("Next: Rally,
-  unlocks at level 15", `nextUnlock`), both from the ladder `GetLevel` answers. An account's first level names no kind
+  unlocks at level 17", `nextUnlock`), both from the ladder `GetLevel` answers. An account's first level names no kind
   unlocked: the page knew no level before it. Nothing closes it before it has landed. A jump of several levels is one
   `level_reached`, so one moment, which names every kind it passed. A level reached while no tab is open is never
   announced. **The bonuses a level up fills are not named**: they come as one grant on planet's stream, which says no

@@ -62,7 +62,7 @@ func aDayAsBusyAsProductionsFits(t *testing.T, board clicks.BoardName) {
 	opening := slices.Clone(busy.owners)
 	busy.fight()
 
-	rewound, err := ledger.NewRewind(since, until, 30*time.Minute, clicks.WorldStage)
+	rewound, err := ledger.NewRewind(since, until, 30*time.Minute, clicks.WorldStage, ledger.NewErasure())
 	require.NoError(t, err)
 	for _, event := range busy.events {
 		entry, err := event.Entry()

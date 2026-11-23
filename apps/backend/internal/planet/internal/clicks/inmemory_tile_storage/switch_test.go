@@ -54,7 +54,7 @@ type switchWorld struct {
 }
 
 // France holds old tiles 1 and 4 (one landmass, fortified), 10 shields on 1 and 2 on 4, ana's take on 1 and a mine on
-// it; Germany holds 2; a virus lives. The mine's tile is nearest new tile 3.
+// it, and a trap on 4; Germany holds 2; a virus lives. The mine's tile is nearest new tile 3, and the trap's has no child.
 func (s *testSuite) switchWorld() switchWorld {
 	ctx := context.Background()
 	ana := cpsession.AccountID(uuid.New())
@@ -68,6 +68,7 @@ func (s *testSuite) switchWorld() switchWorld {
 	persistence.Fortified("test-borders", 1, "fr")
 	s.Require().NoError(persistence.SaveMines(ctx, clicks.WorldStage,
 		[]clicks.MineSnapshot{{Tile: 1, Flag: "fr", Account: ana, Scope: "1.2.3.4"}}, nil))
+	s.Require().NoError(persistence.SaveTraps(ctx, clicks.WorldStage, []clicks.TrapSnapshot{{Tile: 4, Flag: "fr", Account: ana}}, nil))
 	s.Require().NoError(persistence.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{{
 		ID: clicks.VirusID(uuid.NewString()), Account: ana, Flag: "fr", Victim: "de", Tile: 2, Infected: []uint32{2},
 		Infections: 1, Next: time.Now().Add(time.Minute),
@@ -91,7 +92,7 @@ func carrying(kept bool, seen *clicks.Carried) func(context.Context, clicks.Carr
 
 var wantCarried = clicks.Carried{
 	From: "earth-1", To: "earth-2", Tiles: 10, Carried: 8, Blank: 2, HeldBefore: 3, HeldAfter: 6, Dropped: 1,
-	DroppedHeld: 1, ShieldsBefore: 12, ShieldsAfter: 10, MinesMoved: 1, VirusesEnded: 1, LocksDropped: 1,
+	DroppedHeld: 1, ShieldsBefore: 12, ShieldsAfter: 10, MinesMoved: 1, TrapsLost: 1, VirusesEnded: 1, LocksDropped: 1,
 }
 
 func (s *testSuite) TestASwitchCarriesEachTileOverToItsChildrenOnTheNewBoardAndPlaysIt() {
@@ -118,6 +119,7 @@ func (s *testSuite) TestASwitchCarriesEachTileOverToItsChildrenOnTheNewBoardAndP
 		world.persistence.StoredHolders(), "each child keeps its parent's holder")
 	s.Equal([]clicks.MineSnapshot{{Tile: 3, Flag: "fr", Account: world.ana, Scope: "1.2.3.4"}},
 		world.persistence.StoredMinesOn(clicks.World), "the mine moves to the child nearest its tile")
+	s.Empty(world.persistence.StoredTrapsOn(clicks.World), "a trap on a tile with no child is lost")
 	s.Empty(world.persistence.StoredVirusesOn(clicks.World), "live viruses end")
 	s.Empty(world.persistence.StoredProvinces("test-provinces"), "the old board's locks are dropped")
 	for tile, owner := range map[uint32]string{1: "fr", 4: "fr", 5: "de", 7: "", 10: ""} {

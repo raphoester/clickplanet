@@ -59,6 +59,7 @@ func responseOf(out switch_board_usecase.Out) *planetv1.SwitchBoardResponse {
 		Dropped: carried.Dropped, DroppedHeld: carried.DroppedHeld,
 		ShieldsBefore: carried.ShieldsBefore, ShieldsAfter: carried.ShieldsAfter,
 		MinesMoved: carried.MinesMoved, MinesLost: carried.MinesLost,
+		TrapsMoved: carried.TrapsMoved, TrapsLost: carried.TrapsLost,
 		VirusesEnded: carried.VirusesEnded, LocksDropped: carried.LocksDropped,
 	}
 	if !out.SwitchedAt.IsZero() {

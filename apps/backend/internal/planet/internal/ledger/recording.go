@@ -74,11 +74,16 @@ func (r Recording) Click(ctx context.Context, tile uint32, flag string) (clicks.
 	return impact, nil
 }
 
-func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) error {
-	var err error
+// Spread answers the traps its takes sprang, the ones before a failure too.
+func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) ([]clicks.TrapSnapshot, error) {
+	var (
+		sprung []clicks.TrapSnapshot
+		err    error
+	)
 	r.tiles.During(func(on clicks.Stage) {
 		var impacts []clicks.Impact
 		impacts, err = r.claim(ctx, flag, neighbours)
+		sprung = clicks.Sprung(impacts)
 		r.record(ctx, on, func(by Caller, at time.Time) Event {
 			return Spreading{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
 		})
@@ -87,15 +92,20 @@ func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbo
 		r.recordCutOff(ctx, on, impacts)
 	})
 
-	return err
+	return sprung, err
 }
 
-func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
-	var err error
+// Enclose answers the traps its takes sprang, the ones before a failure too.
+func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) ([]clicks.TrapSnapshot, error) {
+	var (
+		sprung []clicks.TrapSnapshot
+		err    error
+	)
 	r.tiles.During(func(on clicks.Stage) {
 		var impacts []clicks.Impact
 		impacts, err = r.claims.Enclose(ctx, enclosure, inside)
 		impacts = changed(impacts)
+		sprung = clicks.Sprung(impacts)
 		r.record(ctx, on, func(by Caller, at time.Time) Event {
 			return Enclosing{
 				Tile: enclosure.ClosingTile, Scope: by.Scope, Account: by.Account, Country: enclosure.Country, At: at,
@@ -107,10 +117,10 @@ func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, insi
 		r.recordCutOff(ctx, on, impacts)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
+		return sprung, fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
 	}
 
-	return nil
+	return sprung, nil
 }
 
 func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error) {

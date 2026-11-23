@@ -43,6 +43,9 @@ const MAX_PIPS = 12
 
 const LOW_WATER = 3
 
+// More than a click and a half gone between two readings: a trap sprung on the player's take.
+const DRAINED_BY = 1.5
+
 const COUNTDOWN_FROM_S = 1.5
 
 // The bank shows tenths of a click, so a click inside a rally's ring that takes half of one shows.
@@ -65,6 +68,8 @@ export default function ClickBudgetMeter({
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
     const rally = useRef<HTMLSpanElement>(null)
+    // What the bank held as the last reading was drawn: a drop of more than a click is a trap's, which flashes.
+    const held = useRef<number | undefined>(undefined)
     const narrow = useNarrowDock()
     const [dock, setDock] = useState<HTMLElement | null>(null)
     const [tray, setTray] = useState<HTMLElement | null>(null)
@@ -95,16 +100,27 @@ export default function ClickBudgetMeter({
         const label = count.current
         if (!box || !label) return
 
-        let shown = -1
+        let shown: number | undefined
         let shownWait = ""
         let shownRally: boolean | undefined
 
         const bar = budget.capacity > MAX_PIPS
 
+        const before = held.current
+        const after = tokensAt(budget, now())
+        if (before !== undefined && before - after > DRAINED_BY) {
+            box.classList.remove("click-budget-drained")
+            void box.offsetWidth
+            box.classList.add("click-budget-drained")
+        }
+        const flashed = () => box.classList.remove("click-budget-drained")
+        box.addEventListener("animationend", flashed)
+
         const draw = () => {
             const at = now()
             const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
+            held.current = tokens
 
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
 
@@ -130,7 +146,9 @@ export default function ClickBudgetMeter({
 
             label.textContent = clicksText(tenths)
             box.setAttribute("aria-valuenow", String(tenths / 10))
-            box.classList.toggle("click-budget-empty", whole === 0)
+            box.setAttribute("aria-valuemin", String(Math.min(0, tenths / 10)))
+            box.classList.toggle("click-budget-empty", whole <= 0)
+            box.classList.toggle("click-budget-debt", tokens < 0)
             box.classList.toggle("click-budget-low", whole > 0 && whole <= LOW_WATER)
             box.classList.toggle("click-budget-full", whole >= budget.capacity)
         }
@@ -159,6 +177,7 @@ export default function ClickBudgetMeter({
         return () => {
             if (frame !== undefined) cancelAnimationFrame(frame)
             clearTimeout(timer)
+            box.removeEventListener("animationend", flashed)
         }
     }, [budget])
 
@@ -206,7 +225,7 @@ export default function ClickBudgetMeter({
                 ref={root}
                 className="click-budget"
                 role="meter"
-                aria-valuemin={0}
+                aria-valuemin={Math.min(0, tenths / 10)}
                 aria-valuenow={tenths / 10}
                 aria-valuemax={budget.capacity}
                 aria-label={t("clicks.meter")}

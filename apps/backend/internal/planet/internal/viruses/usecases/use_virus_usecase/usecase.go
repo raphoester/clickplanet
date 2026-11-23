@@ -74,7 +74,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 
 	account, err := uuid.Parse(payer.Account)
 	if err == nil {
-		virus := clicks.NewVirus(id, cpsession.AccountID(account), payer.Scope, in.CountryID, in.TileID)
+		virus := clicks.NewVirus(id, cpsession.AccountID(account), payer.Scope, payer.Linked, in.CountryID, in.TileID)
 		_, err = u.contagion.Start(ctx, virus, u.outbreak.Most(), u.outbreak.Next())
 	}
 	if err != nil {

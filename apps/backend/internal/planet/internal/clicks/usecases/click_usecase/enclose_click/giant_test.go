@@ -177,7 +177,7 @@ func newGame(t testing.TB, w world) *game {
 	require.NoError(t, takings.Load(t.Context()))
 
 	rules := charges.Rules{Enclose: charges.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
-	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), takings, cptime.SystemClock{})
+	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }, clicks.NewSnareLog()), takings, cptime.SystemClock{})
 	terrain := charges.NewTerrain(w.geography, tiles)
 	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, cpcountries.New())
 	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() charges.Rules { return rules })

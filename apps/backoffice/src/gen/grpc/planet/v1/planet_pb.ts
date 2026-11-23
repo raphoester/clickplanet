@@ -89,6 +89,11 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_RALLY = 9;
    */
   RALLY = 9,
+
+  /**
+   * @generated from enum value: BONUS_KIND_TRAP = 10;
+   */
+  TRAP = 10,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
@@ -101,6 +106,7 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 7, name: "BONUS_KIND_VIRUS" },
   { no: 8, name: "BONUS_KIND_MINE" },
   { no: 9, name: "BONUS_KIND_RALLY" },
+  { no: 10, name: "BONUS_KIND_TRAP" },
 ]);
 
 /**
@@ -500,8 +506,8 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally
- * answer while the rules in force freeze the map, or an arena's freeze holds it.
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, LayTrap and
+ * CallRally answer while the rules in force freeze the map, or an arena's freeze holds it.
  *
  * @generated from message planet.v1.FrozenRefusal
  */
@@ -670,6 +676,40 @@ export class MineRefusal extends Message<MineRefusal> {
 }
 
 /**
+ * The detail of the FailedPrecondition that LayTrap answers for a tile that is not the flag's, or holds a trap already:
+ * the trap stays held.
+ *
+ * @generated from message planet.v1.TrapRefusal
+ */
+export class TrapRefusal extends Message<TrapRefusal> {
+  constructor(data?: PartialMessage<TrapRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TrapRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TrapRefusal {
+    return new TrapRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TrapRefusal {
+    return new TrapRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TrapRefusal {
+    return new TrapRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TrapRefusal | PlainMessage<TrapRefusal> | undefined, b: TrapRefusal | PlainMessage<TrapRefusal> | undefined): boolean {
+    return proto3.util.equals(TrapRefusal, a, b);
+  }
+}
+
+/**
  * The detail of the FailedPrecondition that CallRally answers while a rally the caller called is still on: the rally
  * stays held.
  *
@@ -704,8 +744,8 @@ export class RallyRefusal extends Message<RallyRefusal> {
 }
 
 /**
- * The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine and CallRally answer a banned
- * caller.
+ * The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine, LayTrap and CallRally answer a
+ * banned caller.
  *
  * @generated from message planet.v1.BanRefusal
  */
@@ -1565,6 +1605,20 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: CutOff;
     case: "cutOff";
+  } | {
+    /**
+     * Only on a stream whose caller plays for the trap's flag: no other flag hears of it.
+     *
+     * @generated from field: planet.v1.TrapLaid trap_laid = 20;
+     */
+    value: TrapLaid;
+    case: "trapLaid";
+  } | {
+    /**
+     * @generated from field: planet.v1.TrapSprung trap_sprung = 21;
+     */
+    value: TrapSprung;
+    case: "trapSprung";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1590,6 +1644,8 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 17, name: "rally_called", kind: "message", T: Rally, oneof: "event" },
     { no: 18, name: "province_fortified", kind: "message", T: ProvinceFortified, oneof: "event" },
     { no: 19, name: "cut_off", kind: "message", T: CutOff, oneof: "event" },
+    { no: 20, name: "trap_laid", kind: "message", T: TrapLaid, oneof: "event" },
+    { no: 21, name: "trap_sprung", kind: "message", T: TrapSprung, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1606,6 +1662,123 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A trap a player of the flag laid. The tile holds it only while it has not changed since version.
+ *
+ * @generated from message planet.v1.TrapLaid
+ */
+export class TrapLaid extends Message<TrapLaid> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * The map's version as it was laid: no change, so streams count none.
+   *
+   * @generated from field: planet.v1.MapVersion version = 3;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<TrapLaid>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TrapLaid";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TrapLaid {
+    return new TrapLaid().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TrapLaid {
+    return new TrapLaid().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TrapLaid {
+    return new TrapLaid().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TrapLaid | PlainMessage<TrapLaid> | undefined, b: TrapLaid | PlainMessage<TrapLaid> | undefined): boolean {
+    return proto3.util.equals(TrapLaid, a, b);
+  }
+}
+
+/**
+ * A trap a take by another flag sprang, told after the take's own event: the taker kept the tile, and lost clicks from
+ * its bank to nobody. The trap is gone.
+ *
+ * @generated from message planet.v1.TrapSprung
+ */
+export class TrapSprung extends Message<TrapSprung> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * The trap's flag.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * What left the taker's bank: charges.trap.clicks, or less when the bank was near its floor, minus one bank.
+   *
+   * @generated from field: double clicks = 3;
+   */
+  clicks = 0;
+
+  /**
+   * Only on the streams of the taker's account: its bank is lower now, so the page reads it again.
+   *
+   * @generated from field: bool yours = 4;
+   */
+  yours = false;
+
+  constructor(data?: PartialMessage<TrapSprung>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TrapSprung";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "yours", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TrapSprung {
+    return new TrapSprung().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TrapSprung {
+    return new TrapSprung().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TrapSprung {
+    return new TrapSprung().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TrapSprung | PlainMessage<TrapSprung> | undefined, b: TrapSprung | PlainMessage<TrapSprung> | undefined): boolean {
+    return proto3.util.equals(TrapSprung, a, b);
   }
 }
 
@@ -2872,6 +3045,11 @@ export class ChargesHeld extends Message<ChargesHeld> {
    */
   rallies = 0;
 
+  /**
+   * @generated from field: uint32 traps = 12;
+   */
+  traps = 0;
+
   constructor(data?: PartialMessage<ChargesHeld>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2888,6 +3066,7 @@ export class ChargesHeld extends Message<ChargesHeld> {
     { no: 11, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "traps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
@@ -3187,6 +3366,20 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   ralliesOff = false;
 
+  /**
+   * How many traps a hand holds at most.
+   *
+   * @generated from field: uint32 traps = 31;
+   */
+  traps = 0;
+
+  /**
+   * How many clicks a trap takes from the bank of the player whose take sprang it.
+   *
+   * @generated from field: uint32 trap_clicks = 32;
+   */
+  trapClicks = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -3222,6 +3415,8 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 28, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 29, name: "spread_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 30, name: "rallies_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 31, name: "traps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 32, name: "trap_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {
@@ -3919,6 +4114,164 @@ export class GetMinesResponse extends Message<GetMinesResponse> {
 
   static equals(a: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined, b: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined): boolean {
     return proto3.util.equals(GetMinesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LayTrapRequest
+ */
+export class LayTrapRequest extends Message<LayTrapRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<LayTrapRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LayTrapRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LayTrapRequest {
+    return new LayTrapRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LayTrapRequest {
+    return new LayTrapRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LayTrapRequest {
+    return new LayTrapRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LayTrapRequest | PlainMessage<LayTrapRequest> | undefined, b: LayTrapRequest | PlainMessage<LayTrapRequest> | undefined): boolean {
+    return proto3.util.equals(LayTrapRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LayTrapResponse
+ */
+export class LayTrapResponse extends Message<LayTrapResponse> {
+  constructor(data?: PartialMessage<LayTrapResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LayTrapResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LayTrapResponse {
+    return new LayTrapResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LayTrapResponse {
+    return new LayTrapResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LayTrapResponse {
+    return new LayTrapResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LayTrapResponse | PlainMessage<LayTrapResponse> | undefined, b: LayTrapResponse | PlainMessage<LayTrapResponse> | undefined): boolean {
+    return proto3.util.equals(LayTrapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTrapsRequest
+ */
+export class GetTrapsRequest extends Message<GetTrapsRequest> {
+  constructor(data?: PartialMessage<GetTrapsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTrapsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTrapsRequest {
+    return new GetTrapsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTrapsRequest {
+    return new GetTrapsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTrapsRequest {
+    return new GetTrapsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTrapsRequest | PlainMessage<GetTrapsRequest> | undefined, b: GetTrapsRequest | PlainMessage<GetTrapsRequest> | undefined): boolean {
+    return proto3.util.equals(GetTrapsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTrapsResponse
+ */
+export class GetTrapsResponse extends Message<GetTrapsResponse> {
+  /**
+   * The flag the caller plays for, whose traps these are: empty for no flag, and no trap.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: repeated uint32 tile_ids = 2;
+   */
+  tileIds: number[] = [];
+
+  /**
+   * The map's version as they were read: a tile changed after it holds no trap.
+   *
+   * @generated from field: planet.v1.MapVersion version = 3;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<GetTrapsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTrapsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 3, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTrapsResponse {
+    return new GetTrapsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTrapsResponse {
+    return new GetTrapsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTrapsResponse {
+    return new GetTrapsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTrapsResponse | PlainMessage<GetTrapsResponse> | undefined, b: GetTrapsResponse | PlainMessage<GetTrapsResponse> | undefined): boolean {
+    return proto3.util.equals(GetTrapsResponse, a, b);
   }
 }
 

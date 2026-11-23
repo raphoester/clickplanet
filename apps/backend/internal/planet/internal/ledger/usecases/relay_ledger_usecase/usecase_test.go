@@ -295,7 +295,7 @@ func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 		require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 		require.NoError(t, tiles.Set(t.Context(), 7, "de"))
 		storage := flushed(t)
-		recording := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), storage, cptime.NewFixedClock(at))
+		recording := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }, clicks.NewSnareLog()), storage, cptime.NewFixedClock(at))
 		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), ada)
 
 		start := make(chan struct{})

@@ -16,6 +16,7 @@ const COUNTS: {key: keyof Grant, label: string}[] = [
     {key: "viruses", label: "Viruses"},
     {key: "mines", label: "Mines"},
     {key: "rallies", label: "Rallies"},
+    {key: "traps", label: "Traps"},
 ]
 
 // Charges as a box gives them. What a hand holds caps each kind, so the answer says what fit; the player sees it at once.

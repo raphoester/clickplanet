@@ -130,6 +130,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one, on another flag's takes it first; only the flag's players see it
   (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
   off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.
+- [Trap](docs/trap.md) — the mine's sibling: aimed from its slot, laid on the flag's tile, only the flag sees it
+  (`GetTraps`, `trap_laid`); any enemy take springs it, and every page sees steel jaws slam shut, a `--trap` flash and the
+  "−10" taken from the taker's bank; the bank reads below zero, down to minus one bank, and flashes; the still steel jaws.
 - [Rally](docs/rally.md) — aimed from its slot, a tap on any point of the globe calls a ring every page sees
   (`GetRallies` at each stream open, `rally_called`); a click of its flag inside costs half, counted so on the page, and
   pops "−0.5"; a teal halo whose edge is a clock, the flag planted at its centre with its caller's name and a card,

@@ -113,6 +113,14 @@ func TestNoBoxAndNoRightAnswerIsARallyUntilTheOperatorWeighsIt(t *testing.T) {
 	assert.Equal(t, 1, played.Rally.MaxPerBox, "one rally a box once it weighs above 0")
 }
 
+func TestNoBoxAndNoRightAnswerIsATrapUntilTheOperatorWeighsIt(t *testing.T) {
+	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
+
+	assert.False(t, played.Offered(bonuses.KindTrap))
+	assert.False(t, played.Gates.Open[bonuses.KindTrap], "closed to all while the gates are on")
+	assert.Equal(t, 2, played.Trap.MaxPerBox, "1 or 2 traps a box once it weighs above 0")
+}
+
 func TestTheGatesAreOffUntilTheLevelsAreShown(t *testing.T) {
 	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
 

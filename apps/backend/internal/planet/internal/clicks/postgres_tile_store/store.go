@@ -32,6 +32,7 @@ func (s *Store) Boards(ctx context.Context, played clicks.MapID) ([]clicks.Board
 		SELECT board FROM tiles WHERE map = $1
 		UNION SELECT board FROM provinces WHERE map = $1
 		UNION SELECT board FROM mines WHERE map = $1
+		UNION SELECT board FROM traps WHERE map = $1
 		UNION SELECT board FROM viruses WHERE map = $1
 		ORDER BY board
 	`, string(played))
@@ -311,6 +312,9 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mines WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the mines: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM traps WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the traps: %w", err)
+		}
 		wiped = true
 		return nil
 	})
@@ -321,11 +325,11 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 }
 
 // Carry moves a map onto another board in keep's transaction, once keep says to: the rows of the board before go, and
-// the tiles carried are copied onto onto's board (COPY, a few seconds for a million), with the mines carried. The flags
-// out stay.
+// the tiles carried are copied onto onto's board (COPY, a few seconds for a million), with the mines and traps carried.
+// The flags out stay.
 func (s *Store) Carry(
 	ctx context.Context, onto clicks.Stage, tiles []inmemory_tile_storage.Tile, mines []clicks.MineSnapshot,
-	keep func(ctx context.Context) (bool, error),
+	traps []clicks.TrapSnapshot, keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	carried := false
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
@@ -334,7 +338,7 @@ func (s *Store) Carry(
 			return err
 		}
 		tx := s.db.On(ctx)
-		for _, table := range []string{"tiles", "provinces", "viruses", "mines"} {
+		for _, table := range []string{"tiles", "provinces", "viruses", "mines", "traps"} {
 			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE map = $1`, string(onto.Map)); err != nil {
 				return fmt.Errorf("failed to delete the map's %s: %w", table, err)
 			}
@@ -343,6 +347,9 @@ func (s *Store) Carry(
 			return err
 		}
 		if err := s.SaveMines(ctx, onto, mines, nil); err != nil {
+			return err
+		}
+		if err := s.SaveTraps(ctx, onto, traps, nil); err != nil {
 			return err
 		}
 		carried = true
@@ -384,6 +391,9 @@ func (s *Store) ForgetHolder(ctx context.Context, account cpsession.AccountID) e
 	}
 	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mines WHERE account = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to take a holder's mines off: %w", err)
+	}
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM traps WHERE account = $1`, uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to take a holder's traps off: %w", err)
 	}
 	return nil
 }

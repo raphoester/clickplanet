@@ -49,6 +49,8 @@ type Held struct {
 	Mines int
 
 	Rallies int
+
+	Traps int
 }
 
 func (h Held) Count(kind Kind) int {
@@ -69,6 +71,8 @@ func (h Held) Count(kind Kind) int {
 		return h.Mines
 	case KindRally:
 		return h.Rallies
+	case KindTrap:
+		return h.Traps
 	}
 
 	return 0
@@ -154,6 +158,8 @@ func (h *Held) count(kind Kind) *int {
 		return &h.Mines
 	case KindRally:
 		return &h.Rallies
+	case KindTrap:
+		return &h.Traps
 	}
 
 	return nil
@@ -203,6 +209,15 @@ func (h Held) AfterMine() (Held, bool) {
 // WithMineBack undoes AfterMine, for a mine the map refused.
 func (h Held) WithMineBack() Held {
 	return h.back(KindMine)
+}
+
+func (h Held) AfterTrap() (Held, bool) {
+	return h.spent(KindTrap)
+}
+
+// WithTrapBack undoes AfterTrap, for a trap the map refused.
+func (h Held) WithTrapBack() Held {
+	return h.back(KindTrap)
 }
 
 func (h Held) AfterRally() (Held, bool) {

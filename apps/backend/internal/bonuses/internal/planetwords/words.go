@@ -16,6 +16,7 @@ var kinds = map[bonuses.Kind]planetv1.BonusKind{
 	bonuses.KindVirus:         planetv1.BonusKind_BONUS_KIND_VIRUS,
 	bonuses.KindMine:          planetv1.BonusKind_BONUS_KIND_MINE,
 	bonuses.KindRally:         planetv1.BonusKind_BONUS_KIND_RALLY,
+	bonuses.KindTrap:          planetv1.BonusKind_BONUS_KIND_TRAP,
 }
 
 // Kind is planet's word for a kind the bonuses module draws; unspecified for none.

@@ -31,7 +31,8 @@ func (l *Logged) Execute(ctx context.Context, command switch_board_usecase.Comma
 		slog.Int("heldAfter", int(carried.HeldAfter)), slog.Int("dropped", int(carried.Dropped)),
 		slog.Int("droppedHeld", int(carried.DroppedHeld)), slog.Int("shieldsBefore", int(carried.ShieldsBefore)),
 		slog.Int("shieldsAfter", int(carried.ShieldsAfter)), slog.Int("minesMoved", int(carried.MinesMoved)),
-		slog.Int("minesLost", int(carried.MinesLost)), slog.Int("virusesEnded", int(carried.VirusesEnded)),
+		slog.Int("minesLost", int(carried.MinesLost)), slog.Int("trapsMoved", int(carried.TrapsMoved)),
+		slog.Int("trapsLost", int(carried.TrapsLost)), slog.Int("virusesEnded", int(carried.VirusesEnded)),
 		slog.Int("locksDropped", int(carried.LocksDropped)),
 	}
 	switch {

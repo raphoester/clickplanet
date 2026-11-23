@@ -26,8 +26,8 @@ type InfectableTiles interface {
 // Pick is a number from 0 to n-1, n above 0.
 type Pick func(n int) int
 
-func NewContagion(tiles InfectableTiles, ground Neighbourhood, pick Pick, shieldsPerTile func() int) Contagion {
-	return Contagion{tiles: tiles, ground: ground, pick: pick, shieldsPerTile: shieldsPerTile}
+func NewContagion(tiles InfectableTiles, ground Neighbourhood, pick Pick, shieldsPerTile func() int, snare Snare) Contagion {
+	return Contagion{tiles: tiles, ground: ground, pick: pick, shieldsPerTile: shieldsPerTile, snare: snare}
 }
 
 // Contagion plays a virus on the map: its first take, then each of its ticks, each under one lock of the tiles.
@@ -36,6 +36,7 @@ type Contagion struct {
 	ground         Neighbourhood
 	pick           Pick
 	shieldsPerTile func() int
+	snare          Snare
 }
 
 // Start takes the tile the virus is aimed at, which must be an enemy tile with no shield, and infects it.
@@ -53,7 +54,7 @@ func (c Contagion) Start(ctx context.Context, virus Virus, most int, next time.T
 			return err
 		}
 
-		impact, err := claim(ctx, tiles, virus.tile, virus.flag, Claimable.Set, shields)
+		impact, err := claim(ctx, tiles, virus.tile, virus.flag, Claimable.Set, shields, c.takerOf(virus))
 		if err != nil {
 			return err
 		}
@@ -116,13 +117,18 @@ func (c Contagion) Spread(ctx context.Context, id VirusID, most int, next time.T
 	return virus, impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 }
 
+// takerOf is the virus's player, as it used it: a virus takes with no request.
+func (c Contagion) takerOf(virus Virus) taker {
+	return taker{payer: virus.TakeSnapshot().Payer(), snare: c.snare}
+}
+
 // infect claims an enemy tile next to the tile; false when it has none.
 func (c Contagion) infect(ctx context.Context, tiles Claimable, from uint32, virus Virus, shields int) (Impact, bool, error) {
 	target, ok, err := c.target(tiles, from, virus.flag)
 	if err != nil || !ok {
 		return Impact{}, false, err
 	}
-	impact, err := claim(ctx, tiles, target, virus.flag, Claimable.Set, shields)
+	impact, err := claim(ctx, tiles, target, virus.flag, Claimable.Set, shields, c.takerOf(virus))
 	if err != nil {
 		return Impact{}, false, err
 	}

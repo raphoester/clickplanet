@@ -58,6 +58,25 @@ const vec2 MINE_FOOT = vec2(0.0, 0.34);
 const float MINE_FOOT_SIZE = 0.5;
 const float MINE_FOOT_LIT = 0.1;
 
+// A trap of the page's flag, which only its players see: an open set of steel jaws, their teeth in, on two hinges, round
+// a --trap plate. Still, as the mine. On a shielded tile it steps down to the shield's tip as the mine does, and its plate
+// grows there, as at that size it is what says "trap".
+const vec3 TRAP = vec3(0.910, 0.525, 0.165);
+const vec3 TRAP_STEEL = vec3(0.70, 0.74, 0.79);
+const vec3 TRAP_DARK = vec3(0.05, 0.06, 0.08);
+const float TRAP_OUTER = 0.25;
+const float TRAP_ROOT = 0.19;
+const float TRAP_TIP = 0.12;
+const float TRAP_TEETH = 10.0;
+const float TRAP_OUTLINE = 0.03;
+const float TRAP_HINGE = 0.05;
+const float TRAP_PLATE = 0.065;
+const float TRAP_FOOT_PLATE = 0.11;
+
+// A mine and a trap on one tile stand side by side, the mine on the left, each smaller, at the shield's tip too.
+const float PAIR_SIZE = 0.7;
+const float PAIR_APART = 0.21;
+
 // A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
 const float CROWN_SIZE = 0.4;
@@ -117,10 +136,9 @@ vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
-vec4 mined(vec4 colour, vec2 tile, float shown) {
-    float foot = vShield > 0.5 ? countShown() : 0.0;
-    float size = mix(1.0, MINE_FOOT_SIZE, foot);
-    vec2 coordinates = (tile - MINE_FOOT * foot) / size;
+// A mine at its place on the tile and at its size: `foot` is how far it stepped down to a shield's tip.
+vec4 mined(vec4 colour, vec2 tile, float shown, vec2 at, float size, float foot) {
+    vec2 coordinates = (tile - at) / size;
     float pixel = 1.0 / (vSpriteSize * size);
     float r = length(coordinates);
     float body = 1.0 - smoothstep(MINE_BODY - pixel, MINE_BODY + pixel, r);
@@ -137,6 +155,28 @@ vec4 mined(vec4 colour, vec2 tile, float shown) {
     vec3 rgb = mix(colour.rgb, MINE_DARK, dark);
     rgb = mix(rgb, MINE, rim * shown);
     rgb = mix(rgb, MINE_LIGHT, lit * shown);
+    return vec4(rgb, max(colour.a, dark));
+}
+
+// A trap at its place on the tile and at its size, as a mine.
+vec4 trapped(vec4 colour, vec2 tile, float shown, vec2 at, float size, float foot) {
+    vec2 coordinates = (tile - at) / size;
+    float pixel = 1.0 / (vSpriteSize * size);
+    float r = length(coordinates);
+    float tooth = abs(fract(atan(coordinates.y, coordinates.x) / 6.2831853 * TRAP_TEETH) - 0.5) * 2.0;
+    float inner = mix(TRAP_TIP, TRAP_ROOT, tooth);
+    float jaws = smoothstep(inner - pixel, inner + pixel, r) * (1.0 - smoothstep(TRAP_OUTER - pixel, TRAP_OUTER + pixel, r));
+    float outlined = smoothstep(inner - TRAP_OUTLINE - pixel, inner - TRAP_OUTLINE + pixel, r)
+        * (1.0 - smoothstep(TRAP_OUTER + TRAP_OUTLINE - pixel, TRAP_OUTER + TRAP_OUTLINE + pixel, r));
+    vec2 side = vec2(abs(coordinates.x), coordinates.y);
+    float hinge = 1.0 - smoothstep(TRAP_HINGE - pixel, TRAP_HINGE + pixel, length(side - vec2(TRAP_OUTER, 0.0)));
+    float plateSize = mix(TRAP_PLATE, TRAP_FOOT_PLATE, foot);
+    float plate = 1.0 - smoothstep(plateSize - pixel, plateSize + pixel, r);
+    float plateRim = 1.0 - smoothstep(plateSize + TRAP_OUTLINE - pixel, plateSize + TRAP_OUTLINE + pixel, r);
+    float dark = max(max(outlined, hinge), plateRim) * shown;
+    vec3 rgb = mix(colour.rgb, TRAP_DARK, dark);
+    rgb = mix(rgb, TRAP_STEEL, jaws * shown);
+    rgb = mix(rgb, TRAP, plate * shown);
     return vec4(rgb, max(colour.a, dark));
 }
 
@@ -175,7 +215,15 @@ vec4 tileColour(vec2 coordinates, float shown) {
     colour = steeled(colour, vFortify * shown);
     colour = heated(colour, vGlow * shown);
 
-    if (marked(32.0)) colour = mined(colour, coordinates, shown);
+    if (marked(32.0) || marked(64.0)) {
+        float foot = vShield > 0.5 ? countShown() : 0.0;
+        float pair = marked(32.0) && marked(64.0) ? 1.0 : 0.0;
+        float size = mix(1.0, MINE_FOOT_SIZE, foot) * mix(1.0, PAIR_SIZE, pair);
+        vec2 at = MINE_FOOT * foot;
+        vec2 apart = vec2(PAIR_APART * mix(1.0, MINE_FOOT_SIZE, foot) * pair, 0.0);
+        if (marked(32.0)) colour = mined(colour, coordinates, shown, at - apart, size, foot);
+        if (marked(64.0)) colour = trapped(colour, coordinates, shown, at + apart, size, foot);
+    }
 
     float capital = marked(8.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (capital > 0.0) colour = crowned(colour, coordinates, capital);

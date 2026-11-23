@@ -16,6 +16,7 @@ type Mine struct {
 	flag    string
 	account cpsession.AccountID
 	scope   string
+	linked  bool
 }
 
 type MineSnapshot struct {
@@ -24,22 +25,29 @@ type MineSnapshot struct {
 	Flag    string
 	Account cpsession.AccountID
 	Scope   string
+	// Whether its player was signed in as it laid it: a trap its blast springs drains a guest's network's guest bank too.
+	Linked bool
 }
 
 func (s MineSnapshot) Restore() Mine {
-	return Mine{tile: s.Tile, flag: s.Flag, account: s.Account, scope: s.Scope}
+	return Mine{tile: s.Tile, flag: s.Flag, account: s.Account, scope: s.Scope, linked: s.Linked}
 }
 
 func (m Mine) TakeSnapshot() MineSnapshot {
-	return MineSnapshot{Tile: m.tile, Flag: m.flag, Account: m.account, Scope: m.scope}
+	return MineSnapshot{Tile: m.tile, Flag: m.flag, Account: m.account, Scope: m.scope, Linked: m.linked}
 }
 
 // NewMine is a mine a player of the flag lays on the tile, which is not on the map yet.
-func NewMine(account cpsession.AccountID, scope, flag string, tile uint32) Mine {
-	return Mine{tile: tile, flag: flag, account: account, scope: scope}
+func NewMine(account cpsession.AccountID, scope string, linked bool, flag string, tile uint32) Mine {
+	return Mine{tile: tile, flag: flag, account: account, scope: scope, linked: linked}
 }
 
-// Laid is the mine on its tile, which must be its flag's and hold no mine.
+// Payer is who pays for what its blast's takes spring: the mine's player, as it laid it.
+func (s MineSnapshot) Payer() Payer {
+	return Payer{Scope: s.Scope, Account: s.Account.String(), Linked: s.Linked}
+}
+
+// Laid is the mine on its tile, which must be its flag's and hold no mine. A trap may wait there too.
 func (m Mine) Laid(tile Tile, mined bool) (Mine, error) {
 	if tile.id != m.tile || tile.owner != m.flag || mined {
 		return Mine{}, ErrNotMineable

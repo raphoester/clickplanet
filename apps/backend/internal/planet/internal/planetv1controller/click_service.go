@@ -18,7 +18,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_traps_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_mine_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_trap_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
@@ -42,6 +44,8 @@ type ClickService struct {
 	use_virus_handler.UseVirusHandler
 	lay_mine_handler.LayMineHandler
 	get_mines_handler.GetMinesHandler
+	lay_trap_handler.LayTrapHandler
+	get_traps_handler.GetTrapsHandler
 	call_rally_handler.CallRallyHandler
 	get_rallies_handler.GetRalliesHandler
 	get_fortresses_handler.GetFortressesHandler

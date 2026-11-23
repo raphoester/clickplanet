@@ -31,7 +31,7 @@ func (s *testSuite) TestATakeOfACapitalKnocksItsFlagOutInOneChangeAfterTheTake()
 	s.Require().NoError(err)
 	ana := uuid.NewString()
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(cpctx.AddAccountToContext(ctx, ana), island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(cpctx.AddAccountToContext(ctx, ana), island[0], "de")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(impact.KnockedOut)
@@ -64,7 +64,7 @@ func (s *testSuite) TestAFlagOutStandsNoMoreAndAMapReadSaysSo() {
 	s.True(storage.Stands("fr"))
 	s.False(storage.Stands("gb-eng"), "a flag with no capital never stands in an arena")
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 
 	s.False(storage.Stands("fr"))
@@ -79,7 +79,7 @@ func (s *testSuite) TestAFlagOutStandsNoMoreAndAMapReadSaysSo() {
 func (s *testSuite) TestAFlagIsKnockedOutOnce() {
 	ctx := context.Background()
 	storage := s.arenaWithFrance(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
-	claiming := clicks.NewClaiming(storage, tenShields)
+	claiming := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog())
 	_, err := claiming.Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 
@@ -97,7 +97,7 @@ func (s *testSuite) TestACapitalLeftBlankStillFallsToTheNextTake() {
 	_, err := storage.Clear(ctx, clicks.Blast{Tile: island[0], Cleared: []uint32{island[0]}})
 	s.Require().NoError(err)
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Claim(ctx, island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Claim(ctx, island[0], "de")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(impact.KnockedOut)
@@ -111,7 +111,7 @@ func (s *testSuite) TestATakeKnocksNobodyOutWhileTheKnockOutDoesNotPlay() {
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, 5, "fr"))
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 
 	s.Require().NoError(err)
 	s.Nil(impact.KnockedOut, "an arena alone knocks nobody out")
@@ -126,7 +126,7 @@ func (s *testSuite) TestTheKnockOutPlaysOnTheWorldsMapToo() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{island[0]: "fr", 5: "fr"})
 	storage := s.withCapitals(persistence)
 
-	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	impact, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(impact.KnockedOut)
@@ -145,7 +145,7 @@ func (s *testSuite) TestAnEnclosureKnocksOutOnceItsPocketIsWritten() {
 	changes, _, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	impacts, err := clicks.NewClaiming(storage, tenShields).Enclose(ctx, clicks.Enclosure{Country: "de"},
+	impacts, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Enclose(ctx, clicks.Enclosure{Country: "de"},
 		[]uint32{island[0], island[1], 7})
 
 	s.Require().NoError(err)
@@ -167,7 +167,7 @@ func (s *testSuite) TestAFlagOutIsSavedWithTheTilesAndReadAgainAtBoot() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.arenaWithFrance(persistence)
-	_, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	_, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 
 	persistence.FailWith(errors.New("postgres is restarting"))
@@ -191,7 +191,7 @@ func (s *testSuite) TestTheFlagsOutGoWithTheirArena() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.arenaWithFrance(persistence)
-	_, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+	_, err := clicks.NewClaiming(storage, tenShields, clicks.NewSnareLog()).Click(ctx, island[0], "de")
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Flush(ctx))
 

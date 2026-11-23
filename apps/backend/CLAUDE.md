@@ -104,13 +104,14 @@ and says what is in it. Read the doc before you change its area.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders, `GetProvince` a province's last fortify.
 - [The map's last 24 hours](docs/recent-map-history.md) — `GetRecentMapHistory`, public: a frame each half hour, rewound
-  from the map in memory over the ledger's rows from its head, built once per step; what cannot be rewound; its size;
-  why it names no account.
+  from the map in memory over the ledger's rows from its head and the erasure kept of the rows before it, built once per
+  step; what cannot be rewound; its size; why it names no account.
 - [A revert erases the takes it forgot](docs/revert-erasure.md) — every history and replay reads the ledger as if a
   reverted player never played (`ledger.Erasure`): a take of its paint takes the tile from what was under it, a take back
   to it is none; the revert gives back every take of the season on the live map too, on every board (`ledger.Undoing`
-  over `world_replay`); why the history and the live map differed before; `GetLedger` leaves them out; each cache built
-  again after a revert (`forgetting`, `GetMapHistory`'s `kept`); production's rows put right; what is left.
+  over `world_replay`); why the history and the live map differed before; the erasure before the ledger's head that both
+  rewinds start from (`world_replay.Erasures`); `GetLedger` leaves them out; each cache built again after a revert
+  (`forgetting`, `GetMapHistory`'s `kept`); production's rows put right; what is left.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it; every kind a count, stacked to
   its `charges.*.held` (refills, bombs and viruses too since 2026-11-16), none kept of a kind the rules turn off.
 - [Bonus boxes](docs/bonus-boxes.md) — the box each caller is offered on a schedule of its own (the boxes module's),
@@ -124,9 +125,14 @@ and says what is in it. Read the doc before you change its area.
   its 2-ring blast takes the tiles for the flag, every mine reached going off too; a bomb clears it; dormant (weighed 0),
   level 13; map state flushed with the tiles; one `mines_exploded`, `mine_laid` to the flag's streams alone; ledger kind
   `mine`, whose takes reach `TilesTaken`.
+- [Trap](docs/trap.md) — the mine's sibling: a charge laid on a flag's own tile that only its players see; any enemy
+  take springs it and the taker loses `charges.trap.clicks` (10) from its bank, to nobody, down to minus one bank
+  (`Limiter.Drain`), a guest's network's guest bank too; the click's answer shows the debt; a bomb clears it; dormant
+  (weighed 0), level 15; map state flushed with the tiles; `trap_laid` to the flag's streams, `trap_sprung` to every
+  stream; no ledger kind.
 - [Rally](docs/rally.md) — a charge that calls a ring on any point of the globe, seen by every player: for 3 minutes a
   click of its flag inside costs half a click (`charges.rally.cost`, from every bucket, `ClickBudget.spent`); one on at a
-  time, a stack of 3; dormant (weighed 0), level 15; a row in postgres, not map state, that a remap keeps;
+  time, a stack of 3; dormant (weighed 0), level 17; a row in postgres, not map state, that a remap keeps;
   `rally_called` on every stream, `GetRallies`; chat's `rally` line in the flag's room, naming the landmass; no ledger
   kind: the takes inside are plain clicks.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a

@@ -44,6 +44,7 @@ export type InventoryProps = {
     onToggleBomb?: () => void
     onToggleVirus?: () => void
     onToggleMine?: () => void
+    onToggleTrap?: () => void
     onToggleRally?: () => void
     onUseRefill?: () => boolean
     onToggleShield?: () => void
@@ -72,7 +73,9 @@ type Shown = {
     lockedAt?: number
 }
 
-export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onToggleMine, onToggleRally, onUseRefill, onToggleShield}: InventoryProps) {
+export default function Inventory(
+    {onToggle, onToggleBomb, onToggleVirus, onToggleMine, onToggleTrap, onToggleRally, onUseRefill, onToggleShield}: InventoryProps,
+) {
     const notice = useBonus((bonus) => bonus.notice)
     const charges = useBonus((bonus) => bonus.charges)
     const rules = useBonus((bonus) => bonus.rules)
@@ -80,6 +83,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
     const bombArmed = useBonus((bonus) => bonus.bombArmed)
     const virusAimed = useBonus((bonus) => bonus.virusAimed)
     const mineAimed = useBonus((bonus) => bonus.mineAimed)
+    const trapAimed = useBonus((bonus) => bonus.trapAimed)
     const rallyAimed = useBonus((bonus) => bonus.rallyAimed)
     const level = useLevel((store) => store.own?.level ?? NO_LEVEL)
     const unlocks = useLevel((store) => store.unlocks)
@@ -127,7 +131,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
 
     const closeTray = () => closePopover("bonuses")
 
-    const active = bombArmed || virusAimed || mineAimed || rallyAimed || switches.spread || switches.enclose || switches.shield
+    const active = bombArmed || virusAimed || mineAimed || trapAimed || rallyAimed || switches.spread || switches.enclose || switches.shield
     const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
     const spreadUnlimited = rules?.spreadUnlimited ?? false
@@ -258,6 +262,20 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                     onPress: onToggleRally && (() => {
                         pressed("rally", !rallyAimed, t("inventory.rally.learn"))
                         onToggleRally()
+                    }),
+                }
+            case "trap":
+                return {
+                    kind,
+                    name: t("bonus.trap"),
+                    held: charges.traps > 0,
+                    count: countOf(charges.traps, rules?.traps),
+                    on: trapAimed,
+                    state: trapAimed ? t("inventory.state.aim") : undefined,
+                    hint: trapAimed ? t("inventory.trap.putAway") : t("inventory.trap.hint"),
+                    onPress: onToggleTrap && (() => {
+                        pressed("trap", !trapAimed, t("inventory.trap.learn"))
+                        onToggleTrap()
                     }),
                 }
         }
@@ -407,6 +425,10 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
             return {text: t("inventory.notice.mineNotYours"), ms: NOTICE_MS}
         case "rallyOn":
             return {text: t("inventory.notice.rallyOn"), ms: NOTICE_MS}
+        case "trapTaken":
+            return {text: t("inventory.notice.trapTaken"), ms: NOTICE_MS}
+        case "trapNotYours":
+            return {text: t("inventory.notice.trapNotYours"), ms: NOTICE_MS}
         case "nothingEnclosed": {
             const max = rules?.enclosureMaxTiles
             return {
@@ -512,6 +534,8 @@ function amountOf(charges: Charges, kind: ChargeKind): number {
             return charges.mines
         case "rally":
             return charges.rallies
+        case "trap":
+            return charges.traps
     }
 }
 

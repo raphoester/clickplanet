@@ -14,7 +14,7 @@ import (
 // Switch plays the map in play on onto's board, every tile carried over from the board it plays (carry), once keep says
 // to, in keep's transaction, which is told what is carried:
 //   - each new tile takes its parent's flag and holder, and its share of the parent's shields (carry.Share);
-//   - each mine moves to its tile's child nearest it (carry.Heir), and one on a tile with no child is lost;
+//   - each mine and each trap moves to its tile's child nearest it (carry.Heir), and one on a tile with no child is lost;
 //   - every live virus ends, and every fortify lock is dropped, then each province of the new board settled again;
 //   - the flags out stay: they name no tile.
 //
@@ -53,7 +53,7 @@ func (s *Storage) Switch(
 		return clicks.Carried{}, false, err
 	}
 	computed := time.Now()
-	switched, err := s.persistence.Carry(ctx, onto, carrying.tiles, carrying.mines, func(ctx context.Context) (bool, error) {
+	switched, err := s.persistence.Carry(ctx, onto, carrying.tiles, carrying.mines, carrying.traps, func(ctx context.Context) (bool, error) {
 		return keep(ctx, carrying.carried)
 	})
 	if err != nil || !switched {
@@ -66,7 +66,7 @@ func (s *Storage) Switch(
 	s.groundLocked(ground)
 	defer s.restartLocked()
 	recorded(carrying.carried)
-	if err := s.fillFromLocked(ctx, carriedRows{tiles: carrying.tiles, mines: carrying.mines, out: out}); err != nil {
+	if err := s.fillFromLocked(ctx, carriedRows{tiles: carrying.tiles, mines: carrying.mines, traps: carrying.traps, out: out}); err != nil {
 		return carrying.carried, true, fmt.Errorf("switched the map's board, but could not fill it: %w", err)
 	}
 	s.logger.Info("carried the map onto its new board under the locks", slog.String("board", string(ground.Name())),
@@ -101,6 +101,7 @@ func (s *Storage) Carried(onto clicks.Stage, carry clicks.Carryover) (clicks.Car
 type carriedRows struct {
 	tiles []Tile
 	mines []clicks.MineSnapshot
+	traps []clicks.TrapSnapshot
 	out   []clicks.OutFlag
 }
 
@@ -135,6 +136,13 @@ func (c carriedRows) LoadMines(_ context.Context, _ clicks.MapID, visit func(min
 	return nil
 }
 
+func (c carriedRows) LoadTraps(_ context.Context, _ clicks.MapID, visit func(trap clicks.TrapSnapshot)) error {
+	for _, trap := range c.traps {
+		visit(trap)
+	}
+	return nil
+}
+
 // A switch moves the map that plays, onto another board.
 func (s *Storage) playsLocked(onto clicks.Stage) error {
 	if onto.Map != s.stage.Map {
@@ -150,6 +158,7 @@ func (s *Storage) playsLocked(onto clicks.Stage) error {
 type carrying struct {
 	tiles   []Tile
 	mines   []clicks.MineSnapshot
+	traps   []clicks.TrapSnapshot
 	carried clicks.Carried
 }
 
@@ -211,6 +220,19 @@ func (s *Storage) carryLocked(ground *clicks.Ground, carry clicks.Carryover) (ca
 		carried.MinesMoved++
 	}
 
+	var traps []clicks.TrapSnapshot
+	for _, tile := range slices.Sorted(maps.Keys(s.traps.laid)) {
+		heir, ok := carry.Heir(tile, old.Geography(), ground.Geography())
+		if !ok {
+			carried.TrapsLost++
+			continue
+		}
+		trap := s.traps.laid[tile].TakeSnapshot()
+		trap.Tile = heir
+		traps = append(traps, trap)
+		carried.TrapsMoved++
+	}
+
 	carried.VirusesEnded = uint32(len(s.viruses.live)) //nolint:gosec // a virus a player, at most.
 	s.provinces.each(func(province clicks.ProvinceID) {
 		if s.provinces.lockedTo(province) != unownedCode {
@@ -218,7 +240,7 @@ func (s *Storage) carryLocked(ground *clicks.Ground, carry clicks.Carryover) (ca
 		}
 	})
 
-	return carrying{tiles: tiles, mines: mines, carried: carried}, nil
+	return carrying{tiles: tiles, mines: mines, traps: traps, carried: carried}, nil
 }
 
 func nameOf(ground *clicks.Ground) clicks.BoardName {
