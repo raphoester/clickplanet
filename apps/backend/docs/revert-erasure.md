@@ -129,15 +129,25 @@ regenerated `planet/v1/admin` bindings for `RevertPlayer`'s description, which t
 
 ## Production's rows
 
-After that deploy, through the connector, each revert first dry, its counts read, then run:
+Done on 2026-11-23, 14:54 to 15:27 UTC, through the connector, 25 accounts, each first dry, the owner's OK on the
+counts, then run: 5,109 tiles given back on the live map.
 
-- **Every account reverted since the season's reset, run again**: it gives back on the live map what the first revert
-  could not reach, and forgets what a revert before #731 never marked. The four alts of 6 Nov's revert by address, by
-  their accounts.
-- **The painters of the swastikas the season's history still showed, reverted**: a scan of every hourly frame with the
-  vandal squad's reading found seven, on `earth-1` from 2 to 8 Nov, painted by six accounts nobody had reverted (one had
-  been, before #731). Four more readings were players painting one over, in the flag of the land around, which shows
-  nothing; each goes with its swastika.
+- **The 16 accounts reverted since the season's reset, run again**: 4,454 tiles (1,760 in Cameroon, 1,533 of the
+  Irish land in the US, 1,161 elsewhere). The other 12 held nothing more, and each run forgot what a revert before
+  #731 never marked.
+- **The four alts of 6 Nov's revert by address, by their accounts**: 455 tiles, all of one alt.
+- **The painters of the swastikas the season's history still showed**: a scan of every hourly frame with the vandal
+  squad's reading found seven, on `earth-1` from 2 to 8 Nov, painted by six accounts nobody had reverted (one had been,
+  before #731). Four more readings were players painting one over, in the flag of the land around, which shows
+  nothing. 200 tiles; the other five painters held none.
+
+**Checked after**: a fresh `GetMapHistory` equals the live map (`planet.tiles`) on every tile but the ones played after
+it was read, and the same scan finds no swastika in any frame. A revert inside a `GetReplay` window is no event, so the
+replay rewinds across it wrong: 145 Cameroon tiles a Swedish fortify crossed opened on Sweden in the replay of 15:27.
+
+**A revert reads the whole season** (about 70 seconds at 1.2 million events, with the box busy): the connector answers
+"not responding" after about a minute while the server goes on. Read the `admin player revert` line in journald before
+running one again; one run twice gives back nothing more.
 
 ## Tests
 
