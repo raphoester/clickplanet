@@ -161,8 +161,9 @@ its control, and every post says which it is.
   beside them, and the readout compares by it. A lab clip is a post like any other: its platforms, its words, its
   slot are the plan's and the calendar's.
 - **`clips edit -experiment <name>`** tries a brief by hand at the run's first pick, an experiment on or off.
-- **What it costs**: a brief of about 1,500 characters (about 400 tokens) in the prompt and one story more in the
-  answer: about $0.0002 a run, $0.05 a month at 9 runs a day.
+- **What it costs**: a brief of about 1,500 characters (about 400 tokens) in the prompt, one story more in the
+  answer, and the thinking they take: from 2026-11-20 to 23 the one run with no lab answered in 3,926 tokens, the runs
+  with one in 5,800 to 8,000 and more (below, "Claude Haiku 5.5"). About $0.0018 a run, $0.50 a month at 9 runs a day.
 
 **The carousel, since 2026-11-20: an experiment drawn as photos, not a clip** (`posts/carousel.go`; why and what it
 shows in the root's [The video lab](../../../docs/video-lab.md), "Photos, not a video").
@@ -330,15 +331,21 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   the editor's instructions asked it to leave such names out, and it named an Irish player called after the IRA. A
   name is never in the words it writes, and the log never prints one.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
-  `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
+  `max_tokens` 16,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
   end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer
   like any other failure.
+- **The cap holds the thinking too.** It was 8,000 until 2026-11-23: from 2026-11-20 10:00 to 2026-11-23 08:30 UTC, 17
+  of 27 runs stopped on `max_tokens` at 8,000, and posted no story (on 2026-11-22, none on TikTok and 5 on YouTube).
+  The lab's story made the answer longer: the one run with no lab used 3,926 tokens, the runs with one that held 5,800
+  to 7,900. Its words are short, a `why` of a sentence or two and 3 or 4 stories: the rest is thinking, which is left
+  as it is. Those calls ran at about 200 tokens a second, so 16,000 is about 80 seconds, inside the 2 minutes. A cap
+  past about 22,000 needs a longer timeout.
 - **What it costs, said every run**: the call's tokens (in, written to the cache, read from it, out) and their price
   at $0.10 and $0.50 a million in and out (5 times both past 100K tokens of prompt, a cache write 1.25 times the
-  input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). The findings are
-  bigger than the shortlist was: 30 fronts of 6 countries and 6 flags each is about 10,000 tokens of run against
-  4,300, so a call is about $0.0015 in and, with its thinking, about $0.001 out: 9 runs a day is about $0.70 a month,
-  where the owner's ceiling for all AI calls is $10.
+  input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). From 2026-11-20
+  to 23 a call was 35,000 to 55,000 tokens in and up to 8,000 out, about $0.0095: 9 runs a day is about $2.60 a month.
+  The cap of 16,000 adds at most 8,000 tokens out, $0.004 a run, $1.10 a month, where the owner's ceiling for all AI
+  calls is $10.
 - **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`

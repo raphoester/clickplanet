@@ -241,7 +241,7 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 |---|---|
 | Zernio | nothing more: the two accounts there are; Instagram is $6 if taken |
 | Rendering | nothing: Actions are free for a public repository |
-| The editor | a brief and one story more a run: about $0.05 |
+| The editor | a brief, one story more a run and the thinking they take: about $0.50, $1.60 at most |
 | The voice | nothing: Kokoro, in the render job |
 | The war report's bench | about $1 a round of 15 scripts on Opus, while it is tuned |
 | The owner | nothing to film; the readout when wanted; a verdict per experiment, every 10 days or so |
