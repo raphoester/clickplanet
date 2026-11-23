@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {deliver, Env, Mail} from "./index.ts"
+import {deliver, Env, Mail} from "./deliver.ts"
 
 const env: Env = {MAILROOM_URL: "https://api.example/mailroom/replies", MAILROOM_SECRET: "the-secret"}
 
