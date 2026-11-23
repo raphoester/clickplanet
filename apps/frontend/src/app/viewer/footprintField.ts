@@ -1,6 +1,17 @@
 import * as THREE from "three"
-import {Footprints, NO_FOOTPRINT, unitPositions} from "../../domain/footprints.ts"
+import {type FootprintFrame, Footprints, NO_FOOTPRINT, unitPositions} from "../../domain/footprints.ts"
 import {joinSpans, spansOf} from "../../domain/spans.ts"
+import {flagCodeOf, regions} from "./atlas.ts"
+import {MAX_FLAG_RADIUS} from "./borderField.ts"
+import type {Divisions} from "./pointSize.ts"
+import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
+import {addNeed, type FlagNeed} from "./slotRanking.ts"
+
+// The grounds of a framing as the territory layer paints them: each one's leader, drawn in the ground's own frame.
+export type PaintedGrounds = {
+    holderOf(ground: number): string | undefined
+    sizeOf(ground: number): number
+}
 
 // Must match FOOTPRINT_COLUMNS, FOOTPRINT_ROWS in shaders/territory/fragment.glsl, and TILE_COLUMNS in tileField.ts.
 export const FOOTPRINT_COLUMNS = 1024
@@ -78,6 +89,32 @@ export class FootprintField {
         })
     }
 
+    // What each flag painted over its own footprint on a ground in view asks of the slots: its frame's width on screen,
+    // and its share of the ground's land on screen. A ground's leader is drawn in the ground's frame: BorderField's.
+    flagNeeds(divisions: Divisions, view: ScreenView, areas: Float32Array, grounds: PaintedGrounds, leastRadius: number): Map<string, FlagNeed> {
+        const needs = new Map<string, FlagNeed>()
+        const footprints = divisions === "provinces" ? this.provinces : this.landmasses
+        footprints?.forEachFootprint((id, ground, flag) => {
+            const area = areas[ground] ?? 0
+            const code = flagCodeOf(flag)
+            if (area <= 0 || code === undefined || code === grounds.holderOf(ground)) return
+            const region = regions.get(code)
+            const frame = footprints.frameOf(id)
+            const size = grounds.sizeOf(ground)
+            if (region === undefined || frame === undefined || size <= 0) return
+            const aspect = region.width / region.height
+            const halfV = coverOf(frame, aspect, leastRadius)
+            const [x, y, z] = frame.centre
+            addNeed(needs, code, {
+                need: flagNeedOf({x, y, z}, halfV * aspect, halfV, aspect, view),
+                area: area * footprints.countOf(id) / size,
+                aspect,
+                spriteWidth: region.width,
+            })
+        })
+        return needs
+    }
+
     upload(renderer: THREE.WebGLRenderer) {
         if (!this.provinces) return
         this.writeFrames()
@@ -129,6 +166,11 @@ export class FootprintField {
         }
         this.changedFrameRows.add(row)
     }
+}
+
+// As coverOf in the territory fragment shader: the half height of the flag over a footprint, from its middle.
+function coverOf({halfEast, halfNorth}: FootprintFrame, aspect: number, leastRadius: number): number {
+    return Math.min(MAX_FLAG_RADIUS, Math.max(leastRadius, halfNorth, halfEast / aspect))
 }
 
 function copyRows(renderer: THREE.WebGLRenderer, texture: THREE.DataTexture, changed: Set<number>, width: number) {

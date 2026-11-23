@@ -170,6 +170,14 @@ straight along the edge tiles of every landmass, over the outline, and across
 open ground wherever a rectangle stopped short, as one capped at
 `MAX_FLAG_RADIUS` does in Russia.
 
+**Past its edge, a flag is its edge's own texels** (`flagColourOf` in the territory fragment shader). The uv is held at
+the edge, the gradient across that edge is none, and the sample is held inside the flag by the filter's reach: half a
+texel and 1.5 times the footprint, in the flag's texels. A footprint's frame stops short of its tiles wherever they
+spread unevenly, as √3 σ does, so that ground is common. Until 2026-11-23 the uv was held 0.2% inside the edge: on a
+100px sprite that is a fifth of a texel, and the filter took a third or more of the next sprite in the atlas, or of
+its transparent gap. Every flag drawn from the atlas over such ground had a band of another colour round it: grey-green
+round Saudi Arabia, grey round Greece, purple under Turkey (the owner's shots).
+
 **The flags on screen are drawn from their SVGs, not read from the atlas.** A sprite is 100px wide and a painted
 flag is as wide as its landmass's frame: zoomed out over Africa on a retina screen, Algeria, Libya and Sudan stretch
 their sprite 6 to 7 times, and a crescent, a star or a coat of arms is mud. So each flag in view gets a cell of its
@@ -178,9 +186,15 @@ own in one texture, `flagSlots.ts`, rasterised from `static/countries/svg/<code>
 *How wide a flag must be* (`flagNeedOf` in `slotNeed.ts`): the width of its frame on screen, in drawing-buffer pixels,
 or its height times the flag's aspect if that is more. Each axis is foreshortened by its own slant at the frame's
 centre, so a frame at the edge of the earth still needs its full height. A flag takes the largest need of the
-landmasses it leads. *How much land it shows* (`LandmassSight`): up to 32 tiles of each landmass, each standing for its
-share of it, counted when they face the camera and are on screen, each by its slant. Both are measured from the
-camera: what is behind the earth or off screen needs nothing.
+landmasses it leads and, in Split, of the footprints it is painted over where it does not lead
+(`FootprintField.flagNeeds`, each frame as `coverOf` in the shader draws it). *How much land it shows*
+(`LandmassSight`): up to 32 tiles of each landmass, each standing for its share of it, counted when they face the
+camera and are on screen, each by its slant; a footprint shows the share of that land its tiles are. Both are measured
+from the camera: what is behind the earth or off screen needs nothing.
+
+**Until 2026-11-23 only the leaders were ranked**: a flag that led no ground in view had no slot, however large it was
+painted, and was drawn from its 100px sprite. Saudi Arabia, led by Austria on its own landmass, was a blur over half
+of it from orbit, and sharp past the provinces' line, where it led its provinces (the owner's report).
 
 *The texture* is sized from the drawing buffer (`slotBudgetOf` in `slotCells.ts`), because the flags on screen share
 the screen: one 2048×1024 block per 2 million pixels, rounded, 1 to 4 of them, stacked. That is 2048×2048 on a
