@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/forgetting"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
@@ -116,7 +117,8 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) query() *recent_history_query.PostgresQuery {
-	return recent_history_query.NewPostgresQuery(s.db, s.tiles, postgres_era_store.New(s.db), postgres_reset_store.New(s.db), s.clock)
+	return recent_history_query.NewPostgresQuery(s.db, s.tiles, postgres_era_store.New(s.db), postgres_reset_store.New(s.db),
+		forgetting.NewPostgresQuery(s.db), s.clock)
 }
 
 func (s *testSuite) record(forgotten map[ledger.Caller]ledger.Position, events ...ledger.Event) {
@@ -171,10 +173,12 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 		}},
 		take(ada, 5, "pl", "cz", until.Add(5*time.Minute)),
 	)
-	// Read, it would fail the history: an event before the window is never read.
+	// Read, it would fail the history: an event before the head is never read.
 	_, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO ledger_events (position, map, board, tile, scope, country, previous, taken_at, kind, payload)
 		VALUES (0, 'world', 1, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-time.Second))
+	s.Require().NoError(err)
+	_, err = s.db.On(ctx).ExecContext(ctx, `UPDATE ledger_head SET head = 1`)
 	s.Require().NoError(err)
 
 	history, next, err := s.query().RecentHistory(ctx)
@@ -200,6 +204,54 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 2, Hits: 2}, {Tile: 3, Hits: 1}},
 		Eras: worldOnEarth1,
 	}, history), "a reverted take is in none of it, and one after the end only rewinds: %v", history)
+}
+
+func (s *testSuite) TestARevertedDrawingPaintedOverOpensOnWhatWasBeneathIt() {
+	ctx := s.T().Context()
+	s.tiles.now = mapOf("ie", "fr")
+	s.record(map[ledger.Caller]ledger.Position{{Account: eve}: 3},
+		take(eve, 1, "ie", "cn", since.Add(-time.Hour)),
+		take(eve, 2, "ie", "cn", since.Add(-time.Hour)),
+		take(ada, 1, "cn", "ie", since.Add(10*time.Minute)),
+		take(bob, 2, "cn", "fr", since.Add(10*time.Minute)),
+	)
+
+	history, _, err := s.query().RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: frames(since, map[time.Time][]*planetv1.TileOwner{
+			since:                       {{Tile: 1, CountryId: "ie"}, {Tile: 2, CountryId: "ie"}},
+			since.Add(30 * time.Minute): {{Tile: 2, CountryId: "fr", SecondsIntoStep: 600}},
+		}),
+		Hits: []*planetv1.TileHits{{Tile: 2, Hits: 1}},
+		Eras: worldOnEarth1,
+	}, history), "the drawing before the day never shows, and Ireland painting over it changed nothing: %v", history)
+}
+
+func (s *testSuite) TestARevertBuildsTheStepsHistoryAgain() {
+	ctx := s.T().Context()
+	s.tiles.now = mapOf("cn")
+	s.record(map[ledger.Caller]ledger.Position{}, take(eve, 1, "ie", "cn", since.Add(50*time.Minute)))
+	query := s.query()
+	drawn, _, err := query.RecentHistory(ctx)
+	s.Require().NoError(err)
+	s.Len(drawn.GetFrames()[2].GetOwners(), 1)
+
+	s.tiles.now = mapOf("ie")
+	s.Require().NoError(s.store.Save(ctx, inmemory_ledger_storage.Changes{
+		From:    2,
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{}),
+		Marks:   inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{{Account: eve}: 2}},
+	}))
+	erased, _, err := query.RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.Equal(int32(2), s.tiles.reads.Load(), "built again within the step")
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: frames(since, map[time.Time][]*planetv1.TileOwner{since: {{Tile: 1, CountryId: "ie"}}}),
+		Eras:   worldOnEarth1,
+	}, erased), "%v", erased)
 }
 
 func (s *testSuite) TestTheHistoryIsBuiltOncePerStepForEveryCaller() {

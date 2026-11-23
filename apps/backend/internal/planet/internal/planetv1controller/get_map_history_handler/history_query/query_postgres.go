@@ -37,7 +37,8 @@ type PostgresQuery struct {
 // Positions follow time, so the read stops at the first event at or after the window's end. Each event names its map
 // and its board, and the history keeps the world's on the board of the era in force at its time.
 const events = `
-	SELECT map, board, kind, tile, COALESCE(scope, ''), COALESCE(account::text, ''), country, previous, taken_at, payload
+	SELECT map, board, kind, tile, COALESCE(scope, ''), COALESCE(account::text, ''), country, previous, taken_at, payload,
+		forgotten
 	FROM ledger_events
 	WHERE taken_at >= $1
 	ORDER BY position
@@ -77,7 +78,7 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	for rows.Next() {
 		var entry ledger.Entry
 		if err := rows.Scan(&entry.Stage.Map, &entry.Stage.Board, &entry.Kind, &entry.Tile, &entry.Scope, &entry.Account,
-			&entry.Country, &entry.Previous, &entry.At, &entry.Payload); err != nil {
+			&entry.Country, &entry.Previous, &entry.At, &entry.Payload, &entry.Forgotten); err != nil {
 			return nil, fmt.Errorf("failed to scan an event: %w", err)
 		}
 		entry.At = entry.At.UTC()

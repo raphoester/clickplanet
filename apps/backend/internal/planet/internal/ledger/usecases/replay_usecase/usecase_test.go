@@ -269,3 +269,19 @@ func TestAReplayWhileAnArenaPlaysRewindsTheWorldsMapKeptAside(t *testing.T) {
 	require.Len(t, out.Asides, 1)
 	assert.False(t, out.Asides[0].Closed, "the arena still plays")
 }
+
+func TestAReplayOpensARevertedDrawingPaintedOverOnWhatWasBeneathIt(t *testing.T) {
+	h := setup(t, "ie", "fr")
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "v", Country: "cn", Previous: "ie", At: start})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "v", Country: "cn", Previous: "ie", At: start.Add(2 * time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "ie", Previous: "cn", At: start.Add(3 * time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "c", Country: "fr", Previous: "cn", At: start.Add(4 * time.Minute)})
+	h.book.Forget(ledger.Caller{Scope: "v"}, h.book.Replay(func(clicks.Stage, ledger.Event) {}))
+
+	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start.Add(time.Minute)})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"ie", "ie"}, ownersOf(out.Opening), "the drawing never shows")
+	require.Len(t, out.Scenes, 1, "Ireland painting over it changed nothing")
+	assert.Equal(t, clicks.TileUpdate{Tile: 2, Value: "fr", Previous: "ie", Clicked: true}, out.Scenes[0].Change.TileUpdate)
+}

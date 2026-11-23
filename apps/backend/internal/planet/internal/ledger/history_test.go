@@ -254,3 +254,24 @@ func (c carried) Each(visit func(child, parent uint32)) {
 		visit(child, parent)
 	}
 }
+
+func TestAForgottenDrawingIsInNoFrameAndNoHitAndItsPaintOverIsNone(t *testing.T) {
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	require.NoError(t, err)
+
+	for _, entry := range []ledger.Entry{
+		keptEntry(t, take(1, "ie", historySince.Add(-time.Hour))),
+		keptEntry(t, take(2, "ie", historySince.Add(-time.Hour))),
+		forgottenEntry(t, takeBy(vandal, 1, "ie", "cn", historySince.Add(10*time.Minute))),
+		forgottenEntry(t, takeBy(vandal, 2, "ie", "cn", historySince.Add(10*time.Minute))),
+		keptEntry(t, takeBy(ada, 1, "cn", "ie", historySince.Add(20*time.Minute))),
+		keptEntry(t, takeBy(bob, 2, "cn", "fr", historySince.Add(70*time.Minute))),
+	} {
+		require.NoError(t, history.Record(entry))
+	}
+
+	frames := history.Frames()
+	assert.Empty(t, frames[1].Owners, "Ireland painting over the drawing changed nothing")
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "fr", At: historySince.Add(70 * time.Minute)}}, frames[2].Owners)
+	assert.Equal(t, map[ledger.EraTile]uint32{{Tile: 2}: 1}, history.Hits())
+}

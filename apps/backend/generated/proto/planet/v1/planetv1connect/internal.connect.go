@@ -122,8 +122,9 @@ type InternalServiceClient interface {
 	// keeps the answer. InvalidArgument unless since is before until.
 	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
 	// The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
-	// A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
-	// makes 5,000 frames at most.
+	// The takes a revert forgot are none of it. A read of the whole ledger: the caller keeps the answer, and asks again
+	// with kept_forgetting, which planet answers kept until a revert forgets more. InvalidArgument unless since is before
+	// until, and the step makes 5,000 frames at most.
 	GetMapHistory(context.Context, *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
@@ -432,8 +433,9 @@ type InternalServiceHandler interface {
 	// keeps the answer. InvalidArgument unless since is before until.
 	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
 	// The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
-	// A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
-	// makes 5,000 frames at most.
+	// The takes a revert forgot are none of it. A read of the whole ledger: the caller keeps the answer, and asks again
+	// with kept_forgetting, which planet answers kept until a revert forgets more. InvalidArgument unless since is before
+	// until, and the step makes 5,000 frames at most.
 	GetMapHistory(context.Context, *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)

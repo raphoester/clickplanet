@@ -88,11 +88,27 @@ func TestItGivesBackOnlyTheTilesStillWearingThePaintInBatches(t *testing.T) {
 	assert.Equal(t, map[uint32]string{1: "il", 2: "", 3: "il", 4: "il", 5: ""}, tiles.owners)
 	assert.Equal(t, []int{2, 1}, tiles.batches)
 	assert.Zero(t, takenBy(book, "9.9.9.9"), "a reverted scope has nothing left to revert")
-	assert.Equal(t, 1, takenBy(book, "1.1.1.1"))
+	assert.Zero(t, takenBy(book, "1.1.1.1"), "its take back to Israel's flag changes nothing once the paint is forgotten")
 
 	again, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
 	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9"}, again)
+}
+
+func TestARevertOfAPlayerWhoPaintedOverARevertedOneGivesBackWhatWasBeneathThePaint(t *testing.T) {
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	tiles := &stubMap{owners: map[uint32]string{1: "de"}}
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "9.9.9.9", Country: "ps", Previous: "il"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.1.1.1", Country: "de", Previous: "ps"})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2})
+
+	_, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	require.NoError(t, err)
+	out, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "1.1.1.1"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, out.Restored)
+	assert.Equal(t, map[uint32]string{1: "il"}, tiles.owners, "the forgotten paint never comes back")
 }
 
 func TestADryRunCountsAndRestoresNothing(t *testing.T) {

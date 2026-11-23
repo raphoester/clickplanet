@@ -44,7 +44,7 @@ type Part struct {
 }
 
 func New(seasons Seasons, planet Planet, clock cptime.Clock) *Query {
-	return &Query{seasons: seasons, planet: planet, clock: clock, kept: map[Part]*planetv1.MapHistory{}}
+	return &Query{seasons: seasons, planet: planet, clock: clock, kept: map[Part]kept{}}
 }
 
 type Query struct {
@@ -54,13 +54,17 @@ type Query struct {
 
 	asking singleflight.Group
 	mu     sync.Mutex
-	kept   map[Part]*planetv1.MapHistory
+	kept   map[Part]kept
 }
 
+type kept struct {
+	history    *planetv1.MapHistory
+	forgetting string
+}
+
+// Replay asks planet each time whether a revert forgot takes since the history kept: an ended season's map changes
+// only then.
 func (q *Query) Replay(ctx context.Context, part Part) (*planetv1.MapHistory, error) {
-	if history, ok := q.keptHistory(part); ok {
-		return history, nil
-	}
 	calendar, err := q.seasons.Calendar(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the seasons: %w", err)
@@ -95,24 +99,32 @@ func (q *Query) ask(ctx context.Context, part Part, window season.Window) (*plan
 	if part.Finale {
 		since, step = window.FinaleStartsAt(), finaleStep
 	}
-	res, err := q.planet.GetMapHistory(ctx, connect.NewRequest(&planetv1.GetMapHistoryRequest{
+	asked := &planetv1.GetMapHistoryRequest{
 		Since: timestamppb.New(since), Until: timestamppb.New(window.EndsAt), Step: durationpb.New(step),
-	}))
+	}
+	was, keeps := q.keptOf(part)
+	if keeps {
+		asked.KeptForgetting = &was.forgetting
+	}
+	res, err := q.planet.GetMapHistory(ctx, connect.NewRequest(asked))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask planet for season %d's map history: %w", part.Season, err)
 	}
-	q.keep(part, res.Msg.GetHistory())
+	if keeps && res.Msg.GetKept() {
+		return was.history, nil
+	}
+	q.keep(part, kept{history: res.Msg.GetHistory(), forgetting: res.Msg.GetForgetting()})
 	return res.Msg.GetHistory(), nil
 }
 
-func (q *Query) keptHistory(part Part) (*planetv1.MapHistory, bool) {
+func (q *Query) keptOf(part Part) (kept, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	history, ok := q.kept[part]
-	return history, ok
+	was, ok := q.kept[part]
+	return was, ok
 }
 
-func (q *Query) keep(part Part, history *planetv1.MapHistory) {
+func (q *Query) keep(part Part, history kept) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.kept[part] = history

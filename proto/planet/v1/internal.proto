@@ -66,8 +66,9 @@ service InternalService {
   }
 
   // The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
-  // A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
-  // makes 5,000 frames at most.
+  // The takes a revert forgot are none of it. A read of the whole ledger: the caller keeps the answer, and asks again
+  // with kept_forgetting, which planet answers kept until a revert forgets more. InvalidArgument unless since is before
+  // until, and the step makes 5,000 frames at most.
   rpc GetMapHistory(GetMapHistoryRequest) returns (GetMapHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -146,10 +147,17 @@ message GetMapHistoryRequest {
   google.protobuf.Timestamp since = 1;
   google.protobuf.Timestamp until = 2;
   google.protobuf.Duration step = 3;
+  // The forgetting of the history the caller keeps of this window.
+  optional string kept_forgetting = 4;
 }
 
 message GetMapHistoryResponse {
+  // None when kept.
   MapHistory history = 1;
+  // What the reverts forgot as the history was read, to send back as kept_forgetting.
+  string forgetting = 2;
+  // No revert forgot more since the history the caller keeps: it is still the history.
+  bool kept = 3;
 }
 
 message GetLedgerTotalsRequest {

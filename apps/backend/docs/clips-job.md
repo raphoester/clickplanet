@@ -42,7 +42,9 @@ clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   Brazil holding South America 9 days, Palau taking Russia whole, and none of it was in a clip; China was in none at
   all. Between two seasons, or when the backend does not answer it, there is no history, a warning, and the run
   tells no saga. It reads the ledger from the season's reset alone, about 1.4 million events after 9 days, and
-  answers about 60 MB of JSON, which the artifact zips.
+  answers about 60 MB of JSON, which the artifact zips. **The replay, the history and the cast hold nothing a revert
+  forgot** (since 2026-11-23, [A revert erases the takes it forgot](revert-erasure.md)): revert a drawing, and the
+  next run cannot show it.
   **It is cheap enough to run 9 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it

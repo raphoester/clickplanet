@@ -40,7 +40,8 @@ internal/vandalsquad/internal/
   not. **Each player's latest take of a tile counts**, so a tile it took again for another flag is painted with that
   one. Nothing is kept between patrols, so a restart loses nothing: the next patrol reads the same hour.
 - For every tile of every painting of 12 tiles or more (one player, one flag), it asks planet the tile's flag and the
-  account whose take holds it now (`planet.v1.InternalService/GetTiles`). **A tile taken since, cleared by a bomb or
+  account whose take holds it now (`planet.v1.InternalService/GetTiles`). `GetLedger` leaves out what a revert forgot,
+  so a reverted painter's takes are not read at all. **A tile taken since, cleared by a bomb or
   reverted is no longer the player's drawing**: only the tiles it still holds for that flag are read. `GetTiles` names
   the board in play: **while an arena plays a board of its own, the patrol reads nothing** (`drawings.ErrOtherBoard`),
   since the world's ids are not the arena's tiles, and the next patrol after the arena reads the hour again.

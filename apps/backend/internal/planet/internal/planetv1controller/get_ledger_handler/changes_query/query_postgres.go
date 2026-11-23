@@ -44,7 +44,7 @@ type PostgresQuery struct {
 
 // Each change of the world's map on the board it plays ($5, $6) as Event.Show shows it, in its order: an event names
 // its map and its board, so none made on an arena's map or on another board. A shield a bomb struck is left out: no
-// owner is kept for it.
+// owner is kept for it. So is an event a revert forgot.
 // From the head on, every change keeps its address, and the primary key finds the page. An event with no change is
 // still a row, its tile 0, so the page counts it.
 const changes = `
@@ -56,7 +56,7 @@ const changes = `
 		SELECT position, kind, tile, country, previous, taken_at, payload, account, scope
 		FROM ledger_events
 		WHERE position >= GREATEST(COALESCE((SELECT head FROM ledger_head), 0), $3) AND taken_at >= $1 AND taken_at < $2
-			AND map = $5 AND board = $6
+			AND map = $5 AND board = $6 AND NOT forgotten
 		ORDER BY position
 		LIMIT $4
 	) e

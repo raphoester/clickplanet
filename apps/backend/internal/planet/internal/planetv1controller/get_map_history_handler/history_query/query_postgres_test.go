@@ -92,6 +92,34 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 	}, history), "%v", history)
 }
 
+func (s *testSuite) TestARevertedPlayersTakesAreInNoFrameAndNoHit() {
+	const eve = "e7e7e7e7-0000-4000-8000-000000000001"
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "ie", At: since.Add(-time.Hour)},
+		ledger.Taking{Tile: 2, Scope: "203.0.113.7", Account: ada, Country: "ie", At: since.Add(-time.Hour)},
+		ledger.Taking{Tile: 1, Scope: "203.0.113.9", Account: eve, Country: "cn", Previous: "ie", At: since.Add(10 * time.Minute)},
+		ledger.Taking{Tile: 2, Scope: "203.0.113.9", Account: eve, Country: "cn", Previous: "ie", At: since.Add(10 * time.Minute)},
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "ie", Previous: "cn", At: since.Add(20 * time.Minute)},
+	)
+	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{
+		From:    6,
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{}),
+		Marks:   inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{{Account: eve}: 5}},
+	}))
+
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(s.T().Context(), since, until, time.Hour)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: []*planetv1.MapFrame{
+			{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{1: "ie", 2: "ie"})},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
+		},
+		Eras: worldOnEarth1,
+	}, history), "the drawing never shows, and Ireland painting over it changed nothing: %v", history)
+}
+
 func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWindow() {
 	ctx := s.T().Context()
 	s.record(ledger.Taking{Tile: 2, Scope: "203.0.113.7", Account: ada, Country: "de", At: since.Add(-30 * time.Minute)})

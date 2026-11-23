@@ -22,8 +22,10 @@ var (
 	seasonOneStarts = seasonZeroEnds.Add(16 * time.Hour)
 )
 
+// countingPlanet answers kept while no revert forgot more than the history the caller keeps.
 type countingPlanet struct {
-	asked []*planetv1.GetMapHistoryRequest
+	asked      []*planetv1.GetMapHistoryRequest
+	forgetting string
 }
 
 func (p *countingPlanet) GetMapHistory(
@@ -31,7 +33,12 @@ func (p *countingPlanet) GetMapHistory(
 	req *connect.Request[planetv1.GetMapHistoryRequest],
 ) (*connect.Response[planetv1.GetMapHistoryResponse], error) {
 	p.asked = append(p.asked, req.Msg)
-	return connect.NewResponse(&planetv1.GetMapHistoryResponse{History: &planetv1.MapHistory{}}), nil
+	if req.Msg.KeptForgetting != nil && req.Msg.GetKeptForgetting() == p.forgetting {
+		return connect.NewResponse(&planetv1.GetMapHistoryResponse{Forgetting: p.forgetting, Kept: true}), nil
+	}
+	return connect.NewResponse(&planetv1.GetMapHistoryResponse{
+		History: &planetv1.MapHistory{Eras: []*planetv1.BoardEra{{Board: p.forgetting}}}, Forgetting: p.forgetting,
+	}), nil
 }
 
 func calendar(t *testing.T) *inmemory_season_store.Store {
@@ -48,19 +55,26 @@ func calendar(t *testing.T) *inmemory_season_store.Store {
 	return store
 }
 
-func TestAnEndedSeasonsReplayIsItsWindowEveryHalfHourAskedOnce(t *testing.T) {
-	planet := &countingPlanet{}
+func TestAnEndedSeasonsReplayIsItsWindowEveryHalfHourKeptUntilARevertForgetsMore(t *testing.T) {
+	planet := &countingPlanet{forgetting: "a1"}
 	query := season_replay_query.New(calendar(t), planet, cptime.NewFixedClock(seasonOneStarts))
 
-	for range 2 {
-		_, err := query.Replay(t.Context(), season_replay_query.Part{Season: 0})
-		require.NoError(t, err)
-	}
+	first, err := query.Replay(t.Context(), season_replay_query.Part{Season: 0})
+	require.NoError(t, err)
+	kept, err := query.Replay(t.Context(), season_replay_query.Part{Season: 0})
+	require.NoError(t, err)
+	planet.forgetting = "b2"
+	reverted, err := query.Replay(t.Context(), season_replay_query.Part{Season: 0})
+	require.NoError(t, err)
 
-	require.Len(t, planet.asked, 1, "an ended season's map no longer changes")
+	require.Len(t, planet.asked, 3)
 	assert.Equal(t, season.Origin, planet.asked[0].GetSince().AsTime())
 	assert.Equal(t, seasonZeroEnds, planet.asked[0].GetUntil().AsTime())
 	assert.Equal(t, 30*time.Minute, planet.asked[0].GetStep().AsDuration())
+	assert.Nil(t, planet.asked[0].KeptForgetting)
+	assert.Equal(t, "a1", planet.asked[1].GetKeptForgetting())
+	assert.Same(t, first, kept, "an ended season's map changes only when a revert forgets more")
+	assert.Equal(t, "b2", reverted.GetEras()[0].GetBoard())
 }
 
 func TestTheFinalesReplayIsItsTwoHoursEveryTenSeconds(t *testing.T) {

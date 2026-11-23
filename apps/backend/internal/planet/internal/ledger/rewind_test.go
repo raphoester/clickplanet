@@ -176,3 +176,26 @@ func TestARewindStartsNoLaterThanItEndsAndMovesByAStep(t *testing.T) {
 	_, err = ledger.NewRewind(historySince, historyUntil, 0, clicks.WorldStage)
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
 }
+
+func TestARewindOpensATilePaintedOverAForgottenDrawingOnWhatItShowedBeneath(t *testing.T) {
+	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	require.NoError(t, err)
+	for _, entry := range []ledger.Entry{
+		forgottenEntry(t, takeBy(vandal, 1, "ie", "cn", historySince.Add(-time.Hour))),
+		forgottenEntry(t, takeBy(vandal, 2, "ie", "cn", historySince.Add(-time.Hour))),
+		forgottenEntry(t, takeBy(vandal, 3, "ie", "cn", historySince.Add(5*time.Minute))),
+		keptEntry(t, takeBy(ada, 1, "cn", "ie", historySince.Add(10*time.Minute))),
+		keptEntry(t, takeBy(bob, 2, "cn", "fr", historySince.Add(10*time.Minute))),
+		keptEntry(t, takeBy(bob, 3, "cn", "fr", historySince.Add(10*time.Minute))),
+	} {
+		require.NoError(t, rewound.Record(entry))
+	}
+
+	frames := rewound.Frames(mapNow("ie", "fr", "fr"))
+	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "ie"}, 2: {Country: "ie"}, 3: {Country: "ie"}}, frames[0].Owners,
+		"the drawing before the window and in it opens on Ireland, as the revert left the map")
+	assert.Equal(t, map[uint32]ledger.Owner{
+		2: {Country: "fr", At: historySince.Add(10 * time.Minute)}, 3: {Country: "fr", At: historySince.Add(10 * time.Minute)},
+	}, frames[1].Owners)
+	assert.Equal(t, map[uint32]uint32{2: 1, 3: 1}, rewound.Hits())
+}

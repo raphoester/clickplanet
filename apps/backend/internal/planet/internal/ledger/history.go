@@ -58,6 +58,7 @@ type History struct {
 	next    time.Time
 	frames  []Frame
 	hits    map[EraTile]uint32
+	erasure *Erasure
 }
 
 // NewHistory replays the map on the board of the era in force before its first entry: Cut moves it to the next era's.
@@ -68,6 +69,7 @@ func NewHistory(since, until time.Time, step time.Duration, replayed clicks.Stag
 	return &History{
 		since: since, until: until, step: step, replayed: replayed, next: since, whole: true,
 		owners: map[uint32]Owner{}, shown: map[uint32]string{}, changed: cpcolls.NewSet[uint32](), hits: map[EraTile]uint32{},
+		erasure: NewErasure(),
 	}, nil
 }
 
@@ -96,6 +98,7 @@ func (h *History) Cut(at time.Time, board clicks.BoardID, carry Carry) {
 	})
 	clear(h.shown)
 	h.changed.Clear()
+	h.erasure.Wipe()
 	h.whole = true
 	if at.After(h.since) {
 		h.era++
@@ -108,14 +111,15 @@ func (h *History) Done(entry Entry) bool {
 }
 
 func (h *History) Record(entry Entry) error {
-	event, err := EventOf(entry)
-	if err != nil {
+	if entry.Stage != h.replayed {
+		_, err := EventOf(entry)
 		return err
 	}
-	if entry.Stage != h.replayed {
-		return nil
-	}
 	h.frameUpTo(entry.At)
+	event, kept, err := h.erasure.Read(entry)
+	if err != nil || !kept {
+		return err
+	}
 	during := !entry.At.Before(h.since)
 	event.Replay(func(taking Taking) {
 		h.owners[taking.Tile] = Owner{Country: taking.Country, At: entry.At}
@@ -136,6 +140,7 @@ func (h *History) Wipe(at time.Time) {
 		return
 	}
 	h.frameUpTo(at.Add(-time.Nanosecond))
+	h.erasure.Wipe()
 	for tile, owner := range h.owners {
 		if owner.Country != "" {
 			h.owners[tile] = Owner{At: at}

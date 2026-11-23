@@ -556,7 +556,10 @@ most) and keeps the answer, since an ended season no longer changes; the cache i
 season map: planet's `MapHistory` through `planet.v1.InternalService/GetMapHistory` (`season_replay_query`), every 30
 minutes over the season, every 10 seconds from the finale's start (`Window.FinaleStartsAt`) to the season's end.
 NotFound for a season that has not ended, or a finale it did not have (`ErrNoFinale`). Planet replays its whole ledger
-for it: asked once per season, part and process, as the totals are, 10 minutes at most.
+for it, 10 minutes at most, so the query keeps it per season and part. **It asks planet again at each read** with what
+the reverts had forgotten when it was built (`kept_forgetting`), and planet answers `kept`, at once, until a revert
+forgets more: a revert of an account changes an ended season's map too (see [A revert erases the takes it
+forgot](revert-erasure.md)). The cache interceptor lets a browser keep it half an hour.
 
 ## Tests
 

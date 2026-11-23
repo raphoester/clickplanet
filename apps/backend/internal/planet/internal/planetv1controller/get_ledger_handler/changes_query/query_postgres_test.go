@@ -240,6 +240,22 @@ func (s *testSuite) TestAChangeBehindTheHeadIsNotRead() {
 	s.Len(s.ledger(at, at.Add(time.Minute)), 1)
 }
 
+func (s *testSuite) TestARevertedPlayersChangesAreNotRead() {
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "cn", Previous: "ie", At: at},
+		ledger.Taking{Tile: 2, Scope: "198.51.100.4", Account: bob, Country: "fr", At: at},
+	)
+	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{
+		From:    2,
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{}),
+		Marks:   inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{{Account: ada}: 2}},
+	}))
+
+	changes := s.ledger(at, at.Add(time.Minute))
+	s.Require().Len(changes, 1, "the clips' cast names nobody whose takes a revert forgot")
+	s.Equal("account:"+bob, changes[0].GetBy())
+}
+
 func (s *testSuite) TestADeletedAccountsChangesAreItsAddresss() {
 	s.record(ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at})
 	id, err := ledger.AccountIDOf(ada)
