@@ -53,7 +53,6 @@ type lists struct {
 
 type fight struct {
 	Flag       string `json:"flag"`
-	Fought     int    `json:"fought"`
 	Took       int    `json:"took"`
 	Lost       int    `json:"lost"`
 	Rival      string `json:"rival"`

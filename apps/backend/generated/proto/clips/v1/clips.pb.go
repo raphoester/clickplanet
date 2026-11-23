@@ -174,7 +174,7 @@ type Lists struct {
 	BiggestEmpires []*Empire `protobuf:"bytes,4,rep,name=biggest_empires,json=biggestEmpires,proto3" json:"biggest_empires,omitempty"`
 	// When the stretch fight_the_most counts starts: 3 days before the replay ends, or the replay's start when it is shorter.
 	FoughtSince *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=fought_since,json=foughtSince,proto3" json:"fought_since,omitempty"`
-	// The flags that took and lost the most tiles to other flags since fought_since, the most first.
+	// The flags that took the most tiles from other flags since fought_since, the most first: a tile lost is no fight.
 	FightTheMost  []*FightingFlag `protobuf:"bytes,6,rep,name=fight_the_most,json=fightTheMost,proto3" json:"fight_the_most,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -241,10 +241,8 @@ func (x *Lists) GetFightTheMost() []*FightingFlag {
 type FightingFlag struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Flag  string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	// Tiles it took from other flags plus tiles other flags took from it.
-	Fought uint32 `protobuf:"varint,2,opt,name=fought,proto3" json:"fought,omitempty"`
-	Took   uint32 `protobuf:"varint,3,opt,name=took,proto3" json:"took,omitempty"`
-	Lost   uint32 `protobuf:"varint,4,opt,name=lost,proto3" json:"lost,omitempty"`
+	Took  uint32                 `protobuf:"varint,3,opt,name=took,proto3" json:"took,omitempty"`
+	Lost  uint32                 `protobuf:"varint,4,opt,name=lost,proto3" json:"lost,omitempty"`
 	// The flag it fought the most tiles with, both ways, and how many.
 	Rival      string `protobuf:"bytes,5,opt,name=rival,proto3" json:"rival,omitempty"`
 	RivalTiles uint32 `protobuf:"varint,6,opt,name=rival_tiles,json=rivalTiles,proto3" json:"rival_tiles,omitempty"`
@@ -289,13 +287,6 @@ func (x *FightingFlag) GetFlag() string {
 		return x.Flag
 	}
 	return ""
-}
-
-func (x *FightingFlag) GetFought() uint32 {
-	if x != nil {
-		return x.Fought
-	}
-	return 0
 }
 
 func (x *FightingFlag) GetTook() uint32 {
@@ -3383,16 +3374,15 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\rfar_from_home\x18\x03 \x03(\v2\x11.clips.v1.FarLandR\vfarFromHome\x129\n" +
 	"\x0fbiggest_empires\x18\x04 \x03(\v2\x10.clips.v1.EmpireR\x0ebiggestEmpires\x12=\n" +
 	"\ffought_since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vfoughtSince\x12<\n" +
-	"\x0efight_the_most\x18\x06 \x03(\v2\x16.clips.v1.FightingFlagR\ffightTheMostJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\bown_landR\rmost_attacked\"\xb3\x01\n" +
+	"\x0efight_the_most\x18\x06 \x03(\v2\x16.clips.v1.FightingFlagR\ffightTheMostJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\bown_landR\rmost_attacked\"\xa9\x01\n" +
 	"\fFightingFlag\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x16\n" +
-	"\x06fought\x18\x02 \x01(\rR\x06fought\x12\x12\n" +
+	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04took\x18\x03 \x01(\rR\x04took\x12\x12\n" +
 	"\x04lost\x18\x04 \x01(\rR\x04lost\x12\x14\n" +
 	"\x05rival\x18\x05 \x01(\tR\x05rival\x12\x1f\n" +
 	"\vrival_tiles\x18\x06 \x01(\rR\n" +
 	"rivalTiles\x12\x18\n" +
-	"\acountry\x18\a \x01(\tR\acountry\"]\n" +
+	"\acountry\x18\a \x01(\tR\acountryJ\x04\b\x02\x10\x03R\x06fought\"]\n" +
 	"\aFarLand\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x18\n" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x12\x14\n" +

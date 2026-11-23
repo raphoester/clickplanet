@@ -3,11 +3,11 @@ import {Empire, FarLand, Fighting} from "../domain/clip/lists.ts"
 import {numbersOf, percentOf, photosOf} from "./carousel.ts"
 
 const fighting: Fighting[] = [
-    {flag: "fr", fought: 41200, took: 30000, lost: 11200, rival: "pw", rivalTiles: 9000, country: "fr"},
-    {flag: "gb", fought: 20000, took: 9000, lost: 11000, rival: "fr", rivalTiles: 8000, country: "gb"},
-    {flag: "in", fought: 9000, took: 4000, lost: 5000, rival: "fr", rivalTiles: 3000, country: "in"},
-    {flag: "de", fought: 5000, took: 2500, lost: 2500, rival: "br", rivalTiles: 2000, country: "de"},
-    {flag: "br", fought: 1, took: 1, lost: 0, rival: "ie", rivalTiles: 1, country: "br"},
+    {flag: "fr", took: 30000, lost: 11200, rival: "pw", rivalTiles: 9000, country: "fr"},
+    {flag: "gb", took: 9000, lost: 11000, rival: "fr", rivalTiles: 8000, country: "gb"},
+    {flag: "in", took: 4000, lost: 5000, rival: "fr", rivalTiles: 3000, country: "in"},
+    {flag: "de", took: 2500, lost: 2500, rival: "br", rivalTiles: 2000, country: "de"},
+    {flag: "br", took: 1, lost: 0, rival: "ie", rivalTiles: 1, country: "br"},
 ]
 
 const ranks = [
