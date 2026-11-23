@@ -10,8 +10,12 @@ import (
 )
 
 type Ledger interface {
-	Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position
 	Forget(caller ledger.Caller, before ledger.Position)
+}
+
+// World reads the world's ledger from its last blank map, every board, and answers the position after the last event.
+type World interface {
+	Replay(ctx context.Context, start func(first clicks.Stage) ledger.Replayed) (ledger.Position, error)
 }
 
 // ErrArenaPlays is a revert asked while an arena's map plays: the world's waits aside, and Forget would hide its takes
@@ -38,12 +42,13 @@ type Out struct {
 	Restored int
 }
 
-func New(ledger Ledger, tiles Map, pace clicks.Pacing) *UseCase {
-	return &UseCase{ledger: ledger, tiles: tiles, pacing: pace}
+func New(ledger Ledger, world World, tiles Map, pace clicks.Pacing) *UseCase {
+	return &UseCase{ledger: ledger, world: world, tiles: tiles, pacing: pace}
 }
 
 type UseCase struct {
 	ledger Ledger
+	world  World
 	tiles  Map
 	pacing clicks.Pacing
 }
@@ -57,17 +62,22 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("revert batch must be positive")
 	}
 
-	// Only the events of the stage that plays, the world's map on its board, as each names it.
 	playing := u.tiles.Stage()
 	if playing.Map != clicks.World {
 		return Out{}, fmt.Errorf("%w: %s", ErrArenaPlays, playing.Map)
 	}
 
-	runs := ledger.NewRuns(caller, playing)
-	end := u.ledger.Replay(runs.See)
+	var undoing *ledger.Undoing
+	end, err := u.world.Replay(ctx, func(first clicks.Stage) ledger.Replayed {
+		undoing = ledger.NewUndoing(caller, first)
+		return undoing
+	})
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the world's ledger: %w", err)
+	}
 
-	restorations := runs.Restorations(u.tiles)
-	out := Out{Scope: caller.Scope, Account: caller.Account, Touched: runs.Touched(), Held: len(restorations)}
+	restorations := undoing.Restorations(u.tiles, playing)
+	out := Out{Scope: caller.Scope, Account: caller.Account, Touched: undoing.Touched(), Held: len(restorations)}
 
 	if in.DryRun {
 		return out, nil

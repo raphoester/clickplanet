@@ -45,9 +45,12 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
-     * caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
-     * from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
+     * Gives each tile of the map in play back to what it would show had the caller never played, when it still shows
+     * what the caller's takes made of it, then forgets the caller's takes, so every history shows none of them. An
+     * account reaches every take since the last reset, from every scope and on every board (a take a switch of board
+     * carried over too); a scope reaches the ledger's last 72 hours, since older takes keep no address. touched counts
+     * the tiles of the map in play the caller's takes changed, held those that still show it. Run again, it gives back
+     * nothing more.
      *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */

@@ -108,8 +108,9 @@ and says what is in it. Read the doc before you change its area.
   why it names no account.
 - [A revert erases the takes it forgot](docs/revert-erasure.md) — every history and replay reads the ledger as if a
   reverted player never played (`ledger.Erasure`): a take of its paint takes the tile from what was under it, a take back
-  to it is none; `GetLedger` leaves them out; each cache built again after a revert (`forgetting`, `GetMapHistory`'s
-  `kept`); what is left.
+  to it is none; the revert gives back every take of the season on the live map too, on every board (`ledger.Undoing`
+  over `world_replay`); why the history and the live map differed before; `GetLedger` leaves them out; each cache built
+  again after a revert (`forgetting`, `GetMapHistory`'s `kept`); production's rows put right; what is left.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it; every kind a count, stacked to
   its `charges.*.held` (refills, bombs and viruses too since 2026-11-16), none kept of a kind the rules turn off.
 - [Bonus boxes](docs/bonus-boxes.md) — the box each caller is offered on a schedule of its own (the boxes module's),

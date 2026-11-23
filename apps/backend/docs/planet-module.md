@@ -179,7 +179,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included, told as a `StreamOpened` | `UpdatesSubscriber`, `Notices`, `RulesFeed`, `Facts` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where, and whom planet refuses | `Ledger`, `Owners`, `Borders`, `Refusals`, `CountryChecker` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag, and whom planet refuses | `Ledger`, `Owners`, `Refusals` |
-| `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
+| `ledger/usecases/revert_player_usecase` | gives back what one caller's takes still show, from the whole season | `Ledger`, `World`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps, then forgets it as the holder of its tiles | `Ledger`, `Takes`, `Tiles` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `Resets`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
 | `charges/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer`, `CountryChecker` |

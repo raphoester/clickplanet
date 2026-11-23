@@ -843,6 +843,7 @@
   "report.reason.badName": "Nama yang menyinggung",
   "report.reason.other": "Lainnya",
   "support.sent": "Terkirim. Makasih!",
+  "support.email": "Email kamu, biar kami bisa membalas",
   "support.uploadingCount": "Mengunggah {place} dari {count}…",
   "support.notUploaded": "{file} gagal diunggah. Coba lagi.",
   "support.attachedFiles": "File terlampir",
@@ -860,5 +861,7 @@
   "support.failure.rejected": "Itu ditolak.",
   "support.failure.noSession": "Gagal memulai sesi. Coba lagi sebentar lagi.",
   "support.failure.reportedAlready": "Kamu udah melaporkan pemain ini hari ini.",
+  "support.failure.noReplyAddress": "Isi email kamu.",
+  "support.failure.invalidReplyAddress": "Ini bukan alamat email.",
   "support.failure.failed": "Gagal dikirim. Coba lagi."
 }

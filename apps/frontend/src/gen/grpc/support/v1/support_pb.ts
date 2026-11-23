@@ -7,6 +7,34 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * @generated from enum support.v1.NoteRefusalReason
+ */
+export enum NoteRefusalReason {
+  /**
+   * @generated from enum value: NOTE_REFUSAL_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The note named no address and the account holds none: ask the player for one.
+   *
+   * @generated from enum value: NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS = 1;
+   */
+  NO_REPLY_ADDRESS = 1,
+
+  /**
+   * @generated from enum value: NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS = 2;
+   */
+  INVALID_REPLY_ADDRESS = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NoteRefusalReason)
+proto3.util.setEnumType(NoteRefusalReason, "support.v1.NoteRefusalReason", [
+  { no: 0, name: "NOTE_REFUSAL_REASON_UNSPECIFIED" },
+  { no: 1, name: "NOTE_REFUSAL_REASON_NO_REPLY_ADDRESS" },
+  { no: 2, name: "NOTE_REFUSAL_REASON_INVALID_REPLY_ADDRESS" },
+]);
+
+/**
  * @generated from enum support.v1.ReportReason
  */
 export enum ReportReason {
@@ -65,6 +93,14 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
    */
   attachmentIds: string[] = [];
 
+  /**
+   * Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+   * NoteRefusal detail.
+   *
+   * @generated from field: optional string reply_address = 4;
+   */
+  replyAddress?: string;
+
   constructor(data?: PartialMessage<SuggestFeatureRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -76,6 +112,7 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "context", kind: "message", T: PageContext },
     { no: 3, name: "attachment_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "reply_address", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SuggestFeatureRequest {
@@ -147,6 +184,14 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
    */
   attachmentIds: string[] = [];
 
+  /**
+   * Where the operator answers. Unset: the address the account holds. A bad one is InvalidArgument, with a
+   * NoteRefusal detail.
+   *
+   * @generated from field: optional string reply_address = 4;
+   */
+  replyAddress?: string;
+
   constructor(data?: PartialMessage<ReportBugRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -158,6 +203,7 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "context", kind: "message", T: PageContext },
     { no: 3, name: "attachment_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "reply_address", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugRequest {
@@ -205,6 +251,43 @@ export class ReportBugResponse extends Message<ReportBugResponse> {
 
   static equals(a: ReportBugResponse | PlainMessage<ReportBugResponse> | undefined, b: ReportBugResponse | PlainMessage<ReportBugResponse> | undefined): boolean {
     return proto3.util.equals(ReportBugResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.NoteRefusal
+ */
+export class NoteRefusal extends Message<NoteRefusal> {
+  /**
+   * @generated from field: support.v1.NoteRefusalReason reason = 1;
+   */
+  reason = NoteRefusalReason.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<NoteRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.NoteRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(NoteRefusalReason) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NoteRefusal {
+    return new NoteRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NoteRefusal {
+    return new NoteRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NoteRefusal {
+    return new NoteRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NoteRefusal | PlainMessage<NoteRefusal> | undefined, b: NoteRefusal | PlainMessage<NoteRefusal> | undefined): boolean {
+    return proto3.util.equals(NoteRefusal, a, b);
   }
 }
 

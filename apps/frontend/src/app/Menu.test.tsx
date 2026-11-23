@@ -551,10 +551,12 @@ describe("Menu", () => {
     }
 
     describe("feedback", () => {
-        const withSupport = (pageContext?: () => typeof phone) => {
+        const EMAIL = "Your email, so we can answer"
+
+        const withSupport = (pageContext?: () => typeof phone, account = backends().account) => {
             const support = supportBackend()
             render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
-                         pageContext={pageContext}/>)
+                         account={account} pageContext={pageContext}/>)
             return {support, user: userEvent.setup()}
         }
 
@@ -569,9 +571,10 @@ describe("Menu", () => {
             const {support, user} = withSupport(() => phone)
 
             await write(user, "An idea", "Your idea", "a night mode")
+            await user.type(screen.getByRole("textbox", {name: EMAIL}), "ana@example.com")
             await user.click(button("Send"))
 
-            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone, [])
+            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone, [], "ana@example.com")
             expect(support.reportBug).not.toHaveBeenCalled()
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
@@ -581,16 +584,18 @@ describe("Menu", () => {
             const {support, user} = withSupport(() => ({...phone, connectionDown}))
 
             await write(user, "A bug", "What happened", "the globe is black")
+            await user.type(screen.getByRole("textbox", {name: EMAIL}), "ana@example.com")
             connectionDown = true
             await user.click(button("Send"))
 
-            expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {connectionDown: true}, []])
+            expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {connectionDown: true}, [], "ana@example.com"])
         })
 
         it("says what the page alone knows when nothing tells it more", async () => {
             const {support, user} = withSupport()
 
             await write(user, "A bug", "What happened", "the globe is black")
+            await user.type(screen.getByRole("textbox", {name: EMAIL}), "ana@example.com")
             await user.click(button("Send"))
 
             expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {
@@ -599,7 +604,20 @@ describe("Menu", () => {
                 viewportHeight: window.innerHeight,
                 connectionDown: false,
                 gpuRenderer: "",
-            }, []])
+            }, [], "ana@example.com"])
+        })
+
+        it("asks an account that holds an email for none", async () => {
+            const fake = new FakeAccountBackend()
+            await fake.completeSignIn("Ana")
+            const account = new AccountStore(fake, fake, fake, new NoSession(), {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
+            const {support, user} = withSupport(() => phone, account)
+
+            await write(user, "An idea", "Your idea", "a night mode")
+            expect(screen.queryByRole("textbox", {name: EMAIL})).toBeNull()
+            await user.click(button("Send"))
+
+            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone, [], undefined)
         })
     })
 

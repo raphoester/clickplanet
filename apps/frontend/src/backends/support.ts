@@ -30,11 +30,11 @@ export type UploadOptions = {
 
 // Each attachment id is a file already uploaded through AttachmentUploader.
 export interface FeatureSuggester {
-    suggestFeature(text: string, context: PageContext, attachmentIds?: string[]): Promise<void>
+    suggestFeature(text: string, context: PageContext, attachmentIds?: string[], replyAddress?: string): Promise<void>
 }
 
 export interface BugReporter {
-    reportBug(text: string, context: PageContext, attachmentIds?: string[]): Promise<void>
+    reportBug(text: string, context: PageContext, attachmentIds?: string[], replyAddress?: string): Promise<void>
 }
 
 export interface AttachmentRulesReader {
@@ -89,5 +89,19 @@ export class SupportReportedAlreadyError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("this player was already reported today", options)
         this.name = "SupportReportedAlreadyError"
+    }
+}
+
+export class SupportNoReplyAddressError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("the note names no address to answer at, and the account holds none", options)
+        this.name = "SupportNoReplyAddressError"
+    }
+}
+
+export class SupportInvalidReplyAddressError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("the address to answer the note at is not one mail can go to", options)
+        this.name = "SupportInvalidReplyAddressError"
     }
 }
