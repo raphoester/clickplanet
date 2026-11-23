@@ -31,7 +31,8 @@ jobs:
       # No npm here: the VPS key is in no job that installs the frontend's dependencies.
       # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
       # the cast, the players who took tiles in it, numbered and named, never an account id (the artifact is public);
-      # the history, the map every hour since the season started, which each place's saga is told from.
+      # the history, the map every hour since the season started, which each place's saga is told from; the flag list,
+      # which names and draws the flags sold since the build.
       # A backend that does not answer one leaves it out. 72 hours, as much as the ledger keeps: a carousel's fight-the-most
       # counts the last 3 days, and the clips' stories are searched in the last 12 alone.
       - name: fetch the last 12 hours
@@ -46,7 +47,8 @@ jobs:
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
           go run ./cmd/clips fetch -hours 72 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
-            -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json" -history "$GITHUB_WORKSPACE/history.json"
+            -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json" -history "$GITHUB_WORKSPACE/history.json" \
+            -flag-list "$GITHUB_WORKSPACE/flag-list.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -57,6 +59,7 @@ jobs:
             season.json
             cast.json
             history.json
+            flag-list.json
           retention-days: 1
 
   findings:
@@ -89,7 +92,8 @@ jobs:
           season=$([ -f season.json ] && echo "--season season.json" || true)
           cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
           history=$([ -f history.json ] && echo "--history history.json" || true)
-          npm run clip -- --replay replay.json $race $season $cast $history --findings findings.json
+          flaglist=$([ -f flag-list.json ] && echo "--flag-list flag-list.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast $history $flaglist --findings findings.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -193,7 +197,8 @@ jobs:
           season=$([ -f season.json ] && echo "--season season.json" || true)
           cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
           history=$([ -f history.json ] && echo "--history history.json" || true)
-          npm run clip -- --replay replay.json $race $season $cast $history --pick "$PICK" --story "$STORY" --recorders 1
+          flaglist=$([ -f flag-list.json ] && echo "--flag-list flag-list.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast $history $flaglist --pick "$PICK" --story "$STORY" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:

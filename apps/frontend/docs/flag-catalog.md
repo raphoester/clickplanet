@@ -117,7 +117,7 @@ Each place that looks up a flag by its code survives a code it does not know.
   button is off.
 - **Built-in flags alone**: a flag's old address (`clickplanet.lol/<flag>/<name>`, written into the home page at the
   build). An opened flag never had one.
-- **The clips** know a sold flag when the run hands the list (`--flags`, see [Clips](clips.md)); without it, it is blank
+- **The clips** know a sold flag when the run hands the list (`--flag-list`, see [Clips](clips.md)); without it, it is blank
   and named by its code.
 
 ## In fake mode

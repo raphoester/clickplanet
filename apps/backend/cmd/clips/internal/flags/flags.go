@@ -13,7 +13,7 @@ import (
 )
 
 const usage = `usage:
-  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-history <history.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-history <history.json>] [-cast <cast.json>] [-flag-list <flag-list.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-lab on|off] [-ssh <user@host>] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
@@ -24,7 +24,8 @@ fetch asks it for a replay, and the ledger keeps 72 hours in memory, so a replay
 -season it asks for the gamemaster's turn too (the timeline, and the last moment scoring scored), and with -race, which
 needs -season, for that moment's round as scoring scored it; with -history, which needs -season too, for the map every
 hour since the season started, as the backend replays it from the ledger, which the sagas are measured on; with -cast, the players who took tiles in the replay,
-numbered and named, never an account; it leaves each out with a warning when the backend does not answer it. choose
+numbered and named, never an account; with -flag-list, every flag the game lists, the ones sold since the build
+too, which the clips name and draw them from; it leaves each out with a warning when the backend does not answer it. choose
 prints the stories to render, as a JSON array, each with its number in the run: a day of the season won first, not
 told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's findings and headlines, each checked
 against them and against the headlines of the last week. It takes no more than the platform with the most room left
@@ -68,7 +69,9 @@ type Config struct {
 	// Empty is no season's map. It needs the turn, which says when the season started.
 	HistoryFile string
 	// Empty is no cast.
-	CastFile     string
+	CastFile string
+	// Empty is no flag list.
+	FlagListFile string
 	FindingsFile string
 	ClipsFolder  string
 	// Empty is the standard output for schedule, and none for choose, whose standard output is the picks.
@@ -112,6 +115,7 @@ func parseFetch(args []string) (Config, error) {
 	flags.StringVar(&parsed.TurnFile, "season", "", "the file the gamemaster's turn is written to, default none")
 	flags.StringVar(&parsed.CastFile, "cast", "", "the file the replay's cast is written to, default none")
 	flags.StringVar(&parsed.HistoryFile, "history", "", "the file the season's map every hour is written to, default none")
+	flags.StringVar(&parsed.FlagListFile, "flag-list", "", "the file every flag the game lists is written to, default none")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	hours := flags.Float64("hours", 0, "how long the replay is")
 	until := flags.String("until", "", "when the replay ends, default now")

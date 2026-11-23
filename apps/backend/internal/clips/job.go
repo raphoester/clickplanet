@@ -31,6 +31,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase/log_fetch_cast"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_flag_list_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_flag_list_usecase/log_fetch_flag_list"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_history_usecase/log_fetch_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
@@ -149,7 +151,7 @@ func (c Config) withDefaults() Config {
 // only add the round of the season scored in it, the countries called up and the players the clips name.
 // The files a fetch writes. Empty is none, but for the replay; a round and a history need the turn.
 type FetchFiles struct {
-	Replay, Turn, Round, Cast, History string
+	Replay, Turn, Round, Cast, History, FlagList string
 }
 
 func Fetch(ctx context.Context, files FetchFiles, config Config, logger *slog.Logger) error {
@@ -173,6 +175,10 @@ func Fetch(ctx context.Context, files FetchFiles, config Config, logger *slog.Lo
 		// Its decorator warns that the cast is left out.
 		_, _ = log_fetch_cast.New(fetch_cast_usecase.New(source, file_replay_store.CastStore(files.Cast)), logger).
 			Execute(ctx, replay.Window)
+	}
+	if files.FlagList != "" {
+		_, _ = log_fetch_flag_list.New(fetch_flag_list_usecase.New(source, file_replay_store.FlagListStore(files.FlagList)), logger).
+			Execute(ctx)
 	}
 
 	if files.Turn == "" {

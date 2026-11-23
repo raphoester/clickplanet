@@ -19,6 +19,9 @@ type ScriptedSource struct {
 
 	HistoriesAsked []Window
 	history        History
+
+	FlagListsAsked int
+	flagList       FlagList
 }
 
 func NewScriptedSource(replay Replay) *ScriptedSource {
@@ -109,4 +112,15 @@ var _ HistoryStore = (*MemoryStore)(nil)
 func (s *MemoryStore) SaveHistory(_ context.Context, history History) error {
 	s.SavedHistories = append(s.SavedHistories, history)
 	return nil
+}
+
+var _ FlagListSource = (*ScriptedSource)(nil)
+
+func (s *ScriptedSource) AnswerFlagList(list FlagList) {
+	s.flagList = list
+}
+
+func (s *ScriptedSource) FlagList(context.Context) (FlagList, error) {
+	s.FlagListsAsked++
+	return s.flagList, nil
 }

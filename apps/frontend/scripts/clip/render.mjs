@@ -33,7 +33,7 @@ if (!replay || has("help")) {
                       called up to its Final Battle
   --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
                       findings name each front's, tour's and place's top fighters
-  --flags <path>      the list of flags (flags.v1.ListFlagsResponse): a flag sold since the build is named and drawn
+  --flag-list <path>  the list of flags (flags.v1.ListFlagsResponse): a flag sold since the build is named and drawn
                       from it, and is blank and named by its code without it
   --history <path>    the map every hour since the season started (planet.v1.GetMapHistoryResponse): the findings tell
                       each place's saga, who held a tenth of it and who held over half of it from when to when, and
@@ -93,7 +93,7 @@ const racePath = optionalPath("race")
 const seasonPath = optionalPath("season")
 const castPath = optionalPath("cast")
 const historyPath = optionalPath("history")
-const flagsPath = optionalPath("flags")
+const flagListPath = optionalPath("flag-list")
 const voicePath = optionalPath("voice")
 
 // The voice's lines, from the voices.json voice.mjs writes beside each voice it says.
@@ -147,7 +147,7 @@ const server = await createServer({
             vite.middlewares.use("/__clip/season.json", optional(seasonPath))
             vite.middlewares.use("/__clip/cast.json", optional(castPath))
             vite.middlewares.use("/__clip/history.json", optional(historyPath))
-            vite.middlewares.use("/__clip/flags.json", optional(flagsPath))
+            vite.middlewares.use("/__clip/flags.json", optional(flagListPath))
         },
     }],
 })

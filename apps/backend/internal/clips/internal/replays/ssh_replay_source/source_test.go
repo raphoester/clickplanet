@@ -337,3 +337,31 @@ func TestAnAnswerThatIsNotAMapHistoryIsAnError(t *testing.T) {
 		})
 	}
 }
+
+func TestTheFlagListIsAskedOfThePublicListenerOverSSH(t *testing.T) {
+	const listed = `{"flags":[{"code":"fr","name":"France"},` +
+		`{"code":"r-0000000001","name":"Bavaria","sold":{"picture":{"url":"https://media.example/p.png"}}}]}`
+	fake := ssh(t, listed, "", 0)
+	source, err := ssh_replay_source.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	list, err := source.FlagList(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"--",
+		"deploy@vps.example",
+		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
+			" --post-data '{}' http://127.0.0.1:8080/flags.v1.FlagService/ListFlags",
+	}, fake.asked(t))
+	assert.Equal(t, replays.FlagList{Document: []byte(listed), Sold: 1}, list)
+}
+
+func TestAnEmptyFlagListIsAnError(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, `{}`, "", 0).client)
+	require.NoError(t, err)
+
+	_, err = source.FlagList(t.Context())
+
+	require.Error(t, err)
+}

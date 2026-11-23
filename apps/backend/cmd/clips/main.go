@@ -61,6 +61,7 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 func fetch(ctx context.Context, parsed flags.Config, logger *slog.Logger) error {
 	files := clips.FetchFiles{
 		Replay: parsed.ReplayFile, Turn: parsed.TurnFile, Round: parsed.RoundFile, Cast: parsed.CastFile, History: parsed.HistoryFile,
+		FlagList: parsed.FlagListFile,
 	}
 	if err := clips.Fetch(ctx, files, parsed.Job, logger); err != nil {
 		return fmt.Errorf("failed to fetch the replay: %w", err)
