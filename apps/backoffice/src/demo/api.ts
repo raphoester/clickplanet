@@ -32,7 +32,7 @@ const transport = createRouterTransport(router => {
     router.service(BoxesAdmin, admin.boxes)
     router.service(ChatAdmin, admin)
     router.service(ClipsAdmin, admin)
-    router.service(FlagsAdmin, admin.flags)
+    router.service(FlagsAdmin, admin.demoFlags)
     router.service(PlanetAdmin, admin)
     router.service(PlayerAdmin, admin)
     router.service(ProgressionAdmin, admin.demoProgression)

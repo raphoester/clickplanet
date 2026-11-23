@@ -273,6 +273,14 @@ export class Allegiance extends Message<Allegiance> {
    */
   locked = false;
 
+  /**
+   * The flag is closed, and no lock holds it: nobody may click for it, its land stays, and the account picks another
+   * flag at once, with no wait.
+   *
+   * @generated from field: bool closed = 4;
+   */
+  closed = false;
+
   constructor(data?: PartialMessage<Allegiance>) {
     super();
     proto3.util.initPartial(data, this);
@@ -284,6 +292,7 @@ export class Allegiance extends Message<Allegiance> {
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "changeable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "closed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Allegiance {

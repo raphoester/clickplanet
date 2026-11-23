@@ -39,7 +39,10 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   it names, north up over the land around it, for a person to judge; its painter's ban and revert beside it.
 - [The map tools](docs/map-tools.md) — download a replay, its eras kept: each board the world played, and when.
 - [A country on the page](docs/countries.md) — typed by its id and named below it, a flag opened since by the server's
-  list, read once at load; a flag is an emoji, or a plain grey flag for one opened since or one it does not know.
+  list, read at load and by the Flags page; a flag is an emoji, a sold flag's picture, or a plain grey flag for one the
+  page does not know.
+- [Flags](docs/flags.md) — the sold flags: one opened by hand (a name, a picture uploaded, an end, asked first with what
+  it costs), each with its days left or its comeback, Add days and Close; `flags.v1.AdminService`.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.
 - [The Lab](docs/lab.md) — the video lab's readout: each experiment on each platform against the control of the same

@@ -1,7 +1,7 @@
 import * as THREE from "three"
 import {type FootprintFrame, Footprints, NO_FOOTPRINT, unitPositions} from "../../domain/footprints.ts"
 import {joinSpans, spansOf} from "../../domain/spans.ts"
-import {flagCodeOf, regions} from "./atlas.ts"
+import {aspectOf, flagCodeOf, SPRITE_WIDTH} from "./atlas.ts"
 import {MAX_FLAG_RADIUS} from "./borderField.ts"
 import type {Divisions} from "./pointSize.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
@@ -98,18 +98,17 @@ export class FootprintField {
             const area = areas[ground] ?? 0
             const code = flagCodeOf(flag)
             if (area <= 0 || code === undefined || code === grounds.holderOf(ground)) return
-            const region = regions.get(code)
+            const aspect = aspectOf(code)
             const frame = footprints.frameOf(id)
             const size = grounds.sizeOf(ground)
-            if (region === undefined || frame === undefined || size <= 0) return
-            const aspect = region.width / region.height
+            if (aspect === undefined || frame === undefined || size <= 0) return
             const halfV = coverOf(frame, aspect, leastRadius)
             const [x, y, z] = frame.centre
             addNeed(needs, code, {
                 need: flagNeedOf({x, y, z}, halfV * aspect, halfV, aspect, view),
                 area: area * footprints.countOf(id) / size,
                 aspect,
-                spriteWidth: region.width,
+                spriteWidth: SPRITE_WIDTH,
             })
         })
         return needs

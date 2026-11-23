@@ -509,6 +509,8 @@
   "knockout.pickFailed": "No se pudo cambiar tu bandera. Inténtalo de nuevo.",
   "knockout.confirmTitle": "¿Jugar por {country}?",
   "knockout.keepLocked": "No podrás cambiar de bandera otra vez, salvo que esta también quede fuera.",
+  "flagClosed.title": "{country}: bandera cerrada",
+  "flagClosed.pickAnother": "Elige otra bandera.",
   "archive.title": "Archivo",
   "archive.backToGame": "Volver al juego",
   "archive.seasonPicker": "Temporada",

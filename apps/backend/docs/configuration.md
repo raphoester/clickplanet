@@ -54,7 +54,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
 - `bonuses.Config` — an incomplete `bonuses.database` or `bonuses.redis` block
 - `boxes.Config` — an incomplete `boxes.database` or `boxes.redis` block
-- `flags.Config` — an incomplete `flags.database` or `flags.redis` block
+- `flags.Config` — an incomplete `flags.database` or `flags.redis` block; with `flags.pictures.enabled`, an incomplete bucket block, a `publicBaseURL` that is no https origin, or an upload link good for more than 7 days
 - `support.Config` — an incomplete `support.database` block; a `support.email` that `cpmail.Config` refuses; a `support.mailroom.secret` under 32 characters; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
@@ -168,6 +168,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
   to under 24h. A day is a round the gamemaster tells scoring to score, and tells missions as it starts (see [The gamemaster module](gamemaster.md))
 - `gamemaster.database.*` — the rule schedule's entries, the seasons, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
 - `flags.database.*`, `flags.redis.*` — the flags opened since the game shipped and the outbox of what is told of them, same shape as `database`, schema `flags`; required. See [The flags module](flags.md)
+- `flags.pictures.enabled`, `.bucket.*`, `.publicBaseURL`, `.maxBytes`, `.uploadTTL` — the pictures of the flags opened since: off, no flag can be opened. On, uploaded under `flags/uploads/` (5 MB and a 10-minute link by default), drawn again under `flags/pictures/`, read by the pages from `publicBaseURL` (`https://media.clickplanet.lol`)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `alerts.enabled`, `alerts.database.*` (schema `alerts`), `alerts.redis.*`, `alerts.gameUrl`, `alerts.discord.*` — the game's Discord server: off, nothing is read. On, `botToken` (`env://DISCORD_BOT_TOKEN`, the bot of `auth.discord`'s application) and the three Discord ids are required. `auth.discord.joinServer` makes every Discord sign-in join it. See [Discord pings](alerts.md)
 - `vandalSquad.enabled`, `vandalSquad.database.*`, `vandalSquad.redis.*`, `vandalSquad.gameUrl`, `vandalSquad.window`, `vandalSquad.interval` — the squad that flags the swastikas players paint: off, nothing is read. On, every `interval` (1m, at most the window) it reads in planet's ledger what each player painted in the last `window` (1h, at most 72h, the most the ledger reads at once), asking planet over the internal listener; `gameUrl` is the page a graffiti's link opens (`https://clickplanet.lol/play`). `database` is the graffiti it flagged, same shape as `database`, schema `vandalsquad`; `redis` is where it hears `PlayerForgotten`. See [The vandal squad](vandalsquad.md)

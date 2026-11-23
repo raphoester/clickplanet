@@ -59,10 +59,11 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 	}
 
 	at, lock := b.clock.Now(), b.lock()
+	standing := standingFunc(func(flag string) bool { return b.standing.Stands(flag) && b.playable(ctx, flag) })
 	var previous string
 	changed := false
 	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
-		pledged, err := allegiance.Pledged(flag, at, lock, b.standing)
+		pledged, err := allegiance.Pledged(flag, at, lock, standing)
 		previous, changed = allegiance.flag, err == nil && pledged.flag != allegiance.flag
 		return pledged, err
 	}); err != nil {
@@ -127,3 +128,14 @@ func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) er
 
 	return nil
 }
+
+// A flag whose state cannot be read stands: nobody changes for free on a read that failed.
+func (b Book) playable(ctx context.Context, flag string) bool {
+	playable, err := b.countries.Playable(ctx, flag)
+	return err != nil || playable
+}
+
+// standingFunc stands a flag the arena keeps in and the catalog lets play: a closed flag's players change at once.
+type standingFunc func(flag string) bool
+
+func (f standingFunc) Stands(flag string) bool { return f(flag) }

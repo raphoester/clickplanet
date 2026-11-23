@@ -9,19 +9,19 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1/flagsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/listen_for_events_handler"
 )
 
 func TestAPageHearsAFlagClosedWhileItsStreamIsOpen(t *testing.T) {
 	board := feed.NewBoard(8)
-	handler := listen_for_events_handler.New(listen_for_events_usecase.New(board, time.Hour))
+	handler := listen_for_events_handler.New(listen_for_events_usecase.New(board, time.Hour), flagmessage.New("https://media.test"))
 	mux := http.NewServeMux()
 	mux.Handle(flagsv1connect.FlagServiceListenForEventsProcedure, connect.NewServerStreamHandler(
 		flagsv1connect.FlagServiceListenForEventsProcedure, handler.ListenForEvents))
@@ -36,8 +36,15 @@ func TestAPageHearsAFlagClosedWhileItsStreamIsOpen(t *testing.T) {
 	require.True(t, stream.Receive(), stream.Err())
 	assert.NotNil(t, stream.Msg().GetHeartbeat(), "live at once")
 
-	board.Publish(catalog.Snapshot{ID: "r-0000000001", Name: "Rennes", State: catalog.Closed, DecidedAt: time.Now()})
+	closedAt := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+	board.Publish(catalog.Snapshot{
+		ID: "r-0000000001", Name: "Rennes", Picture: catalog.TestPicture, State: catalog.Closed,
+		DecidedAt: closedAt, EndsAt: closedAt,
+	})
 	require.True(t, stream.Receive(), stream.Err())
-	assert.True(t, proto.Equal(&flagsv1.Flag{Code: "r-0000000001", Name: "Rennes", Closed: true},
-		stream.Msg().GetFlagChanged()), "%v", stream.Msg())
+	flag := stream.Msg().GetFlagChanged()
+	assert.Equal(t, "r-0000000001", flag.GetCode())
+	assert.True(t, flag.GetClosed())
+	assert.Equal(t, "https://media.test/"+catalog.TestPicture.Key(), flag.GetSold().GetPicture().GetUrl())
+	assert.Equal(t, closedAt, flag.GetSold().GetClosedAt().AsTime())
 }

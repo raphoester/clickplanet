@@ -1,7 +1,8 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {ConnectFlagsBackend, flagChangedOf} from "./flagsBackend.ts"
-import {Flag, FlagEvent, Heartbeat, ListFlagsResponse} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Timestamp} from "@bufbuild/protobuf"
+import {ConnectFlagsBackend, flagChangedOf, listedOf} from "./flagsBackend.ts"
+import {Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 const heartbeat = () => new FlagEvent({event: {case: "heartbeat", value: new Heartbeat()}})
 const changed = (code: string, name: string, closed = false) =>
@@ -16,6 +17,33 @@ describe("flagChangedOf", () => {
             .toEqual({code: "r-k3p9x2ma0b", name: "Bavaria", closed: true})
         expect(flagChangedOf(heartbeat())).toBeUndefined()
         expect(flagChangedOf(new FlagEvent())).toBeUndefined()
+    })
+})
+
+describe("listedOf", () => {
+    it("reads a sold flag's picture and its times, in milliseconds", () => {
+        const flag = new Flag({
+            code: "r-k3p9x2ma0b", name: "Bavaria", closed: true,
+            sold: new Sold({
+                picture: new Picture({url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: true, focusX: 0.25, focusY: 0.5}),
+                endsAt: Timestamp.fromDate(new Date(2_000)),
+                closedAt: Timestamp.fromDate(new Date(3_000)),
+            }),
+        })
+        expect(listedOf(flag)).toEqual({
+            code: "r-k3p9x2ma0b", name: "Bavaria", closed: true,
+            sold: {
+                picture: {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: true, focusX: 0.25, focusY: 0.5},
+                endsAt: 2_000, closedAt: 3_000,
+            },
+        })
+    })
+
+    it("reads a built flag, and an open sold one with no close", () => {
+        expect(listedOf(new Flag({code: "fr", name: "France"}))).toEqual({code: "fr", name: "France", closed: false})
+        const open = listedOf(new Flag({code: "r-k3p9x2ma0b", name: "Bavaria", sold: new Sold({picture: new Picture({url: "x.png", width: 2, height: 1}), endsAt: Timestamp.fromDate(new Date(5))})}))
+        expect(open.sold?.closedAt).toBeUndefined()
+        expect(open.sold?.endsAt).toBe(5)
     })
 })
 

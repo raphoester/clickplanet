@@ -1,6 +1,12 @@
 import {Countries} from "./countries.ts"
 
-export type ListedFlag = {code: string, name: string, closed: boolean}
+// At most 768 x 512, between square and 2 wide by 1 high; stretch and focus are what flagFit.json says of a built flag.
+export type FlagPicture = {url: string, width: number, height: number, stretch: boolean, focusX: number, focusY: number}
+
+// A flag opened since the build: its picture, and when its time runs out, in milliseconds since the epoch.
+export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number}
+
+export type ListedFlag = {code: string, name: string, closed: boolean, sold?: SoldFlag}
 
 const OPENED_CODE = /^r-[a-z0-9]{10}$/
 
@@ -10,11 +16,12 @@ export function isOpenedCode(code: string): boolean {
 
 // A closed flag stays known, since history names it, but no player may play for it.
 export class FlagCatalog {
-    static readonly BUILT_IN = new FlagCatalog(new Map(), new Set())
+    static readonly BUILT_IN = new FlagCatalog(new Map(), new Set(), new Map())
 
     private constructor(
         private readonly opened: ReadonlyMap<string, string>,
         private readonly closed: ReadonlySet<string>,
+        private readonly sold: ReadonlyMap<string, SoldFlag>,
     ) {
     }
 
@@ -22,12 +29,14 @@ export class FlagCatalog {
     withFlags(flags: readonly ListedFlag[]): FlagCatalog {
         const opened = new Map(this.opened)
         const closed = new Set(this.closed)
-        for (const {code, name, closed: shut} of flags) {
-            if (!Countries.has(code)) opened.set(code, name)
-            if (shut) closed.add(code)
-            else closed.delete(code)
+        const sold = new Map(this.sold)
+        for (const flag of flags) {
+            if (!Countries.has(flag.code)) opened.set(flag.code, flag.name)
+            if (flag.closed) closed.add(flag.code)
+            else closed.delete(flag.code)
+            if (flag.sold && !Countries.has(flag.code)) sold.set(flag.code, flag.sold)
         }
-        return new FlagCatalog(opened, closed)
+        return new FlagCatalog(opened, closed, sold)
     }
 
     knows(code: string): boolean {
@@ -44,6 +53,23 @@ export class FlagCatalog {
 
     openedName(code: string): string | undefined {
         return this.opened.get(code)
+    }
+
+    closedFlag(code: string): boolean {
+        return this.closed.has(code)
+    }
+
+    pictureOf(code: string): FlagPicture | undefined {
+        return this.sold.get(code)?.picture
+    }
+
+    soldOf(code: string): SoldFlag | undefined {
+        return this.sold.get(code)
+    }
+
+    // Every flag sold, closed ones too: a closed flag still holds land.
+    pictures(): ReadonlyMap<string, FlagPicture> {
+        return new Map([...this.sold].map(([code, {picture}]) => [code, picture]))
     }
 }
 

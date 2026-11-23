@@ -1,6 +1,3 @@
-//go:build testing
-
-// Only tests call it until the operator's call to open and close a flag (step 2 of the regional flags) does.
 package random_flag_ids
 
 import (

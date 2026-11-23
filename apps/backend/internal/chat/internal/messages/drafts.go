@@ -38,7 +38,7 @@ func (d Drafts) Draft(
 	if !d.countries.CheckCountry(country) {
 		return Message{}, fmt.Errorf("%w: invalid country code %q", ErrInvalidMessage, country)
 	}
-	if err := d.rooms.EntryError(ctx, account, room); err != nil {
+	if err := d.rooms.SpeakError(ctx, account, room); err != nil {
 		return Message{}, err
 	}
 

@@ -89,6 +89,22 @@ describe("CountryFlag", () => {
         }
     })
 
+    it("draws a sold flag from its own picture, at its picture's shape", async () => {
+        const picture = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 384, stretch: false, focusX: 0.5, focusY: 0.5}
+        useFlags.getState().serve({listFlags: async () => [{code: "r-k3p9x2ma0b", name: "Bavaria", closed: false, sold: {picture, endsAt: 1}}]})
+        try {
+            await vi.waitFor(() => expect(useFlags.getState().read).toBe(true))
+            const {container} = render(<CountryFlag code="r-k3p9x2ma0b"/>)
+
+            const drawn = sprite(container)!
+            expect(drawn.classList).not.toContain("country-flag-blank")
+            expect(drawn.style.backgroundImage).toBe(`url("${picture.url}")`)
+            expect(em(drawn.style.width) / em(drawn.style.height)).toBeCloseTo(2, 5)
+        } finally {
+            useFlags.getState().serve(undefined)
+        }
+    })
+
     it("draws nothing for no code", () => {
         const {container} = render(<CountryFlag code=""/>)
         expect(flag(container)).toBeNull()

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message flags.v1.ListFlagsRequest
@@ -210,11 +210,18 @@ export class Flag extends Message<Flag> {
   name = "";
 
   /**
-   * No player may play for a closed flag.
+   * No player may play for a closed flag, once no lock of the rules in force holds it.
    *
    * @generated from field: bool closed = 3;
    */
   closed = false;
+
+  /**
+   * Only for a flag opened since the game shipped: the ones it ships with are in the page's atlas and never end.
+   *
+   * @generated from field: flags.v1.Sold sold = 4;
+   */
+  sold?: Sold;
 
   constructor(data?: PartialMessage<Flag>) {
     super();
@@ -227,6 +234,7 @@ export class Flag extends Message<Flag> {
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "closed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "sold", kind: "message", T: Sold },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Flag {
@@ -243,6 +251,136 @@ export class Flag extends Message<Flag> {
 
   static equals(a: Flag | PlainMessage<Flag> | undefined, b: Flag | PlainMessage<Flag> | undefined): boolean {
     return proto3.util.equals(Flag, a, b);
+  }
+}
+
+/**
+ * What a flag opened since the game shipped has that the ones it ships with do not.
+ *
+ * @generated from message flags.v1.Sold
+ */
+export class Sold extends Message<Sold> {
+  /**
+   * @generated from field: flags.v1.Picture picture = 1;
+   */
+  picture?: Picture;
+
+  /**
+   * When its time runs out. A closed flag keeps the end it had.
+   *
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * Unset while the flag is open. Time added within 30 days of it opens the flag again.
+   *
+   * @generated from field: google.protobuf.Timestamp closed_at = 3;
+   */
+  closedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Sold>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Sold";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "picture", kind: "message", T: Picture },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "closed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sold {
+    return new Sold().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Sold {
+    return new Sold().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Sold {
+    return new Sold().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Sold | PlainMessage<Sold> | undefined, b: Sold | PlainMessage<Sold> | undefined): boolean {
+    return proto3.util.equals(Sold, a, b);
+  }
+}
+
+/**
+ * A flag's picture as the server drew it again: a PNG at most 768 wide and 512 high, between square and 2 wide by 1
+ * high, with no hidden data.
+ *
+ * @generated from message flags.v1.Picture
+ */
+export class Picture extends Message<Picture> {
+  /**
+   * Public, and named after its content: a browser may keep it a year.
+   *
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * @generated from field: uint32 width = 2;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: uint32 height = 3;
+   */
+  height = 0;
+
+  /**
+   * What static/countries/flagFit.json says of a flag the game ships with: only bands, so it may be stretched to a
+   * country's shape, and the point of the picture a crop keeps, each from 0 to 1.
+   *
+   * @generated from field: bool stretch = 4;
+   */
+  stretch = false;
+
+  /**
+   * @generated from field: float focus_x = 5;
+   */
+  focusX = 0;
+
+  /**
+   * @generated from field: float focus_y = 6;
+   */
+  focusY = 0;
+
+  constructor(data?: PartialMessage<Picture>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Picture";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "width", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "height", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "stretch", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "focus_x", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 6, name: "focus_y", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Picture {
+    return new Picture().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Picture {
+    return new Picture().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Picture {
+    return new Picture().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Picture | PlainMessage<Picture> | undefined, b: Picture | PlainMessage<Picture> | undefined): boolean {
+    return proto3.util.equals(Picture, a, b);
   }
 }
 

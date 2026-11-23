@@ -97,3 +97,33 @@ func (s *testSuite) TestAnObjectNeverSentIsNotFoundAndADeletedOneIsGone() {
 	s.Require().ErrorIs(err, cps3.ErrNotFound)
 	s.Require().NoError(s.bucket.Delete(s.T().Context(), key), "deleted twice is deleted")
 }
+
+func (s *testSuite) TestAnObjectUploadedIsReadBackWholeAndRefusedPastTheLimit() {
+	key := "flags/uploads/" + s.T().Name()
+	s.uploaded(key)
+
+	read, err := s.bucket.Read(s.T().Context(), key, int64(len(video)))
+	s.Require().NoError(err)
+	s.Equal(video, read)
+
+	_, err = s.bucket.Read(s.T().Context(), key, int64(len(video))-1)
+	s.Require().ErrorIs(err, cps3.ErrTooLarge)
+
+	_, err = s.bucket.Read(s.T().Context(), "flags/uploads/never-sent", 100)
+	s.Require().ErrorIs(err, cps3.ErrNotFound)
+}
+
+func (s *testSuite) TestAnObjectWrittenIsServedWithItsTypeAndCacheHeader() {
+	key := "flags/pictures/" + s.T().Name() + ".png"
+	picture := []byte("\x89PNG not really")
+
+	s.Require().NoError(s.bucket.Write(s.T().Context(), key, "image/png", "public, max-age=31536000, immutable", picture))
+
+	link, err := s.bucket.ViewLink(key, time.Minute)
+	s.Require().NoError(err)
+	viewed := s.send(http.MethodGet, link, nil, "")
+	s.Equal(http.StatusOK, viewed.status)
+	s.Equal(picture, viewed.body)
+	s.Equal("image/png", viewed.header.Get("Content-Type"))
+	s.Equal("public, max-age=31536000, immutable", viewed.header.Get("Cache-Control"))
+}

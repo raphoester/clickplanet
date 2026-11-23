@@ -141,6 +141,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   its finale's round, numbered as its `finale_battle` so it keys as that battle does; 0 with none), with the round's id. Its timeline's battle to come that `ends_season` says when
   the finale starts (`finaleAtOf`). With none, that path answers 404, never the app's fallback page: no round is told
   and nobody is called up.
+- **`--flag-list <path>`** is the list of flags, a `flags.v1.ListFlagsResponse` as `ListFlags` answers it, served at
+  `/__clip/flags.json` the same way: the clip page serves the flags store with it before it reads the replay, so a flag
+  sold since the build is named by its name and drawn from its picture, on the globe and in the overlay (see [The list of
+  flags](flag-catalog.md)). With none, such a flag is blank and named by its code. The backend's clips job fetches it
+  (`clips fetch -flag-list`) and hands it. Not `--flags`, the look that comes back out of the tiles halfway.
 - **`--history <path>`** is the map every hour since the season started, a `planet.v1.GetMapHistoryResponse` as the
   backend's `GetMapHistory` answers it, served at `/__clip/history.json` the same way: the sagas are measured on it,
   and a saga is played from it. With none, no place has a saga.

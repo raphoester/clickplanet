@@ -2335,3 +2335,82 @@ a.button {
     font-weight: 400;
     color: var(--muted);
 }
+
+/* A sold flag's picture, where an emoji flag goes. */
+.flag-picture {
+    display: inline-block;
+    height: 0.75em;
+    width: auto;
+    max-width: 1.5em;
+    vertical-align: -0.05em;
+    border-radius: 2px;
+    object-fit: cover;
+    box-shadow: 0 0 0 1px var(--line);
+}
+
+/* The sold flags: the form to open one, then the list. */
+.flags-page, .flags-list {
+    display: grid;
+    gap: 16px;
+}
+
+.flags-page .confirm-question {
+    display: grid;
+    gap: 6px;
+}
+
+.flag-pick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.flag-picked {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.flag-picture-large {
+    display: block;
+    height: 96px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px var(--line);
+}
+
+.sold-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    align-items: start;
+}
+
+.sold-flag, .sold-buttons {
+    display: grid;
+    gap: 10px;
+}
+
+.sold-name {
+    margin: 0;
+    font-size: 17px;
+    overflow-wrap: anywhere;
+}
+
+.sold-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.sold-add .field input {
+    width: 6em;
+}
+
+.sold-add > .action-refused, .sold-add > .confirm {
+    flex-basis: 100%;
+}

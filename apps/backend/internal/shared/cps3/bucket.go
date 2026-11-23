@@ -1,9 +1,11 @@
 package cps3
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -16,6 +18,7 @@ import (
 var (
 	ErrNoBucket = errors.New("no bucket is set")
 	ErrNotFound = errors.New("the bucket holds no such object")
+	ErrTooLarge = errors.New("the object is larger than the read allows")
 )
 
 const readTTL = time.Minute
@@ -136,6 +139,66 @@ func (b *Bucket) Head(ctx context.Context, key string) (Object, error) {
 		return Object{}, fmt.Errorf("the bucket gave %s no size: %w", key, err)
 	}
 	return Object{ContentType: header.Get("Content-Type"), Size: size}, nil
+}
+
+// Read is what the bucket holds under the key, refused past most bytes.
+func (b *Bucket) Read(ctx context.Context, key string, most int64) ([]byte, error) {
+	link, err := b.link(http.MethodGet, key, readTTL, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the read of %s: %w", key, err)
+	}
+	res, err := b.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach the bucket for the read of %s: %w", key, err)
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	switch {
+	case res.StatusCode == http.StatusNotFound:
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, key)
+	case res.StatusCode != http.StatusOK:
+		return nil, fmt.Errorf("the bucket answered %d to the read of %s", res.StatusCode, key)
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, most+1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", key, err)
+	}
+	if int64(len(body)) > most {
+		return nil, fmt.Errorf("%w: %s holds more than %d bytes", ErrTooLarge, key, most)
+	}
+	return body, nil
+}
+
+// Write keeps body under the key, of its type, with the cache-control every read of it answers.
+func (b *Bucket) Write(ctx context.Context, key string, contentType string, cacheControl string, body []byte) error {
+	link, err := b.link(http.MethodPut, key, readTTL, map[string]string{
+		"cache-control":  cacheControl,
+		"content-length": strconv.Itoa(len(body)),
+		"content-type":   contentType,
+	}, nil)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, link, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to build the write of %s: %w", key, err)
+	}
+	req.Header.Set("Cache-Control", cacheControl)
+	req.Header.Set("Content-Type", contentType)
+	req.ContentLength = int64(len(body))
+	res, err := b.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to reach the bucket for the write of %s: %w", key, err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("the bucket answered %d to the write of %s", res.StatusCode, key)
+	}
+	return nil
 }
 
 // An object the bucket does not hold is deleted already.

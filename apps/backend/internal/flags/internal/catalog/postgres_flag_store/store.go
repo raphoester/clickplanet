@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -20,9 +22,11 @@ type Store struct {
 
 var _ catalog.Store = (*Store)(nil)
 
+const columns = `id, name, state::text, decided_at, ends_at,
+	picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y`
+
 func (s *Store) Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, error) {
-	row := s.db.On(ctx).QueryRowContext(ctx,
-		`SELECT id, name, state::text, decided_at FROM flags WHERE id = $1`, id.String())
+	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+` FROM flags WHERE id = $1`, id.String())
 	flag, err := flagOf(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return catalog.Flag{}, fmt.Errorf("%s: %w", id, catalog.ErrUnknownFlag)
@@ -31,7 +35,15 @@ func (s *Store) Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, erro
 }
 
 func (s *Store) Flags(ctx context.Context) ([]catalog.Flag, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, name, state::text, decided_at FROM flags ORDER BY id`)
+	return s.read(ctx, `SELECT `+columns+` FROM flags ORDER BY id`)
+}
+
+func (s *Store) Ending(ctx context.Context, at time.Time) ([]catalog.Flag, error) {
+	return s.read(ctx, `SELECT `+columns+` FROM flags WHERE state = 'open' AND ends_at <= $1 ORDER BY ends_at, id`, at.UTC())
+}
+
+func (s *Store) read(ctx context.Context, query string, args ...any) ([]catalog.Flag, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the flags: %w", err)
 	}
@@ -54,7 +66,10 @@ func (s *Store) Flags(ctx context.Context) ([]catalog.Flag, error) {
 func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	var id, name, state string
 	var kept catalog.Snapshot
-	if err := scan(&id, &name, &state, &kept.DecidedAt); err != nil {
+	var picture pictures.Snapshot
+	var focusX, focusY float32
+	if err := scan(&id, &name, &state, &kept.DecidedAt, &kept.EndsAt,
+		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY); err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to read a flag: %w", err)
 	}
 	flagID, err := catalog.ParseFlagID(id)
@@ -65,7 +80,9 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	if err != nil {
 		return catalog.Flag{}, fmt.Errorf("the flag %s: %w", flagID, err)
 	}
-	kept.ID, kept.Name, kept.State, kept.DecidedAt = flagID, flagName, catalog.State(state), kept.DecidedAt.UTC()
+	picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
+	kept.ID, kept.Name, kept.State, kept.Picture = flagID, flagName, catalog.State(state), picture
+	kept.DecidedAt, kept.EndsAt = kept.DecidedAt.UTC(), kept.EndsAt.UTC()
 	flag, err := kept.Restore()
 	if err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to restore a flag kept: %w", err)
@@ -76,10 +93,19 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 	for _, flag := range flags {
 		kept := flag.TakeSnapshot()
+		picture := kept.Picture
 		if _, err := s.db.On(ctx).ExecContext(ctx, `
-			INSERT INTO flags (id, name, state, decided_at) VALUES ($1, $2, $3::flag_state, $4)
-			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state = EXCLUDED.state, decided_at = EXCLUDED.decided_at
-		`, kept.ID.String(), kept.Name.String(), string(kept.State), kept.DecidedAt.UTC()); err != nil {
+			INSERT INTO flags (id, name, state, decided_at, ends_at,
+				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y)
+			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11)
+			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state = EXCLUDED.state,
+				decided_at = EXCLUDED.decided_at, ends_at = EXCLUDED.ends_at, picture_hash = EXCLUDED.picture_hash,
+				picture_width = EXCLUDED.picture_width, picture_height = EXCLUDED.picture_height,
+				picture_stretch = EXCLUDED.picture_stretch, picture_focus_x = EXCLUDED.picture_focus_x,
+				picture_focus_y = EXCLUDED.picture_focus_y
+		`, kept.ID.String(), kept.Name.String(), string(kept.State), kept.DecidedAt.UTC(), kept.EndsAt.UTC(),
+			picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch, float32(picture.Fit.FocusX),
+			float32(picture.Fit.FocusY)); err != nil {
 			return fmt.Errorf("failed to keep the flag %s: %w", kept.ID, err)
 		}
 	}

@@ -16,7 +16,7 @@ import (
 const rennes = "r-k3p9x2ma0b"
 
 func TestAFlagOpenedIsPlayableOnceHeard(t *testing.T) {
-	flags := catalog.NewCatalog(catalog.NewMemoryStore())
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
 
 	require.NoError(t, flag_opened_subscriber.New(flags).Handle(t.Context(), &flagsv1.FlagOpened{
 		Flag: rennes, Name: "Rennes", OpenedAt: timestamppb.New(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)),
@@ -28,7 +28,7 @@ func TestAFlagOpenedIsPlayableOnceHeard(t *testing.T) {
 }
 
 func TestAFactThatNamesNoFlagIsRefused(t *testing.T) {
-	err := flag_opened_subscriber.New(catalog.NewCatalog(catalog.NewMemoryStore())).
+	err := flag_opened_subscriber.New(catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)).
 		Handle(t.Context(), &flagsv1.FlagOpened{})
 
 	require.ErrorIs(t, err, flag_opened_subscriber.ErrNoFlag)

@@ -69,6 +69,28 @@ describe("FlagCatalog", () => {
     })
 })
 
+describe("a sold flag in the catalog", () => {
+    const PICTURE = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
+
+    it("keeps its picture and its time, open or closed, and lists every picture for the globe", () => {
+        const sold = {...BAVARIA, sold: {picture: PICTURE, endsAt: 10}}
+        const catalog = FlagCatalog.BUILT_IN.withFlags([sold])
+        expect(catalog.pictureOf(BAVARIA.code)).toEqual(PICTURE)
+        expect(catalog.soldOf(BAVARIA.code)?.endsAt).toBe(10)
+
+        const closed = catalog.withFlags([{...sold, closed: true, sold: {picture: PICTURE, endsAt: 10, closedAt: 11}}])
+        expect(closed.closedFlag(BAVARIA.code)).toBe(true)
+        expect(closed.pictures()).toEqual(new Map([[BAVARIA.code, PICTURE]]))
+        expect(closed.soldOf(BAVARIA.code)?.closedAt).toBe(11)
+    })
+
+    it("keeps no picture for a flag of the build, which the atlas draws", () => {
+        const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "fr", name: "France", closed: false, sold: {picture: PICTURE, endsAt: 1}}])
+        expect(catalog.pictureOf("fr")).toBeUndefined()
+        expect(catalog.pictures().size).toBe(0)
+    })
+})
+
 describe("FlagReads", () => {
     it("reads at load, and once more behind the read in flight when the list changes meanwhile", () => {
         const reads = new FlagReads()

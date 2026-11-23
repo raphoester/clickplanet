@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -35,8 +36,9 @@ const (
 const (
 	publicTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
 		" --header 'Content-Type: application/json' --post-data '%s' http://127.0.0.1:8080/%s"
-	turnProcedure  = "gamemaster.v1.GamemasterService/GetTurn"
-	roundProcedure = "scoring.v1.ScoringService/GetRound"
+	turnProcedure     = "gamemaster.v1.GamemasterService/GetTurn"
+	roundProcedure    = "scoring.v1.ScoringService/GetRound"
+	flagListProcedure = "flags.v1.FlagService/ListFlags"
 )
 
 // The map's history is a module's read, served on the listener the modules call each other on.
@@ -255,6 +257,32 @@ func (s *Source) History(ctx context.Context, window replays.Window) (replays.Hi
 		return replays.History{}, errNoHistory
 	}
 	return replays.History{Document: answered, Frames: len(history.GetHistory().GetFrames()), Window: window}, nil
+}
+
+var _ replays.FlagListSource = (*Source)(nil)
+
+var errNoFlags = errors.New("the backend listed no flag")
+
+func (s *Source) FlagList(ctx context.Context) (replays.FlagList, error) {
+	answered, err := s.ask(ctx, fmt.Sprintf(publicTool, "{}", flagListProcedure))
+	if err != nil {
+		return replays.FlagList{}, err
+	}
+
+	var list flagsv1.ListFlagsResponse
+	if err := decoder.Unmarshal(answered, &list); err != nil {
+		return replays.FlagList{}, fmt.Errorf("the backend answered what is not a flags.v1.ListFlagsResponse: %w", err)
+	}
+	if len(list.GetFlags()) == 0 {
+		return replays.FlagList{}, errNoFlags
+	}
+	sold := 0
+	for _, flag := range list.GetFlags() {
+		if flag.GetSold() != nil {
+			sold++
+		}
+	}
+	return replays.FlagList{Document: answered, Sold: sold}, nil
 }
 
 func (s *Source) ask(ctx context.Context, command string) ([]byte, error) {

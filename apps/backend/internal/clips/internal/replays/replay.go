@@ -156,3 +156,18 @@ type HistorySource interface {
 type HistoryStore interface {
 	SaveHistory(ctx context.Context, history History) error
 }
+
+// Every flag the game lists, the ones sold since the build too: the generator names and draws a sold flag from it.
+type FlagList struct {
+	// A flags.v1.ListFlagsResponse in JSON, as the backend answered it.
+	Document []byte
+	Sold     int
+}
+
+type FlagListSource interface {
+	FlagList(ctx context.Context) (FlagList, error)
+}
+
+type FlagListStore interface {
+	SaveFlagList(ctx context.Context, list FlagList) error
+}

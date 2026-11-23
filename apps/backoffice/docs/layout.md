@@ -16,13 +16,14 @@ src/
   usePageVisible.ts whether the tab is shown
   navigation.ts     MENU, the pages by group, the route (routeOf, hashOf) and OpenPlayer
   countries.ts      a country id's name and its flag
-  flags.ts          the server's list of flags, read once at load, which names a flag opened since
+  flags.ts          the server's list of flags, read at load and by the Flags page, which names a flag opened since and
+                    gives a sold flag's picture
   main.tsx          takes the sign-in callback and a connector's request off the address bar, then renders App
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   connect/          ConnectPage (Allow or Deny an app), pending.ts (the request kept for the tab)
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, FlagMark (a
-                    flag's emoji or a grey flag), CountryField,
+                    flag's emoji, a sold flag's picture or a grey flag), CountryField,
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
   boards/           the boards: boards.ts (BOARDS by name, boardOf), places.ts (a board's places, read once by name),
@@ -53,6 +54,8 @@ src/
   lab/              The Lab: LabPage over readout.ts (each post at 7 days, each experiment against its control, the
                     arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
+  flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days and
+                    Close), actions.ts (the open's steps, the refusals, days left, the order)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)

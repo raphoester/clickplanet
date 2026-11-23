@@ -1,7 +1,8 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
 import * as THREE from "three"
 import {TILE_COLUMNS, TileField} from "./tileField.ts"
-import {BLANK_REGION, FLAG_NUMBERS, regions} from "./atlas.ts"
+import {BLANK_REGION, FIRST_SOLD, FLAG_NUMBERS, flagNumberOf, regions, showPicture, SOLD_MOST} from "./atlas.ts"
+import {MOST_HEIGHT, soldCellOf} from "./flagAtlas.ts"
 import {resetWarnOnce} from "../../domain/warnOnce.ts"
 import type {TileGeometry} from "./points.ts"
 import {chunksOf} from "../../domain/tileChunks.ts"
@@ -127,6 +128,21 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             expect(regionOf(f, 1)).toEqual([x, y, width, height])
             expect(regionOf(f, 2)).toEqual([x, y, width, height])
             expect(console.warn).not.toHaveBeenCalled()
+        })
+
+        it("gives a sold flag's tiles its cell once its picture is shown, and leaves the others", () => {
+            const f = field()
+            f.setOwners([{tile: 1, country: "r-cell000000"}, {tile: 2, country: "r-cell000000"}, {tile: 3, country: "fr"}])
+            const number = flagNumberOf("r-cell000000")
+            const cell = {x: 300, y: 1348, width: 100, height: 67}
+
+            showPicture(number, cell)
+            f.showFlag(number)
+            showPicture(number, undefined)
+
+            for (const tile of [1, 2]) expect(regionOf(f, tile)).toEqual([cell.x, cell.y, cell.width, cell.height])
+            const fr = regions.get("fr")!
+            expect(regionOf(f, 3)).toEqual([fr.x, fr.y, fr.width, fr.height])
         })
 
         it("blanks the tile again when a rolled-back click leaves it unowned", () => {
@@ -404,11 +420,14 @@ describe("what a tile costs", () => {
         }
     })
 
-    it("packs every atlas rectangle into floats exactly", () => {
+    it("packs every atlas rectangle into floats exactly, the sold flags' cells under it too", () => {
         for (const {x, y, width, height} of regions.values()) {
             expect(Math.max(x, y, width, height)).toBeLessThan(2048)
             expect(Math.fround(x + y * 2048)).toBe(x + y * 2048)
         }
+        const last = soldCellOf(FIRST_SOLD + SOLD_MOST - 1, {width: 1, height: 1})
+        expect(last.y + last.height).toBeLessThan(MOST_HEIGHT)
+        expect(Math.fround(last.x + last.y * 2048)).toBe(last.x + last.y * 2048)
     })
 
     it("names every flag in 16 bits", () => {

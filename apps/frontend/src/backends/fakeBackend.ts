@@ -247,6 +247,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private frozen = false
     private fast = false
     private flagsLocked = false
+    // The flags closed, as the fake flags module says: none plays, but a lock of the rules keeps the one held playable.
+    private closedFlags: ReadonlySet<string> = new Set()
     private shapesClose = true
     private spreadRings = 1
 
@@ -504,13 +506,32 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public unlockFlag(): void {
-        if (this.allegiance) this.holdAllegiance({countryId: this.allegiance.countryId, locked: this.allegiance.locked})
+        if (this.allegiance) this.holdAllegiance(this.heldAs(this.allegiance.countryId))
     }
 
     // The rules in force lock the flags, as a battle's set may: no flag held changes, a first one is still taken.
     public lockFlags(locked: boolean): void {
         this.flagsLocked = locked
-        if (this.allegiance) this.holdAllegiance({...this.allegiance, locked: locked || undefined})
+        if (this.allegiance) this.holdAllegiance(this.heldAs(this.allegiance.countryId, this.allegiance.changeableAt))
+    }
+
+    public closeFlags(closed: ReadonlySet<string>): void {
+        this.closedFlags = closed
+        if (this.allegiance) this.holdAllegiance(this.heldAs(this.allegiance.countryId, this.allegiance.changeableAt))
+    }
+
+    // As GetAllegiance answers it: a closed flag the rules do not lock is closed, and holds the account to no wait.
+    private heldAs(countryId: string, changeableAt?: number): Allegiance {
+        const closed = this.closedFlags.has(countryId) && !this.flagsLocked
+        const allegiance: Allegiance = {countryId}
+        if (changeableAt !== undefined && !closed) allegiance.changeableAt = changeableAt
+        if (this.flagsLocked) allegiance.locked = true
+        if (closed) allegiance.closed = true
+        return allegiance
+    }
+
+    private refuseClosed(countryId: string): void {
+        if (this.closedFlags.has(countryId) && !this.flagsLocked) throw new Error(`no flag ${countryId} plays: it is closed`)
     }
 
     public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {
@@ -534,18 +555,19 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private play(countryId: string): void {
+        this.refuseClosed(countryId)
         const held = this.allegiance
-        if (!held) this.holdAllegiance({countryId, locked: this.flagsLocked || undefined})
+        if (!held) this.holdAllegiance(this.heldAs(countryId))
         else if (held.countryId !== countryId) throw new AllegianceLockedError(held)
     }
 
     private pledge(countryId: string): void {
         const held = this.allegiance
         if (held?.countryId === countryId) return
+        this.refuseClosed(countryId)
         if (held && lockOf(held, Date.now())) throw new AllegianceLockedError(held)
 
-        const locked = this.flagsLocked || undefined
-        this.holdAllegiance(held ? {countryId, changeableAt: Date.now() + FLAG_CHANGE_EVERY_MS, locked} : {countryId, locked})
+        this.holdAllegiance(this.heldAs(countryId, held && !held.closed ? Date.now() + FLAG_CHANGE_EVERY_MS : undefined))
     }
 
     private holdAllegiance(allegiance: Allegiance): void {

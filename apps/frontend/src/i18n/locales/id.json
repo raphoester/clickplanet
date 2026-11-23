@@ -509,6 +509,8 @@
   "knockout.pickFailed": "Gagal ganti bendera. Coba lagi.",
   "knockout.confirmTitle": "Main untuk {country}?",
   "knockout.keepLocked": "Kamu nggak bisa ganti bendera lagi, kecuali bendera ini juga tersingkir.",
+  "flagClosed.title": "{country} ditutup",
+  "flagClosed.pickAnother": "Pilih bendera lain.",
   "archive.title": "Arsip",
   "archive.backToGame": "Kembali ke game",
   "archive.seasonPicker": "Musim",

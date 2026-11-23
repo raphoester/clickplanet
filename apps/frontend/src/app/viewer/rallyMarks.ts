@@ -3,7 +3,7 @@ import {Rally} from "../../domain/rallies.ts"
 import {BonusRules} from "../../domain/bonus.ts"
 import {timeLeftTo} from "../../domain/seasonClock.ts"
 import {t, translator} from "../../i18n/page.ts"
-import {Region, regions} from "./atlas.ts"
+import {pictureOf, Region, regions} from "./atlas.ts"
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts"
 import {createBonusPointer, GlobeDisc, globeDiscOf, offScreen, ViewSize} from "./bonusPointer.ts"
 import {isBehindGlobe} from "./bonusBox.ts"
@@ -251,7 +251,9 @@ function createPin(flag: string, own: boolean): Pin {
     const cloth = document.createElement("span")
     cloth.className = "rally-pin-cloth"
     const region = regions.get(flag)
+    const picture = pictureOf(flag)
     if (region) Object.assign(cloth.style, clothStyleOf(region))
+    else if (picture) Object.assign(cloth.style, {backgroundImage: `url("${encodeURI(picture.url)}")`, backgroundSize: "cover", backgroundPosition: "center"})
 
     const name = document.createElement("span")
     name.className = "rally-pin-name"

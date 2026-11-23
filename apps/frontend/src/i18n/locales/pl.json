@@ -509,6 +509,8 @@
   "knockout.pickFailed": "Nie udało się zmienić flagi. Spróbuj ponownie.",
   "knockout.confirmTitle": "Grać dla: {country}?",
   "knockout.keepLocked": "Nie zmienisz już flagi, chyba że ta też odpadnie.",
+  "flagClosed.title": "{country}: flaga zamknięta",
+  "flagClosed.pickAnother": "Wybierz inną flagę.",
   "archive.title": "Archiwum",
   "archive.backToGame": "Wróć do gry",
   "archive.seasonPicker": "Sezon",

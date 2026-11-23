@@ -9,7 +9,7 @@ generator writes as JSON, `clips.v1.Pick`, the story this job hands it back to r
 rendered (`proto/clips/v1/clips.proto`).
 
 ```
-clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-history <history.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-history <history.json>] [-flag-list <flag-list.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-lab on|off] [-ssh <user@host>] [-summary <file>]
 clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
 clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
@@ -32,6 +32,9 @@ clips edit -findings <findings.json> [-count 2] [-experiment <name>] [-prompt]
   since the file is a public artifact. The generator ranks each story's fighters from it. **A turn, a round or a cast
   the backend does not answer is a warning, not a failure**: the run still has its replay, and tells no round, or
   names nobody. No file is written then. The flags keep their names, `-race` and `-season`, for the workflow.
+  **With `-flag-list` it saves every flag the game lists** ([`ListFlags`](flags.md), on the public listener, as the
+  turn): the renderer's `--flag-list` names a flag sold since the page's build and draws it from its picture, where
+  without it the flag is blank and named by its code. A list the backend does not answer is a warning too.
   **With `-history`, which needs `-season`, it saves the map every hour since the season started**
   ([`GetMapHistory`](planet-module.md), on the internal listener, `127.0.0.1:8082` in the container: the job is the
   operator's, over ssh, as for the others), from the turn's `timeline.current.starts_at` to the end of the replay's

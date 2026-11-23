@@ -136,6 +136,8 @@ import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import {PromoBackend} from "../../backends/promo.ts";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import OutModal from "../knockout/OutModal.tsx";
+import ClosedFlagModal from "../flags/ClosedFlagModal.tsx";
+import {useHeldFlagClosings} from "../flags/useHeldFlagClosings.ts";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
@@ -276,6 +278,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     useScheduleFeed(backends.turn, backends.standings)
     useTeaserCardsFeed(backends.promo)
     useFlagsFeed(backends.flags)
+    useHeldFlagClosings(backends.allegiance, allegiance?.countryId)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
     const seasons = useSchedule((schedule) => schedule.seasons)
@@ -599,6 +602,7 @@ export default function PlayScreen(props: PlayScreenProps) {
             onClose={nudge.close}/>}
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
+        <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
 
         <HolderCardPlace holders={backends.tileHolders}
                          players={backends.playerInfo}

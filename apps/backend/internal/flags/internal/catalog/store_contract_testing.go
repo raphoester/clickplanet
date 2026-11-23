@@ -52,7 +52,8 @@ func (s *StoreContractSuite) TestAFlagKeptAgainKeepsWhatChanged() {
 
 	kept, err := s.store.Flag(s.T().Context(), "r-0000000001")
 	s.Require().NoError(err)
-	s.Equal(Snapshot{ID: "r-0000000001", Name: "Rennes", State: Closed, DecidedAt: closedAt}, kept.TakeSnapshot())
+	s.Equal(closed.TakeSnapshot(), kept.TakeSnapshot())
+	s.Equal(Closed, kept.TakeSnapshot().State)
 }
 
 func (s *StoreContractSuite) TestFlagsAreEveryFlagKeptTheClosedOnesToo() {
@@ -74,4 +75,26 @@ func (s *StoreContractSuite) TestNoFlagIsKeptAtFirst() {
 	flags, err := s.store.Flags(s.T().Context())
 	s.Require().NoError(err)
 	s.Empty(flags)
+}
+
+func (s *StoreContractSuite) TestEndingIsTheOpenFlagsWhoseEndPassed() {
+	rennes := s.opened("r-0000000001", "Rennes")
+	s.opened("r-0000000002", "Bavaria")
+	closed, err := OpenFlag("r-0000000003", "Corsica", openedAt.Add(-time.Hour)).Closed(closedAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), closed))
+	days, err := ParseDays(1)
+	s.Require().NoError(err)
+	later, err := rennes.TimeAdded(days, openedAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), later))
+
+	ending, err := s.store.Ending(s.T().Context(), openedAt.Add(30*24*time.Hour))
+	s.Require().NoError(err)
+	s.Require().Len(ending, 1)
+	s.Equal(FlagID("r-0000000002"), ending[0].TakeSnapshot().ID, "not the one with a day more, nor the one closed")
+
+	none, err := s.store.Ending(s.T().Context(), openedAt.Add(29*24*time.Hour))
+	s.Require().NoError(err)
+	s.Empty(none)
 }

@@ -40,8 +40,10 @@
   beside it for the rest of the session.
 - `strayFingers.ts` — `endStrayFingers`, the `pointercancel` sent for a finger iOS took for its swipe back and never
   ended, which left OrbitControls in a pinch. See [A finger iOS took for its swipe back](stray-fingers.md).
-- `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
-  atlas URL and size. **A flag's empty part is white on the globe** (`onWhite` in `shaders/flagFrame.glsl`, read by
+- `atlas.ts` / `atlasAsset.ts` — country code → flag number and sprite region, and the generated
+  atlas URL and size. `flagAtlas.ts` — the globe's flag texture: the built atlas, and each sold flag's picture drawn
+  under it once loaded, the texture growing up to 4,096 high (see [The list of
+  flags](flag-catalog.md#a-sold-flag-on-the-globe)). **A flag's empty part is white on the globe** (`onWhite` in `shaders/flagFrame.glsl`, read by
   the tiles and the territory layer, from the atlas and the slots alike). Nepal is the one flag with one, 42% of its
   sprite. The tiles set their own alpha, so its corners used to show whatever colour the file hides under an alpha
   of 0: blue streaks in the atlas, black where a browser drops it. The UI, the share card and the videos draw a flag

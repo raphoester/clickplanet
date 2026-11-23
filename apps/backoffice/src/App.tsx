@@ -31,6 +31,7 @@ import {useCall} from "./useCall.ts"
 import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
 import {PromoPage} from "./promo/PromoPage.tsx"
+import {FlagsPage} from "./flags/FlagsPage.tsx"
 import {readFlags, useListedFlags} from "./flags.ts"
 import {VideosPage} from "./videos/VideosPage.tsx"
 
@@ -142,6 +143,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                         quizzes={CLIENTS.quizzes}
                     />
                 )}
+                {page === "flags" && <FlagsPage flags={CLIENTS.flags}/>}
                 {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}

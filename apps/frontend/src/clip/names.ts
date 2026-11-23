@@ -1,4 +1,5 @@
 import gameNames from "../../static/countries/countries.json"
+import {flagCatalog} from "../app/flags/flagsStore.ts"
 
 const GAME_NAMES: Readonly<Record<string, string>> = gameNames
 
@@ -8,6 +9,8 @@ const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
 // were cut from, from the CLDR data the browser carries. A name the game chose over it stays: "Turkey", "Ivory Coast",
 // "UAE", and its own flags'.
 export function nameOf(code: string): string {
+    const sold = flagCatalog().openedName(code)
+    if (sold !== undefined) return sold
     const game = GAME_NAMES[code] ?? code.toUpperCase()
     const english = englishNameOf(code)
     return english !== undefined && cutFrom(game, english) ? english : game

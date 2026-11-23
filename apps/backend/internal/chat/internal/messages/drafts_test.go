@@ -84,3 +84,16 @@ func TestAGifOfNoSizeOrAHugeOneIsRefused(t *testing.T) {
 		})
 	}
 }
+
+func TestTheRoomOfAFlagClosedIsReadAndNotWritten(t *testing.T) {
+	const rennes = "r-k3p9x2ma0b"
+	rooms := messages.NewRooms(messages.FakeClosedFlags{ada: rennes})
+	drafts := messages.NewDrafts(&messages.SequentialIDs{}, cptime.NewFixedClock(draftedAt), limits, cpflags.Codes{}, rooms)
+
+	_, err := drafts.Draft(t.Context(), ada, messages.FlagRoom(rennes), rennes, "kenavo", messages.Gif{})
+	require.ErrorIs(t, err, messages.ErrRoomClosed)
+
+	require.NoError(t, rooms.EntryError(t.Context(), ada, messages.FlagRoom(rennes)), "its history is still read")
+	_, err = drafts.Draft(t.Context(), ada, messages.World, rennes, "kenavo", messages.Gif{})
+	require.NoError(t, err, "the world is no flag's room")
+}

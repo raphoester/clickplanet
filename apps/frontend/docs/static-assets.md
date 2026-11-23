@@ -58,7 +58,8 @@ cache entirely:
   provinces file; the translate skill writes each language's names in `src/i18n/provinces/<board>/`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`. A flag with no picture in it wears a blank of it, which the
-  page finds where no picture is: a repack must leave some room (see [The list of flags](flag-catalog.md)).
+  page finds where no picture is: a repack must leave some room. The page draws each sold flag's picture under it, in the
+same texture, and never changes the file (see [The list of flags](flag-catalog.md#a-sold-flag-on-the-globe)).
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
   `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
   [Reactions](chat.md#reactions).
@@ -131,7 +132,8 @@ the build if one is left. `"spa": false`, because the pages are real pages and
 the home page's section links are not views. The site is a manual one (no
 `auto_install`), so nothing is injected at the edge. No page sends a
 Content-Security-Policy; one that is added must allow
-`static.cloudflareinsights.com` (script) and `cloudflareinsights.com` (connect).
+`static.cloudflareinsights.com` (script) and `cloudflareinsights.com` (connect), and `https://media.clickplanet.lol`
+(img and connect: the sold flags' pictures).
 
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](routes.md). It is a full landing page (header,

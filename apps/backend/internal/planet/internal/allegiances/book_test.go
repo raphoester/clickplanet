@@ -212,7 +212,7 @@ func TestEveryTellerHearsEachPledge(t *testing.T) {
 
 func TestAFlagOpenedWhileTheServerRunsIsPledgedAndAClosedOneIsRefused(t *testing.T) {
 	const rennes = "r-k3p9x2ma0b"
-	flags := catalog.NewCatalog(catalog.NewMemoryStore())
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
 	store := allegiances.NewMemoryStore()
 	b := allegiances.NewBook(store, flags, unlocked, allegiances.EveryFlagStands{}, cptime.NewFixedClock(at),
 		&allegiances.RecordedPledges{})
@@ -224,5 +224,30 @@ func TestAFlagOpenedWhileTheServerRunsIsPledgedAndAClosedOneIsRefused(t *testing
 	assert.Equal(t, rennes, store.Kept(alice).Flag)
 
 	require.NoError(t, flags.Close(t.Context(), rennes, at))
+	require.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: bob}, rennes), clicks.ErrUnknownCountry)
+}
+
+func TestThePlayersOfAFlagClosedPickAnotherAtOnceAndKeepItWhileALockHolds(t *testing.T) {
+	const rennes = "r-k3p9x2ma0b"
+	locked := false
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), func() bool { return locked })
+	store := allegiances.NewMemoryStore()
+	clock := cptime.NewFixedClock(at)
+	b := allegiances.NewBook(store, flags, func() allegiances.Lock { return allegiances.Lock(locked) },
+		allegiances.EveryFlagStands{}, clock, &allegiances.RecordedPledges{})
+	require.NoError(t, flags.Open(t.Context(), rennes, at.Add(-time.Hour)))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, rennes))
+	clock.Advance(time.Minute)
+
+	locked = true
+	require.NoError(t, flags.Close(t.Context(), rennes, at.Add(time.Minute)))
+	require.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "de"), allegiances.ErrLocked,
+		"a battle plays to its end: the flag closed stays playable, and the lock holds")
+	require.NoError(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, rennes))
+
+	locked = false
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "de"), "no hour of wait")
+	assert.Equal(t, "de", store.Kept(alice).Flag)
 	require.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: bob}, rennes), clicks.ErrUnknownCountry)
 }

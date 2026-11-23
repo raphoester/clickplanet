@@ -50,7 +50,8 @@ map too.
   does not play; it goes into `useStanding` (`app/knockout/standingStore.ts`). `stands(standing, flag)` is the server's
   rule: while the knock-out does not play every flag, while it does a flag with a capital not out. A region flag
   (England, Scotland, Wales, Brittany) has no capital.
-- **The out window** (`app/knockout/OutModal.tsx`, in `PlayScreen`): while the knock-out plays and the flag played
+- **The out window** (`app/knockout/OutModal.tsx`, in `PlayScreen`; its pick and confirm are `PickAnotherWindow`, which
+  the window of a closed flag shares, with no close: see [The list of flags](flag-catalog.md#a-held-flag-closed)): while the knock-out plays and the flag played
   (held, or a newcomer's choice) does not stand, "France is out" (or "England has no capital"), "Pick a flag that is
   still in.", and the list of the flags still in. A pick pledges at once (the server lets a flag that does not stand
   change past the lock and the hour). **It can be closed, to watch** (the owner, 2026-11-10); a click out of reach opens

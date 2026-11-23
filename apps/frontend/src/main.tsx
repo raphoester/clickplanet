@@ -86,6 +86,7 @@ import {languageInterceptor} from "./backends/language.ts"
 import {speakChosenLanguage} from "./i18n/start.ts"
 import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
 import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
+import {paintFakeFlag} from "./backends/fakeFlagPictures.ts"
 import {afterFirstRead} from "./app/flags/flagsStore.ts"
 import {isOpenedCode} from "./domain/flags.ts"
 
@@ -209,7 +210,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const alerts = new DiscordAlerts(new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS),
         () => account.connectDiscord(), joinDiscord)
     const fakeClips = new FakeClipsBackend()
-    const fakeFlags = new FakeFlagsBackend()
+    const fakeFlags = new FakeFlagsBackend(paintFakeFlag)
+    fakeFlags.listenForClosed((closed) => fake.closeFlags(closed))
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -271,9 +273,22 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.lockFlags(false)
             return "the flags may change again"
         },
-        openFlag: (name = "Bavaria") => `${name} is open as ${fakeFlags.open(name)}: its tiles wear the blank flag`,
+        openFlag: async (name = "Bavaria", days = 30) =>
+            `${name} is open as ${await fakeFlags.open(name, days)} for ${days} days: pick it, and its tiles wear its picture`,
+        addTime: (code: string, days = 30) => {
+            switch (fakeFlags.addTime(code, days)) {
+                case "longer":
+                    return `${code} ends ${days} days later`
+                case "reopened":
+                    return `${code} is open again for ${days} days, with the land it still holds`
+                case "too late":
+                    return `${code} closed more than 30 days ago: it cannot come back`
+                case "unknown":
+                    return `no flag ${code}: openFlag(name) answers one`
+            }
+        },
         closeFlag: (code: string) => fakeFlags.close(code)
-            ? `${code} is closed: the picker leaves it out, and history still names it`
+            ? `${code} is closed: its players pick another flag, its land stays, and addTime(code) brings it back`
             : `no open flag ${code}: openFlag(name) answers one`,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe

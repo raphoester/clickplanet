@@ -45,9 +45,20 @@ export function flagOf(id: string): string {
     return String.fromCodePoint(...codesOf(id, REGIONAL_A - "a".charCodeAt(0)))
 }
 
-// A flag with no emoji but Brittany's, one opened since or one this page does not know, is drawn as a plain grey flag.
+// A sold flag's picture, from the server's list.
+export function flagPictureOf(id: string): string | undefined {
+    return listedFlag(countryIdOf(id))?.picture
+}
+
+// A flag with no emoji and no picture but Brittany's, one opened since the list does not show or one this page does
+// not know, is drawn as a plain grey flag.
 export function blankFlag(id: string): boolean {
-    return id !== "" && !(id in OWN) && flagOf(id) === ""
+    return id !== "" && !(id in OWN) && flagOf(id) === "" && flagPictureOf(id) === undefined
+}
+
+// Whether FlagMark draws something: an emoji, a sold flag's picture or a plain grey flag; not Brittany, nor no id.
+export function flagged(id: string): boolean {
+    return flagOf(id) !== "" || flagPictureOf(id) !== undefined || blankFlag(id)
 }
 
 function codesOf(letters: string, offset: number): number[] {

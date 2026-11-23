@@ -10,6 +10,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
@@ -26,13 +27,15 @@ type testSuite struct {
 	db    *cppg.Postgres
 	store *postgres_allegiance_store.Store
 	query *allegiance_query.PostgresQuery
+	flags catalog.Catalog
 	lock  allegiances.Lock
 }
 
 func (s *testSuite) SetupSuite() {
 	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_allegiance_store.New(s.db)
-	s.query = allegiance_query.NewPostgresQuery(s.db, func() allegiances.Lock { return s.lock })
+	s.flags = catalog.NewCatalog(catalog.NewMemoryStore(), func() bool { return bool(s.lock) })
+	s.query = allegiance_query.NewPostgresQuery(s.db, func() allegiances.Lock { return s.lock }, s.flags)
 }
 
 func (s *testSuite) SetupTest() {
@@ -88,4 +91,17 @@ func (s *testSuite) TestNoFlagYetAndNoAccountAnswerNoAllegiance() {
 
 	s.Nil(s.allegiance(bob).GetAllegiance())
 	s.Nil(s.allegiance(allegiances.NoAccount).GetAllegiance())
+}
+
+func (s *testSuite) TestAFlagClosedIsSaidClosedUntilALockHoldsIt() {
+	const rennes = "r-k3p9x2ma0b"
+	s.keep(alice, allegiances.Snapshot{Flag: rennes, ChangedAt: changed})
+	s.Require().NoError(s.flags.Open(s.T().Context(), rennes, changed))
+	s.False(s.allegiance(alice).GetAllegiance().GetClosed())
+
+	s.Require().NoError(s.flags.Close(s.T().Context(), rennes, changed.Add(time.Hour)))
+	s.True(s.allegiance(alice).GetAllegiance().GetClosed(), "its players pick another flag at once")
+
+	s.lock = true
+	s.False(s.allegiance(alice).GetAllegiance().GetClosed(), "a battle plays to its end")
 }

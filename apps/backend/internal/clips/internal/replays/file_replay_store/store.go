@@ -62,3 +62,14 @@ func (s HistoryStore) SaveHistory(_ context.Context, history replays.History) er
 	}
 	return nil
 }
+
+type FlagListStore string
+
+var _ replays.FlagListStore = FlagListStore("")
+
+func (s FlagListStore) SaveFlagList(_ context.Context, list replays.FlagList) error {
+	if err := os.WriteFile(string(s), list.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the flag list: %w", err)
+	}
+	return nil
+}

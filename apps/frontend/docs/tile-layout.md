@@ -18,15 +18,16 @@ graphics](hd-graphics.md)):
 | per tile | 36 bytes, 9.4 MB | 20 bytes, 5.2 MB |
 
 **A flag is a number, not a rectangle, in the compact layout.** `ids.x` is the flag's place in
-`atlas.json` plus one, and 0 is no owner. The vertex shader reads the rectangle
+`atlas.json` plus one, 0 is no owner, then the blank, then a number for each sold flag in the order the page meets it
+(256 at most, see [The list of flags](flag-catalog.md#a-sold-flag-on-the-globe)). The vertex shader reads the rectangle
 from `flagRectangles`, a float texture of one row per flag, and passes it on as
 `vRegionVector`, so the fragment shader is the same for both
 layouts. One read per tile in the vertex shader, not one per pixel in the
 fragment shader. A u8 cannot hold it: the atlas has 256 flags, and 0 is taken.
 
 **The plain layout is 32-bit floats alone, and reads no texture in its vertex shader.** The rectangle is two floats,
-`x + y × 2048` and `width + height × 2048`: every atlas coordinate is a whole pixel under 2,048, so the sum is under
-2^24 and exact in a float, and the shader takes it apart with `mod` and `floor`, exact for whole numbers and a power of
+`x + y × 2048` and `width + height × 2048`: every atlas coordinate is a whole pixel, x and the sizes under 2,048 and y
+under 4,096 (the sold flags' rows under the built atlas), so the sum is under 2^24 and exact in a float, and the shader takes it apart with `mod` and `floor`, exact for whole numbers and a power of
 two. `tileField.test.ts` pins both. It was 56 bytes: four floats for the rectangle, one attribute of its own for each
 mark, and three floats of picking colour, which went with the GPU picker (see [The tile under the pointer](picking.md)).
 

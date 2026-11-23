@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package flags.v1;
 
+import "google/protobuf/timestamp.proto";
+
 // The catalog of flags: the ones the game ships with, and the ones opened since.
 service FlagService {
   // Every flag of the catalog, the closed ones too: history still names them. A GET.
@@ -40,6 +42,31 @@ message Flag {
   string code = 1;
   // In English.
   string name = 2;
-  // No player may play for a closed flag.
+  // No player may play for a closed flag, once no lock of the rules in force holds it.
   bool closed = 3;
+  // Only for a flag opened since the game shipped: the ones it ships with are in the page's atlas and never end.
+  Sold sold = 4;
+}
+
+// What a flag opened since the game shipped has that the ones it ships with do not.
+message Sold {
+  Picture picture = 1;
+  // When its time runs out. A closed flag keeps the end it had.
+  google.protobuf.Timestamp ends_at = 2;
+  // Unset while the flag is open. Time added within 30 days of it opens the flag again.
+  google.protobuf.Timestamp closed_at = 3;
+}
+
+// A flag's picture as the server drew it again: a PNG at most 768 wide and 512 high, between square and 2 wide by 1
+// high, with no hidden data.
+message Picture {
+  // Public, and named after its content: a browser may keep it a year.
+  string url = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  // What static/countries/flagFit.json says of a flag the game ships with: only bands, so it may be stretched to a
+  // country's shape, and the point of the picture a crop keeps, each from 0 to 1.
+  bool stretch = 4;
+  float focus_x = 5;
+  float focus_y = 6;
 }

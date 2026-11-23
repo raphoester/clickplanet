@@ -5,6 +5,7 @@ import {ordinalOf} from "./ordinal.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
 import {DISPLAY_FONT_DRAWS, nameOf, said} from "./names.ts"
+import {flagPictureUrl} from "../app/flags/flagPicture.ts"
 
 export type Words = {
     headline: string
@@ -157,7 +158,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
 
 function flag(code: string, className: string, parent: HTMLElement) {
     const image = element("img", className, parent)
-    image.src = `/static/countries/svg/${code}.svg`
+    image.src = flagPictureUrl(code)
     image.alt = ""
     return image
 }
