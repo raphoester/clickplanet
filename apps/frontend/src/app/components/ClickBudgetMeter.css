@@ -407,6 +407,25 @@
     animation: click-budget-refused 0.45s ease-out;
 }
 
+/* A trap's debt: the count reads below zero in the trap's colour until the refill pays it back. */
+.click-budget-debt .click-budget-number {
+    color: var(--trap-light);
+}
+
+/* A trap took clicks from the bank: the meter flashes the trap's colour once. */
+.click-budget-drained {
+    animation: click-budget-drained 0.7s ease-out;
+}
+
+@keyframes click-budget-drained {
+    0% {
+        box-shadow: 0 0 0 3px var(--trap), 0 0 18px var(--trap);
+    }
+    100% {
+        box-shadow: 0 0 0 3px transparent, 0 0 18px transparent;
+    }
+}
+
 @keyframes click-budget-refused {
     0% {
         transform: translateX(0);

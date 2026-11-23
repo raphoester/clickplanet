@@ -63,7 +63,10 @@ hears it.** An enclosure carries `yours`; a spread says nothing of
 whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
 the last 3s and a broadcast on one of them, for the same country, is taken as
 ours. They have no switch of their own: `switchOf` puts them under the tile
-click's;
+click's; a trap sprung (`trap`, a metal snap: a hard click of bright noise, the
+jaws' few inharmonic partials and a low thump) on every page that sees it, full
+for a trap of the page's flag or the page's own take and softer for the others,
+under the bomb's switch (see [Trap](trap.md));
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your account as well as on `mine`**: its broadcast can arrive before
 the send answer that fills `mine` in. A guest's account is only known once a

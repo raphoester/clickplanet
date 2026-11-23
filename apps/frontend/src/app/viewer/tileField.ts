@@ -40,7 +40,7 @@ const SPRITE_MOST = 7.2
 
 const UNOWNED = 0
 
-// The pulse slot holds six marks, one bit each: the display shaders read them back with floor and mod.
+// The pulse slot holds seven marks, one bit each: the display shaders read them back with floor and mod.
 const FORTIFY_PULSE = 1
 const FRONT_PULSE = 2
 const MISSION_MARK = 4
@@ -49,6 +49,8 @@ const CAPITAL_MARK = 8
 const INFECTED_MARK = 16
 // Must match marked(32.0) in shaders/display.
 const MINE_MARK = 32
+// Must match marked(64.0) in shaders/display.
+const TRAP_MARK = 64
 
 // The only marks a tile draws while the painted flags cover it: everything else it draws fades with it.
 const RINGS = FORTIFY_PULSE | FRONT_PULSE
@@ -235,6 +237,10 @@ export class TileField {
 
     setMineMarks(tiles: readonly number[], on: boolean) {
         this.mark(tiles, MINE_MARK, on)
+    }
+
+    setTrapMarks(tiles: readonly number[], on: boolean) {
+        this.mark(tiles, TRAP_MARK, on)
     }
 
     // Each tile's province: a landmass is lit, and a fortify's wave runs, as the span of its provinces. `landmassOf` gives

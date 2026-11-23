@@ -359,6 +359,17 @@ const fortify: Synth = (ctx, at, {volume}) => {
     window.setTimeout(() => out.disconnect(), (at - ctx.currentTime + 2.5) * 1000)
 }
 
+// Steel jaws slamming shut: a hard click of bright noise, the clang of the jaws' few inharmonic partials, and a short
+// low thump, all under a quarter of a second.
+const trap: Synth = (ctx, at, {volume}) => {
+    const pitch = detune(0.04)
+    filteredNoise(ctx, at, ctx.destination, {start: 0, length: 0.05, gain: 0.5 * volume, attack: 0.001, filter: "highpass", from: 3000})
+    ;[1830, 2470, 3390, 4210].forEach((from, i) => {
+        tone(ctx, at, volume, {type: "triangle", from: from * pitch, start: 0.002, length: 0.22 - i * 0.03, gain: 0.07})
+    })
+    tone(ctx, at, volume, {type: "sine", from: 140, to: 60, start: 0, length: 0.09, gain: 0.4})
+}
+
 export const SYNTHS: Record<SoundName, Synth> = {
-    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong, title, fortify,
+    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong, title, fortify, trap,
 }

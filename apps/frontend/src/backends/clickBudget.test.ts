@@ -22,8 +22,10 @@ describe("tokensAt", () => {
         expect(tokensAt(reading(), 1_000_000)).toBe(10)
     })
 
-    it("never goes below zero, whatever is in flight", () => {
-        expect(tokensAt(reading({tokens: -3}), 1_000)).toBe(0)
+    it("reads a trap's debt below zero, down to minus one bank, and refills from it", () => {
+        expect(tokensAt(reading({tokens: -3}), 1_000)).toBe(-3)
+        expect(tokensAt(reading({tokens: -3}), 2_500)).toBe(-1.5)
+        expect(tokensAt(reading({tokens: -30}), 1_000)).toBe(-10)
     })
 
     it("does not run backwards if the reading is somehow ahead of the clock", () => {
@@ -53,6 +55,10 @@ describe("canClick", () => {
 describe("nextClickProgress", () => {
     it("is how much of the next click has arrived", () => {
         expect(nextClickProgress(reading({tokens: 0}), 1_400)).toBeCloseTo(0.4)
+    })
+
+    it("is nothing in debt: no click arrives until the debt is paid", () => {
+        expect(nextClickProgress(reading({tokens: -2.5}), 1_000)).toBe(0)
     })
 
     it("ignores the clicks already in hand", () => {
@@ -87,6 +93,10 @@ describe("secondsToOneMore", () => {
 
     it("is a whole refill right after a click", () => {
         expect(secondsToOneMore(reading({tokens: 0, perSecond: 0.2}), 1_000)).toBeCloseTo(5)
+    })
+
+    it("waits in debt for the first click the bank allows again", () => {
+        expect(secondsToOneMore(reading({tokens: -7.5, perSecond: 0.5}), 1_000)).toBeCloseTo(17)
     })
 
     it("is nothing at a full bucket, which is granting nothing back", () => {

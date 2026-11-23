@@ -46,6 +46,8 @@ import {
     RallyRefusedError,
     MineBlast,
     MineRefusedError,
+    TrapRefusedError,
+    Trapper,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import type {Board} from "../domain/board.ts";
@@ -88,6 +90,9 @@ const ENCLOSURES_PER_BOX = 3
 const MINES = 3
 const MINES_PER_BOX = 2
 const MINE_RINGS = 2
+const TRAPS = 3
+const TRAPS_PER_BOX = 2
+const TRAP_CLICKS = 10
 const RALLIES = 3
 // The server's 18 tile spacings of earth-1, and 3 minutes; a click inside takes half of one.
 const RALLY_RADIUS = 18 * 0.004
@@ -174,6 +179,8 @@ const rulesOf = ({bombRadius, rallyRadius}: Lengths): BonusRules => ({
     rallyRadius,
     rallyLastsMs: RALLY_LASTS_MS,
     rallyCost: RALLY_COST,
+    traps: TRAPS,
+    trapClicks: TRAP_CLICKS,
 })
 
 export type FakeBackendOptions = {
@@ -187,7 +194,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{landmasses: Cut, provinces: Cut}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, Trapper, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, ProvinceFortification>()
@@ -214,6 +221,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private readonly viruses = new Map<string, {flag: string, victim: string, infected: number[], infections: number}>()
     // Each mine's tile, and its flag.
     private readonly mines = new Map<number, string>()
+    // Each trap's flag, by tile.
+    private readonly traps = new Map<number, string>()
     private readonly rallies = new Rallies()
     private fortresses: FakeFortresses | undefined
 
@@ -417,6 +426,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 this.hold({...held, rallies})
                 return {reward: rewardOfKind(this.lengths, kind, rallies - held.rallies), charges: this.charges}
             }
+            case "trap": {
+                const traps = Math.min(held.traps + drawUpTo(TRAPS_PER_BOX), TRAPS)
+                this.hold({...held, traps})
+                return {reward: rewardOfKind(this.lengths, kind, traps - held.traps), charges: this.charges}
+            }
         }
     }
 
@@ -538,7 +552,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.allegiance = allegiance
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
         const mines = this.minefield()
-        this.bonusCallbacks.forEach(handlers => handlers.onMines(mines))
+        const traps = this.trapline()
+        this.bonusCallbacks.forEach(handlers => {
+            handlers.onMines(mines)
+            handlers.onTraps(traps)
+        })
+    }
+
+    private trapline() {
+        const flag = this.allegiance?.countryId ?? ""
+        const tiles = [...this.traps].filter(([, trap]) => trap === flag).map(([tile]) => tile)
+        return {countryId: flag, tiles, version: this.version()}
     }
 
     private minefield() {
@@ -558,6 +582,37 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.mines.set(tileId, countryId)
         const laid = {countryId, tile: tileId, version: this.version()}
         this.bonusCallbacks.forEach(handlers => handlers.onMineLaid(laid))
+    }
+
+    public async layTrap(tileId: number, countryId: string): Promise<void> {
+        this.refuseBanned()
+        if (this.frozen) throw new FrozenError()
+        this.play(countryId)
+        if (this.charges.traps === 0) throw new BonusLostError()
+        if (this.tileBindings.get(tileId) !== countryId || this.traps.has(tileId)) throw new TrapRefusedError()
+
+        this.hold({...this.charges, traps: this.charges.traps - 1})
+        this.traps.set(tileId, countryId)
+        const laid = {countryId, tile: tileId, version: this.version()}
+        this.bonusCallbacks.forEach(handlers => handlers.onTrapLaid(laid))
+    }
+
+    // An enemy takes one of the page's flag's traps, so the snap can be watched: the clicks are the enemy's.
+    public tripTrap(): boolean {
+        const flag = this.allegiance?.countryId
+        const trapped = [...this.traps].find(([, trap]) => trap === flag)
+        if (!trapped) return false
+        this.applyClick(trapped[0], flag === "de" ? "fr" : "de")
+        return true
+    }
+
+    // Another flag lays a trap on one of its tiles, which the page does not see: the page's take of it costs its bank.
+    public enemyTrap(): number | undefined {
+        const flag = this.allegiance?.countryId
+        const tile = [...this.tileBindings].find(([id, owner]) => owner !== flag && !this.traps.has(id))
+        if (!tile) return undefined
+        this.traps.set(tile[0], tile[1])
+        return tile[0]
     }
 
     // One on at a time: the fake's player is the only caller it knows.
@@ -606,12 +661,31 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return true
     }
 
-    // A take by another flag sets the tile's mine off once the take is told.
-    private trip(tile: number, taker: string) {
+    // A take by another flag sets the tile's mine off once the take is told, or springs its trap: the page pays for its
+    // own take, down to minus one bank.
+    private trip(tile: number, taker: string, by: string = FAKE_YOU) {
+        this.spring(tile, taker, by)
         const flag = this.mines.get(tile)
         if (flag === undefined || flag === taker) return
         this.mines.delete(tile)
         setTimeout(() => void this.detonate(tile, flag), 0)
+    }
+
+    private spring(tile: number, taker: string, by: string) {
+        const flag = this.traps.get(tile)
+        if (flag === undefined || flag === taker) return
+        this.traps.delete(tile)
+        const yours = by === FAKE_YOU
+        let clicks = this.rules.trapClicks
+        if (yours) {
+            this.refill()
+            const before = this.tokens
+            this.tokens = Math.min(this.tokens, Math.max(this.tokens - clicks, -CLICK_BURST))
+            clicks = before - this.tokens
+            this.reportBudget()
+        }
+        const sprung = {tile, countryId: flag, clicks, yours}
+        setTimeout(() => this.bonusCallbacks.forEach(handlers => handlers.onTrapSprung(sprung)), 0)
     }
 
     // Each blast takes its tile and the rings around it for its flag, but the flag's own; a shielded tile loses one shield
@@ -785,7 +859,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.holders.set(tileId, {accountId: by, countryCode: countryId, takenAt: Date.now()})
         this.shields.delete(tileId)
         this.tally?.moved(tileId, prev, countryId)
-        this.trip(tileId, countryId)
+        this.trip(tileId, countryId, by)
         const version = this.write()
         this.updateListeners.forEach(l => l({
             tile: tileId,
@@ -955,6 +1029,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         handlers.onRules(this.rules)
         handlers.onCharges(this.charges)
         handlers.onMines(this.minefield())
+        handlers.onTraps(this.trapline())
         handlers.onRallies(this.rallies.on(budgetNow()))
 
         return () => this.bonusCallbacks.delete(identifier)
@@ -1092,6 +1167,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const struck: {tile: number, shields: number}[] = []
         for (const id of onLand ? tilesWithin(positions, tile, this.lengths.bombRadius) : []) {
             this.mines.delete(id)
+            this.traps.delete(id)
             const owner = this.tileBindings.get(id)
             if (owner === undefined) continue
             const left = this.strike(id)
@@ -1265,5 +1341,7 @@ function rewardOfKind({bombRadius}: Lengths, kind: BonusReward["kind"], amount =
             return {kind, mines: amount}
         case "rally":
             return {kind, rallies: amount}
+        case "trap":
+            return {kind, traps: amount}
     }
 }

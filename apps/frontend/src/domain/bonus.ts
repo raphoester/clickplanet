@@ -33,6 +33,10 @@ export type BonusReward =
     kind: "rally"
     rallies: number
 }
+    | {
+    kind: "trap"
+    traps: number
+}
 
 // Every kind is a count, up to what a hand holds of it (BonusRules).
 export type Charges = {
@@ -44,16 +48,17 @@ export type Charges = {
     viruses: number
     mines: number
     rallies: number
+    traps: number
 }
 
 export const NO_CHARGES: Charges = {
-    refills: 0, bombs: 0, enclosures: 0, spreadClicksLeft: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
+    refills: 0, bombs: 0, enclosures: 0, spreadClicksLeft: 0, shields: 0, viruses: 0, mines: 0, rallies: 0, traps: 0,
 }
 
 export type ChargeKind = BonusReward["kind"]
 
 export const CHARGE_KINDS: readonly ChargeKind[] = [
-    "refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus", "mine", "rally",
+    "refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus", "mine", "rally", "trap",
 ]
 
 // A guest's level, and an account's before it has one: it holds only the open kinds.
@@ -144,7 +149,7 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
 
 export type BonusNotice =
     "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineTaken" | "mineNotYours"
-    | "rallyOn"
+    | "rallyOn" | "trapTaken" | "trapNotYours"
 
 export type BonusNoticeEvent = {
     notice: BonusNotice
@@ -162,6 +167,9 @@ export function slotOf(notice: BonusNotice): ChargeKind {
             return "mine"
         case "rallyOn":
             return "rally"
+        case "trapTaken":
+        case "trapNotYours":
+            return "trap"
         case "shieldFull":
         case "shieldCapital":
         case "shieldTaken":
@@ -213,4 +221,7 @@ export type BonusRules = {
     rallyRadius: number
     rallyLastsMs: number
     rallyCost: number
+    // How many traps a hand holds, and the clicks a trap takes from the bank of the player whose take sprang it.
+    traps: number
+    trapClicks: number
 }

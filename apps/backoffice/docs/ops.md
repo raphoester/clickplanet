@@ -68,10 +68,10 @@ a bridge" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)),
 its flag", "No shield on a capital" and "Cut-off: land cut from its capital clears" (`capitals.knockOut`,
 `capitals.fixedShields`, `capitals.cutOff`: see the backend's
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the tempo with them), Charges (the set's `charges`, the
-wallet's: how many refills, spread clicks, bombs, enclosures, shields, viruses, mines and rallies a hand holds
+wallet's: how many refills, spread clicks, bombs, enclosures, shields, viruses, mines, rallies and traps a hand holds
 (`charges.refill.held`, `bomb.held` and `virus.held` beside `mine.held` and `rally.held`: the refill, the bomb and the
 virus are counts too, one each in `default` for now, and the game's inventory counts them once a hand holds more than
-one), a spread's rings (1 to 3), a bomb's rings, the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimited: enclose spends no charge",
+one), a spread's rings (1 to 3), a bomb's rings, the tiles an enclose fills, the shields a tile takes and the clicks a trap takes (`trap.clicks`, at least 1); with "Enclosures unlimited: enclose spends no charge",
 `charges.enclose.unlimited`: see the backend's [Unlimited enclosures](../../backend/docs/enclose.md), "Spread
 unlimited: spread spends no charge", `charges.spread.unlimited`: see the backend's
 [Spread](../../backend/docs/spread.md), and "Bombs off: no hand takes one, and none is

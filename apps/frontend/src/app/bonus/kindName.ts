@@ -11,6 +11,7 @@ const NAMES: Record<ChargeKind, Key> = {
     virus: "bonus.virus",
     mine: "bonus.mine",
     rally: "bonus.rally",
+    trap: "bonus.trap",
 }
 
 // A kind's name, as its slot in the bonus bar says it.
