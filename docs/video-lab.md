@@ -2,7 +2,8 @@
 
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
 experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. PR 3 is built (2026-11-20): the carousel,
-a list of countries in photos, on from its merge. PR 6 is built (2026-11-23): the readout, the backoffice's Lab page.** The clips had one format, and the experiments of October only tuned
+a list of countries in photos, on from its merge. PR 6 is built (2026-11-23): the readout, the backoffice's Lab page. PR
+4's renderer is built (2026-11-23): the war report's voice and subtitles in the clip.** The clips had one format, and the experiments of October only tuned
 it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
@@ -129,15 +130,20 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
 
 ## The formats
 
-- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"**: 20 to 30 s, a voice tells one
+- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"**: about 20 s, a voice tells one
   story's new chapter, one episode a day of the season, ending on what may come next. The editor chooses the story, as
   for any lab story; a writer of its own writes what the voice says, from that story's facts alone, the tone, and the
   episodes before it, so the series goes on from where it was. The globe plays the story under the voice, the anthem
-  low beneath it. 30 s is 900 frames, 28 to 47 minutes at 1.9 to 3.1 s a frame, inside the render job's 60. The voice is
+  at 16% beneath it, the voice from 0.4 s in. **The clip lasts as long as the voice**, its last words 0.4 s more, then
+  its 2.5 s call: 45 to 65 words at 1.15 run 18.7 to 22.6 s in all (the ten scripts of 2026-11-23), past the clips'
+  22 s when the voice needs it, 30 s at most (900 frames, 28 to 47 minutes at 1.9 to 3.1 s a frame, inside the render
+  job's 60). The voice is
   **Kokoro** (open weights and code under Apache 2.0, its phonemizer too), run in Node with `kokoro-js`, for nothing; a
   paid voice only if every one of Kokoro's sounds made by a machine to the owner. **Every word said is on screen**
   (the owner, 2026-11-23, from two mockups): subtitles in chunks of up to 6 words, cut at the commas first, timed to the
-  voice, in the game's display face, **in place of the headline**, which stays the post's title. Not built yet.
+  voice, in the game's display face, **in place of the headline**, which stays the post's title (layout A). **Its
+  renderer is built** (2026-11-23): `npm run clip -- --voice <wav>`, the frontend's [Clips](../apps/frontend/docs/clips.md),
+  "A war report". Not built yet: its writer in the clips job, its experiment and its posting.
 - **POV, the game itself: "POV: IT'S 3AM AND YOU'RE THE LAST BELGIAN"**: the play screen and not the cinematic globe,
   its bar and counters, a finger tapping, bombs going off. The play page driven by the replay in the recorder, and a
   drawn finger. The biggest build of the list.
@@ -244,9 +250,9 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   1.25 s between sentences were too slow, 1.5 times too fast; 1.15 picked from 1.1 to 1.25).
 - **The rounds**: 1. the tones, on Opus, in Adam's voice, 3 stories: 15 scripts, about 8 minutes of listening, done
   2026-11-23 (the lab's log). 2. the best two tones on the three models, in Adam's voice: not run yet, Opus writes
-  meanwhile. 3. whole videos of the winner on new stories: ten previews on 2026-11-23, today's clip renderer with the
-  voice laid over it, before the renderer plays a voice. **The owner signs one off**, and only then is it an
-  experiment of the lab.
+  meanwhile. 3. whole videos of the winner on new stories: ten previews on 2026-11-23, the clip renderer with the
+  voice laid over it with ffmpeg, before the renderer played a voice (it does since the same day, `--voice`). **The
+  owner signs one off**, and only then is it an experiment of the lab.
 
 ## What it costs
 
@@ -271,7 +277,8 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 3. **The carousel** (built 2026-11-20), on from its merge: the lists in the findings, its brief, the stills and
    the slideshow, the photos to TikTok, `carouselList` in the post's metadata, the replay fetched 72 hours.
 4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
-   globe, timed to it) and its experiment, once signed off.
+   globe, its subtitles timed to it; built 2026-11-23) and its experiment, once signed off: the writer in the clips
+   job, the voice in the render job, the posting.
 5. **POV.**
 6. **The readout** (built 2026-11-23): auth's arrivals counted by source and by day (`auth.v1.AdminService/CountArrivals`,
    the one auth call Claude's connector makes too, `auth_count_arrivals`; see the backend's
@@ -299,4 +306,5 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   hours, fought back and forth (North Macedonia in Turkey and Greece), was confusing in every tone; a place one flag
   holds (Ireland's North America) was the best by far. The correspondent was "too factual, a series of uncorrelated
   facts". Then ten previews on the day's map, which gave the writer one thread, three countries and 45 to 65 words,
-  Adam 1.15 times faster with short pauses, and the subtitles in place of the headline. Not on yet: its renderer.
+  Adam 1.15 times faster with short pauses, and the subtitles in place of the headline. Its renderer built the same
+  day (`--voice`). Not on yet: its writer in the clips job and its experiment.

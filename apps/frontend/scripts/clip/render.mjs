@@ -37,6 +37,9 @@ if (!replay || has("help")) {
                       each place's saga, who held a tenth of it and who held over half of it from when to when, and
                       each ruling flag's land on each continent; a saga is told from it, from the time its pick names
   --silent            no anthem under the clip, for a sound added where it is posted
+  --voice <wav>       a war report: the voice from 0.4s in, the anthem low under it, and what it says as subtitles in
+                      place of the headline, which stays the post's title; its lines and their times from the
+                      voices.json voice.mjs wrote beside it. The clip lasts as long as the voice, then its call
   --preview <s>       only the first s seconds of the clip
 
 Everything below is chosen from the replay when left out:
@@ -66,6 +69,8 @@ const HEIGHT = 960
 const SCALE = 2
 const MUSIC_FADE_SECONDS = 1.2
 const MUSIC_FADE_IN_SECONDS = 0.05
+// The anthem under a voice, the owner's pick of 2026-11-23.
+const MUSIC_UNDER_VOICE = 0.16
 const RECORDERS = has("plan") || has("findings") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -86,6 +91,29 @@ const racePath = optionalPath("race")
 const seasonPath = optionalPath("season")
 const castPath = optionalPath("cast")
 const historyPath = optionalPath("history")
+const voicePath = optionalPath("voice")
+
+// The voice's lines, from the voices.json voice.mjs writes beside each voice it says.
+function linesOf(voice) {
+    if (voice === undefined) return undefined
+    if (has("seconds")) {
+        console.error("a war report lasts as long as its voice: --seconds goes with no --voice")
+        process.exit(1)
+    }
+    const made = join(dirname(voice), "voices.json")
+    if (!existsSync(made)) {
+        console.error(`no voices.json beside ${voice}: voice.mjs writes one with the lines it says`)
+        process.exit(1)
+    }
+    const entry = JSON.parse(readFileSync(made, "utf8")).made?.find(({file}) => file === basename(voice))
+    if (!entry?.lines?.length) {
+        console.error(`${made} has no lines for ${basename(voice)}`)
+        process.exit(1)
+    }
+    return entry.lines
+}
+
+const voiceLines = linesOf(voicePath)
 
 const server = await createServer({
     root: APP,
@@ -262,6 +290,7 @@ function pageOf() {
     for (const name of ["flags", "dive", "silent"]) {
         if (has(name)) query.set(name, "")
     }
+    if (voiceLines !== undefined) query.set("voice", JSON.stringify(voiceLines))
     return `${origin}clip.html?${query}`
 }
 
@@ -275,6 +304,7 @@ async function record(recorders) {
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
+        ...recording.voice ? [`  voice: ${recording.voice.seconds.toFixed(1)}s from ${recording.voice.at}s, in ${recording.voice.subtitles} subtitles`] : [],
         ...recording.fighters.length > 0
             ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
     ].join("\n"))
@@ -282,17 +312,13 @@ async function record(recorders) {
     if (recording.photos > 0) return photograph(recorders[0], recording, out)
 
     const frames = has("preview") ? Math.min(recording.frames, Math.round(Number(flag("preview")) * recording.fps)) : recording.frames
-    const music = recording.music
-    const fadeFrom = Math.max(0, frames / recording.fps - MUSIC_FADE_SECONDS)
+    const sound = soundOf(recording, frames / recording.fps)
     ffmpeg = spawn("ffmpeg", [
         "-y", "-loglevel", "error",
         "-f", "image2pipe", "-framerate", String(recording.fps), "-i", "-",
-        ...music ? ["-ss", music.from.toFixed(2), "-i", join(APP, music.url)] : [],
+        ...sound.inputs,
         "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
-        ...music ? [
-            "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "128k",
-            "-af", `afade=t=in:d=${MUSIC_FADE_IN_SECONDS},afade=t=out:st=${fadeFrom.toFixed(2)}:d=${MUSIC_FADE_SECONDS},apad`, "-shortest",
-        ] : [],
+        ...sound.outputs,
         "-movflags", "+faststart", out,
     ], {stdio: ["pipe", "inherit", "inherit"]})
     const encoded = new Promise((resolve, reject) => {
@@ -331,6 +357,24 @@ async function record(recorders) {
     writeFileSync(clip, JSON.stringify(recording.clip, null, 2) + "\n")
     console.log(`  saved ${out}, ${basename(text)} and ${basename(clip)}`)
     return recording
+}
+
+// The anthem, faded in and out, and a war report's voice over it from when the page says, the anthem low under it.
+function soundOf(recording, seconds) {
+    const music = recording.music
+    const voice = recording.voice
+    const inputs = [
+        ...music ? ["-ss", music.from.toFixed(2), "-i", join(APP, music.url)] : [],
+        ...voice ? ["-i", voicePath] : [],
+    ]
+    const fades = `afade=t=in:d=${MUSIC_FADE_IN_SECONDS},afade=t=out:st=${Math.max(0, seconds - MUSIC_FADE_SECONDS).toFixed(2)}:d=${MUSIC_FADE_SECONDS}`
+    const delayed = voice ? `adelay=delays=${Math.round(voice.at * 1000)}:all=1` : ""
+    const graph = music && voice
+        ? `[1:a]${fades},volume=${MUSIC_UNDER_VOICE}[music];[2:a]${delayed}[voice];[music][voice]amix=inputs=2:duration=longest:normalize=0,apad[sound]`
+        : music ? `[1:a]${fades},apad[sound]`
+            : voice ? `[1:a]${delayed},apad[sound]` : undefined
+    if (graph === undefined) return {inputs, outputs: []}
+    return {inputs, outputs: ["-filter_complex", graph, "-map", "0:v", "-map", "[sound]", "-c:a", "aac", "-b:a", "128k", "-shortest"]}
 }
 
 // A carousel: each photo a still of the page, then their slideshow as the video, and the photos named in the clip.
