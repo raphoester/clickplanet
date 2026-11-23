@@ -14,6 +14,18 @@ export type FlagNeed = {
     spriteWidth: number
 }
 
+// A flag needed on several grounds: as wide as its widest need, with all its land.
+export function addNeed(needs: Map<string, FlagNeed>, code: string, need: FlagNeed) {
+    const was = needs.get(code)
+    needs.set(code, was === undefined ? need : {...need, need: Math.max(was.need, need.need), area: was.area + need.area})
+}
+
+export function joinedNeeds(a: ReadonlyMap<string, FlagNeed>, b: ReadonlyMap<string, FlagNeed>): Map<string, FlagNeed> {
+    const joined = new Map(a)
+    for (const [code, need] of b) addNeed(joined, code, need)
+    return joined
+}
+
 export type Ranked = {code: string, level: number, least: number}
 
 type Candidate = {code: string, flag: FlagNeed, ideal: number, least: number}

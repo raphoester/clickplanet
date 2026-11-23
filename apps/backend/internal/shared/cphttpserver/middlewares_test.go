@@ -105,9 +105,6 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	require.Contains(t, allowed, cpconnect.SessionHeader)
 	require.Contains(t, allowed, "Content-Type")
 	require.Contains(t, allowed, "Connect-Protocol-Version")
-	require.Contains(t, allowed, cpconnect.AccountSessionHeader)
-	require.Contains(t, recorder.Header().Get("Access-Control-Expose-Headers"), cpconnect.AccountSessionHeader,
-		"a page that keeps no cookie reads its session from the answer")
 }
 
 func TestCorsMiddlewareAllowsCredentialsFromTheConfiguredOrigin(t *testing.T) {

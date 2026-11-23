@@ -104,9 +104,8 @@ describe("the clock", () => {
 })
 
 describe("the language", () => {
-    it("is the player's pick first, then CrazyGames', then the browser's first one the game speaks", () => {
-        expect(chooseLanguage({picked: "de", portal: "fr-FR", browser: ["pl"]})).toBe("de")
-        expect(chooseLanguage({picked: null, portal: "fr-FR", browser: ["pl"]})).toBe("fr")
+    it("is the player's pick first, then the browser's first one the game speaks", () => {
+        expect(chooseLanguage({picked: "de", browser: ["pl"]})).toBe("de")
         expect(chooseLanguage({picked: "xx", browser: ["ru-RU", "pl-PL", "en"]})).toBe("pl")
         expect(chooseLanguage({picked: null, browser: ["ru", "ja"]})).toBe("en")
     })

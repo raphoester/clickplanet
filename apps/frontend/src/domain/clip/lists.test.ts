@@ -68,6 +68,20 @@ describe("the carousel's lists", () => {
         expect(lists.farFromHome[1].km % 100).toBe(0)
     })
 
+    it("ranks the flags by the distance their photos show, a holding under a painted flag read from far left out", () => {
+        // A painted flag reads from far at 5 tiles.
+        const coarse: BoardScale = {length: 10, density: 0.05}
+        const far = listsOf({
+            ...ground,
+            owners: new Map([...held("fr", 48, 62), ...held("at", 103, 107), ...held("hu", 43, 46)]),
+        }, [], coarse).farFromHome
+
+        expect(far).toEqual([
+            {flag: "at", country: "aq", tiles: 5, km: 14_100},
+            {flag: "fr", country: "id", tiles: 15, km: 12_100},
+        ])
+    })
+
     it("ranks the flags by the tiles they hold of the world, with the country they hold the most of", () => {
         expect(lists.biggestEmpires).toEqual([
             {flag: "hu", tiles: 50, share: 50 / 122, country: "at"},

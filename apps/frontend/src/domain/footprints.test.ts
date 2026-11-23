@@ -72,6 +72,18 @@ describe("Footprints", () => {
         expect(f.set(0, 0)).toBe(NO_FOOTPRINT)
     })
 
+    it("visits each footprint with a tile once, with its ground and flag, and not an emptied one", () => {
+        const f = new Footprints(tilesAt([0, 1, 2, 3]), Uint16Array.from([1, 1, 2, 2]), 3, FLAGS, 16)
+        const a = f.set(0, 1)
+        f.set(1, 1)
+        const b = f.set(2, 3)
+        f.set(3, 2)
+        f.set(3, 0)
+        const seen: number[][] = []
+        f.forEachFootprint((id, ground, flag) => seen.push([id, ground, flag]))
+        expect(seen).toEqual([[a, 1, 1], [b, 2, 3]])
+    })
+
     it("orients east as the shader does, any east at a pole", () => {
         expect(eastOf([0, 0, 1])).toEqual([1, 0, -0])
         expect(eastOf([0, 1, 0])).toEqual([1, 0, 0])

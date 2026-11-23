@@ -108,6 +108,34 @@ func TestACarouselUntrueToItsListLeavesItsSlotToTheControl(t *testing.T) {
 	}
 }
 
+func TestAListWhoseNumbersGrowFromTheFirstIsNotTold(t *testing.T) {
+	found := listed(t)
+	found.Lists.FarFromHome = []posts.FarLandEntry{
+		{Flag: "mx", Country: "my", Tiles: 900, Km: 12300},
+		{Flag: "ar", Country: "id", Tiles: 700, Km: 13200},
+		{Flag: "gb", Country: "au", Tiles: 800, Km: 10000},
+		{Flag: "br", Country: "jp", Tiles: 300, Km: 15600},
+		{Flag: "fr", Country: "pe", Tiles: 1200, Km: 9700},
+	}
+	offer := found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})
+	farthest := posts.Story{
+		List: posts.FarFromHome, Hook: "which flag fights the farthest from home",
+		Ranks: []posts.Rank{
+			{Code: "mx", Line: "fighting in malaysia"},
+			{Code: "ar", Line: "fighting in indonesia"},
+			{Code: "gb", Line: "fighting in australia"},
+			{Code: "br", Line: "fighting in japan"},
+			{Code: "fr", Line: "fighting in peru"},
+		},
+	}
+
+	choice := found.Edited(offer, posts.Edition{Lab: []posts.Story{farthest}}, nil, foundAt)
+
+	assert.False(t, choice.LabTold)
+	assert.Equal(t, []string{"the lab's carousel: the story does not hold: rank 2 of far-from-home shows more than rank 1: 13200 against 12300"},
+		whysOf(choice.Skipped))
+}
+
 func TestAListWhoseFiveAreTheFiveOfItsLastPostIsNotToldAgain(t *testing.T) {
 	found := listed(t)
 	offer := found.Offer(2, nil, foundAt, posts.LabSlot{At: 2, Experiment: carousel})

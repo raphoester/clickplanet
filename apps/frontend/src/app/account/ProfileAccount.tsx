@@ -31,15 +31,13 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
-    // CrazyGames signs the player in and out itself.
-    const leavable = !linked.includes("crazygames")
 
     const link = (provider: Provider) => {
         if (provider === "email") {
             setLinkingEmail((was) => !was)
             return
         }
-        void (provider === "crazygames" ? store.signIn(provider) : store.link(provider))
+        void store.link(provider)
     }
 
     return <section className="panel-box profile-account" aria-labelledby={titleId} aria-busy={busy}>
@@ -73,14 +71,12 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
         {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
 
         <div className="profile-account-foot">
-            {leavable && <>
-                <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOut()}>
-                    {t("account.signOut")}
-                </button>
-                <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOutEverywhere()}>
-                    {t("account.signOutEverywhere")}
-                </button>
-            </>}
+            <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOut()}>
+                {t("account.signOut")}
+            </button>
+            <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOutEverywhere()}>
+                {t("account.signOutEverywhere")}
+            </button>
             <button type="button" className="account-text-button account-delete" disabled={busy} onClick={onDelete}>
                 {t("account.delete")}
             </button>

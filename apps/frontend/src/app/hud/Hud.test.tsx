@@ -22,49 +22,41 @@ describe("TabBar", () => {
     const names = () => screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))
 
     it("shows icons alone, each named by its label", () => {
-        render(<TabBar chat you="player"/>)
+        render(<TabBar you="player"/>)
         const board = screen.getByRole("button", {name: "Board"})
         expect(board.textContent).toBe("")
         expect(board.getAttribute("title")).toBe("Board")
     })
 
     it("offers the board, the chat, the account, Share and the settings, in that order", () => {
-        render(<TabBar chat you="player"/>)
+        render(<TabBar you="player"/>)
         expect(names()).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
-    it("invites in place of Share on CrazyGames", () => {
-        render(<TabBar chat invite/>)
-        expect(names()).toEqual(["Board", "Chat", "Invite", "Settings"])
-
-        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
-        expect(useScreen.getState().sheet).toBe("invite")
-    })
-
     it("names the account Sign in for a guest", () => {
-        render(<TabBar chat you="guest"/>)
+        render(<TabBar you="guest"/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
     })
 
     it("leaves out what is not wired", () => {
-        render(<TabBar chat={false}/>)
-        expect(names()).toEqual(["Board", "Share", "Settings"])
+        render(<TabBar/>)
+        expect(names()).toEqual(["Board", "Chat", "Share", "Settings"])
     })
 
     it("counts what the chat missed", () => {
         useChat.setState({unread: 3})
-        render(<TabBar chat/>)
+        render(<TabBar/>)
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("3")
     })
 
     it("counts the missions not seen yet", () => {
-        render(<TabBar chat missions={3}/>)
+        render(<TabBar missions={3}/>)
         expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {
         useScreen.setState({sheet: "board"})
-        render(<TabBar chat/>)
+        render(<TabBar/>)
 
         expect(screen.getByRole("button", {name: "Board"}).getAttribute("aria-expanded")).toBe("true")
         expect(screen.getByRole("button", {name: "Share"}).getAttribute("aria-expanded")).toBe("false")

@@ -13,7 +13,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import {useEdge} from "./components/useEdge.ts";
 import HomeLogo from "./components/HomeLogo.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "./components/icons.tsx";
+import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -25,9 +25,7 @@ import {PlayerInfoBackend} from "../backends/player.ts";
 import {ClipsNameBackend} from "../backends/clips.ts";
 import {shareStats} from "../domain/shareCard.ts";
 import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
-import InviteFriends from "./share/InviteFriends.tsx";
 import {VideoDot} from "./video/VideoTile.tsx";
-import {InviteLink} from "../backends/crazyGames.ts";
 import {youLabel} from "./youLabel.ts"
 import {useSmallFrame} from "./compact.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
@@ -65,7 +63,6 @@ export type YouPlaceProps = {
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
     missions?: MissionsPlaceProps,
     missionsNews?: number,
-    invite?: InviteLink,
 }
 
 // Where the menu ends: what is centred at the top centres in the room right of it.
@@ -99,9 +96,7 @@ export default function Menu(props: MenuProps) {
             news: props.missionsNews,
             newsName: props.missionsNews ? t("menu.missionsNews", {count: props.missionsNews}) : undefined,
         }] : [],
-        props.invite
-            ? {id: "invite", label: t("menu.invite"), title: t("menu.inviteFriends"), icon: <UsersIcon/>}
-            : {id: "share", label: t("menu.share"), title: t("menu.share"), icon: <ShareIcon size={22}/>, dot: props.video?.dot},
+        {id: "share", label: t("menu.share"), title: t("menu.share"), icon: <ShareIcon size={22}/>, dot: props.video?.dot},
         {id: "settings", label: t("menu.settings"), title: t("menu.settings"), icon: <SettingsIcon/>},
     ]
     const shown = places.find((p) => p.id === tab) ?? places[0]
@@ -194,7 +189,6 @@ export default function Menu(props: MenuProps) {
                                                                  onTakePicture={props.onTakePicture}
                                                                  taking={props.taking}
                                                                  video={props.video}/>}
-                            {shown.id === "invite" && props.invite && <InviteFriends invite={props.invite}/>}
                             {shown.id === "settings" && <SettingsPlace {...props}/>}
                         </div>
                     </>}

@@ -180,10 +180,8 @@ type SignedIn struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PreviousAccountId string                 `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
 	AccountId         string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// CrazyGames' username; empty for a provider that gives no name to show.
-	IdentityName  string `protobuf:"bytes,3,opt,name=identity_name,json=identityName,proto3" json:"identity_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SignedIn) Reset() {
@@ -226,13 +224,6 @@ func (x *SignedIn) GetPreviousAccountId() string {
 func (x *SignedIn) GetAccountId() string {
 	if x != nil {
 		return x.AccountId
-	}
-	return ""
-}
-
-func (x *SignedIn) GetIdentityName() string {
-	if x != nil {
-		return x.IdentityName
 	}
 	return ""
 }
@@ -368,12 +359,11 @@ const file_auth_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12;\n" +
 	"\vrestored_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"restoredAt\"~\n" +
+	"restoredAt\"n\n" +
 	"\bSignedIn\x12.\n" +
 	"\x13previous_account_id\x18\x01 \x01(\tR\x11previousAccountId\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\x12#\n" +
-	"\ridentity_name\x18\x03 \x01(\tR\fidentityName\"*\n" +
+	"account_id\x18\x02 \x01(\tR\taccountIdJ\x04\b\x03\x10\x04R\ridentity_name\"*\n" +
 	"\tSignedOut\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\xb1\x01\n" +

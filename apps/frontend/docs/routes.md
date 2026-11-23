@@ -61,13 +61,6 @@ flag. The script keeps the page before in session storage for the game, since
 stays at `/`, for Google's check; crawlers and link previews of an address read
 it too, as before. `homePage.test.ts` runs the script on addresses.
 
-**The CrazyGames page never shows it.** On `crazygames.clickplanet.lol` the same
-script sends every visitor to `/play`, with no storage read and `#home` too, so
-`/`, `/play/` and every other path that falls back to the home page reach the
-game, with no flag read from the path. A reviewer comes with no storage: on Oct 30 2026, the day the game was
-sent to CrazyGames, four outside visitors there got the home page and never
-pressed Play, and CrazyGames refused the game. The test runs the script.
-
 **A first visit keeps the query too.** `home.ts` adds `location.search` to
 every link to `/play` (`app/home/playLinks.ts`), the Discord ones
 (`/play?discord=join`, see [Discord pings](discord-alerts.md)) with their own

@@ -179,7 +179,9 @@ shows in the root's [The video lab](../../../docs/video-lab.md), "Photos, not a 
   (`lists`, beside `lab.format`), and each carousel of `told` with its `list` and its `ranks`. The schema asks the lab's
   story as a carousel's: `list`, `hook`, the cover, and `ranks`, each a `code` and a `line`.
 - **Checked against its list** (`Findings.carouselTellable`): a list of the three with 5 entries at least, its ranks the
-  list's first 5 in its order, each line drawn as a headline is in 40 letters with no digit (the photo draws the list's
+  list's first 5 in its order, **its numbers never growing from the 1st to the 5th** (`Lists.measuresOf`: the km, the
+  share, the tiles taken plus lost; a far-from-home ranked by a measure its photos did not show went out 2026-11-23,
+  12,300 · 13,200 · 10,000 · 15,600 · 9,700 KM), each line drawn as a headline is in 40 letters with no digit (the photo draws the list's
   number beside it), the cover drawn in 90, TikTok's title over photos. **A list whose 5 are the 5 of its last post**, in
   any order, is skipped with why (`the 5 of fight-the-most are the 5 of its last post`), and the control's next story takes
   the pick. That is the one rule of the design: a cover that says again a cover of the week is not refused. Its key is

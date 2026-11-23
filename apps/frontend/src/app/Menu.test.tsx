@@ -642,19 +642,6 @@ describe("Menu", () => {
             expect(screen.getByText("Recruit for France")).toBeDefined()
             expect(screen.getByText("clickplanet.lol/r?f=fr")).toBeDefined()
         })
-
-        it("is CrazyGames' invite there, with no link that leads off it", async () => {
-            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()}
-                         invite={vi.fn(async () => undefined)}/>)
-            const user = userEvent.setup()
-
-            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Invite", "Settings"])
-            await user.click(tab("Invite"))
-
-            expect(button("Invite friends")).toBeDefined()
-            expect(screen.queryByRole("button", {name: "Take a picture"})).toBeNull()
-            expect(screen.queryByText("clickplanet.lol/r?f=fr")).toBeNull()
-        })
     })
 
     describe("the settings", () => {
@@ -755,7 +742,6 @@ describe("Menu", () => {
                 completeSignIn: vi.fn(async () => "signedIn" as const),
                 startEmailSignIn: vi.fn(async () => undefined),
                 completeEmailSignIn: vi.fn(async () => "signedIn" as const),
-                completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
                 signOut: vi.fn(async () => undefined),
                 signOutEverywhere: vi.fn(async () => undefined),
                 deleteAccount: vi.fn(async () => undefined),

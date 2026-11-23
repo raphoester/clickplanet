@@ -121,8 +121,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.google.clientId`, `auth.discord.clientId` — a provider is offered once its id is set
 - `auth.google.clientSecret`, `auth.discord.clientSecret` — from the environment; empty beside a set `clientId` refuses the boot
 - `auth.discord.joinServer` — every Discord sign-in also asks `guilds.join`, and auth keeps the token sealed ten minutes and tells `DiscordJoinGranted`, for the alerts module to join the game's Discord server with; off by default, and off whenever `alerts.enabled` is (see [Discord pings](alerts.md))
-- `auth.crazyGames.gameId` — the game's id in the CrazyGames developer portal; every token must name it. Set, and
-  `auth.signIn.enabled` on, `CompleteCrazyGamesSignIn` is offered; unset, it answers `Unimplemented`. Not a secret.
 - `auth.email.enabled` — off, `StartEmailSignIn` and `CompleteEmailSignIn` answer `Unimplemented` (404) and `GetSignInOptions` does not list email. Apart from `auth.signIn`: it needs no provider
 - `auth.email.delivery` — `cloudflare`, or `log` for a local backend; anything else refuses the boot while email is on. The block is a `cpmail.Config` (see [Shared](shared.md)), as `support.email` is
 - `auth.email.from`, `auth.email.fromName` — the sender, on a domain onboarded to Cloudflare Email Sending; not an address refuses the boot

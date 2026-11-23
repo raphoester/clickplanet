@@ -11,7 +11,6 @@ import {quoteStyle} from "./authorStyle.ts";
 import GifPicker, {GifOffer} from "./GifPicker.tsx";
 import QuoteLine from "./QuoteLine.tsx";
 import {ChatSendFailure} from "./useRoomLog.ts";
-import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {t, translator} from "../../i18n/page.ts";
 import {Key} from "../../i18n/translator.ts";
 
@@ -44,7 +43,6 @@ export default function ChatComposer(props: ChatComposerProps) {
     const [text, setText] = useState("")
     const [picking, setPicking] = useState(false)
     const box = useRef<HTMLTextAreaElement>(null)
-    const words = useWordFilter()
 
     useLayoutEffect(() => {
         const field = box.current
@@ -116,12 +114,12 @@ export default function ChatComposer(props: ChatComposerProps) {
         <div className="chat-composer-foot">
             {props.username !== undefined
                 ? <span className="menu-label chat-identity" title={t("chat.composer.renameHint")}>
-                    {t("chat.composer.as", {player: words.masked(props.username)})}
+                    {t("chat.composer.as", {player: props.username})}
                 </span>
                 : <span className="menu-label chat-identity" title={t("chat.composer.pickNameHint")}>
                     {props.guestName === undefined
                         ? t("chat.composer.asGuest")
-                        : t("chat.composer.as", {player: words.masked(props.guestName)})}
+                        : t("chat.composer.as", {player: props.guestName})}
                 </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>

@@ -12,7 +12,7 @@ a **hard switch**: the new paths and messages only, in one PR.
   `cphttpserver.NewBootMiddleware` puts it on every answer of the public router, in the `X-Server-Boot` header.
   `TestEachRunOfTheProcessAnswersUnderABootOfItsOwn` pins that one run keeps one boot and the next one draws another.
 - **CORS must expose it**, or the browser hides it from the page: `NewCorsMiddleware` and Caddy's
-  `Access-Control-Expose-Headers` (`deploy/vps/caddy/Caddyfile`) both list it beside `X-Account-Session`.
+  `Access-Control-Expose-Headers` (`deploy/vps/caddy/Caddyfile`) both list it.
 - **Only the public router.** The console, admin and internal listeners carry no boot: the backoffice does not reload,
   so a hard switch of an operator's call needs the operator to reload the admin page.
 

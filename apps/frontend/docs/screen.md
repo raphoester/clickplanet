@@ -6,7 +6,7 @@ this is where each zone lives. `PlayScreen` composes them, and `useCompact`
 (`compact.ts`, the `COMPACT` query, kept live) picks the phone or the desktop form.
 
 **The phone form is for a screen 768px wide or less, or 600px high or less.**
-CrazyGames frames the game at 16:9, as small as 821×462, and a phone can be held
+CrazyGames framed the game at 16:9, as small as 821×462, and a phone can be held
 sideways at 800×450. Below 600px high the desktop menu and chat cover most of the
 globe and the season chip covers the menu's title. At 606px high (CrazyGames'
 1077×606) the desktop form still shows the board's leader, a row under it, the
@@ -100,8 +100,7 @@ nothing closes. Checked with Playwright's devices on their sides (iPhone SE, 14 
   the strip between them is 226px at 1077×606 and 270px at 1216×684 (CrazyGames' frames outside full screen), 380px
   at 1280×720, 425px at 1366×768 and 576px at 1536×864, and 960px, half the width, at 1920×1080. On CrazyGames'
   1077×606 a reviewer saw a strip of globe 230px wide between the board and the chat, and the board's tooltip as the
-  first text (2026-11-12). The same rule on clickplanet.lol and on the CrazyGames host; the phone form keeps its
-  sheets closed anyway.
+  first text (2026-11-12). The phone form keeps its sheets closed anyway.
 - **What is centred at the top centres on the globe and the dock, clear of the desktop menu.** The menu
   publishes its right edge, open or folded (`MENU_RIGHT`, `--menu-right`, through `useEdge`), and `index.css`
   turns it into `--top-centre` and `--top-room`, which place the season and battle chips, the quiz, the mission
