@@ -19,15 +19,16 @@ type Event interface {
 
 // Entry is an event as it is kept: its stage is the map it was made on and that map's board, which its tiles are ids of.
 type Entry struct {
-	Stage    clicks.Stage
-	Kind     string
-	Tile     uint32
-	Scope    string
-	Account  string
-	Country  string
-	Previous string
-	At       time.Time
-	Payload  []byte
+	Stage     clicks.Stage
+	Kind      string
+	Tile      uint32
+	Scope     string
+	Account   string
+	Country   string
+	Previous  string
+	At        time.Time
+	Payload   []byte
+	Forgotten bool
 }
 
 var kinds = map[string]func(Entry) (Event, error){

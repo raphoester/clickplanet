@@ -369,22 +369,23 @@ func (s *Storage) Replay(see func(on clicks.Stage, event ledger.Event)) ledger.P
 	forgotten := maps.Clone(s.forgotten)
 	s.mu.Unlock()
 
+	erasure := ledger.NewErasure()
 	for _, v := range views {
 		payloads := v.payloads
 		for i := range v.records {
 			var stored Stored
 			stored, payloads = v.stored(i, payloads)
-			if forgottenAt(forgotten, stored.Entry, stored.Position) {
-				continue
-			}
+			stored.Entry.Forgotten = forgottenAt(forgotten, stored.Entry, stored.Position)
 
-			event, err := ledger.EventOf(stored.Entry)
+			event, kept, err := erasure.Read(stored.Entry)
 			if err != nil {
 				s.logger.Error("an event of the ledger does not read back, so it is not replayed",
 					slog.Uint64("position", uint64(stored.Position)), slog.Any("error", err))
 				continue
 			}
-			see(stored.Entry.Stage, event)
+			if kept {
+				see(stored.Entry.Stage, event)
+			}
 		}
 	}
 

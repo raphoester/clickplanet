@@ -96,6 +96,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/close_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/forgetting"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_of_handler"
@@ -449,9 +450,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				CloseArenaHandler: close_arena_handler.New(
 					log_close_arena.New(close_arena_usecase.New(tilesStorage, eras.NewMaps(eraStore, boards), arenaStore, inPlay,
 						clock), props.Logger)),
-				GetLedgerHandler:         getLedger,
-				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
-				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, eraStore, carriesOf{registry: registry})),
+				GetLedgerHandler:       getLedger,
+				GetLedgerTotalsHandler: get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
+				GetMapHistoryHandler: get_map_history_handler.New(
+					history_query.NewPostgresQuery(db, eraStore, carriesOf{registry: registry}), forgetting.NewPostgresQuery(db)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
@@ -531,7 +533,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetProvinceHandler: get_province_handler.New(played,
 					province_query.NewPostgresQuery(db, tilesStorage, played)),
 				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
-					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, clock), clock),
+					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, forgetting.NewPostgresQuery(db), clock),
+					clock),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

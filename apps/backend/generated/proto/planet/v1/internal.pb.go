@@ -201,12 +201,14 @@ func (x *MapTile) GetNeighbours() []uint32 {
 }
 
 type GetMapHistoryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
-	Until         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
-	Step          *durationpb.Duration   `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Until *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	Step  *durationpb.Duration   `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	// The forgetting of the history the caller keeps of this window.
+	KeptForgetting *string `protobuf:"bytes,4,opt,name=kept_forgetting,json=keptForgetting,proto3,oneof" json:"kept_forgetting,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetMapHistoryRequest) Reset() {
@@ -260,9 +262,21 @@ func (x *GetMapHistoryRequest) GetStep() *durationpb.Duration {
 	return nil
 }
 
+func (x *GetMapHistoryRequest) GetKeptForgetting() string {
+	if x != nil && x.KeptForgetting != nil {
+		return *x.KeptForgetting
+	}
+	return ""
+}
+
 type GetMapHistoryResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	History       *MapHistory            `protobuf:"bytes,1,opt,name=history,proto3" json:"history,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// None when kept.
+	History *MapHistory `protobuf:"bytes,1,opt,name=history,proto3" json:"history,omitempty"`
+	// What the reverts forgot as the history was read, to send back as kept_forgetting.
+	Forgetting string `protobuf:"bytes,2,opt,name=forgetting,proto3" json:"forgetting,omitempty"`
+	// No revert forgot more since the history the caller keeps: it is still the history.
+	Kept          bool `protobuf:"varint,3,opt,name=kept,proto3" json:"kept,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -302,6 +316,20 @@ func (x *GetMapHistoryResponse) GetHistory() *MapHistory {
 		return x.History
 	}
 	return nil
+}
+
+func (x *GetMapHistoryResponse) GetForgetting() string {
+	if x != nil {
+		return x.Forgetting
+	}
+	return ""
+}
+
+func (x *GetMapHistoryResponse) GetKept() bool {
+	if x != nil {
+		return x.Kept
+	}
+	return false
 }
 
 type GetLedgerTotalsRequest struct {
@@ -2051,13 +2079,19 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x05point\x18\x04 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12\x1e\n" +
 	"\n" +
 	"neighbours\x18\x05 \x03(\rR\n" +
-	"neighbours\"\xa9\x01\n" +
+	"neighbours\"\xeb\x01\n" +
 	"\x14GetMapHistoryRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12-\n" +
-	"\x04step\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04step\"H\n" +
+	"\x04step\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04step\x12,\n" +
+	"\x0fkept_forgetting\x18\x04 \x01(\tH\x00R\x0ekeptForgetting\x88\x01\x01B\x12\n" +
+	"\x10_kept_forgetting\"|\n" +
 	"\x15GetMapHistoryResponse\x12/\n" +
-	"\ahistory\x18\x01 \x01(\v2\x15.planet.v1.MapHistoryR\ahistory\"|\n" +
+	"\ahistory\x18\x01 \x01(\v2\x15.planet.v1.MapHistoryR\ahistory\x12\x1e\n" +
+	"\n" +
+	"forgetting\x18\x02 \x01(\tR\n" +
+	"forgetting\x12\x12\n" +
+	"\x04kept\x18\x03 \x01(\bR\x04kept\"|\n" +
 	"\x16GetLedgerTotalsRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"J\n" +
@@ -2333,6 +2367,7 @@ func file_planet_v1_internal_proto_init() {
 	file_planet_v1_planet_proto_init()
 	file_planet_v1_rules_proto_init()
 	file_planet_v1_totals_proto_init()
+	file_planet_v1_internal_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

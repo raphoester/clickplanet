@@ -14,11 +14,14 @@ const turnMaxAge = 5
 
 const seasonTotalsMaxAge = 24 * 60 * 60
 
+// A revert forgets takes of an ended season too: a page reads its map again within the half hour.
+const seasonReplayMaxAge = 30 * 60
+
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
 		gamemasterv1connect.GamemasterServiceGetTurnProcedure:         turnMaxAge,
 		gamemasterv1connect.GamemasterServiceGetSeasonTotalsProcedure: seasonTotalsMaxAge,
-		gamemasterv1connect.GamemasterServiceGetSeasonReplayProcedure: seasonTotalsMaxAge,
+		gamemasterv1connect.GamemasterServiceGetSeasonReplayProcedure: seasonReplayMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

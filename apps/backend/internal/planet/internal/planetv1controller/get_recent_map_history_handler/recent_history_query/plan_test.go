@@ -3,7 +3,6 @@ package recent_history_query_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +23,7 @@ func TestTheDayIsReadFromTheHeadByThePrimaryKeyAndNotTheWholeLedger(t *testing.T
 		require.NoError(t, err)
 	}
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+recent_history_query.Events, 150000, time.Now().Add(-10*time.Hour))
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+recent_history_query.Events, 150000)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string

@@ -7,8 +7,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Rewind is a History's frames rewound from the map now, so it reads the entries from since on and none before, and of
-// one stage: the stage of the map now.
+// Rewind is a History's frames rewound from the map now, of one stage: the stage of the map now. It reads the entries
+// from since on, and the ones before only to see through what a revert forgot (Erasure).
 type Rewind struct {
 	at      []time.Time
 	rewound clicks.Stage
@@ -16,6 +16,7 @@ type Rewind struct {
 	previous map[uint32]string
 	steps    []map[uint32]Owner
 	hits     map[uint32]uint32
+	erasure  *Erasure
 }
 
 func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage) (*Rewind, error) {
@@ -33,17 +34,20 @@ func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage)
 	for i := range steps {
 		steps[i] = map[uint32]Owner{}
 	}
-	return &Rewind{at: at, rewound: rewound, previous: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}}, nil
+	return &Rewind{
+		at: at, rewound: rewound, previous: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}, erasure: NewErasure(),
+	}, nil
 }
 
 // Record takes the entries in position order: a tile opens on what it held before its first change at or after since.
 func (r *Rewind) Record(entry Entry) error {
-	event, err := EventOf(entry)
-	if err != nil {
+	if entry.Stage != r.rewound {
+		_, err := EventOf(entry)
 		return err
 	}
-	if entry.At.Before(r.at[0]) || entry.Stage != r.rewound {
-		return nil
+	event, kept, err := r.erasure.Read(entry)
+	if err != nil || !kept || entry.At.Before(r.at[0]) {
+		return err
 	}
 	frame, during := r.frameOf(entry.At)
 	event.Replay(func(taking Taking) {

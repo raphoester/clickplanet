@@ -10,6 +10,8 @@ View on each ended plaque, opens it (`ARCHIVE_PATH`).
   [The gamemaster](../../backend/docs/gamemaster.md)). Its first read after a deploy replays planet's whole ledger, so
   the client allows it 5 minutes and shows "Rebuilding the map…". It is the world's map: over an arena battle it
   stands still and no tile heats (see the backend's [Arena battles](../../backend/docs/arenas.md#the-ledgers-readers)).
+  A take a revert forgot is in no frame and heats no tile, and the browser reads the map again within the half hour
+  (the backend's [A revert erases the takes it forgot](../../backend/docs/revert-erasure.md)).
 - **`MapReel` (`domain/mapHistory.ts`) gives any frame's map**: a copy of the owners every 32 frames, a `Uint16Array`
   of country indexes, so a seek back costs a copy and a few frames.
 - **Each era is drawn on its own board** (`domain/eras.ts`). The history lists the eras of the world's map it covers

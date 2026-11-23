@@ -33,15 +33,17 @@ every kind, so the query asks none: a spread, an enclose and a bomb list their t
 and a fortify change no owner.
 
 - **The map before the ledger**, as `GetReplay`: a change made between the two reads is in the rows, and rewound.
-- **The rows from the ledger's head**: `taken_at` has no index, and the head (`ledger_head`, the oldest position memory
-  keeps, 72 hours back) bounds a range of the primary key. The read is `position >= head AND taken_at >= since`,
-  ordered by position; `plan_test.go` pins the primary key and no sort. So `ledger.retention` must keep at least
-  24.5 hours: `ledger.Config.Validate` refuses less at boot.
+- **The rows from the ledger's head**: the head (`ledger_head`, the oldest position memory keeps, 72 hours back) bounds
+  a range of the primary key. The read is `position >= head`, ordered by position; `plan_test.go` pins the primary key
+  and no sort. The rows before the window are read for the rewind to see through a drawing a revert forgot (below).
+  `ledger.retention` must keep at least 24.5 hours: `ledger.Config.Validate` refuses less at boot.
 - **Postgres, not the ledger in memory.** Memory holds the same 72 hours, and `GetReplay` reads it. It is kept for the
   operator's tools and as the relay's outbox ([Durability](durability.md)); only the map is meant to live in memory,
   so a public read does not add a reader to it.
-- **A take a revert forgot is left out** (`NOT forgotten`), as memory replays none of them and `GetTileHolder` skips
-  them.
+- **A take a revert forgot is seen through** (`ledger.Erasure`, since 2026-11-23): it is in no frame, a tile painted over
+  it opens on what was under it, and a take back to that is none. Until then it was left out (`NOT forgotten`), and a
+  drawing painted over before its revert opened whole on the first frame. See [A revert erases the takes it
+  forgot](revert-erasure.md).
 - **A reset in the window** starts the history at the first step at or after it (`Recent.Wiped`), on the blank map:
   the map before the reset is gone. A reset after `until` leaves no frame at all.
 - **A switch of the world's board in the window** starts it the same way, at the first step at or after the start of
@@ -56,14 +58,14 @@ and a fortify change no owner.
 ## What cannot be rewound
 
 **A change that wrote no event**: an operator's `RevertPlayer`. A tile it changed inside the window opens as it was
-after that change, and the change is in no frame. A revert's takes are
-forgotten, so a tile a reverted account took and someone else took after opens on the reverted account's flag. **The
-last second**, not flushed yet: a tile changed only in it opens as it is now.
+after that change, and the change is in no frame: the revert's takes are forgotten, so the tile shows what was under
+them all along. **The last second**, not flushed yet: a tile changed only in it opens as it is now.
 
 ## Built once per step
 
-`recent_history_query.PostgresQuery` keeps the last answer with its step, and builds the next one at the first call
-after a step: one build for every caller (`singleflight`; a caller that leaves does not stop it, 2 minutes at most). A
+`recent_history_query.PostgresQuery` keeps the last answer with its step and what the reverts forgot
+(`forgetting.Forgetting`, read at each call), and builds the next one at the first call after a step or a revert: one
+build for every caller (`singleflight`; a caller that leaves does not stop it, 2 minutes at most). A
 failed build keeps nothing, and the next call builds again. The answer says `Cache-Control: public, max-age=N,
 s-maxage=N`, N the seconds to the next step, so a browser asks again only once the next frame exists. A restart builds
 it again at the first call.
@@ -91,7 +93,8 @@ rows from the head (330,000 of them before the window) took 0.7 s.
 
 `ledger/rewind_test.go` (the opening, the payloads of a spread, an enclose and a bomb, a tile changed twice and changed
 back, the step a change lands in, an arena), `ledger/recent_test.go` (the window on the UTC clock, a reset in it, the
-retention), `recent_history_query`'s postgres suite (the rewind from the rows and the map, a forgotten take, a reset, a
+retention), `recent_history_query`'s postgres suite (the rewind from the rows and the map, a forgotten take, a drawing forgotten
+before the day and painted over in it, the step built again after a revert, a reset, a
 switch of the world's board in the day and after it, an arena that plays, one build per step for concurrent callers),
 `planetmessage`'s `history_test.go` (a whole map's bytes, one with nothing held, a whole frame and a frame of changes),
 `plan_test.go`, `size_test.go` on both boards and the handler's test (the header).

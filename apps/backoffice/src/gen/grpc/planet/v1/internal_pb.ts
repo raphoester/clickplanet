@@ -180,6 +180,13 @@ export class GetMapHistoryRequest extends Message<GetMapHistoryRequest> {
    */
   step?: Duration;
 
+  /**
+   * The forgetting of the history the caller keeps of this window.
+   *
+   * @generated from field: optional string kept_forgetting = 4;
+   */
+  keptForgetting?: string;
+
   constructor(data?: PartialMessage<GetMapHistoryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -191,6 +198,7 @@ export class GetMapHistoryRequest extends Message<GetMapHistoryRequest> {
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "until", kind: "message", T: Timestamp },
     { no: 3, name: "step", kind: "message", T: Duration },
+    { no: 4, name: "kept_forgetting", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapHistoryRequest {
@@ -215,9 +223,25 @@ export class GetMapHistoryRequest extends Message<GetMapHistoryRequest> {
  */
 export class GetMapHistoryResponse extends Message<GetMapHistoryResponse> {
   /**
+   * None when kept.
+   *
    * @generated from field: planet.v1.MapHistory history = 1;
    */
   history?: MapHistory;
+
+  /**
+   * What the reverts forgot as the history was read, to send back as kept_forgetting.
+   *
+   * @generated from field: string forgetting = 2;
+   */
+  forgetting = "";
+
+  /**
+   * No revert forgot more since the history the caller keeps: it is still the history.
+   *
+   * @generated from field: bool kept = 3;
+   */
+  kept = false;
 
   constructor(data?: PartialMessage<GetMapHistoryResponse>) {
     super();
@@ -228,6 +252,8 @@ export class GetMapHistoryResponse extends Message<GetMapHistoryResponse> {
   static readonly typeName = "planet.v1.GetMapHistoryResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "history", kind: "message", T: MapHistory },
+    { no: 2, name: "forgetting", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "kept", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapHistoryResponse {
