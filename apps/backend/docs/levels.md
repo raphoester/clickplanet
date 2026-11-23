@@ -15,7 +15,7 @@ levels/                            XP, Level, Record, Source (its SourceName), R
                                    ReconciliationOf), ByAccount; Earned, Gain, and what a stream hears (Told: Reached,
                                    Gained); the ladder (Kind, Unlock,
                                    SpreadUnlock, ShieldsUnlock, EncloseUnlock, BombUnlock, VirusUnlock, MineUnlock,
-                                   RallyUnlock, TrapUnlock, Ladder); Book, the store and the bonuses told in one
+                                   TrapUnlock, RallyUnlock, Ladder); Book, the store and the bonuses told in one
                                    transaction; the Store port and its contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
@@ -245,12 +245,14 @@ while its set's gates are on ([The bonuses](bonuses.md#the-gates)).
 | `BombUnlock`    | `bomb`           | 7     | about day 3                                 |
 | `VirusUnlock`   | `virus`          | 10    | about a week                                |
 | `MineUnlock`    | `mine`           | 13    | about day 19                                |
-| `RallyUnlock`   | `rally`          | 15    | about a month                               |
-| `TrapUnlock`    | `trap`           | 20    | about two months and a half (96,000 XP)     |
+| `TrapUnlock`    | `trap`           | 15    | about a month (38,416 XP)                   |
+| `RallyUnlock`   | `rally`          | 17    | about 45 days (57,344 XP)                   |
 
 The owner set these levels on 2026-11-16 (before: enclose 4, bomb 5, virus 6, mine 8, rally 10, and spread and shields
-open to all), and the trap's on 2026-11-23 ([The trap](trap.md)): it shipped dormant, so its rung shows on the ladder
-before any box draws it, as the mine's did.
+open to all), and on 2026-11-23 put the trap at 15 and moved the rally from 15 to 17, so the rally stays the last unlock
+([The trap](trap.md)). The trap shipped dormant, so its rung shows on the ladder before any box draws it, as the mine's
+did. **A player at level 15 or 16 draws no rally from a box until 17** once `ReconcileLevels` runs, as production's `default`
+has the gates on and `kinds.rally` at 0.5; the rallies it holds stay, as a gate decides only what is drawn.
 
 - **Only the kinds that exist are on it.** A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill
   alone is open there in `default`. A guest has no level, so it draws refill alone while the gates are on.

@@ -127,11 +127,11 @@ and says what is in it. Read the doc before you change its area.
 - [Trap](docs/trap.md) — the mine's sibling: a charge laid on a flag's own tile that only its players see; any enemy
   take springs it and the taker loses `charges.trap.clicks` (10) from its bank, to nobody, down to minus one bank
   (`Limiter.Drain`), a guest's network's guest bank too; the click's answer shows the debt; a bomb clears it; dormant
-  (weighed 0), level 20; map state flushed with the tiles; `trap_laid` to the flag's streams, `trap_sprung` to every
+  (weighed 0), level 15; map state flushed with the tiles; `trap_laid` to the flag's streams, `trap_sprung` to every
   stream; no ledger kind.
 - [Rally](docs/rally.md) — a charge that calls a ring on any point of the globe, seen by every player: for 3 minutes a
   click of its flag inside costs half a click (`charges.rally.cost`, from every bucket, `ClickBudget.spent`); one on at a
-  time, a stack of 3; dormant (weighed 0), level 15; a row in postgres, not map state, that a remap keeps;
+  time, a stack of 3; dormant (weighed 0), level 17; a row in postgres, not map state, that a remap keeps;
   `rally_called` on every stream, `GetRallies`; chat's `rally` line in the flag's room, naming the landmass; no ledger
   kind: the takes inside are plain clicks.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a
