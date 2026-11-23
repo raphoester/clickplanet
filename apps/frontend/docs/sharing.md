@@ -100,8 +100,8 @@ player's badge at the bottom.
 **The link switches whoever opens it to its flag.** The address reaches `/play`
 as `?f=` (and an old link carries it as such); `main.tsx` reads it
 with `sharedCountry`, before the first render, and chooses it in the country store, so the game starts on that
-country over the one in storage, then stores it as if it had been picked. An
-unknown code is ignored. The parameter is then taken out of the address bar,
+country over the one in storage, then stores it as if it had been picked. A flag opened since the build waits for the
+list of flags, and is chosen only if it is open (see [The list of flags](flag-catalog.md)). Any other code is ignored. The parameter is then taken out of the address bar,
 as the sign-in code is: left there, a reload would undo a flag the player has
 switched since.
 

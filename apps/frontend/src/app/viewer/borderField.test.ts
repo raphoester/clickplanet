@@ -5,7 +5,7 @@ import {bytesOf} from "../../testdata/boards.ts"
 import {decodeProvinces} from "../../domain/provinces.ts"
 import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {FIXTURE_1} from "../../testdata/boards.ts"
-import {flagNumbers, regions} from "./atlas.ts"
+import {BLANK_NUMBER, BLANK_REGION, flagNumbers, regions} from "./atlas.ts"
 import {LandmassSight, type ScreenView} from "./slotNeed.ts"
 
 const TEXELS = 4
@@ -67,6 +67,16 @@ describe("who a landmass flies", () => {
         expect(field.holderOf(1)).toBe("de")
         expect(regionOf(field)).toEqual(Object.values(regions.get("de")!))
         expect(opacityOf(field)).toBeCloseTo(6 / 8)
+    })
+
+    it("is the atlas's blank, for a flag with no picture", () => {
+        const field = new BorderField(world(8))
+
+        paint(field, {"r-k3p9x2ma0b": 5})
+
+        expect(regionOf(field)).toEqual(Object.values(BLANK_REGION))
+        expect(opacityOf(field)).toBeCloseTo(5 / 8)
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(BLANK_NUMBER)
     })
 
     it("lets go of the tiles nobody holds any more", () => {

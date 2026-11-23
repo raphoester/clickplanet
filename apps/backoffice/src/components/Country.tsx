@@ -1,11 +1,12 @@
-import {countryLabel, flagOf} from "../countries.ts"
+import {blankFlag, countryLabel, flagOf} from "../countries.ts"
+import {FlagMark} from "./FlagMark.tsx"
 
 // A country as the operator reads it: its flag, where Unicode has one, and its name.
 export function Country({id}: {id: string}) {
-    const flag = flagOf(id)
+    const flagged = flagOf(id) !== "" || blankFlag(id)
     return (
         <span className="country">
-            {flag !== "" && <><span className="flag" aria-hidden="true">{flag}</span> </>}
+            {flagged && <><FlagMark id={id}/> </>}
             {countryLabel(id)}
         </span>
     )

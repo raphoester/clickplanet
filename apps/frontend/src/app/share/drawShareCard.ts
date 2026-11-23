@@ -1,5 +1,5 @@
 import {CapturedFrame} from "../viewer/capture.ts";
-import {regions} from "../viewer/atlas.ts";
+import {BLANK_REGION, regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
 import {
     cardLayout,
@@ -25,6 +25,7 @@ type Look = {
     panel: string
     white: string
     soft: string
+    faint: string
 }
 
 export async function drawShareCard(frame: CapturedFrame, stats: ShareStats, address: ShareAddress): Promise<Blob> {
@@ -65,6 +66,7 @@ function lookOfThePage(): Look {
         panel: token("--panel"),
         white: token("--text"),
         soft: token("--text-soft"),
+        faint: token("--text-faint"),
     }
 }
 
@@ -143,9 +145,7 @@ function drawBadge(
 
     const region = regions.get(stats.country.code)
     const name = translator().country(stats.country.code)
-    const flag = region
-        ? fitInBox(region, {width: 9 * unit, height: 6 * unit})
-        : {width: 0, height: 0}
+    const flag = fitInBox(region ?? BLANK_REGION, {width: 9 * unit, height: 6 * unit})
 
     context.textAlign = "left"
 
@@ -174,10 +174,13 @@ function drawBadge(
     panel(context, left, top, width, height, 2.6 * unit, unit, look)
 
     const middle = top + padding + topRow / 2
-    if (region && flag.width > 0) {
+    if (region) {
         context.drawImage(atlas,
             region.x, region.y, region.width, region.height,
             left + padding, middle - flag.height / 2, flag.width, flag.height)
+    } else {
+        context.fillStyle = look.faint
+        context.fillRect(left + padding, middle - flag.height / 2, flag.width, flag.height)
     }
 
     drop(context, 0.5 * unit, look)

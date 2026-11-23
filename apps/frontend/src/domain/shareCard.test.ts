@@ -10,6 +10,7 @@ import {
     shareFileName,
     shareLabel,
     sharedCountry,
+    sharedFlagCode,
     shareStats,
     shareUrl,
     withoutSharedFlag,
@@ -85,6 +86,13 @@ describe("opening a share link", () => {
         for (const path of ["/play", "/play?f=", "/play?f=zz", "/play?c=fr"]) {
             expect(sharedCountry(page(path)), path).toBeUndefined()
         }
+    })
+
+    it("reads the code of a flag opened since the build, which only the list can say is open", () => {
+        expect(sharedCountry(page("/r?f=R-K3P9X2MA0B"))).toBeUndefined()
+        expect(sharedFlagCode(page("/r?f=R-K3P9X2MA0B"))).toBe("r-k3p9x2ma0b")
+        expect(sharedFlagCode(page("/r?f=%20"))).toBeUndefined()
+        expect(sharedFlagCode(page("/r"))).toBeUndefined()
     })
 
     it("drops the flag from the address and keeps the rest of it", () => {

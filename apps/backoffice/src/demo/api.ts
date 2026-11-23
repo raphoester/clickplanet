@@ -6,6 +6,7 @@ import {AdminService as BonusesAdmin} from "../gen/grpc/bonuses/v1/admin_connect
 import {AdminService as BoxesAdmin} from "../gen/grpc/boxes/v1/admin_connect.ts"
 import {AdminService as ChatAdmin} from "../gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdmin} from "../gen/grpc/clips/v1/admin_connect.ts"
+import {AdminService as FlagsAdmin} from "../gen/grpc/flags/v1/admin_connect.ts"
 import {AdminService as PlanetAdmin} from "../gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdmin} from "../gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as ProgressionAdmin} from "../gen/grpc/progression/v1/admin_connect.ts"
@@ -31,6 +32,7 @@ const transport = createRouterTransport(router => {
     router.service(BoxesAdmin, admin.boxes)
     router.service(ChatAdmin, admin)
     router.service(ClipsAdmin, admin)
+    router.service(FlagsAdmin, admin.flags)
     router.service(PlanetAdmin, admin)
     router.service(PlayerAdmin, admin)
     router.service(ProgressionAdmin, admin.demoProgression)
@@ -50,6 +52,7 @@ export const bonusesAdmin = createPromiseClient(BonusesAdmin, transport)
 export const boxesAdmin = createPromiseClient(BoxesAdmin, transport)
 export const chatAdmin = createPromiseClient(ChatAdmin, transport)
 export const clipsAdmin = createPromiseClient(ClipsAdmin, transport)
+export const flagsAdmin = createPromiseClient(FlagsAdmin, transport)
 export const planetAdmin = createPromiseClient(PlanetAdmin, transport)
 export const playerAdmin = createPromiseClient(PlayerAdmin, transport)
 export const progressionAdmin = createPromiseClient(ProgressionAdmin, transport)

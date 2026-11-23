@@ -21,7 +21,7 @@ export function CountryField({label, value, onChange, empty}: Props) {
                     className="input-country"
                     value={value}
                     placeholder={empty === undefined ? "fr" : "any"}
-                    maxLength={6}
+                    maxLength={12}
                     autoCapitalize="none"
                     autoComplete="off"
                     spellCheck={false}

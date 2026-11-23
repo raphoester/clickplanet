@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import type {OwnerChange} from "../../domain/tileOwnership.ts";
 import type {ShieldChange} from "../../domain/shields.ts";
-import {flagNumbers, regions} from "./atlas.ts";
-import {warnOnce} from "../../domain/warnOnce.ts";
+import {BLANK_REGION, FLAG_NUMBERS, flagNumberOf, regions} from "./atlas.ts";
 import {disposeMaterial} from "./scene.ts";
 import type {TileGeometry} from "./points.ts";
 import type {Graphics} from "./graphics.ts";
@@ -58,9 +57,10 @@ const RECTANGLE = 4
 // Must match PACK in shaders/display/vertex.glsl: the plain layout holds a rectangle as x + y * PACK, width + height * PACK.
 const PACK = 2048
 
-const RECTANGLES = new Float32Array((regions.size + 1) * RECTANGLE)
-const PACKED = new Float32Array((regions.size + 1) * 2)
-Array.from(regions.values()).forEach(({x, y, width, height}, i) => {
+const PICTURES = [...regions.values(), BLANK_REGION]
+const RECTANGLES = new Float32Array(FLAG_NUMBERS * RECTANGLE)
+const PACKED = new Float32Array(FLAG_NUMBERS * 2)
+PICTURES.forEach(({x, y, width, height}, i) => {
     RECTANGLES.set([x, y, width, height], (i + 1) * RECTANGLE)
     PACKED.set([x + y * PACK, width + height * PACK], (i + 1) * 2)
 })
@@ -124,7 +124,7 @@ export class TileField {
         this.tileValues = new Uint16Array(TILE_COLUMNS * rows * 2)
         this.tileData = tileTexture(this.tileValues, rows)
         this.tileSource = tileTexture(this.tileValues, rows)
-        this.footprints = new FootprintField(positions, cells.texels, regions.size + 1)
+        this.footprints = new FootprintField(positions, cells.texels, FLAG_NUMBERS)
 
         const {slots, attributes} = this.compact ? compactLayout(size) : plainLayout(size)
         this.slots = slots
@@ -182,17 +182,8 @@ export class TileField {
     }
 
     setOwners(changes: OwnerChange[]) {
-        const tiles: number[] = []
-        const flags: number[] = []
-        for (const {tile, country} of changes) {
-            const flag = country === undefined ? UNOWNED : flagNumbers.get(country)
-            if (flag === undefined) {
-                warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
-                continue
-            }
-            tiles.push(tile)
-            flags.push(flag)
-        }
+        const tiles = changes.map(({tile}) => tile)
+        const flags = changes.map(({country}) => country === undefined ? UNOWNED : flagNumberOf(country))
 
         this.patch(this.slots.flag, tiles, (values, at, i) => {
             if (this.compact) values[at] = flags[i]

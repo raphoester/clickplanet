@@ -2,7 +2,7 @@ import {BoardScale, scaledCount} from "../../domain/boardScale.ts"
 import type {BoardAsset} from "../../domain/board.ts"
 import {bordersHashOf, decodeProvinces, landmassProvinces, type Provinces} from "../../domain/provinces.ts"
 import * as THREE from "three"
-import {flagNumbers, regions} from "./atlas.ts"
+import {flagNumberOf, regionOf} from "./atlas.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
 import type {FlagNeed} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
@@ -138,7 +138,7 @@ export class BorderField {
         if (share < this.minimumShare || total < this.minimumTiles) holder = undefined
 
         const at = landmass * LANDMASS_TEXELS * 4
-        const region = holder === undefined ? undefined : regions.get(holder)
+        const region = holder === undefined ? undefined : regionOf(holder)
         const opacity = region === undefined ? 0 : share
 
         if (holder === this.painted[landmass] && Math.abs(opacity - this.rows[at + 12]) < 0.002) {
@@ -191,7 +191,7 @@ export class BorderField {
         this.rows[at + 10] = region.width
         this.rows[at + 11] = region.height
         this.rows[at + 12] = opacity
-        this.rows[at + 13] = flagNumbers.get(named) ?? 0
+        this.rows[at + 13] = flagNumberOf(named)
         return true
     }
 

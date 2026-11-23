@@ -86,7 +86,6 @@ import {OwnerChange} from "../../domain/tileOwnership.ts";
 import {MapTiles, noTileChanges} from "../../domain/mapTiles.ts";
 import {MapClock} from "../../domain/mapClock.ts";
 import {Holdings, Recount} from "../../domain/holdings.ts";
-import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
 import {maxZoomOf, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
@@ -1779,11 +1778,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (reach && !reach.reaches(tile)) {
             onOutOfReach()
             playSound("refused")
-            return
-        }
-
-        if (!regions.get(country.code)) {
-            warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
             return
         }
 

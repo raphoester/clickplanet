@@ -31,6 +31,10 @@ two halves of a public card side by side (see [Who is playing](who-is-playing.md
 `support.ts` is what a player sends the operator —
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
 clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's Discord server, which a Discord sign-in joins — see [Discord pings](discord-alerts.md).
+`flags.ts` is the list of flags: `FlagLister` and `FlagChanges`, what says it changed. `flagsBackend.ts` implements
+`FlagLister` against `flags.v1.FlagService` with two clients, one past the browser's cache; `PlanetBackend` implements
+`FlagChanges` (`flags_changed`, and each stream that comes back), and `FakeFlagsBackend` both in fake mode (see [The
+list of flags](flag-catalog.md)).
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
 stream's notice that another account played from the connection, and `NoticeAcknowledger`.
@@ -84,7 +88,8 @@ the meantime is gone. So `openStream` calls `onResumed` on the first message of
 a connection when an earlier one had been live, and the chat reads its history
 again there. The planet's first message on each connection is a heartbeat with
 the map's version, which `listenForOpenings` hands the globe (see below), and on a resumed one the planet reads
-`GetBudget` and `GetChargeRules` again, since a `rulesChanged` may have fallen in the gap. The roster and the board need
+`GetBudget` and `GetChargeRules` again and tells its flags' listeners, since a `rulesChanged` or a `flagsChanged` may
+have fallen in the gap. The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 

@@ -85,6 +85,7 @@ import {v4 as generateUUID} from 'uuid';
 import {Config, NO_TIMEOUT, openStream, retrying, retryingAtOnce} from "./transport.ts";
 import {NoSession, SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts";
 import type {BoardChanges} from "./boards.ts";
+import type {FlagChanges} from "./flags.ts";
 
 export type {Config}
 
@@ -106,7 +107,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader, FlagChanges {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -121,6 +122,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly knockOutCallbacks = new Map<string, (knockOut: KnockOut) => void>()
     private readonly cutOffCallbacks = new Map<string, (cutOff: CutOff) => void>()
     private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
+    private readonly flagChangeCallbacks = new Map<string, () => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
@@ -206,6 +208,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.knockOutCallbacks.clear()
         this.cutOffCallbacks.clear()
         this.allegianceCallbacks.clear()
+        this.flagChangeCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -448,6 +451,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                if (flagsChanged(event)) {
+                    this.flagChangeCallbacks.forEach(callback => callback())
+                    return
+                }
+
                 const fortification = fortificationOf(event)
                 if (fortification) {
                     // Its shields go on the owners the earlier updates leave.
@@ -531,10 +539,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
-            // A gap in the stream may have hidden a rulesChanged or a grant.
+            // A gap in the stream may have hidden a rulesChanged, a flagsChanged or a grant.
             {onResumed: () => {
                 this.readRulesInForce()
                 void this.refreshCharges()
+                this.flagChangeCallbacks.forEach(callback => callback())
             }},
         )
     }
@@ -775,6 +784,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         callback(this.allegiance)
 
         return () => this.allegianceCallbacks.delete(id)
+    }
+
+    public listenForFlagChanges(onChanged: () => void): () => void {
+        const id = generateUUID()
+        this.flagChangeCallbacks.set(id, onChanged)
+        return () => this.flagChangeCallbacks.delete(id)
     }
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
@@ -1221,6 +1236,10 @@ export function cutOffOf(event: PlanetEvent): CutOff | undefined {
 // The refill and the sizes of the charges may have moved, and only a reading says by how much.
 export function rulesChanged(event: PlanetEvent): boolean {
     return event.event.case === "rulesChanged"
+}
+
+export function flagsChanged(event: PlanetEvent): boolean {
+    return event.event.case === "flagsChanged"
 }
 
 export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
