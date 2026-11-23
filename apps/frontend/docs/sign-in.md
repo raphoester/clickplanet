@@ -31,6 +31,8 @@ whoever CrazyGames says is signed in: see [CrazyGames](crazygames.md).
   that failed included) → `failed`. Only `GetProfile` is retried.
 - `app/account/accountStore.ts` — `AccountStore`, the section's state machine:
   `loading`, `hidden`, or `ready` with the offered providers, the linked ones,
+  whether the account holds a verified email (`GetMe`'s `has_email`, which the
+  feedback form reads, see [Support](support.md)),
   the action in flight and the last failure, and the username with its own save
   in flight and its own failure. No DOM and no network of its own, like
   `SessionClient`, so every transition is under test.

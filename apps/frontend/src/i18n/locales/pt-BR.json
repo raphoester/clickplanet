@@ -852,6 +852,7 @@
   "report.reason.badName": "Nome ofensivo",
   "report.reason.other": "Outra coisa",
   "support.sent": "Enviado. Valeu!",
+  "support.email": "Seu e-mail, pra gente poder responder",
   "support.uploadingCount": "Enviando {place} de {count}…",
   "support.notUploaded": "Não deu para enviar {file}. Tente de novo.",
   "support.attachedFiles": "Arquivos anexados",
@@ -869,5 +870,7 @@
   "support.failure.rejected": "Isso foi recusado.",
   "support.failure.noSession": "Não deu para abrir uma sessão. Tente de novo daqui a pouco.",
   "support.failure.reportedAlready": "Você já denunciou este jogador hoje.",
+  "support.failure.noReplyAddress": "Adicione seu e-mail.",
+  "support.failure.invalidReplyAddress": "Isso não é um endereço de e-mail.",
   "support.failure.failed": "Não deu para enviar. Tente de novo."
 }

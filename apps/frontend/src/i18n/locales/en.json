@@ -852,6 +852,7 @@
   "report.reason.badName": "Offensive name",
   "report.reason.other": "Something else",
   "support.sent": "Sent. Thank you!",
+  "support.email": "Your email, so we can answer",
   "support.uploadingCount": "Uploading {place} of {count}…",
   "support.notUploaded": "{file} could not be uploaded. Try again.",
   "support.attachedFiles": "Attached files",
@@ -869,5 +870,7 @@
   "support.failure.rejected": "That was refused.",
   "support.failure.noSession": "Could not start a session. Try again in a moment.",
   "support.failure.reportedAlready": "You already reported this player today.",
+  "support.failure.noReplyAddress": "Add your email.",
+  "support.failure.invalidReplyAddress": "This is not an email address.",
   "support.failure.failed": "It could not be sent. Try again."
 }

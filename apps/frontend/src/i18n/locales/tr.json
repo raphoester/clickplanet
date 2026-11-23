@@ -852,6 +852,7 @@
   "report.reason.badName": "Uygunsuz isim",
   "report.reason.other": "Başka bir şey",
   "support.sent": "Gönderildi. Teşekkürler!",
+  "support.email": "Cevap verebilmemiz için e-postan",
   "support.uploadingCount": "Yükleniyor {place}/{count}…",
   "support.notUploaded": "{file} yüklenemedi. Tekrar dene.",
   "support.attachedFiles": "Ekli dosyalar",
@@ -869,5 +870,7 @@
   "support.failure.rejected": "Bu reddedildi.",
   "support.failure.noSession": "Oturum başlatılamadı. Birazdan tekrar dene.",
   "support.failure.reportedAlready": "Bu oyuncuyu bugün zaten bildirdin.",
+  "support.failure.noReplyAddress": "E-postanı ekle.",
+  "support.failure.invalidReplyAddress": "Bu bir e-posta adresi değil.",
   "support.failure.failed": "Gönderilemedi. Tekrar dene."
 }

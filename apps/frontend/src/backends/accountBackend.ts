@@ -104,7 +104,7 @@ export class ConnectAccountBackend implements AccountBackend {
     public async me(): Promise<Me> {
         try {
             const res = await retrying(() => this.client.getMe({}), "GetMe")
-            return {linked: providersOf(res.providers)}
+            return {linked: providersOf(res.providers), hasEmail: res.hasEmail}
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unauthenticated) return {linked: []}
             throw new AuthError("failed", {cause: e})

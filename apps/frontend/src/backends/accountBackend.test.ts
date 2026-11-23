@@ -50,6 +50,12 @@ describe("ConnectAccountBackend", () => {
         expect(await backend.me()).toEqual({linked: ["google"]})
     })
 
+    it.each([true, false])("reads whether the account holds an email address: %s", async (hasEmail) => {
+        const backend = backendWith({getMe: vi.fn(async () => ({providers: [WireProvider.DISCORD], hasEmail}))})
+
+        expect(await backend.me()).toEqual({linked: ["discord"], hasEmail})
+    })
+
     it("asks for the provider on the wire and answers its URL", async () => {
         const startSignIn = vi.fn(async () => ({authorizationUrl: "https://discord.example/authorize"}))
         const backend = backendWith({startSignIn})
