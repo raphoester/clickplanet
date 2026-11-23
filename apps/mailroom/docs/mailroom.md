@@ -6,7 +6,7 @@ goes out with Reply-To `support+<note id>@clickplanet.lol` (see the backend's
 to this Worker, and the Worker posts it to the backend as it came. Reading the mail (the note id, the words, the quoted
 history) is the backend's, in Go.
 
-- **What it posts** (`src/index.ts`, `deliver`): `POST` to `MAILROOM_URL`
+- **What it posts** (`src/deliver.ts`; `src/index.ts` is the handler alone): `POST` to `MAILROOM_URL`
   (`https://api.clickplanet.lol/mailroom/replies`), the raw message as the body (`message/rfc822`), the envelope
   recipient in `X-Envelope-To` (`message.to`, which keeps its `+` part once Subaddressing is on), and
   `Authorization: Bearer <MAILROOM_SECRET>`.
