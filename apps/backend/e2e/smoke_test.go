@@ -184,6 +184,7 @@ func (s *testSuite) TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt() 
 	for range 2 {
 		assert.Equal(t, http.StatusAccepted, s.game.mail(t, address, reply), "kept once, then done with")
 	}
+	assert.Equal(t, http.StatusOK, s.game.mail(t, "support@clickplanet.lol", reply), "no note keeps it: the operator's")
 
 	replied := s.game.noteOf(t, "the globe is black")
 	require.Len(t, replied.GetReplies(), 1)

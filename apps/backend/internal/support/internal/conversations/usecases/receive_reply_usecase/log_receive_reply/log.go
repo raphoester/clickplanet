@@ -23,8 +23,10 @@ func (l *Logged) Execute(ctx context.Context, in receive_reply_usecase.In) (note
 	switch {
 	case err == nil:
 		l.logger.Info("a reply to a note was kept", attributes...)
-	case receive_reply_usecase.IsDropped(err):
-		l.logger.Warn("a reply to a note was dropped", append(attributes, slog.Any("reason", err))...)
+	case receive_reply_usecase.IsKept(err):
+		l.logger.Info("a reply to a note was kept already", attributes...)
+	case receive_reply_usecase.IsStray(err):
+		l.logger.Warn("a mail no note keeps goes to the operator's mailbox", append(attributes, slog.Any("reason", err))...)
 	default:
 		l.logger.Error("a reply to a note could not be kept", append(attributes, slog.Any("error", err))...)
 	}

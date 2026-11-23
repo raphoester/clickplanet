@@ -1847,8 +1847,9 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
 ## 14. Answering notes by email
 
 The operator answers ideas and bug reports from the backoffice's Notes page, by email, and the players' replies come
-back to the note (see the backend's [Support](../../apps/backend/docs/support.md#answering-a-note)). Four parts on
-Cloudflare, two secrets, and one order.
+back to the note (see the backend's [Support](../../apps/backend/docs/support.md#answering-a-note)). A mail no note
+keeps (to `support@` itself, or to a note with no address any more) is forwarded to the operator's own mailbox. Four
+parts on Cloudflare, two secrets, the operator's mailbox, and one order.
 
 1. **Email Sending sends from `support@clickplanet.lol`.** `clickplanet.lol` is onboarded already (the sign-in codes
    come from `noreply@`), and the REST API takes any sender on an onboarded domain: nothing to add. The backend sends
@@ -1860,27 +1861,37 @@ Cloudflare, two secrets, and one order.
    ```
 
    **Before the backend deploy that reads it**: `env://MAILROOM_SECRET` unset refuses the boot.
-3. **The Worker**, from `apps/mailroom` ([The mailroom](../../apps/mailroom/docs/mailroom.md)):
+3. **The operator's mailbox**, where the Worker forwards a stray mail: a **verified destination address** of Email
+   Routing (Destination addresses; Cloudflare mails a link to click once), kept as the Worker's secret
+   `OPERATOR_ADDRESS` so the public repository does not show it. Not set or not verified, `Forward` fails and the
+   sending server tries again until it gives up.
+
+   ```bash
+   cd apps/mailroom && npx wrangler@4 secret put OPERATOR_ADDRESS
+   ```
+
+4. **The Worker**, from `apps/mailroom` ([The mailroom](../../apps/mailroom/docs/mailroom.md)):
 
    ```bash
    cd apps/mailroom && make deploy
    ```
 
-4. **Email Routing on `clickplanet.lol`** (Compute, Email Service, Email Routing): **Subaddressing** on in Settings, so
+5. **Email Routing on `clickplanet.lol`** (Compute, Email Service, Email Routing): **Subaddressing** on in Settings, so
    `support+<note id>@` reaches the rule of `support@`, and a rule **`support@clickplanet.lol` → Send to a Worker →
    `clickplanet-mailroom`**. An address with no rule is refused at once, and the sender does not try again.
 
-**The order**: the frontend that asks a guest for an address (it shipped first), then the secret (2), the backend, the
-Worker (3) and the rule (4). A reply that comes before the backend can take it is tried again by the sending server.
+**The order**: the frontend that asks a guest for an address (it shipped first), then the secrets (2, 3), the Worker
+(4), the backend and the rule (5). A reply that comes before the backend can take it is tried again by the sending
+server. The Worker goes before the backend that answers a stray mail 200: an older Worker takes any 2xx as done.
 
 **Check it**: answer a note of your own from the backoffice, reply from your mailbox, and read the backend's log:
 
 ```bash
-ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep "reply to a note"'
+ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep "note"'
 ```
 
-"a reply to a note was kept" is the reply on the note's page; "dropped" says why (a note with no address, one not
-kept, a mail with no Message-ID).
+"a reply to a note was kept" is the reply on the note's page. Then write to `support@clickplanet.lol` from your
+mailbox: "a mail no note keeps goes to the operator's mailbox" says why, and the mail is in the operator's mailbox.
 
 ## Rollback
 

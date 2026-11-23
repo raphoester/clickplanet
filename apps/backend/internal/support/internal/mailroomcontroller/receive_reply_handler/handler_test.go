@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/receive_reply_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/mailroomcontroller/receive_reply_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
@@ -64,9 +65,11 @@ func TestAMailOverTheCapIsRefused(t *testing.T) {
 	assert.Equal(t, http.StatusRequestEntityTooLarge, post(t, &stubUseCase{}, "Bearer the-secret", strings.Repeat("a", 65)))
 }
 
-func TestADroppedMailIsDoneWithAndAMailNotKeptIsTriedAgain(t *testing.T) {
-	for _, dropped := range receive_reply_usecase.Dropped {
-		assert.Equal(t, http.StatusAccepted, post(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", dropped)}, "Bearer the-secret", "Hi"))
+func TestAMailKeptAlreadyIsDoneWithAStrayOneGoesToTheOperatorAndOneNotKeptIsTriedAgain(t *testing.T) {
+	assert.Equal(t, http.StatusAccepted,
+		post(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", conversations.ErrReceivedAlready)}, "Bearer the-secret", "Hi"))
+	for _, stray := range receive_reply_usecase.Stray {
+		assert.Equal(t, http.StatusOK, post(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", stray)}, "Bearer the-secret", "Hi"))
 	}
 
 	assert.Equal(t, http.StatusInternalServerError, post(t, &stubUseCase{err: assert.AnError}, "Bearer the-secret", "Hi"))
