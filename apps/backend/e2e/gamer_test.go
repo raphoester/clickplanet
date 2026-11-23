@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -423,6 +424,20 @@ func (s gameStack) openNotes(t check) []string {
 		ids = append(ids, note.GetId())
 	}
 	return ids
+}
+
+// As the mailroom Worker posts a mail it received.
+func (s gameStack) mail(t check, recipient string, raw string) int {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, s.adminURL+"/mailroom/replies", strings.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+mailroomSecret)
+	req.Header.Set("X-Envelope-To", recipient)
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	_ = res.Body.Close()
+	return res.StatusCode
 }
 
 func (s gameStack) noteOf(t check, text string) *supportv1.Note {

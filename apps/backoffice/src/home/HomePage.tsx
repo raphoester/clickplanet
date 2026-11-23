@@ -17,7 +17,6 @@ import {addsTo, boardOfPages, caughtUp, changesOf, countriesOf, Ledger, playersO
 import {PlayingNow} from "./PlayingNow.tsx"
 
 export const REFRESH_MS = 60_000
-const DAY_MS = 24 * 3600_000
 // The most ListReports and ListNotes answer at once.
 const PAGE = 500
 
@@ -123,7 +122,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
                       sub={`took a tile, last ${shownSpan.label}`}/>
                 <Tile label="Open reports" value={inbox?.openReports} more={inbox?.openReports === PAGE}
                       onGo={onGo === undefined ? undefined : () => onGo("reports")}/>
-                <Tile label="Notes today" value={inbox?.notesToday} more={inbox?.notesToday === PAGE}
+                <Tile label="Open notes" value={inbox?.openNotes} more={inbox?.openNotes === PAGE}
                       onGo={onGo === undefined ? undefined : () => onGo("notes")}/>
             </ul>
             {mapCall.state === "failed" && <FailureNotice failure={mapCall} onRetry={readMapAgain}/>}
@@ -212,10 +211,9 @@ async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {
 }
 
 async function inboxOf(support: SupportAdmin, signal: AbortSignal) {
-    const since = Timestamp.fromDate(new Date(Date.now() - DAY_MS))
     const [reports, notes] = await Promise.all([
         support.listReports({openOnly: true, limit: PAGE}, {signal}),
-        support.listNotes({since, limit: PAGE}, {signal}),
+        support.listNotes({openOnly: true, limit: PAGE}, {signal}),
     ])
-    return {openReports: reports.reports.length, notesToday: notes.notes.length}
+    return {openReports: reports.reports.length, openNotes: notes.notes.length}
 }

@@ -14,7 +14,16 @@ import (
 var (
 	ErrInvalidConversation = errors.New("the conversation is invalid")
 	ErrReceivedAlready     = errors.New("the conversation holds this mail already")
+	ErrUnreadable          = errors.New("the mail cannot be read")
 )
+
+// A mail that came in, as it was read: its id, who sent it and its words.
+type Received struct {
+	Mail cpmail.MessageID
+	// Empty for a From that is no address mail goes back to.
+	From cpmail.Address
+	Text string
+}
 
 // The operator's answer, as it was mailed.
 type Answer struct {

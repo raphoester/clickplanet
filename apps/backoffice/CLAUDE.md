@@ -26,6 +26,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   open on it in the address bar.
 - [Every action, on every page](docs/actions.md) — every change asks first, then says what the server answered.
 - [The home page](docs/home.md) — how the game is doing, counted and charted on the page from raw reads.
+- [Answering a note](docs/notes.md) — the Ideas and bugs inbox: the open notes first, one note with its conversation
+  by email, an answer that asks first and names the address, or a close, then the next.
 - [Who sent a note](docs/note-sender.md) — every note comes from an account.
 - [A note's photos and videos](docs/note-media.md) — how a note's files are shown.
 - [Acting on a report](docs/reports.md) — the Reports inbox: the list with what was said, one report, one verdict that

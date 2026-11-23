@@ -24,11 +24,12 @@ describe("failureOf", () => {
 })
 
 describe("wordsOf", () => {
-    it("says what this action means by not_found, failed_precondition and unimplemented", () => {
-        const meanings = {notFound: "Gone.", failedPrecondition: "Off.", unimplemented: "Not here."}
+    it("says what this action means by not_found, failed_precondition, unimplemented and unavailable", () => {
+        const meanings = {notFound: "Gone.", failedPrecondition: "Off.", unimplemented: "Not here.", unavailable: "Again."}
         expect(wordsOf(new ConnectError("x", Code.NotFound), meanings)).toBe("Gone.")
         expect(wordsOf(new ConnectError("x", Code.FailedPrecondition), meanings)).toBe("Off.")
         expect(wordsOf(new ConnectError("x", Code.Unimplemented), meanings)).toBe("Not here.")
+        expect(wordsOf(new ConnectError("x", Code.Unavailable), meanings)).toBe("Again.")
     })
 
     it("says the server's own words for a code the action gives no meaning", () => {

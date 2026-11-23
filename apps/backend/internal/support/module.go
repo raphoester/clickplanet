@@ -22,13 +22,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/commands/decide_report_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/mime_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/postgres_conversation_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/answer_note_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/answer_note_usecase/audit_answer_note"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/close_note_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/receive_reply_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/receive_reply_usecase/log_receive_reply"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase/audit_decide_report"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/mailroomcontroller/receive_reply_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/mail_post"
@@ -202,7 +206,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		return fmt.Errorf("support.email.from: %w", err)
 	}
-	post := mail_post.New(mailer, config.Email.Sender(), notes.NewInbox(from))
+	inbox := notes.NewInbox(from)
+	post := mail_post.New(mailer, config.Email.Sender(), inbox)
 
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:    list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
@@ -218,8 +223,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount support.v1.AdminService: %w", err)
 	}
 
+	if config.Mailroom.Secret != "" {
+		replies := log_receive_reply.New(receive_reply_usecase.New(inbox, mime_reader.Reader{}, noteStore, conversationStore, clock),
+			props.Logger)
+		if err := props.AdminHTTP.Handle("POST "+receive_reply_handler.Path,
+			receive_reply_handler.New(replies, config.Mailroom.Secret, config.Mailroom.MaxBytes)); err != nil {
+			return fmt.Errorf("failed to mount the mailroom's endpoint: %w", err)
+		}
+	}
+
 	props.Logger.Info("support built",
-		slog.String("schema", config.Database.Schema), slog.Bool("attachments", config.Attachments.Enabled))
+		slog.String("schema", config.Database.Schema), slog.Bool("attachments", config.Attachments.Enabled),
+		slog.Bool("replies", config.Mailroom.Secret != ""))
 
 	return nil
 }
@@ -241,6 +256,14 @@ type Config struct {
 
 	// Where the operator answers notes from. Each note's replies come back to its own address under From.
 	Email cpmail.Config
+
+	Mailroom MailroomConfig
+}
+
+// The Worker that posts the players' replies. No secret: no reply is taken.
+type MailroomConfig struct {
+	Secret   string
+	MaxBytes int64
 }
 
 type AttachmentsConfig struct {
@@ -297,6 +320,8 @@ const (
 
 const defaultPerSecond = 1.0 / 60
 
+const minSecretLength = 32
+
 const (
 	day = 24 * time.Hour
 
@@ -307,6 +332,8 @@ const (
 const (
 	defaultFrom     = "support@clickplanet.lol"
 	defaultFromName = "ClickPlanet"
+	// Email Routing's own cap on a mail.
+	defaultMailroomMaxBytes = 25 << 20
 )
 
 func (c Config) withDefaults() Config {
@@ -318,6 +345,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Email.FromName == "" {
 		c.Email.FromName = defaultFromName
+	}
+	if c.Mailroom.MaxBytes <= 0 {
+		c.Mailroom.MaxBytes = defaultMailroomMaxBytes
 	}
 	if c.Retention <= 0 {
 		c.Retention = defaultRetention
@@ -375,6 +405,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.withDefaults().Email.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("support.email: %w", err))
+	}
+	if secret := c.Mailroom.Secret; secret != "" && len(secret) < minSecretLength {
+		errs = append(errs, fmt.Errorf("support.mailroom.secret is %d characters, and must be %d at least", len(secret), minSecretLength))
 	}
 	if !c.Attachments.Enabled {
 		return errors.Join(errs...)

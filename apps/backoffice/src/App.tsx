@@ -26,7 +26,7 @@ import {GraffitiView} from "./graffiti/GraffitiView.tsx"
 import {Callback} from "./signIn/callback.ts"
 import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
-import {NoteList} from "./support/NoteList.tsx"
+import {NotesView} from "./support/NotesView.tsx"
 import {useCall} from "./useCall.ts"
 import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
@@ -118,7 +118,9 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
             >
                 <h2 className="page-title">{titleOf(page)}</h2>
                 {page === "home" && <HomePage onGo={go}/>}
-                {page === "notes" && <NoteList/>}
+                {page === "notes" && (
+                    <NotesView opened={route.item} onOpen={id => setRoute({page: "notes", item: id})}/>
+                )}
                 {page === "reports" && (
                     <ReportsView opened={route.item} onOpen={id => setRoute({page: "reports", item: id})}/>
                 )}

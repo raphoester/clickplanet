@@ -11,9 +11,10 @@
   quotes it ("Give back the 120 tiles Ana holds?"). **A question whose action turns disabled under it is taken back**
   (`ConfirmAction` with `disabled`).
 - **The refusals in plain words** (`wordsOf` in `refusal.ts`, and each section's `refusalOf` over it, which says
-  what its `not_found`, `failed_precondition` and `unimplemented` mean): `not_found` is a message or a report no longer
-  kept, or no ban left to lift; `unimplemented` is the antibot off (no ban, unban, warning or inspection) or the Discord
-  pings off; `failed_precondition` is a bucket off or a file not in it, or a warning while the bans are not enforced;
+  what its `not_found`, `failed_precondition`, `unimplemented` and `unavailable` mean): `not_found` is a message, a
+  report or a note no longer kept, or no ban left to lift; `unimplemented` is the antibot off (no ban, unban, warning or
+  inspection) or the Discord pings off; `failed_precondition` is a bucket off or a file not in it, a warning while the
+  bans are not enforced, or a note with no address; `unavailable` is an answer whose mail did not go;
   `invalid_argument` quotes the server (an unknown country, a grant of nothing); `deadline_exceeded` says the call may have done part
   of its work; a session that ended says to sign in again. **A time the server quotes is in the operator's own time**
   (`localized`): each UTC stamp (`2026-11-28T15:00:00Z`) and each time of day in UTC (`21:00 UTC`, on the day of the

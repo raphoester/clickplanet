@@ -22,10 +22,18 @@ var subjects = map[Kind]string{
 	KindBug:        "Re: your bug report",
 }
 
+// A note with no address cannot be answered, nor take a reply.
+func (n Note) AddressError() error {
+	if n.replyAddress == "" {
+		return ErrNoReplyAddress
+	}
+	return nil
+}
+
 // The answer, then the note quoted.
 func (n Note) Answer(text string, thread []cpmail.MessageID) (Letter, error) {
-	if n.replyAddress == "" {
-		return Letter{}, ErrNoReplyAddress
+	if err := n.AddressError(); err != nil {
+		return Letter{}, err
 	}
 	answer, err := AnswerTextOf(text)
 	if err != nil {
