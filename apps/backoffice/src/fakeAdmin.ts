@@ -417,6 +417,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             virus: {infections: 32, every: "20s", held: 1},
             mine: {held: 3, rings: 2},
             rally: {held: 3, rings: 18, lasts: "180s", cost: 0.5, off: false},
+            trap: {held: 3, clicks: 10},
         },
         frozen: false,
         allegianceLocked: false,
@@ -427,17 +428,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     })})], playing: "default"})
     // The bonuses module's set the migration keeps: what a box caught or a right answer grants, and the sign-in refill.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
-        kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3, virus: 0, mine: 0, rally: 0},
+        kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3, virus: 0, mine: 0, rally: 0, trap: 0},
         gates: {
             on: false,
             open: {refill: true, spreadClicks: true, encloseClicks: false, bomb: false, shields: true, virus: false, mine: false,
-                rally: false},
+                rally: false, trap: false},
         },
         spread: {maxPerBox: 4},
         enclose: {maxPerBox: 3},
         shield: {minPerBox: 5, maxPerBox: 20},
         mine: {maxPerBox: 2},
         rally: {maxPerBox: 1},
+        trap: {maxPerBox: 2},
         signInRefill: true,
     })})], playing: "default"})
     // The boxes' set production plays: when a box comes, how long it flies, and a newcomer's first box.

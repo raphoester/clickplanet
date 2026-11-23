@@ -180,6 +180,12 @@ export type BonusHandlers = {
     // A mine a player of the page's flag laid: no other flag hears of it.
     onMineLaid: (laid: MineLaid) => void
     onMinesExploded: (explosion: MinesExploded) => void
+    // The traps of the flag the server says the page plays for: read again as each stream opens and the flag changes.
+    onTraps: (traps: Trapline) => void
+    // A trap a player of the page's flag laid: no other flag hears of it.
+    onTrapLaid: (laid: TrapLaid) => void
+    // A trap a take sprang, whatever its flag: told after the take's own event.
+    onTrapSprung: (sprung: TrapSprung) => void
     // Every rally still on, of every flag: read again as each stream opens.
     onRallies: (rallies: Rally[]) => void
     // A rally a player called, whatever its flag.
@@ -322,6 +328,35 @@ export interface Miner {
     layMine(tileId: number, countryId: string): Promise<void>
 }
 
+export type Trapline = {
+    // The flag the server says the page plays for; empty for none.
+    countryId: string
+    tiles: number[]
+    version: MapVersion
+}
+
+// A trap laid changes no tile: its tile holds it while the tile has not changed since version.
+export type TrapLaid = {
+    countryId: string
+    tile: number
+    version: MapVersion
+}
+
+// A trap a take by another flag sprang: the taker kept the tile and lost clicks from its bank, to nobody.
+export type TrapSprung = {
+    tile: number
+    // The trap's flag.
+    countryId: string
+    // What left the taker's bank.
+    clicks: number
+    // The take was the page's account's: its bank is lower now.
+    yours: boolean
+}
+
+export interface Trapper {
+    layTrap(tileId: number, countryId: string): Promise<void>
+}
+
 export interface Rallier {
     callRally(point: GlobePoint, countryId: string): Promise<Rally>
 }
@@ -369,6 +404,14 @@ export class MineRefusedError extends Error {
     constructor(options?: ErrorOptions) {
         super("a mine goes only on a tile of your flag with no mine", options)
         this.name = "MineRefusedError"
+    }
+}
+
+// The tile was not the flag's, or held a mine or a trap already: the trap stays in the hand.
+export class TrapRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("a trap goes only on a tile of your flag with no mine and no trap", options)
+        this.name = "TrapRefusedError"
     }
 }
 

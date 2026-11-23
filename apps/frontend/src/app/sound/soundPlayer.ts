@@ -17,6 +17,7 @@ export const MIN_GAP_MS: Record<SoundName, number> = {
     quizWrong: 0,
     title: 1000,
     fortify: 600,
+    trap: 120,
 }
 
 const LATE_MS = 300

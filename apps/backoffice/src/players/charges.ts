@@ -17,6 +17,7 @@ export function grantWords(charges: Grant): string {
         plural(charges.viruses, "virus", "viruses"),
         plural(charges.mines, "mine"),
         plural(charges.rallies, "rally", "rallies"),
+        plural(charges.traps, "trap"),
     ])
 }
 
@@ -30,6 +31,7 @@ export function heldWords(held: ChargesHeld): string {
         plural(held.viruses, "virus", "viruses"),
         plural(held.mines, "mine"),
         plural(held.rallies, "rally", "rallies"),
+        plural(held.traps, "trap"),
     ])
 }
 

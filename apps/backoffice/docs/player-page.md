@@ -87,8 +87,8 @@ address>`), so Back goes to the list, as it was.
   what"** (`MuteKindPicker`): the whole chat, or GIFs alone (the player still writes and reacts). One kind is muted
   or lifted at a time; the words of each are `MUTE_KINDS` in `actions.ts` ("GIFs muted until …"),
   **Mute, Unmute and Name take a reason** (`ReasonField`, optional, 500 characters, `reasonOf` trims and cuts it as the
-  server keeps it), kept with the action in the history. Charges, a virus, mines and rallies among them (`GrantCharges`, `GrantPanel`: a count of each kind, refills, bombs,
-  enclosures, spread clicks, shields, viruses, mines and rallies, 0 to 99 typed, no checkbox; each kind is kept up to
+  server keeps it), kept with the action in the history. Charges, a virus, mines, rallies and traps among them (`GrantCharges`, `GrantPanel`: a count of each kind, refills, bombs,
+  enclosures, spread clicks, shields, viruses, mines, rallies and traps, 0 to 99 typed, no checkbox; each kind is kept up to
   what a hand holds of it under the rules in force, none of a kind they turn off, so the answer says what the account
   held before and after, "It held 2 enclosures. It holds 2 bombs and 3 enclosures."; the player sees it at once), Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
   change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds

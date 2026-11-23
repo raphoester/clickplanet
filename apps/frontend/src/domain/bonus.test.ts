@@ -143,13 +143,13 @@ describe("inUnlockOrder", () => {
     it("puts the open kinds first, then the gated ones by the level they open at, the order given among one level", () => {
         const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
 
-        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus", "mine", "rally"])
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus", "mine", "rally", "trap"])
     })
 
     it("puts last a gated kind the ladder names no level for", () => {
         const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {bomb: 5}}
 
-        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "bomb", "encloseClicks", "virus", "mine", "rally"])
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "bomb", "encloseClicks", "virus", "mine", "rally", "trap"])
     })
 
     it("keeps the order given while no open kind is told, whatever the ladder", () => {
@@ -159,7 +159,7 @@ describe("inUnlockOrder", () => {
     it("orders by the ladder with the gates off too", () => {
         const gates = {on: false, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
 
-        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus", "mine", "rally"])
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus", "mine", "rally", "trap"])
     })
 
     it("keeps the order given with no gates", () => {

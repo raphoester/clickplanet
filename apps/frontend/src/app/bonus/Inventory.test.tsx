@@ -27,7 +27,7 @@ const RULES = {
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, spreadOff: false, ralliesOff: false, virusInfections: 128,
     gatesOn: false, openKinds: [], refills: 1, bombs: 1, viruses: 1, mines: 3, mineRings: 2,
-    rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
+    rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5, traps: 3, trapClicks: 10,
 }
 
 type Held = {
@@ -41,13 +41,14 @@ type Held = {
     level?: number
     virusAimed?: boolean
     mineAimed?: boolean
+    trapAimed?: boolean
     rallyAimed?: boolean
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, mineAimed = false, rallyAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, mineAimed = false, trapAimed = false, rallyAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed, mineAimed, rallyAimed})
+        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed, mineAimed, trapAimed, rallyAimed})
         useLevel.setState({own: level === NO_LEVEL ? undefined : {level, xp: 0, levelXp: 0, nextLevelXp: 0}, unlocks: gates.unlocks})
     })
     return <Inventory onToggle={() => {}}
@@ -152,14 +153,37 @@ describe("Inventory", () => {
         expect(bubble()).toBe("Tap one of your tiles: if an enemy takes it, the mine explodes and takes the tiles around it")
     })
 
-    it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine", () => {
+    it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine or trap", () => {
         const charges = {...NO_CHARGES, mines: 1}
         const {rerender} = render(inventory({charges, mineAimed: true}))
         expect(slot(/^Mine/).getAttribute("aria-pressed")).toBe("true")
 
         rerender(inventory({charges, mineAimed: true, notice: {notice: "mineNotYours", seq: 1}}))
 
-        expect(bubble()).toBe("A mine goes only on your flag's tile with no mine")
+        expect(bubble()).toBe("A mine goes only on your flag's tile with no mine or trap")
+    })
+
+    it("counts the traps held, aims them and says only what to tap", () => {
+        const toggleTrap = vi.fn()
+        render(inventory({charges: {...NO_CHARGES, traps: 2}, onToggleTrap: toggleTrap}))
+
+        expect(slot(/^Trap/).getAttribute("aria-label")).toBe("Trap, 2/3, New")
+        fireEvent.click(slot(/^Trap/))
+
+        expect(toggleTrap).toHaveBeenCalledOnce()
+        expect(bubble()).toBe("Tap one of your tiles")
+    })
+
+    it("says the traps are aimed, where a trap goes, and where it goes once a tap took another flag's tile", () => {
+        const charges = {...NO_CHARGES, traps: 1}
+        const {rerender} = render(inventory({charges, trapAimed: true}))
+        expect(slot(/^Trap/).getAttribute("aria-pressed")).toBe("true")
+
+        rerender(inventory({charges, trapAimed: true, notice: {notice: "trapNotYours", seq: 1}}))
+        expect(bubble()).toBe("A trap goes only on your flag's tile with no mine or trap")
+
+        rerender(inventory({charges, trapAimed: true, notice: {notice: "trapTaken", seq: 2}}))
+        expect(bubble()).toBe("Tile taken. Tap it again to lay a trap")
     })
 
     it("says where the mine goes when a tap with a mine aimed took another flag's tile", () => {
@@ -411,7 +435,7 @@ describe("Inventory", () => {
 
         fireEvent.click(all())
         expect(within(tray()!).getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
-        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(6)
+        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(7)
         expect(within(tray()!).getByText("Unlocks at level 3")).toBeTruthy()
     })
 
@@ -556,8 +580,8 @@ describe("Inventory", () => {
         fireEvent.click(all())
         expect(all().getAttribute("aria-expanded")).toBe("true")
         expect(within(tray()!).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
-            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Mine, 0/3", "Rally, 0/3", "Enclose, unlocks at level 4",
-            "Bomb, unlocks at level 5",
+            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Mine, 0/3", "Rally, 0/3", "Trap, 0/3",
+            "Enclose, unlocks at level 4", "Bomb, unlocks at level 5",
         ])
         expect(inTray(/^Bomb/).className).toContain("inventory-slot--locked")
         expect(inTray(/^Bomb/).textContent).toContain("5")

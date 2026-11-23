@@ -11,9 +11,9 @@ every switch off (and the reverse). While aimed, a tap on a tile of the flag lay
 `ClickService/LayMine`) instead of clicking, and **it stays aimed while a mine is held**, so mines are laid together.
 **A tap on a tile of another flag, or of none, is a plain click**, as with shield on (`layingOf` in `domain/mines.ts`):
 it takes the tile, "Tile taken. Tap it again to lay a mine" (`mineTaken`) over the slot, and the next tap lays the
-mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag mined already, or a capital
-while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine", the notice
-`mineNotYours`). The backend takes one mine off the hand at once and gives it back unless the server says it holds
+mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag that holds a mine or a trap
+already, or a capital while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine or
+trap", the notice `mineNotYours`): a tile holds one mine or one trap (see [Trap](trap.md)). The backend takes one mine off the hand at once and gives it back unless the server says it holds
 none: a `MineRefusal` is `MineRefusedError`, said with the same notice.
 
 **The flag's mines are read, never public.** `GetMap` carries none. The planet backend reads `GetMines` as each stream
@@ -21,7 +21,7 @@ opens and each time the flag it plays for changes, and hands the answer to the g
 globe keeps it only when it is the flag the page plays for, and forgets every mine when the page changes flag. A mine a
 teammate lays comes as `mine_laid` (`onMineLaid`), on the page's stream alone.
 
-**A mine is a tile value under the one version rule** (`TileMines` in `MapTiles`, see [The counts are the
+**A mine is a tile value under the one version rule** (`FlagMarks` in `MapTiles`, the traps' too, see [The counts are the
 server's](counts.md)): each mine is kept with the map's version it is known at. A lay counts no version, so a mine is
 kept only while its tile has not changed since; any change of its tile's owner after it takes it off (a tile update, a
 blast, an enclosure, a virus, a knock-out, a read that finds another owner), and so does a bomb's strike. A read
