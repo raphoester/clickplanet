@@ -4,7 +4,7 @@ import {bordersHashOf, decodeProvinces, landmassProvinces, type Provinces} from 
 import * as THREE from "three"
 import {flagNumbers, regions} from "./atlas.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
-import type {FlagNeed} from "./slotRanking.ts"
+import {addNeed, type FlagNeed} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -115,8 +115,7 @@ export class BorderField {
             const area = areas[landmass]
             const centre = {x: this.rows[at], y: this.rows[at + 1], z: this.rows[at + 2]}
             const need = area > 0 ? flagNeedOf(centre, this.rows[at + 3], this.rows[at + 7], aspect, view) : 0
-            const was = needs.get(holder)
-            needs.set(holder, {need: Math.max(need, was?.need ?? 0), area: area + (was?.area ?? 0), aspect, spriteWidth: this.rows[at + 10]})
+            addNeed(needs, holder, {need, area, aspect, spriteWidth: this.rows[at + 10]})
         }
         return needs
     }
@@ -209,7 +208,7 @@ export function leastPaintedTiles(scale: BoardScale): number {
 
 const MINIMUM_SHARE = 0.08
 
-const MAX_FLAG_RADIUS = 0.42
+export const MAX_FLAG_RADIUS = 0.42
 
 const MAX_STRETCH = 2.6
 

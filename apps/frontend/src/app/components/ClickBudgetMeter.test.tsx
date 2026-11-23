@@ -15,10 +15,9 @@ vi.mock("../share/deliverShare.ts", async (original) => ({
     ...await original<typeof import("../share/deliverShare.ts")>(),
     linkDeliveryOffered: vi.fn(() => "copy"),
     deliverLink: vi.fn(),
-    copyLink: vi.fn(async () => "copied"),
 }))
 
-const {deliverLink, copyLink} = await import("../share/deliverShare.ts")
+const {deliverLink} = await import("../share/deliverShare.ts")
 const deliver = vi.mocked(deliverLink)
 
 const FRANCE = Countries.get("fr")!
@@ -81,16 +80,6 @@ describe("ClickBudgetMeter", () => {
         expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/r?f=fr&r=Ada-Lovelace",
             "Season 1 starts on a blank map. Play for France on ClickPlanet!")
         expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
-    })
-
-    it("invites with CrazyGames' link on a frozen map there", async () => {
-        const invite = vi.fn(async (flag: string) => `https://www.crazygames.com/game/clickplanet?czy_invite=true&f=${flag}`)
-        render(<ClickBudgetMeter frozen={{country: FRANCE, address: {code: "fr"}}} invite={invite}/>)
-
-        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
-
-        expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
-        expect(copyLink).toHaveBeenCalledWith("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=fr")
     })
 
     it("offers the Discord the game offers on a frozen map, and none when it offers nothing", () => {

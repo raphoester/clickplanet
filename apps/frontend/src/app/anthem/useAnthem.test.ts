@@ -14,7 +14,7 @@ type Shown = {board: LeaderboardEntry[], order: CountryOrder}
 const board = (...codes: string[]): LeaderboardEntry[] =>
     codes.map((code, index) => ({country: Countries.get(code)!, tiles: 100 - index}))
 const follow = (shown: Shown) =>
-    renderHook(({board, order}: Shown) => useAnthem(board, order, false), {initialProps: shown})
+    renderHook(({board, order}: Shown) => useAnthem(board, order), {initialProps: shown})
 
 beforeEach(() => {
     useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})

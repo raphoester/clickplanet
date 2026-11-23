@@ -19,7 +19,7 @@ the server's page once in, or nothing.
   and sends a read refused `unauthenticated` once more with a fresh session, as the player backend does. A 404 or
   `unimplemented` reads as not offered.
 - `app/alerts/discordAlerts.ts` — `DiscordAlerts`: `read`, `connect`, which is `AccountStore.connectDiscord`, and
-  `joinIfAsked` (see below). `main.tsx` builds it, except on CrazyGames.
+  `joinIfAsked` (see below). `main.tsx` builds it.
 - `AccountStore.connectDiscord()` — a Discord sign-in: **a link** for an account signed in already (with Google, an
   email or Discord), so the player stays on it; **a sign-in** for a guest, which moves to the account that Discord user
   has, if any. It goes the way every sign-in goes (`leaveFor`, then `/auth/callback`, see [Sign-in](sign-in.md)), and
@@ -43,21 +43,18 @@ Discord's sign-in; `serverUrl` once it is in; neither otherwise. Any failure of 
     refused start puts the reason on the button ("Wait a minute", "Not available", "Try again"), and a press tries
     again.
   - **In the server**: "Open Discord", the server's `#alerts` page.
-  - **Nothing offered** (before the first read answers, the alerts off, a failed read, no Discord sign-in,
-    CrazyGames): no bar.
+  - **Nothing offered** (before the first read answers, the alerts off, a failed read, no Discord sign-in): no bar.
 - **The Discord icon in About and the Discord button of a frozen map** (`DiscordButton`): the same sign-in, named
   "Join Discord", or "Open Discord" once in, or nothing.
 - **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Go
   there", for 8 s, on the news line (see [Stores](stores.md#the-news-line)), and "Get pinged", the same sign-in, only while `connect` is offered: an account
-  in the server, CrazyGames or a page with nothing offered sees no Discord button. **Once a page**, the first time the
+  in the server or a page with nothing offered sees no Discord button. **Once a page**, the first time the
   flag the player took a tile for in this page loses ground on the board (its badge in `tileDeltas` goes below 0). A
   player who has not taken a tile sees nothing: a first visit would see it before it played.
 - **"Go there" flies the camera to the flag's last tile lost** (`Globe.flyToLastLoss`), down to tiles of 28px as the
   flight to the front does (see [The front, for a first visit](front-guide.md)). The tile is the last one an update took
   from the flag, a bomb cleared or a ghost took (see [Ghosts](ghosts.md)); the globe forgets it when the player plays
   another flag. The moment stays up until its 8 s end, so "Get pinged" is still there when it is offered.
-- **Not on CrazyGames**: the trip leaves its frame and comes back on clickplanet.lol, where its carried session is
-  not; and CrazyGames allows no sign-in but its own.
 
 ## Links from outside the game: `/play?discord=join`
 

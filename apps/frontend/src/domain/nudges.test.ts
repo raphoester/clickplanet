@@ -4,7 +4,7 @@ import {ASK_SPACING_MS, askClosed, askDue, askedOf, askOpened, AskScene, NOTHING
 const HOUR = 60 * 60_000
 const DAY = 24 * HOUR
 const now = Date.UTC(2026, 10, 12, 18)
-const scene: AskScene = {guided: false, battlePlays: false, onCrazyGames: false}
+const scene: AskScene = {guided: false, battlePlays: false}
 
 describe("askDue", () => {
     it("asks for a coffee first, then takes turns with the follows", () => {
@@ -29,10 +29,9 @@ describe("askDue", () => {
         expect(askDue(NOTHING_ASKED, teased, scene, now + ASK_SPACING_MS)).toBe("coffee")
     })
 
-    it("asks nothing on a first visit, in a battle, or on CrazyGames", () => {
+    it("asks nothing on a first visit or in a battle", () => {
         expect(askDue(NOTHING_ASKED, null, {...scene, guided: true}, now)).toBeUndefined()
         expect(askDue(NOTHING_ASKED, null, {...scene, battlePlays: true}, now)).toBeUndefined()
-        expect(askDue(NOTHING_ASKED, null, {...scene, onCrazyGames: true}, now)).toBeUndefined()
     })
 
     it("never asks for a follow again once its link was opened", () => {

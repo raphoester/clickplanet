@@ -36,16 +36,12 @@ export function isLanguage(value: string | null): value is Language {
 export type LanguageHints = {
     // The player's own pick in the settings.
     picked: string | null
-    // CrazyGames' locale, on its page.
-    portal?: string
     // navigator.languages, the player's order.
     browser: readonly string[]
 }
 
-export function chooseLanguage({picked, portal, browser}: LanguageHints): Language {
+export function chooseLanguage({picked, browser}: LanguageHints): Language {
     if (isLanguage(picked)) return picked
-    const fromPortal = languageOf(portal)
-    if (fromPortal) return fromPortal
     for (const tag of browser) {
         const language = languageOf(tag)
         if (language) return language

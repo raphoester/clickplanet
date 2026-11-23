@@ -13,7 +13,6 @@ video made, shared or saved. There is no reward in the game (see [Delivery](#del
   `VideoEncoder.isConfigSupported` for High, then Main, then Baseline at level 3.1. No yes, no tile.
 - **Not during an arena battle**, whose map is not the world's. No read tells the page that a map is an arena's (the
   backend's [Arena battles](../../backend/docs/arenas.md)), so a battle that plays the knock-out is taken for one.
-- **Not on CrazyGames**: the address leads away from it.
 
 ## Where it is offered
 

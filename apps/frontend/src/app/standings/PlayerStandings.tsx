@@ -6,7 +6,6 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {lineOf, nameOf, paintOf} from "../nameplates/nameplate.ts"
 import {useNameplate} from "../nameplates/nameplatesStore.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
@@ -102,7 +101,7 @@ function StandingRow({standing, you}: StandingRowProps) {
     const countryName = translator().country(standing.countryCode)
     const nameplate = useNameplate(standing.accountId)
     const style = authorStyle(paintOf(nameplate))
-    const name = useWordFilter().masked(nameOf(nameplate))
+    const name = nameOf(nameplate)
     const player = lineOf(standing.accountId, standing.countryCode, nameplate)
     const openPlayer = usePlayerCard((card) => card.open)
 

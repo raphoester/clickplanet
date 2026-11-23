@@ -28,11 +28,10 @@ export const NOTHING_ASKED: Asked = {shown: {}, opened: {}}
 export type AskScene = {
     guided: boolean
     battlePlays: boolean
-    onCrazyGames: boolean
 }
 
 export function askDue(asked: Asked, teased: Teased | null, scene: AskScene, now: number): Ask | undefined {
-    if (scene.guided || scene.battlePlays || scene.onCrazyGames) return undefined
+    if (scene.guided || scene.battlePlays) return undefined
     const last = Math.max(teased?.at ?? 0, ...ASKS.map((ask) => asked.shown[ask] ?? 0))
     if (now - last < ASK_SPACING_MS) return undefined
     let due: Ask | undefined

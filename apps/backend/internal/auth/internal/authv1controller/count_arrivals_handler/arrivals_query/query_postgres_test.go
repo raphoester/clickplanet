@@ -67,12 +67,10 @@ func (s *testSuite) TestEachUTCDayCountsItsAccountsBySourceTheOldestDayFirst() {
 	s.arrive("", labDay.Add(4*time.Hour))
 	s.arrive("r", labDay.Add(5*time.Hour))
 	s.arrive("v", labDay.Add(6*time.Hour))
-	s.arrive("cg", labDay.Add(7*time.Hour))
 
 	counted := s.counts(time.Time{}, time.Time{})
 
 	s.True(proto.Equal(&authv1.CountArrivalsResponse{Counts: []*authv1.ArrivalCount{
-		count("2026-11-20", authv1.ArrivalSource_ARRIVAL_SOURCE_CRAZYGAMES, 1),
 		count("2026-11-20", authv1.ArrivalSource_ARRIVAL_SOURCE_RECRUIT, 1),
 		count("2026-11-20", authv1.ArrivalSource_ARRIVAL_SOURCE_RECRUIT_VIDEO, 1),
 		count("2026-11-20", authv1.ArrivalSource_ARRIVAL_SOURCE_TIKTOK, 2),

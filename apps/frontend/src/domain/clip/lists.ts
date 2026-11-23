@@ -82,33 +82,34 @@ function fightTheMostOf(fights: readonly TileChange[], groundOf: (tile: number) 
     })
 }
 
-// A holding the size of a painted flag read from far counts half its distance, a speck nearly none.
+// Ranked by the distance its photos show. A holding under a painted flag read from far is a speck, not land.
 function farFromHomeOf(
     grounds: ReadonlyMap<string, readonly number[]>,
     holdings: ReadonlyMap<string, ReadonlyMap<string, readonly number[]>>,
     pointOf: (tile: number) => Point,
     scale: BoardScale,
 ): FarLand[] {
-    const half = readableFlipTiles(scale)
+    const least = readableFlipTiles(scale)
     const far = [...holdings].flatMap(([flag, held]) => {
         const home = grounds.get(flag)
         if (home === undefined) return []
         const step = Math.max(1, Math.floor(home.length / HOME_POINTS))
         const homePoints = home.filter((_, i) => i % step === 0).map(pointOf)
-        let best: {land: FarLand, score: number} | undefined
+        let best: {land: FarLand, distance: number} | undefined
         for (const [country, tiles] of held) {
+            if (country === flag || tiles.length < least) continue
             const centre = meanOf(tiles.map(pointOf))
-            if (country === flag || centre === undefined) continue
+            if (centre === undefined) continue
             const nearest = Math.max(...homePoints.map((point) => dot(point, centre)))
-            const km = Math.acos(Math.min(1, Math.max(-1, nearest))) * EARTH_KM
-            const score = km * tiles.length / (tiles.length + half)
-            if (best === undefined || score > best.score) {
-                best = {land: {flag, country, tiles: tiles.length, km: Math.round(km / KM_STEP) * KM_STEP}, score}
+            const distance = Math.acos(Math.min(1, Math.max(-1, nearest))) * EARTH_KM
+            if (best === undefined || distance > best.distance) {
+                best = {land: {flag, country, tiles: tiles.length, km: Math.round(distance / KM_STEP) * KM_STEP}, distance}
             }
         }
         return best === undefined ? [] : [best]
     })
-    return far.sort((a, b) => b.score - a.score || a.land.flag.localeCompare(b.land.flag)).slice(0, LIST_LENGTH).map(({land}) => land)
+    return far.sort((a, b) => b.distance - a.distance || a.land.flag.localeCompare(b.land.flag))
+        .slice(0, LIST_LENGTH).map(({land}) => land)
 }
 
 function biggestEmpiresOf(owners: Owners, tiles: number, holdings: ReadonlyMap<string, ReadonlyMap<string, readonly number[]>>): Empire[] {

@@ -12,7 +12,6 @@ import SoundSettingsPanel, {SoundSettingsPanelProps} from "../sound/SoundSetting
 import FeedbackModal from "../support/FeedbackModal.tsx";
 import {pageContextOf} from "../support/pageContext.ts";
 import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
-import {ON_CRAZYGAMES} from "../../platform.ts";
 import {useDisplaySettings} from "./displaySettingsStore.ts";
 import LanguagePicker from "./LanguagePicker.tsx";
 import {t} from "../../i18n/page.ts";
@@ -74,7 +73,7 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
         </div>
 
         {open === "about" && <Modal title={t("settings.aboutTitle")}
-                                    footer={ON_CRAZYGAMES ? undefined : <BuyMeACoffee/>}
+                                    footer={<BuyMeACoffee/>}
                                     onClose={close}>
             <About discord={discord}/>
         </Modal>}

@@ -9,13 +9,11 @@ import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import Bubble from "./Bubble.tsx"
 import CountryFlag from "./CountryFlag.tsx"
 import RecruitButton from "../share/RecruitButton.tsx"
-import InviteButton from "../share/InviteButton.tsx"
 import {Country} from "../../domain/countries.ts"
 import {ShareAddress} from "../../domain/shareCard.ts"
 import {breakHeadline} from "../share/shareLines.ts"
 import DiscordButton from "../alerts/DiscordButton.tsx"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
-import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {heldLine} from "../heldLine.ts"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
@@ -38,7 +36,6 @@ export type ClickBudgetMeterProps = {
     popover?: ReactNode
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
     frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country, address: ShareAddress}
-    invite?: InviteLink
     discord?: DiscordOffer
 }
 
@@ -58,7 +55,6 @@ export default function ClickBudgetMeter({
     compact = false,
     popover,
     frozen,
-    invite,
     discord,
 }: ClickBudgetMeterProps) {
     const budget = useClickBudget((store) => store.budget)
@@ -173,17 +169,11 @@ export default function ClickBudgetMeter({
                 <FrozenLines nextSeason={frozen.nextSeason}/>
             </div>
             <div className="click-budget-frozen-links">
-                {invite
-                    ? <InviteButton flag={frozen.country.code}
-                                    invite={invite}
-                                    className="button button-mini button-secondary click-budget-invite"
-                                    icon={<CountryFlag code={frozen.country.code}/>}
-                                    label={t("play.invite")}/>
-                    : <RecruitButton address={frozen.address}
-                                     text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
-                                     className="button button-mini button-secondary click-budget-invite"
-                                     icon={<CountryFlag code={frozen.country.code}/>}
-                                     label={t("play.invite")}/>}
+                <RecruitButton address={frozen.address}
+                               text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
+                               className="button button-mini button-secondary click-budget-invite"
+                               icon={<CountryFlag code={frozen.country.code}/>}
+                               label={t("play.invite")}/>
                 <DiscordButton offer={discord} className="button button-mini click-budget-discord">
                     <DiscordIcon size={20}/>
                     {!compact && <span aria-hidden="true">Discord</span>}
