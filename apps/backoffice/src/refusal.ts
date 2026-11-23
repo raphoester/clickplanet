@@ -29,8 +29,9 @@ export function localized(message: string, now: Date = new Date()): string {
         .replace(STAMP, stamp => timeOf(new Date(stamp)))
 }
 
-// What not_found, failed_precondition and unimplemented mean depend on the action refused, so each says its own.
-export type Meanings = {notFound?: string, failedPrecondition?: string, unimplemented?: string}
+// What not_found, failed_precondition, unimplemented and unavailable mean depend on the action refused, so each says its
+// own.
+export type Meanings = {notFound?: string, failedPrecondition?: string, unimplemented?: string, unavailable?: string}
 
 // A refused action in the operator's words.
 export function wordsOf(err: unknown, meanings: Meanings = {}): string {
@@ -45,6 +46,9 @@ export function wordsOf(err: unknown, meanings: Meanings = {}): string {
             break
         case Code.Unimplemented:
             if (meanings.unimplemented !== undefined) return meanings.unimplemented
+            break
+        case Code.Unavailable:
+            if (meanings.unavailable !== undefined) return meanings.unavailable
             break
         case Code.InvalidArgument:
             return `The server refused it: ${localized(error.rawMessage)}`

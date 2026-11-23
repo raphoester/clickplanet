@@ -11,8 +11,8 @@ failing alone:
   events a page: 10 pages for 24 hours), each with `LONG_CALL_MS`.
 - `GetTerritories` for the map now: the tiles each country holds.
 - `player.v1.AdminService/GetRoster` for who plays now.
-- `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
-  are counted, and 500 reads "500+".
+- `ListReports` and `ListNotes`, open only, for what waits for the operator. Up to 500 of each are counted, and 500
+  reads "500+".
 - **Where each tile is**, on the board the ledger names (`GetLedgerResponse.board`, the board the world plays), read
   once that answer is in and kept for the page load (`loadPlaces`, see [Boards on the page](boards.md)). A board the
   page does not carry is said where the heatmap would be, and the counts, the charts and the countries still show.
@@ -38,7 +38,7 @@ What the page does with them:
   its flag after is not its flag before; a player is who changed one (`by`, compared and never read), an account on
   every address, or an address with no account.
 - **The tiles**: who plays now (and how many signed in), the clicks and the players of the span, the open reports and
-  the notes of the day. The last two go to their page.
+  the open notes. The last two go to their page.
 - **Two charts of one series each** (`ActivityCharts`): the clicks a slot, and the players taking tiles a slot. Never
   one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
   labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.

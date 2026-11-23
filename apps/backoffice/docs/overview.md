@@ -6,9 +6,9 @@ Claude's and the jobs' alone (see [Claude as a connector](../../backend/docs/con
 burger menu (see [The menu](menu.md)), by group:
 
 - **Overview**: Home, how the game is doing now and over the last hours (see [The home page](home.md)).
-- **Feedback**: Ideas and bugs, the notes players send, read only, each with who sent it (see
-  [Who sent a note](note-sender.md)) and its photos and videos (see
-  [A note's photos and videos](note-media.md)).
+- **Feedback**: Ideas and bugs, the notes players send, which the operator answers by email (see
+  [Answering a note](notes.md)), each with who sent it (see [Who sent a note](note-sender.md)) and its photos and
+  videos (see [A note's photos and videos](note-media.md)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](reports.md)),
   Players, who played and every tool on one player (see [The player page](player-page.md)), and Graffiti, the
   swastikas the vandal squad flagged, drawn, with their painter's ban and revert (see [Graffiti](graffiti.md)).

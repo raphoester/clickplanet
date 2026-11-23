@@ -88,10 +88,14 @@ import {
     DecideReportResponse,
     ListReportsRequest,
     ListReportsResponse,
+    Note,
+    NoteAnswer,
+    NoteKind,
+    NoteReply,
     Report,
     ReportDecision,
 } from "../gen/grpc/support/v1/admin_pb.ts"
-import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
+import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {Graffiti, GraffitiKind} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {
@@ -110,6 +114,7 @@ export const OPERATOR = "00000000-0000-4000-8000-00000000c0de"
 const NOW = Date.now()
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
+const DAY = 24 * HOUR
 const LATENCY_MS = 250
 
 const FLAGS = ["fr", "dz", "de", "it", "es", "pt", "us", "gb", "br", "tr", "se", "ie", "pl", "ma", "nl", "ca", "ar", "mx"]
@@ -307,6 +312,44 @@ export class DemoAdmin extends FakeAdmin {
             })),
         ].sort((a, b) => Number((b.createdAt?.seconds ?? 0n) - (a.createdAt?.seconds ?? 0n)))
 
+        // Two notes waiting for a first answer, one the player replied to, one a parent replied to, one answered, one
+        // closed, and one sent before the notes kept an address.
+        const writers = this.accounts.filter(account => !account.guest && account.name !== "")
+        const addressOf = (n: number) => `${writers[n].name.toLowerCase()}@example.com`
+        const note = (n: number, part: PartialMessage<Note>) => new Note({
+            id: `note-${n}`, accountId: writers[n].id, replyAddress: addressOf(n), ...part,
+        })
+        this.notes = [
+            note(0, {
+                kind: NoteKind.BUG, text: "the globe goes black after a bomb on my phone", submittedAt: at(NOW - 40 * MINUTE),
+                userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+                context: new PageContext({
+                    build: "2026-11-22", viewportWidth: 390, viewportHeight: 844, pixelRatio: 3, webglVersion: "WebGL 2.0",
+                    maxTextureSize: 4096, cores: 6,
+                }),
+            }),
+            note(1, {kind: NoteKind.SUGGESTION, text: "let us pick a second flag for the battles", submittedAt: at(NOW - 3 * HOUR)}),
+            note(2, {
+                kind: NoteKind.BUG, text: "my clicks stop after 10 minutes", submittedAt: at(NOW - 2 * DAY),
+                answers: [new NoteAnswer({text: "Thanks! Which browser do you play on?", sentAt: at(NOW - 2 * DAY + 5 * HOUR)})],
+                replies: [new NoteReply({text: "chrome on windows", from: addressOf(2), receivedAt: at(NOW - 6 * HOUR)})],
+            }),
+            note(3, {
+                kind: NoteKind.SUGGESTION, text: "a map of the old seasons", submittedAt: at(NOW - 3 * DAY),
+                answers: [new NoteAnswer({text: "Good idea, it is on the list.", sentAt: at(NOW - 3 * DAY + 2 * HOUR)})],
+                replies: [new NoteReply({
+                    text: "This is his mother. He plays too much, please tell him to sleep.", from: "parent@example.org",
+                    receivedAt: at(NOW - 26 * HOUR),
+                })],
+            }),
+            note(4, {
+                kind: NoteKind.SUGGESTION, text: "dark mode please", submittedAt: at(NOW - 4 * DAY),
+                answers: [new NoteAnswer({text: "It follows your phone's setting now.", sentAt: at(NOW - 4 * DAY + 9 * HOUR)})],
+            }),
+            note(5, {kind: NoteKind.BUG, text: "asdfgh", submittedAt: at(NOW - 5 * DAY), closedAt: at(NOW - 5 * DAY + 2 * HOUR)}),
+            note(6, {kind: NoteKind.SUGGESTION, text: "more countries in Africa", submittedAt: at(NOW - 40 * DAY), replyAddress: ""}),
+        ]
+
         // The sets the schedule names, in each module: calm plays now. Each holds what it changes from default.
         const [planetDefault] = this.rules.sets
         const [antibotDefault] = this.antibotRules.sets
@@ -372,6 +415,10 @@ export class DemoAdmin extends FakeAdmin {
 
     override answer<T>(method: string, request: unknown, value: T): Promise<T> {
         return new Promise(resolve => setTimeout(resolve, LATENCY_MS)).then(() => super.answer(method, request, value))
+    }
+
+    protected override now(): Date {
+        return new Date()
     }
 
     private refuseLater<T>(method: string, request: unknown, why: string, code: Code): Promise<T> {

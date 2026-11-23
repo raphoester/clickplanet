@@ -72,7 +72,8 @@ describe("the home page", () => {
         expect(within(tile("Players")).getByText("2")).toBeTruthy()
         expect(within(tile("Playing now")).getByText("1 signed in")).toBeTruthy()
         expect(within(tile("Open reports")).getByText("1")).toBeTruthy()
-        expect(within(tile("Notes today")).getByText("2")).toBeTruthy()
+        expect(within(tile("Open notes")).getByText("1")).toBeTruthy()
+        expect(admin.askedFor("listNotes")).toEqual([{openOnly: true, limit: 500}])
     })
 
     it("asks the ledger for whole slots back from now to now, and again for the span picked", async () => {
@@ -175,7 +176,7 @@ describe("the home page", () => {
         await screen.findByText(/^Last 24 hours:/)
 
         fireEvent.click(screen.getByRole("button", {name: /Open reports/}))
-        fireEvent.click(screen.getByRole("button", {name: /Notes today/}))
+        fireEvent.click(screen.getByRole("button", {name: /Open notes/}))
 
         expect(onGo.mock.calls).toEqual([["reports"], ["notes"]])
     })
