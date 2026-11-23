@@ -11,6 +11,7 @@ import (
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
@@ -118,4 +119,18 @@ func TestAnInvalidTextIsTheCallersFault(t *testing.T) {
 		&supportv1.ReportBugRequest{Text: " "}, "")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestTheAddressThePlayerGaveIsHandedOnAndOneMailCannotGoToIsRefused(t *testing.T) {
+	useCase := &stubUseCase{}
+	address := "Ada@Example.com"
+
+	require.NoError(t, report(asAda(t), useCase, &supportv1.ReportBugRequest{Text: "the globe is black", ReplyAddress: &address}, ""))
+	require.Len(t, useCase.asked, 1)
+	assert.Equal(t, cpmail.Address("ada@example.com"), useCase.asked[0].ReplyAddress)
+
+	bad := "ada@localhost"
+	err := report(asAda(t), useCase, &supportv1.ReportBugRequest{Text: "the globe is black", ReplyAddress: &bad}, "")
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Len(t, useCase.asked, 1)
 }

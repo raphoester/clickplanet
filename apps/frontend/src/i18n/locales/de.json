@@ -843,6 +843,7 @@
   "report.reason.badName": "Beleidigender Name",
   "report.reason.other": "Etwas anderes",
   "support.sent": "Gesendet. Danke!",
+  "support.email": "Deine E-Mail, damit wir antworten können",
   "support.uploadingCount": "Lade {place} von {count} hoch…",
   "support.notUploaded": "{file} konnte nicht hochgeladen werden. Versuch es nochmal.",
   "support.attachedFiles": "Angehängte Dateien",
@@ -860,5 +861,7 @@
   "support.failure.rejected": "Das wurde abgelehnt.",
   "support.failure.noSession": "Sitzung konnte nicht gestartet werden. Versuch es gleich nochmal.",
   "support.failure.reportedAlready": "Du hast diesen Spieler heute schon gemeldet.",
+  "support.failure.noReplyAddress": "Gib deine E-Mail ein.",
+  "support.failure.invalidReplyAddress": "Das ist keine E-Mail-Adresse.",
   "support.failure.failed": "Das konnte nicht gesendet werden. Versuch es nochmal."
 }

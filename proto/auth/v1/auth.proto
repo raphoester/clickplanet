@@ -70,6 +70,9 @@ message GetMeResponse {
   AccountKind kind = 2;
 
   repeated Provider providers = 3;
+
+  // The account holds a verified email address, where the operator answers its notes.
+  bool has_email = 4;
 }
 
 enum Provider {

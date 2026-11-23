@@ -8,6 +8,7 @@ import {t} from "../../i18n/page.ts"
 export type FeedbackModalProps = {
     support: FeedbackBackend
     pageContext: () => PageContext
+    hasEmail: boolean
     onClose: () => void
 }
 
@@ -27,16 +28,16 @@ const WRITING: Record<Kind, Writing> = {
 
 const UNPICKED: Writing = {label: "feedback.messageLabel"}
 
-export default function FeedbackModal({support, pageContext, onClose}: FeedbackModalProps) {
+export default function FeedbackModal({support, pageContext, hasEmail, onClose}: FeedbackModalProps) {
     const [kind, setKind] = useState<Kind>()
     const writing = kind ? WRITING[kind] : UNPICKED
 
-    const send = async (text: string, attachmentIds: string[]) => {
+    const send = async (text: string, attachmentIds: string[], replyAddress?: string) => {
         switch (kind) {
             case "idea":
-                return support.suggestFeature(text, pageContext(), attachmentIds)
+                return support.suggestFeature(text, pageContext(), attachmentIds, replyAddress)
             case "bug":
-                return support.reportBug(text, pageContext(), attachmentIds)
+                return support.reportBug(text, pageContext(), attachmentIds, replyAddress)
             case undefined:
                 return
         }
@@ -48,6 +49,7 @@ export default function FeedbackModal({support, pageContext, onClose}: FeedbackM
                       asked={<Choices label={t("feedback.kind")} options={KINDS.map(({value, label}) => ({value, label: t(label)}))} picked={kind} onPick={setKind}/>}
                       ready={kind !== undefined}
                       files={support}
+                      asksAddress={!hasEmail}
                       onSend={send}
                       onClose={onClose}/>
 }

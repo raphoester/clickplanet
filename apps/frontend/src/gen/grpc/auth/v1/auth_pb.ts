@@ -441,6 +441,13 @@ export class GetMeResponse extends Message<GetMeResponse> {
    */
   providers: Provider[] = [];
 
+  /**
+   * The account holds a verified email address, where the operator answers its notes.
+   *
+   * @generated from field: bool has_email = 4;
+   */
+  hasEmail = false;
+
   constructor(data?: PartialMessage<GetMeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -452,6 +459,7 @@ export class GetMeResponse extends Message<GetMeResponse> {
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(AccountKind) },
     { no: 3, name: "providers", kind: "enum", T: proto3.getEnumType(Provider), repeated: true },
+    { no: 4, name: "has_email", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMeResponse {

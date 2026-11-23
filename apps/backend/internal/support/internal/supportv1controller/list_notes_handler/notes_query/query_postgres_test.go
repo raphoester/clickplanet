@@ -70,13 +70,13 @@ func (s *testSuite) suggested(n byte, account notes.AccountID, text string, at t
 }
 
 func (s *testSuite) suggestedFrom(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
-	note, err := notes.NewSuggestion(notes.NoteID{15: n}, account, text, said, at)
+	note, err := notes.NewSuggestion(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said}, at)
 	s.Require().NoError(err)
 	return s.kept(note, supportv1.NoteKind_NOTE_KIND_SUGGESTION)
 }
 
 func (s *testSuite) reported(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
-	note, err := notes.NewBugReport(notes.NoteID{15: n}, account, text, said, at)
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text, Diagnostics: said}, at)
 	s.Require().NoError(err)
 	return s.kept(note, supportv1.NoteKind_NOTE_KIND_BUG)
 }
@@ -154,7 +154,7 @@ var files = []notes.Attachment{
 }
 
 func (s *testSuite) carrying(n byte, account notes.AccountID, text string, at time.Time) notes.Note {
-	note, err := notes.NewBugReport(notes.NoteID{15: n}, account, text, notes.Diagnostics{}, at)
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, notes.Sent{Account: account, Text: text}, at)
 	s.Require().NoError(err)
 	note, err = note.Attaching(files, notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 50_000_000})
 	s.Require().NoError(err)
@@ -238,7 +238,7 @@ func (s *testSuite) TestEveryKindTheStoreKeepsIsRead() {
 
 func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsTextItsDiagnosticsAndNoAccount() {
 	sent := s.reported(1, ada, "the globe is black", phone, start)
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", phone, start)
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.Sent{Account: ada, Text: "the globe is black", Diagnostics: phone}, start)
 	s.Require().NoError(err)
 	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
 

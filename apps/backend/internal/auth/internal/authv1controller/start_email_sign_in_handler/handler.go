@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 )
 
 var ErrRefused = errors.New("could not send a code")
@@ -46,8 +47,8 @@ func (h StartEmailSignInHandler) StartEmailSignIn(
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):
 		return nil, connect.NewError(connect.CodeUnimplemented, signin.ErrSignInOff)
-	case errors.Is(err, signin.ErrAddressInvalid):
-		return nil, emailRefusal(signin.ErrAddressInvalid, authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID)
+	case errors.Is(err, cpmail.ErrAddressInvalid):
+		return nil, emailRefusal(cpmail.ErrAddressInvalid, authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID)
 	case errors.Is(err, signin.ErrAddressDisposable):
 		return nil, emailRefusal(signin.ErrAddressDisposable, authv1.EmailRefusalReason_EMAIL_REFUSAL_REASON_DISPOSABLE)
 	case errors.Is(err, attestation.ErrAttestationFailed):
