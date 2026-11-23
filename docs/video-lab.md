@@ -175,8 +175,8 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
     MOSTLY AGAINST TURKEY"); and the whole globe last, with `clickplanet.lol`. No address before the last photo.
   - **Three lists, and the editor picks one a post** to the brief, from what the generator counts into the findings:
     **fight the most in 3 days** (for each flag, the tiles it took from other flags plus the tiles they took from it
-    in the replay), **farthest from home** (each flag's land outside its country, the farthest from it, weighed by its
-    size) and **biggest empires** (each flag's share of the land now). The post keeps its list in its metadata
+    in the replay), **farthest from home** (each flag's land outside its country, the farthest from it, from the size
+    of a painted flag read from far) and **biggest empires** (each flag's share of the land now). The post keeps its list in its metadata
     (`carouselList`), so the lists can be compared later. A list whose 5 are the 5 of its last post is not told
     again, and the control's next story takes the pick.
   - **Its words**: the cover's hook is TikTok's title over the photos (90 characters, no hashtag); the caption opens
@@ -192,10 +192,12 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
     frontend's [Clips](../apps/frontend/docs/clips.md), "A carousel".
   - **The measures the build chose** (2026-11-20, as the design left them open):
     - **Far from home** is each flag's land on another country's ground, from its middle to the nearest ground of the
-      flag's own country, along the globe, to the nearest 100 km, weighed by its size: times `tiles / (tiles + 100)`,
-      100 tiles of `earth-1` being a painted flag read from far (`readableFlipTiles`). A holding that size counts half
-      its distance, one ten times bigger 91% of it, a speck nearly none. Each flag is ranked by its best holding; a
-      flag with no ground of its own has no home and is not ranked.
+      flag's own country, along the globe, to the nearest 100 km. A holding counts from 100 tiles of `earth-1`, a
+      painted flag read from far (`readableFlipTiles`); a speck under it is no land. Each flag is ranked by its
+      farthest holding, by the distance the photo shows; a flag with no ground of its own has no home and is not
+      ranked. Until 2026-11-23 the distance was weighed by the size, `tiles / (tiles + 100)`, and the photos showed
+      the distance alone, so a post went out 12,300 · 13,200 · 10,000 · 15,600 · 9,700 KM: a list is ranked by the
+      number its photos show.
     - **In 3 days** needs a replay of 3 days: the workflow fetches 72 hours since PR 3 (it fetched 12), as much as the
       ledger keeps. The clips' stories are still searched in its last 12 hours (`newsSince`).
     - **Each rank's numbers are the generator's**, from the list (the tiles taken and the tiles lost, a line each;
