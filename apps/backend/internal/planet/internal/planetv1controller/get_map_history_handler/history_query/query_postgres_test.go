@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/world_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
@@ -76,7 +77,7 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "jp", At: until},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(s.T().Context(), since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(s.T().Context(), since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -107,7 +108,7 @@ func (s *testSuite) TestARevertedPlayersTakesAreInNoFrameAndNoHit() {
 		Marks:   inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{{Account: eve}: 5}},
 	}))
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(s.T().Context(), since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(s.T().Context(), since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -131,7 +132,7 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 	_, err = s.db.On(ctx).ExecContext(ctx, `INSERT INTO map_resets (id, at) VALUES ('season-1', $1)`, since.Add(-time.Hour))
 	s.Require().NoError(err)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -159,7 +160,7 @@ func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 		},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -188,7 +189,7 @@ func (s *testSuite) TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut() {
 		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 6, Scope: "203.0.113.7", Country: "jp", At: since.Add(70 * time.Minute)}},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -218,7 +219,7 @@ func (s *testSuite) TestAWindowInsideTheSecondEraOpensOnItsBoardAlone() {
 		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 5, Scope: "203.0.113.7", Country: "de", At: since.Add(-time.Minute)}},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapFrame{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{5: "de"})},
@@ -236,7 +237,7 @@ func (s *testSuite) TestAHistoryAcrossASwitchWithNoCarryOverIsRefused() {
 	s.Require().NoError(eras.KeepFixture(ctx, s.db))
 	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, clicks.World.On(eras.Fixture.ID), since.Add(30*time.Minute)))
 
-	_, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+	_, err := history_query.NewPostgresQuery(world_replay.NewPostgresReplay(s.db, postgres_era_store.New(s.db), s.carries)).History(ctx, since, until, time.Hour)
 
 	s.Require().ErrorIs(err, errNoCarry, "never a blank board drawn where the switch carried the map over")
 }

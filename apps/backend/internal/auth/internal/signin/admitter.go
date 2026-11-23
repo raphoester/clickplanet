@@ -188,7 +188,7 @@ func (a *Admitter) admit(
 		signIn = signIn.WithRestored()
 	}
 
-	signedIn := &authv1.SignedIn{AccountId: account.String(), IdentityName: claim.Name()}
+	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}

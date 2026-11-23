@@ -311,7 +311,7 @@ readers told an arena's events apart by time, after its open and before the seco
     videos read it (see [The map's last 24 hours](recent-map-history.md)).
   - `GetLedger` (`changes_query`, in SQL, `map = $5 AND board = $6`, so a page still holds 20,000 events): the clips'
     cast names nobody for a take in an arena, and the backoffice Home counts no battle's change as won or lost.
-  - `RevertPlayer` (`ledger.Runs`): an arena take neither breaks nor makes a run, so a revert after a battle never
+  - `RevertPlayer` (`ledger.Undoing`): an arena take is none of the world's map, so a revert after a battle never
     blanks a world tile its flag happens to wear. **Refused while an arena plays** (`ErrArenaPlays`,
     `FailedPrecondition`): `Forget` hides by position, and would hide the world's takes the revert did not undo.
 - **Map-that-plays readers keep the events of the map on screen** (`Storage.Stage`): `GetTileHolder` (`holder_query`)

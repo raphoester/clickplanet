@@ -17,7 +17,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   plain fields where it can (the budget's sign-in multiplier, freeze and fast start, not the reading), so a store
   that changes often does not render the whole screen.
 - **The country played is a store too** (`useCountry`, `countryStore.ts`), read by the status bar, the news line,
-  the moments, the clicks panel, the invite sheet and the territory card. It reads the stored country when it is
+  the moments, the clicks panel and the territory card. It reads the stored country when it is
   made, but `useKeepCountry`, which `PlayScreen` calls, writes it, from the page's first render: the home page and
   the front guide tell a first visit by its absence, so it is not written on import. `main.tsx` chooses the shared
   flag before the first render. The board and the chat still take it as a prop.

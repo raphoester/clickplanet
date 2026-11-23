@@ -18,9 +18,8 @@ drawn over anything. Before 2026-11-12 the coffee was a popup of its own (`Donat
   The asks never hold it back.
 - **Then one ask** (`askDue` in `domain/nudges.ts`), when none of the asks and no teaser was closed in the last 12 hours
   (`ASK_SPACING_MS`). The asks take turns: the one closed longest ago, and the first time coffee, TikTok, YouTube.
-- **No ask on a guided page** (a first visit, until its 50 takes, see [The front](front-guide.md)), **during a
-  battle**, or **on CrazyGames** (it forbids payments outside its own; see [CrazyGames](crazygames.md)). The teaser
-  keeps its own rule there: a guided page sees it after 30 clicks.
+- **No ask on a guided page** (a first visit, until its 50 takes, see [The front](front-guide.md)), or **during a
+  battle**. The teaser keeps its own rule there: a guided page sees it after 30 clicks.
 
 ## The asks
 

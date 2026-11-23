@@ -15,7 +15,7 @@ the language.
 - Sound like a game in that language, not like a translation. Say it the way a native teenager would read it on a
   game's button or banner. Keep the energy of the English: an order stays an order, a joke stays light.
 - Use the glossary's word for the target language for each game term, every time, in its right grammatical form.
-- Brand and product names stay as they are: ClickPlanet, Discord, Google, TikTok, YouTube, CrazyGames, Buy Me a
+- Brand and product names stay as they are: ClickPlanet, Discord, Google, TikTok, YouTube, Buy Me a
   Coffee, KLIPY, GIF.
 - Keep the length close to the English: buttons and labels are small on a phone. Prefer the shorter of two good
   words.

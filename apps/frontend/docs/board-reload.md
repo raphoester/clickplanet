@@ -11,7 +11,7 @@ that carries it.
 
 - **`BoardChanges.choose`** (`backends/boards.ts`) reads the board from `PlanetBackend.readBoard`: a `GetMap` of the
   first tile alone, which every board has, so the read is never off the map for the antibot's `scraper`. `main.tsx`
-  starts it at once, beside the language and CrazyGames, and hands the page `Backends.board`, a promise `useGlobe` gives
+  starts it at once, beside the language, and hands the page `Backends.board`, a promise `useGlobe` gives
   `createGlobe`. The globe loads that board's runs, borders, border lines and terrain, and the page that board's
   landmass names (`landmassNamesOf`, [Translation](i18n.md)).
 - **An answer that names no board** is from a server before boards were named: `earth-1`.

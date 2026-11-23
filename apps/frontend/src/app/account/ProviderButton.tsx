@@ -1,7 +1,7 @@
 import {CSSProperties, ReactNode} from "react"
-import {ButtonProvider} from "../../backends/account.ts"
+import {OAuthProvider} from "../../backends/account.ts"
 
-const BRANDS: Record<ButtonProvider, CSSProperties> = {
+const BRANDS: Record<OAuthProvider, CSSProperties> = {
     google: {
         "--provider-background": "#131314",
         "--provider-hover": "#1F1F20",
@@ -14,22 +14,15 @@ const BRANDS: Record<ButtonProvider, CSSProperties> = {
         "--provider-border": "var(--discord)",
         "--provider-text": "var(--text)",
     } as CSSProperties,
-    crazygames: {
-        "--provider-background": "#6842FF",
-        "--provider-hover": "color-mix(in srgb, #6842FF 80%, var(--ink))",
-        "--provider-border": "#6842FF",
-        "--provider-text": "#FFFFFF",
-    } as CSSProperties,
 }
 
-const LOGOS: Record<ButtonProvider, ReactNode> = {
+const LOGOS: Record<OAuthProvider, ReactNode> = {
     google: <GoogleLogo/>,
     discord: <DiscordLogo/>,
-    crazygames: null,
 }
 
 export type ProviderButtonProps = {
-    provider: ButtonProvider
+    provider: OAuthProvider
     label: string
     disabled: boolean
     onClick: () => void

@@ -4,9 +4,7 @@
     <meta charset="UTF-8"/>
     <script>
         try {
-            var address = location.hostname === "crazygames.clickplanet.lol"
-                ? null
-                : /^\/([^/]+)(?:\/([^/]+))?\/?$/.exec(location.pathname)
+            var address = /^\/([^/]+)(?:\/([^/]+))?\/?$/.exec(location.pathname)
             var first = address && address[1].toLowerCase()
             var query = new URLSearchParams(location.search)
             var opened = false
@@ -33,8 +31,7 @@
                     // No storage: the game takes this page for the one before.
                 }
                 location.replace("/play?" + query + location.hash)
-            } else if (location.hostname === "crazygames.clickplanet.lol"
-                || (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null)) {
+            } else if (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null) {
                 location.replace("/play" + location.search + location.hash)
             }
         } catch (e) {

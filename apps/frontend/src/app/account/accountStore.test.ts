@@ -5,8 +5,6 @@ import {Fronts, ProgressionBackend, TitleDashboard} from "../../backends/progres
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 import {useBadges} from "../badges/badgesStore.ts"
-import {CrazyGamesUser} from "../../backends/crazyGames.ts"
-import {Leaver, LeaverStore} from "../../domain/crazyGames.ts"
 
 type Fake = {[K in keyof AccountBackend]: ReturnType<typeof vi.fn>}
 
@@ -18,7 +16,6 @@ function fakeBackend(offered: Provider[] = ["google", "discord"], me: Me = {link
         completeSignIn: vi.fn(async () => "signedIn" as const),
         startEmailSignIn: vi.fn(async () => undefined),
         completeEmailSignIn: vi.fn(async () => "signedIn" as const),
-        completeCrazyGamesSignIn: vi.fn(async () => "linked" as const),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -56,8 +53,6 @@ const refusingName = (failure: PlayerFailure) => async () => {
 function setup(
     backend: Fake,
     player: FakePlayer = fakePlayer(),
-    crazyGames?: CrazyGamesUser,
-    leavers?: LeaverStore,
     progression: FakeProgression = fakeProgression(),
 ) {
     const session: SessionProvider = {token: vi.fn(async () => "token"), held: vi.fn(() => "token"), identity: vi.fn(async () => "token"), heldIdentity: vi.fn(() => "token"), invalidate: vi.fn()}
@@ -66,7 +61,7 @@ function setup(
     const claimFlag = vi.fn(async () => undefined)
     const store = new AccountStore(
         backend as unknown as AccountBackend, player as unknown as PlayerBackend, progression as unknown as ProgressionBackend, session,
-        {navigate, remember, claimFlag, crazyGames, leavers})
+        {navigate, remember, claimFlag})
     return {store, session, navigate, remember, claimFlag, player, progression}
 }
 
@@ -976,178 +971,6 @@ describe("AccountStore", () => {
             await store.sendCode("player@example.com", "signIn")
 
             expect(store.state()).toMatchObject({offered: ["google"], failure: "notOffered"})
-        })
-    })
-
-    describe("on CrazyGames", () => {
-        function crazyGamesUser(token: string | undefined, prompted = true) {
-            return {
-                token: vi.fn(async () => token),
-                prompt: vi.fn(async () => prompted),
-                listenForSignIn: vi.fn(() => () => undefined),
-            }
-        }
-
-        it("offers its account alone, and the site never offers it", async () => {
-            const everything: Provider[] = ["google", "discord", "email", "crazygames"]
-            const onCrazyGames = setup(fakeBackend(everything), fakePlayer(), crazyGamesUser(undefined)).store
-            const onTheSite = setup(fakeBackend(everything)).store
-
-            await Promise.all([onCrazyGames.load(), onTheSite.load()])
-
-            expect(onCrazyGames.state()).toMatchObject({kind: "ready", offered: ["crazygames"]})
-            expect(onTheSite.state()).toMatchObject({kind: "ready", offered: ["google", "discord", "email"]})
-        })
-
-        it("signs in a player CrazyGames says is signed in, and a guest's first sign-in earns the refill", async () => {
-            const backend = fakeBackend(["crazygames"])
-            backend.me.mockResolvedValueOnce({linked: []}).mockResolvedValue({linked: ["crazygames"]})
-            const {store, session} = setup(backend, fakePlayer(), crazyGamesUser("the-jwt"))
-
-            await store.followCrazyGames()
-
-            expect(backend.completeCrazyGamesSignIn).toHaveBeenCalledWith("the-jwt")
-            expect(session.invalidate).toHaveBeenCalled()
-            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["crazygames"]}, guestLinked: true})
-        })
-
-        it("leaves a CrazyGames guest a guest", async () => {
-            const backend = fakeBackend(["crazygames"])
-            const {store} = setup(backend, fakePlayer(), crazyGamesUser(undefined))
-
-            await store.followCrazyGames()
-
-            expect(backend.completeCrazyGamesSignIn).not.toHaveBeenCalled()
-            expect(backend.signOut).not.toHaveBeenCalled()
-            expect(store.state()).toMatchObject({kind: "ready", me: {linked: []}})
-        })
-
-        it("signs out an account CrazyGames no longer signs in: another player on the device, or a sign-out there", async () => {
-            const backend = fakeBackend(["crazygames"], {linked: ["crazygames"]})
-            const {store, session} = setup(backend, fakePlayer(), crazyGamesUser(undefined))
-
-            await store.followCrazyGames()
-
-            expect(backend.signOut).toHaveBeenCalled()
-            expect(session.invalidate).toHaveBeenCalled()
-            expect(store.state()).toMatchObject({kind: "ready", me: {linked: []}})
-        })
-
-        it("shares one sign-in between a start and a sign-in told at once", async () => {
-            const backend = fakeBackend(["crazygames"])
-            const {store} = setup(backend, fakePlayer(), crazyGamesUser("the-jwt"))
-
-            await Promise.all([store.followCrazyGames(), store.followCrazyGames()])
-
-            expect(backend.completeCrazyGamesSignIn).toHaveBeenCalledTimes(1)
-        })
-
-        it("opens CrazyGames' own sign-in from the button, then signs in", async () => {
-            const backend = fakeBackend(["crazygames"])
-            const user = crazyGamesUser(undefined)
-            const {store} = setup(backend, fakePlayer(), user)
-            await store.load()
-            user.token.mockResolvedValue("the-jwt")
-
-            await store.signIn("crazygames")
-
-            expect(user.prompt).toHaveBeenCalled()
-            expect(backend.completeCrazyGamesSignIn).toHaveBeenCalledWith("the-jwt")
-        })
-
-        it("does nothing when the player closes CrazyGames' sign-in", async () => {
-            const backend = fakeBackend(["crazygames"])
-            const {store} = setup(backend, fakePlayer(), crazyGamesUser(undefined, false))
-            await store.load()
-
-            await store.signIn("crazygames")
-
-            expect(backend.completeCrazyGamesSignIn).not.toHaveBeenCalled()
-            expect(store.state()).toEqual({kind: "ready", offered: ["crazygames"], me: {linked: []}})
-        })
-
-        describe("an account its player asked to delete on this device", () => {
-            const token = (userId: string) => `header.${btoa(JSON.stringify({userId}))}.signature`
-
-            function leavers(kept?: Leaver): LeaverStore & {kept?: Leaver} {
-                const store: LeaverStore & {kept?: Leaver} = {
-                    kept,
-                    read: () => store.kept,
-                    write: (leaver) => {
-                        store.kept = leaver
-                    },
-                }
-                return store
-            }
-
-            it("remembers who asked, from CrazyGames' token", async () => {
-                const backend = fakeBackend(["crazygames"], {linked: ["crazygames"]})
-                const kept = leavers()
-                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
-                await store.load()
-
-                await store.deleteAccount()
-
-                expect(kept.kept).toMatchObject({user: "cg-42"})
-                expect(Math.abs((kept.kept?.at ?? 0) - Date.now())).toBeLessThan(1000)
-            })
-
-            it("remembers nobody when the server refused the deletion", async () => {
-                const backend = fakeBackend(["crazygames"], {linked: ["crazygames"]})
-                backend.deleteAccount.mockImplementation(refusing("failed"))
-                const kept = leavers()
-                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
-                await store.load()
-
-                await store.deleteAccount()
-
-                expect(kept.kept).toBeUndefined()
-            })
-
-            it("is left a guest by the sign-in at every start, so it does not come back at once", async () => {
-                const backend = fakeBackend(["crazygames"])
-                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), leavers({user: "cg-42", at: Date.now()}))
-
-                await store.followCrazyGames()
-
-                expect(backend.completeCrazyGamesSignIn).not.toHaveBeenCalled()
-                expect(store.state()).toMatchObject({kind: "ready", me: {linked: []}})
-            })
-
-            it("leaves another player of the device signed in as usual", async () => {
-                const backend = fakeBackend(["crazygames"])
-                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-7")), leavers({user: "cg-42", at: Date.now()}))
-
-                await store.followCrazyGames()
-
-                expect(backend.completeCrazyGamesSignIn).toHaveBeenCalled()
-            })
-
-            it("comes back when the player signs in from the button", async () => {
-                const backend = fakeBackend(["crazygames"])
-                backend.completeCrazyGamesSignIn.mockResolvedValue("restored")
-                backend.me.mockResolvedValueOnce({linked: []}).mockResolvedValue({linked: ["crazygames"]})
-                const kept = leavers({user: "cg-42", at: Date.now()})
-                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
-                await store.load()
-
-                await store.signIn("crazygames")
-
-                expect(backend.completeCrazyGamesSignIn).toHaveBeenCalled()
-                expect(kept.kept).toBeUndefined()
-                expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["crazygames"]}, restored: true})
-            })
-        })
-
-        it("says so when the server refuses the token", async () => {
-            const backend = fakeBackend(["crazygames"])
-            backend.completeCrazyGamesSignIn.mockImplementation(refusing("refused"))
-            const {store, session} = setup(backend, fakePlayer(), crazyGamesUser("expired"))
-
-            await store.followCrazyGames()
-
-            expect(store.state()).toMatchObject({kind: "ready", failure: "refused", me: {linked: []}})
-            expect(session.invalidate).not.toHaveBeenCalled()
         })
     })
 })

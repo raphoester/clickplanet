@@ -51,13 +51,6 @@ export enum ArrivalSource {
    * @generated from enum value: ARRIVAL_SOURCE_RECRUIT_VIDEO = 5;
    */
   RECRUIT_VIDEO = 5,
-
-  /**
-   * The game framed on CrazyGames.
-   *
-   * @generated from enum value: ARRIVAL_SOURCE_CRAZYGAMES = 6;
-   */
-  CRAZYGAMES = 6,
 }
 // Retrieve enum metadata with: proto3.getEnumType(ArrivalSource)
 proto3.util.setEnumType(ArrivalSource, "auth.v1.ArrivalSource", [
@@ -67,7 +60,6 @@ proto3.util.setEnumType(ArrivalSource, "auth.v1.ArrivalSource", [
   { no: 3, name: "ARRIVAL_SOURCE_TIKTOK" },
   { no: 4, name: "ARRIVAL_SOURCE_RECRUIT" },
   { no: 5, name: "ARRIVAL_SOURCE_RECRUIT_VIDEO" },
-  { no: 6, name: "ARRIVAL_SOURCE_CRAZYGAMES" },
 ]);
 
 /**

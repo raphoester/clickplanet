@@ -81,9 +81,6 @@ to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`
 backend**, counted in code points as the server counts runes. It is the
 composer's bound, not a defence — the server sanitizes and rejects on its own.
 
-**On the CrazyGames page the words of CrazyGames' list are masked** in the text, the quotes and every name, as they
-are drawn: see [The word filter](crazygames.md#the-word-filter).
-
 **Message text is rendered as text, never as HTML.** The backend stores it raw
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
@@ -287,8 +284,7 @@ and leaves what was typed in the box. Escape or the cross closes it.
 - **The search field says "Search KLIPY"**: KLIPY's attribution asks for that placeholder.
 - **A guest is asked to sign in** ("Sign in to send GIFs", `onSignIn`, as for the flag's room), and nothing is
   searched.
-- **Off on the CrazyGames page** (`gifsOf` in `main.tsx`): its word list cannot read the words in a GIF. Off too
-  with no `VITE_KLIPY_KEY` at build: no button.
+- **Off with no `VITE_KLIPY_KEY` at build**: no button.
 - **In the log a GIF is an image** in the balloon's outline and corners, at its size fitted in 200×200
   (`fitted`, `domain/gifs.ts`), so its line holds its place before it loads. Where only words fit (a quote, the
   peek, the toast, a report) it reads "GIF" (`wordsOf`, `app/chat/wordsOf.ts`). A removed GIF is a removed message:

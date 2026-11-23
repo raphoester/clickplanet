@@ -2,7 +2,7 @@
 
 ```bash
 npm run dev        # Start Vite dev server (binds to 0.0.0.0:5173)
-npm run build      # CrazyGames' word list, TypeScript check, Vite bundle → /dist
+npm run build      # TypeScript check, Vite bundle → /dist
 npm test           # Run the vitest suite once
 npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
@@ -31,7 +31,6 @@ npm run regions    # Rewrite each country's continent (Asia's part of it) from N
 npm run landmassNames -- earth-1 # Name a board's landmasses but each country's main one, every board with none named (see fortify.md)
 npm run provinces -- earth-2 # Cut a board's provinces from Natural Earth's admin-1 units and name them, every board with a floor with none named (see ../../docs/provinces.md)
 npm run map:provinces -- earth-2 100,200,400 # PNGs of a board's provinces at each floor: the world, Europe, the USA (node_modules/.cache/provinces, or --out)
-npm run crazygames:words # Fetch CrazyGames' word list into public/crazygames/words.txt (see crazygames.md)
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -54,11 +53,6 @@ look at it or measure it (docs/boards.md). A build that keeps the fake, for timi
 `NODE_ENV=development VITE_FAKE_BACKEND=1 npx vite build --mode development`, still bundled and minified, `DEV` kept.
 
 `VITE_KLIPY_KEY` turns the chat's GIFs on (see [Live chat](chat.md#gifs)); fake mode needs none, it draws its own.
-
-`VITE_CRAZYGAMES=1` makes the page the CrazyGames page on any host, with the
-SDK's local mode on `localhost` (see [CrazyGames](crazygames.md)). The deployed
-build never sets it: `crazygames.clickplanet.lol` is the same build. `npm run dev` does not fetch the word list:
-run `npm run crazygames:words` once, or every word on that page is masked.
 
 Every tile starts French in the fake, and it keeps shields on its tiles as the
 server does: in its map batches, its tile updates and its bombs' struck tiles.

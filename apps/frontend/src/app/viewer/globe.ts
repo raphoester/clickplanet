@@ -37,6 +37,7 @@ import {regions} from "./atlas.ts";
 import {FlagSlots} from "./flagSlots.ts";
 import {slotBudgetOf} from "./slotCells.ts";
 import {LandmassSight, type ScreenView, tileAreaOf} from "./slotNeed.ts";
+import {joinedNeeds} from "./slotRanking.ts";
 import {Settling, type Viewpoint} from "./settling.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
@@ -568,7 +569,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const arrangeSlots = () => {
         if (flagPaint(camera.zoom, renderer.getSize(viewSize).y, mapView, scale) <= 0) return
         const {view, areas} = settled ?? settle()
-        slots.arrange(framesOf(divisions).flagNeeds(view, areas), slotBudgetOf(renderer.domElement.width, renderer.domElement.height))
+        const grounds = framesOf(divisions)
+        const leaders = grounds.flagNeeds(view, areas)
+        // In Split, every other flag is painted too, over its own footprint.
+        const needs = mapView === "split"
+            ? joinedNeeds(leaders, field.footprints.flagNeeds(divisions, view, areas, grounds, uniforms.leastFlagRadius.value))
+            : leaders
+        slots.arrange(needs, slotBudgetOf(renderer.domElement.width, renderer.domElement.height))
     }
 
     const sphere = innerSphere()

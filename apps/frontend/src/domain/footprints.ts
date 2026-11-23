@@ -65,6 +65,15 @@ export class Footprints {
         return this.sums[id * SUMS]
     }
 
+    // Each footprint with a tile, once: its id, its ground and its flag number.
+    forEachFootprint(visit: (id: number, ground: number, flag: number) => void) {
+        for (let id = 1; id < this.next; id++) {
+            if (this.sums[id * SUMS] <= 0) continue
+            const key = this.keyOfId[id]
+            visit(id, Math.floor(key / this.flags), key % this.flags)
+        }
+    }
+
     takeChanged(): number[] {
         const ids = this.changed
         this.changed = []

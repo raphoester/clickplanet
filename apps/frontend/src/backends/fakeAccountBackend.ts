@@ -41,7 +41,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
     private leaving?: {linked: Provider[], name: string, color: NameColor}
 
     public offerSignIn(): void {
-        this.offered = ["google", "discord", "email", "crazygames"]
+        this.offered = ["google", "discord", "email"]
     }
 
     public async signInOptions(): Promise<Provider[]> {
@@ -72,14 +72,6 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
 
     public async completeEmailSignIn(): Promise<SignInOutcome> {
         throw new AuthError("off")
-    }
-
-    public async completeCrazyGamesSignIn(): Promise<SignInOutcome> {
-        if (this.restore()) return "restored"
-        const outcome = this.linked.length === 0 ? "linked" : "signedIn"
-        this.linked = ["crazygames"]
-        this.name ||= "Crazy Nova"
-        return outcome
     }
 
     public async signOut(): Promise<void> {

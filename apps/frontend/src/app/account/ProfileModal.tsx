@@ -9,7 +9,6 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon} from "../components/icons.tsx"
 import {authorStyle} from "../chat/authorStyle.ts"
 import {REACTION_IMAGES} from "../chat/reactionsAsset.ts"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {FrontList} from "../players/PlayerFronts.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {useOwnStreak} from "../badges/badgesStore.ts"
@@ -46,7 +45,6 @@ export type ProfileModalProps = YouPlaceProps & {
 // every country fought) opens on demand, so the card reads at a glance. A guest sees only the sign-in.
 export default function ProfileModal({account: store, linkedMultiplier, playerInfo, listenForClicks, clips, country, onClose}: ProfileModalProps) {
     const account = useAccount(store)
-    const words = useWordFilter()
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
     if (account.kind !== "ready") return null
@@ -71,7 +69,7 @@ export default function ProfileModal({account: store, linkedMultiplier, playerIn
 
     const name = account.username
     const title = name
-        ? <span className="profile-modal-name" style={authorStyle({color: account.color, guest: false})}>{words.masked(name)}</span>
+        ? <span className="profile-modal-name" style={authorStyle({color: account.color, guest: false})}>{name}</span>
         : youLabel(true)
 
     return <Modal title={title} className="profile-modal" onClose={onClose}>

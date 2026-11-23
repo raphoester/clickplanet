@@ -25,8 +25,6 @@ import {RallyCallers} from './rallyMarks.ts';
 import {useNameplates} from '../nameplates/nameplatesStore.ts';
 import {nameOf, paintOf} from '../nameplates/nameplate.ts';
 import {authorStyle} from '../chat/authorStyle.ts';
-import {useWordFilter} from '../crazygames/wordFilter.ts';
-import {WordFilter} from '../../domain/wordFilter.ts';
 import type {BoardAsset} from '../../domain/board.ts';
 
 export type GlobeStatus =
@@ -93,16 +91,13 @@ export function useGlobe(options: UseGlobeOptions) {
     const globeRef = useRef<Globe | null>(null)
 
     // A rally's flag on the globe carries its caller's name, as the chat shows it: from the nameplates, masked.
-    const filter = useWordFilter()
-    const words = useRef<WordFilter>(filter)
-    words.current = filter
     const rallyCallers = useRef<RallyCallers>({
         ask: (accountId) => useNameplates.getState().ask(accountId),
         nameplateOf: (accountId) => {
             const nameplate = useNameplates.getState().nameplates[accountId]
             if (nameplate === undefined) return undefined
             return {
-                name: words.current.masked(nameOf(nameplate)),
+                name: nameOf(nameplate),
                 style: authorStyle(paintOf(nameplate)) as Record<string, string | number>,
             }
         },

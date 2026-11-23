@@ -23,74 +23,6 @@ type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
-type board struct {
-	owners owners
-	events []ledger.Event
-}
-
-func newBoard(initial owners) *board {
-	return &board{owners: initial}
-}
-
-func (b *board) take(tile uint32, scope, country string) {
-	b.events = append(b.events, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: b.owners[tile]})
-	b.owners[tile] = country
-}
-
-func (b *board) restorations(scope string) []clicks.Restoration {
-	runs := ledger.NewRuns(ledger.Caller{Scope: scope}, clicks.WorldStage)
-	for _, event := range b.events {
-		runs.See(clicks.WorldStage, event)
-	}
-	return runs.Restorations(b.owners)
-}
-
-func TestTwoScopesPaintingTheSameFlagDoNotHoldEachOthersTiles(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.take(7, "B", "il")
-	b.take(7, "C", "ps")
-
-	assert.Empty(t, b.restorations("A"), "the tile wears A's flag, but C painted it")
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "il"}}, b.restorations("C"))
-}
-
-func TestAChangeTheLedgerNeverSawBreaksTheRun(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.owners[7] = ""
-	b.take(7, "A", "ps")
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: ""}}, b.restorations("A"),
-		"a revert gave the tile to nobody, so the run starts after it")
-}
-
-func (b *board) bomb(scope string, tiles ...uint32) {
-	blast := clicks.Blast{Cleared: tiles}
-	for _, tile := range tiles {
-		blast.Owners = append(blast.Owners, b.owners[tile])
-		b.owners[tile] = ""
-	}
-	b.events = append(b.events, ledger.Bombing{Scope: scope, Blast: blast})
-}
-
-func TestARevertOfABomberGoesBackPastItsOwnTakes(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.bomb("A", 7)
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "", To: "il"}}, b.restorations("A"))
-}
-
-func TestABombBreaksTheRunOfTheScopeItHit(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.bomb("B", 7)
-	b.take(7, "A", "ps")
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: ""}}, b.restorations("A"))
-}
-
 func changes(event ledger.Event) []ledger.Taking {
 	var takings []ledger.Taking
 	event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
@@ -218,14 +150,6 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, event, read)
 	}
-}
-
-func TestARunThatEndsWhereItStartedGivesNothingBack(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.take(7, "A", "il")
-
-	assert.Empty(t, b.restorations("A"))
 }
 
 func tally(takings []ledger.Taking, current owners, counts func(ledger.Taking) bool) []ledger.Player {
@@ -860,23 +784,6 @@ func TestAnAccountIsOnePlayerAcrossScopesShownOnItsLatest(t *testing.T) {
 	}, players, "a mobile network hands an account a new address every few hours, and a take with no account stays its scope's")
 }
 
-func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
-	b := newBoard(owners{7: "il", 8: "il"})
-	b.events = append(b.events,
-		ledger.Taking{Tile: 7, Scope: "campus", Account: "guest", Country: "ps", Previous: "il"},
-		ledger.Taking{Tile: 7, Scope: "home", Account: "guest", Country: "fr", Previous: "ps"},
-		ledger.Taking{Tile: 8, Scope: "home", Account: "other", Country: "ps", Previous: "il"},
-	)
-	b.owners[7], b.owners[8] = "fr", "ps"
-
-	runs := ledger.NewRuns(ledger.Caller{Account: "guest"}, clicks.WorldStage)
-	for _, event := range b.events {
-		runs.See(clicks.WorldStage, event)
-	}
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "fr", To: "il"}}, runs.Restorations(b.owners))
-}
-
 func TestParseCallerTakesAScopeOrAnAccount(t *testing.T) {
 	caller, err := ledger.ParseCaller("2001:db8::9", "")
 	require.NoError(t, err)
@@ -905,17 +812,4 @@ func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
 		_, err := ledger.AccountIDOf(value)
 		assert.ErrorIs(t, err, ledger.ErrInvalidAccount, value)
 	}
-}
-
-func TestAnArenaTakeNeitherBreaksNorMakesARunOnTheWorldsMap(t *testing.T) {
-	battle := clicks.MapID("battle").On(clicks.TestBoard)
-	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, clicks.WorldStage)
-	runs.See(clicks.WorldStage, ledger.Taking{Tile: 7, Scope: "A", Country: "ps", Previous: "il", At: start.Add(time.Minute)})
-	runs.See(battle, ledger.Taking{Tile: 7, Scope: "B", Country: "de", Previous: "", At: start.Add(11 * time.Minute)})
-	runs.See(battle, ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: start.Add(12 * time.Minute)})
-	runs.See(clicks.World.On(clicks.TestBoard+1),
-		ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: start.Add(13 * time.Minute)})
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "il"}}, runs.Restorations(owners{7: "ps", 8: "ps"}),
-		"tile 8 is the world's Palestine: the arena take of it, and one on another board, is no run to undo")
 }

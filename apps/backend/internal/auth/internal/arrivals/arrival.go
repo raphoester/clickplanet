@@ -25,13 +25,12 @@ const (
 	SourceRecruitVideo Source = "recruit_video"
 	SourceYouTube      Source = "youtube"
 	SourceTikTok       Source = "tiktok"
-	SourceCrazyGames   Source = "crazygames"
 	SourceUnknown      Source = "unknown"
 )
 
 func (s Source) known() bool {
 	switch s {
-	case SourceRecruit, SourceRecruitVideo, SourceYouTube, SourceTikTok, SourceCrazyGames, SourceUnknown:
+	case SourceRecruit, SourceRecruitVideo, SourceYouTube, SourceTikTok, SourceUnknown:
 		return true
 	default:
 		return false
@@ -45,7 +44,6 @@ const (
 	youtubeTag      = "y"
 	recruitTag      = "r"
 	recruitVideoTag = "v"
-	crazyGamesTag   = "cg"
 )
 
 // The tags of the links out before the one-letter addresses (Nov 20 2026): every clip's description says ?s=yt.
@@ -99,8 +97,6 @@ func sourceOf(tag string) Source {
 		return SourceYouTube
 	case tiktokTag:
 		return SourceTikTok
-	case crazyGamesTag:
-		return SourceCrazyGames
 	default:
 		return SourceUnknown
 	}
