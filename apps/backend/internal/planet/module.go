@@ -402,6 +402,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 			world := world_replay.NewPostgresReplay(db, eraStore, carriesOf{registry: registry})
+			forgettings := forgetting.NewPostgresQuery(db)
+			erasures := world_replay.NewErasures(world, forgettings, clock)
 
 			getTerritories := get_territories_handler.New(
 				territories_query.NewMemoryQuery(tilesStorage, tilesStorage, tilesStorage, played))
@@ -415,7 +417,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(hands, board), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
-				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, arenaStore, eraStore, tilesStorage, clock)),
+				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(world_replay.NewKeptReplay(takings, erasures), resetStore, arenaStore, eraStore, tilesStorage, clock)),
 				GetLedgerHandler:         getLedger,
 				GetTerritoriesHandler:    getTerritories,
 				GetRulesHandler:          get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
@@ -455,7 +457,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetLedgerHandler:       getLedger,
 				GetLedgerTotalsHandler: get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
 				GetMapHistoryHandler: get_map_history_handler.New(
-					history_query.NewPostgresQuery(world), forgetting.NewPostgresQuery(db)),
+					history_query.NewPostgresQuery(world), forgettings),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
@@ -535,7 +537,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetProvinceHandler: get_province_handler.New(played,
 					province_query.NewPostgresQuery(db, tilesStorage, played)),
 				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
-					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, forgetting.NewPostgresQuery(db), clock),
+					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, forgettings, erasures, clock),
 					clock),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),

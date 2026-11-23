@@ -8,7 +8,7 @@ import (
 )
 
 // Rewind is a History's frames rewound from the map now, of one stage: the stage of the map now. It reads the entries
-// from since on, and the ones before only to see through what a revert forgot (Erasure).
+// from since on, and the ones before only to see through what a revert forgot, from erased: the erasure before them.
 type Rewind struct {
 	at      []time.Time
 	rewound clicks.Stage
@@ -19,7 +19,7 @@ type Rewind struct {
 	erasure  *Erasure
 }
 
-func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage) (*Rewind, error) {
+func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage, erased *Erasure) (*Rewind, error) {
 	if until.Before(since) || step <= 0 {
 		return nil, ErrInvalidHistory
 	}
@@ -35,7 +35,7 @@ func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage)
 		steps[i] = map[uint32]Owner{}
 	}
 	return &Rewind{
-		at: at, rewound: rewound, previous: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}, erasure: NewErasure(),
+		at: at, rewound: rewound, previous: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}, erasure: erased,
 	}, nil
 }
 
