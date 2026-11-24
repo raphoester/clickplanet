@@ -129,9 +129,6 @@ export function seatsOf(board) {
     return seats
 }
 
-/** Flags of a region inside a country's ground: they share it and have no seat. */
-export const REGIONS = new Set(["gb-eng", "gb-sct", "gb-wls"])
-
 /**
  * Gives each seat its vertex, in place.
  * @param {string[]} grounds one per lattice vertex

@@ -1,9 +1,6 @@
 {
   "format.ordinal": "{rank, selectordinal, other {#.}}",
   "country.xk": "Kosova",
-  "country.gb-eng": "İngiltere",
-  "country.gb-sct": "İskoçya",
-  "country.gb-wls": "Galler",
   "country.cd": "Demokratik Kongo",
   "country.cg": "Kongo",
   "country.sx": "Sint Maarten",

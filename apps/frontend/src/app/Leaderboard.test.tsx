@@ -85,8 +85,8 @@ describe("Leaderboard", () => {
     })
 
     it("does not chop a country name to fit its flag", () => {
-        render(<Leaderboard tilesCount={100} data={[entry("gb-eng", 5)]}/>)
-        expect(screen.getByText("England")).toBeDefined()
+        render(<Leaderboard tilesCount={100} data={[entry("gb", 5)]}/>)
+        expect(screen.getByText("United Kingdom")).toBeDefined()
     })
 
     it("names itself, and labels its columns in words", () => {
@@ -214,7 +214,7 @@ describe("Leaderboard tile deltas", () => {
 
     it("colours the count itself the way the arrow points", () => {
         render(<Leaderboard tilesCount={1000}
-                            data={[entry("fr", 600), entry("jp", 503), entry("de", 248), entry("gb-eng", 10)]}
+                            data={[entry("fr", 600), entry("jp", 503), entry("de", 248), entry("gb", 10)]}
                             deltas={deltas({jp: 3, de: -2})}/>)
 
         expect(rows().map(r => r.querySelector(".leaderboard-table-tiles")!.className))

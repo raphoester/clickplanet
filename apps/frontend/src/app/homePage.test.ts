@@ -64,7 +64,6 @@ describe("an old player's address, already shared", () => {
         expect(destinationOf("https://clickplanet.lol/de", {})).toBe("/play?f=de&s=r")
         expect(destinationOf("https://clickplanet.lol/de/", "no storage")).toBe("/play?f=de&s=r")
         expect(destinationOf("https://clickplanet.lol/DE", {[COUNTRY_STORAGE_KEY]: "fr"})).toBe("/play?f=de&s=r")
-        expect(destinationOf("https://clickplanet.lol/gb-sct", {})).toBe("/play?f=gb-sct&s=r")
     })
 
     it("carries the name after the flag as it is written, its dashes and its case", () => {

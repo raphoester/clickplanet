@@ -9,7 +9,6 @@ const named = () => Array.from(Countries.keys()).map((code) => ({code, name: ENG
 describe("Countries", () => {
     it("names a country in plain words", () => {
         expect(ENGLISH_TRANSLATOR.country("fr")).toBe("France")
-        expect(ENGLISH_TRANSLATOR.country("gb-eng")).toBe("England")
         expect(ENGLISH_TRANSLATOR.country("xk")).toBe("Kosovo")
     })
 

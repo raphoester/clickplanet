@@ -407,7 +407,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     profile = new AdminGetPlayerResponse({name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime())})
     progress = new AdminGetProgressResponse({
         messagesSent: 4n, stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
-        playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
+        playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb", tiles: 100n})],
     })
     // A bug from a named account, waiting for an answer, and an idea whose sender deleted its account.
     notes = [
@@ -918,11 +918,11 @@ function onGlobe(pin: PartialMessage<Pin>): boolean {
     return Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180
 }
 
-// The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
+// The server checks all 235 flags the game ships with, where the fake lists a few: the rest by their region names.
 const GAME_FLAG_NAMES: readonly string[] = (() => {
     const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    const names = ["England", "Scotland", "Wales"]
+    const names: string[] = []
     for (const first of letters) {
         for (const second of letters) {
             const name = regions.of(first + second)
@@ -953,7 +953,7 @@ function latestLettersFirst(letters: Letter[]): Letter[] {
 
 export class FakeFlags implements FlagsAdmin {
     listed = [
-        ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
+        ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb", "UK"]]
             .map(([code, name]) => new Flag({code, name})),
         soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS), undefined, undefined, MUNICH),
         soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS), undefined, CHAMBERY),
