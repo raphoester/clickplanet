@@ -59,3 +59,34 @@ func (b *Bucket) Publish(ctx context.Context, drawn pictures.Drawn) error {
 func (b *Bucket) Discard(ctx context.Context, id pictures.UploadID) error {
 	return off(b.files.Delete(ctx, id.Key()))
 }
+
+// A picture held for review is read through a link the backoffice asks for, never kept by a browser.
+const held = "private, no-store"
+
+func (b *Bucket) Hold(ctx context.Context, key string, png []byte) error {
+	return off(b.files.Write(ctx, key, "image/png", held, png))
+}
+
+func (b *Bucket) Held(ctx context.Context, key string, most int64) ([]byte, error) {
+	file, err := b.files.Read(ctx, key, most)
+	switch {
+	case errors.Is(err, cps3.ErrNotFound):
+		return nil, fmt.Errorf("%w: %s", pictures.ErrUnknownHeld, key)
+	case err != nil:
+		return nil, off(err)
+	}
+	return file, nil
+}
+
+func (b *Bucket) Drop(ctx context.Context, key string) error {
+	return off(b.files.Delete(ctx, key))
+}
+
+// HeldURL is a link to see a picture held in private, good for the time given.
+func (b *Bucket) HeldURL(key string, ttl time.Duration) (string, error) {
+	link, err := b.files.ViewLink(key, ttl)
+	if err != nil {
+		return "", off(err)
+	}
+	return link, nil
+}

@@ -5,6 +5,7 @@ import {Caller} from "./players/caller.ts"
 export type PageId =
     | "home" | "notes" | "reports" | "players" | "replay" | "clips" | "lab" | "videos" | "titles" | "discord" | "rules"
     | "bonusRules" | "antibotRules" | "missionRules" | "schedule" | "seasons" | "timeline" | "promo" | "graffiti" | "flags"
+    | "submissions"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -14,7 +15,12 @@ export const MENU: MenuGroup[] = [
     {label: "Feedback", pages: [{page: "notes", label: "Ideas and bugs"}]},
     {
         label: "Moderation",
-        pages: [{page: "reports", label: "Reports"}, {page: "players", label: "Players"}, {page: "graffiti", label: "Graffiti"}],
+        pages: [
+            {page: "reports", label: "Reports"},
+            {page: "players", label: "Players"},
+            {page: "graffiti", label: "Graffiti"},
+            {page: "submissions", label: "Flag submissions"},
+        ],
     },
     {label: "Map", pages: [{page: "replay", label: "Download a replay"}]},
     {label: "Clips", pages: [{page: "clips", label: "Clip stats"}, {page: "lab", label: "Lab"}, {page: "videos", label: "Videos"}]},
@@ -44,7 +50,8 @@ export function titleOf(page: PageId): string {
     return MENU.flatMap(group => group.pages).find(item => item.page === page)?.label ?? page
 }
 
-// A page and what is open on it: a report's id, a player's account id or address, a graffiti's key, or "" for its list.
+// A page and what is open on it: a report's id, a player's account id or address, a graffiti's key, a submission's id,
+// or "" for its list.
 export type Route = {page: PageId, item: string}
 
 // The route an address names (#/reports, #/players/203.0.113.7), and the first page for an address that names none.

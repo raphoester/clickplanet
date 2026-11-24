@@ -5,6 +5,7 @@ import {createRef, useRef} from "react"
 import {useGlobe} from "./useGlobe.ts"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
 import {useBonus} from "../bonus/bonusStore.ts"
+import {useFlagForm} from "../flags/flagFormStore.ts"
 import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
 import type {Globe} from "./globe.ts"
 import {Countries} from "../../domain/countries.ts"
@@ -36,7 +37,7 @@ function fakeGlobe(): Globe & {
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), setBattle: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setVirusAimed: vi.fn(), setMineAimed: vi.fn(), setTrapAimed: vi.fn(), setRallyAimed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), setBattle: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setVirusAimed: vi.fn(), setMineAimed: vi.fn(), setTrapAimed: vi.fn(), setRallyAimed: vi.fn(), setPinAimed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
@@ -479,6 +480,27 @@ describe("useGlobe bonus state", () => {
 
         expect(vi.mocked(globe.setArmed).mock.calls).toEqual([[true], [false]])
         expect(vi.mocked(globe.setSwitch).mock.calls).toEqual([["spread", true], ["spread", false]])
+    })
+
+    it("aims the flag form's pin when the form asks, and gives the form the pin the globe puts or its put away", async () => {
+        const globe = fakeGlobe()
+        createGlobe.mockReturnValue(Promise.resolve(globe))
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+        const {onPinned, onPinAimChange} = createGlobe.mock.calls[0][0]
+        useFlagForm.getState().compose({name: "Bavaria"})
+
+        act(() => useFlagForm.getState().aim())
+        expect(vi.mocked(globe.setPinAimed).mock.calls.at(-1)).toEqual([true])
+
+        act(() => onPinned({pin: {latitude: 48.1, longitude: 11.6}, place: "Upper Bavaria"}))
+        expect(useFlagForm.getState()).toMatchObject({aiming: false, draft: {name: "Bavaria", pinned: {pin: {latitude: 48.1, longitude: 11.6}, place: "Upper Bavaria"}}})
+        expect(vi.mocked(globe.setPinAimed).mock.calls.at(-1)).toEqual([false])
+
+        act(() => useFlagForm.getState().aim())
+        act(() => onPinAimChange(false))
+        expect(useFlagForm.getState().aiming).toBe(false)
+        useFlagForm.setState(useFlagForm.getInitialState(), true)
     })
 
     it("leaves nothing held once it is gone", async () => {

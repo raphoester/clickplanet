@@ -1915,6 +1915,18 @@ To check it: `curl -sI https://media.clickplanet.lol/flags/pictures/does-not-exi
 bucket) with `access-control-allow-origin: *`, and `curl -sI https://media.clickplanet.lol/flags/uploads/x` answers 403.
 The boot logs `flags built ... pictures=true`.
 
+## 16. Players' flag submissions
+
+A signed-in player submits a flag from the game page (see the backend's
+[The flags module](../../apps/backend/docs/flags.md#submissions)): the page `PUT`s the picture under `flags/uploads/`,
+as the support files, so the bucket's CORS already lets `https://clickplanet.lol` in. The server holds the picture drawn
+again under **`flags/submissions/<id>.png`**, private, and the backoffice shows it through a signed link on the R2
+endpoint, as a note's photos. The WAF rule of step 15 keeps `/flags/submissions/` off `media.clickplanet.lol`.
+
+**Not done: a lifecycle rule** on `clickplanet-media` that deletes what is under `flags/uploads/` a day after it was
+written. A file uploaded and never submitted stays there otherwise (20 a day per account and address at most). The
+server deletes each upload it reads, and each rejected picture 30 days after its rejection.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.

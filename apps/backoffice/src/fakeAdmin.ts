@@ -226,16 +226,27 @@ import {
     SaveRulesResponse,
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
-import {Flag, ListFlagsRequest, ListFlagsResponse, Picture, Sold} from "./gen/grpc/flags/v1/flags_pb.ts"
+import {
+    Flag, ListFlagsRequest, ListFlagsResponse, Picture, Pin, Rejection, RejectionReason, Sold, SubmissionState,
+} from "./gen/grpc/flags/v1/flags_pb.ts"
 import {
     AddTimeRequest,
     AddTimeResponse,
+    ApproveSubmissionRequest,
+    ApproveSubmissionResponse,
     CloseFlagRequest,
     CloseFlagResponse,
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
+    KeptSubmission,
+    ListSubmissionsRequest,
+    ListSubmissionsResponse,
     OpenFlagRequest,
     OpenFlagResponse,
+    OpenSubmittedFlagRequest,
+    OpenSubmittedFlagResponse,
+    RejectSubmissionRequest,
+    RejectSubmissionResponse,
     RenameFlagRequest,
     RenameFlagResponse,
 } from "./gen/grpc/flags/v1/admin_pb.ts"
@@ -418,6 +429,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     replay = new GetReplayResponse({eras: [new BoardEra({startedAt: Timestamp.fromDate(new Date(0)), board: "earth-1"})]})
     territories = new GetTerritoriesResponse({
         tiles: 260503,
+        board: "earth-1",
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
     // The set the migration keeps: the game's own rules.
@@ -802,15 +814,38 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 const DAY_MS = 86_400_000
 
 // A flag opened since the game shipped, as the server lists it; closed when it has a close.
-export function soldFlag(code: string, name: string, endsAt: Date, closedAt?: Date, url = `https://media.test/flags/pictures/${code}.png`): Flag {
+export function soldFlag(
+    code: string, name: string, endsAt: Date, closedAt?: Date, url = `https://media.test/flags/pictures/${code}.png`,
+    pin: {latitude: number, longitude: number} = {latitude: 0, longitude: 0},
+): Flag {
     return new Flag({
         code, name, closed: closedAt !== undefined,
         sold: new Sold({
             picture: new Picture({url, width: 768, height: 512, focusX: 0.5, focusY: 0.5}),
             endsAt: Timestamp.fromDate(endsAt),
             closedAt: closedAt === undefined ? undefined : Timestamp.fromDate(closedAt),
+            pin: new Pin(pin),
         }),
     })
+}
+
+export const MUNICH = {latitude: 48.1374, longitude: 11.5755}
+export const CHAMBERY = {latitude: 45.5646, longitude: 5.9178}
+
+// A submission as the server keeps it: waiting, from BraveFox42, with a private picture, unless `part` says otherwise.
+export function keptSubmission(
+    id: string, name: string, pin: {latitude: number, longitude: number}, part: PartialMessage<KeptSubmission> = {},
+): KeptSubmission {
+    const submittedAt = Timestamp.fromDate(new Date(AT.getTime() - 3_600_000))
+    return new KeptSubmission({
+        id, accountId: ACCOUNT, name, pin: new Pin(pin), state: SubmissionState.WAITING, submittedAt, decidedAt: submittedAt,
+        picture: new Picture({url: `https://bucket.test/flags/submissions/${id}.png?signed`, width: 768, height: 512}),
+        otherColorsPercent: 2, ...part,
+    })
+}
+
+function onGlobe(pin: PartialMessage<Pin>): boolean {
+    return Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180
 }
 
 // The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
@@ -837,14 +872,38 @@ export function nameRefusalOf(name: string, others: readonly Flag[]): string | u
 }
 
 // flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, then the ones opened
-// since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it. Each change is kept as the
-// server keeps it, at the time of the call.
+// since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it; and the submissions, the
+// waiting ones oldest first, then the decided ones latest first. Each change is kept as the server keeps it, at the
+// time of the call, and refused as the server refuses it.
 export class FakeFlags implements FlagsAdmin {
     listed = [
         ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
             .map(([code, name]) => new Flag({code, name})),
-        soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS)),
-        soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS)),
+        soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS), undefined, undefined, MUNICH),
+        soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS), undefined, CHAMBERY),
+    ]
+    // Catalonia, fine; a photo of a lake, from an account the player read names none; a new name and picture for
+    // Bavaria; Sardinia, approved; Brittany, rejected as the game has it; and Savoy, opened from its submission.
+    submissions = [
+        keptSubmission("sub-catalonia", "Catalonia", {latitude: 41.3874, longitude: 2.1686}, {
+            submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 5 * 3_600_000)),
+        }),
+        keptSubmission("sub-beach", "Lake Garda", {latitude: 45.6, longitude: 10.6}, {otherColorsPercent: 41, accountId: "account-gone"}),
+        keptSubmission("sub-bavaria", "Free State of Bavaria", {latitude: 48.1374, longitude: 11.5755}, {
+            change: true, flag: "r-k3p9x2ma0b",
+        }),
+        keptSubmission("sub-sardinia", "Sardinia", {latitude: 39.2238, longitude: 9.1217}, {
+            state: SubmissionState.APPROVED, decidedAt: Timestamp.fromDate(new Date(AT.getTime() - DAY_MS)),
+            picture: new Picture({url: "https://media.test/flags/pictures/sardinia.png", width: 768, height: 512}),
+        }),
+        keptSubmission("sub-brittany", "Brittany", {latitude: 48.1173, longitude: -1.6778}, {
+            state: SubmissionState.REJECTED, decidedAt: Timestamp.fromDate(new Date(AT.getTime() - 2 * DAY_MS)),
+            rejection: new Rejection({reason: RejectionReason.EXISTS}),
+        }),
+        keptSubmission("sub-savoy", "Savoy", CHAMBERY, {
+            state: SubmissionState.OPENED, flag: "r-0a1b2c3d4e", decidedAt: Timestamp.fromDate(new Date(AT.getTime() - 40 * DAY_MS)),
+            picture: new Picture({url: "https://media.test/flags/pictures/r-0a1b2c3d4e.png", width: 768, height: 512}),
+        }),
     ]
     private readonly uploads = new Map<string, PartialMessage<CreateFlagUploadRequest>>()
 
@@ -868,16 +927,17 @@ export class FakeFlags implements FlagsAdmin {
         if (!this.uploads.has(request.uploadId ?? "")) {
             return this.refused("openFlag", request, "no picture uploaded under this id", Code.InvalidArgument)
         }
+        const pin = request.pin
+        if (pin === undefined || !onGlobe(pin)) {
+            return this.refused("openFlag", request, "a pin from -90 to 90 and -180 to 180", Code.InvalidArgument)
+        }
         const name = (request.name ?? "").trim()
         const taken = nameRefusalOf(name, this.listed)
         if (taken !== undefined) return this.refused("openFlag", request, taken, Code.InvalidArgument)
-        const code = `r-${this.listed.length.toString(36).padStart(10, "0")}`
-        const flag = soldFlag(code, name, new Timestamp(request.endsAt).toDate())
+        const flag = soldFlag(this.nextCode(), name, new Timestamp(request.endsAt).toDate(), undefined,
+            undefined, {latitude: pin.latitude ?? 0, longitude: pin.longitude ?? 0})
         const answer = this.admin.answer("openFlag", request, new OpenFlagResponse({flag}))
-        if (!this.admin.refusals.has("openFlag")) {
-            const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
-            this.listed = [...this.listed.filter(each => each.sold === undefined), ...sold]
-        }
+        if (!this.admin.refusals.has("openFlag")) this.add(flag)
         return answer
     }
 
@@ -892,7 +952,7 @@ export class FakeFlags implements FlagsAdmin {
         }
         const from = closedAt === undefined ? flag.sold?.endsAt?.toDate() ?? now : now
         const added = soldFlag(flag.code, flag.name, new Date(from.getTime() + (request.days ?? 0) * DAY_MS), undefined,
-            flag.sold?.picture?.url)
+            flag.sold?.picture?.url, flag.sold?.pin)
         return this.replaced("addTime", request, added, new AddTimeResponse({flag: added}))
     }
 
@@ -901,8 +961,101 @@ export class FakeFlags implements FlagsAdmin {
         if (flag === undefined) return this.refused("closeFlag", request, "no flag opened under this code", Code.NotFound)
         if (flag.closed) return this.refused("closeFlag", request, "the flag is closed already", Code.FailedPrecondition)
         const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
-            flag.sold?.picture?.url)
+            flag.sold?.picture?.url, flag.sold?.pin)
         return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))
+    }
+
+    listSubmissions(request: PartialMessage<ListSubmissionsRequest>): Promise<ListSubmissionsResponse> {
+        const time = (submission: KeptSubmission) => submission.decidedAt?.toDate().getTime() ?? 0
+        const waiting = this.submissions.filter(each => each.state === SubmissionState.WAITING)
+            .sort((a, b) => (a.submittedAt?.toDate().getTime() ?? 0) - (b.submittedAt?.toDate().getTime() ?? 0))
+        const decided = this.submissions.filter(each => each.state !== SubmissionState.WAITING).sort((a, b) => time(b) - time(a))
+        return this.admin.answer("listSubmissions", request, new ListSubmissionsResponse({submissions: [...waiting, ...decided]}))
+    }
+
+    // Its picture made public, at the capital the operator moved it to or the player's; a change is on its flag at once,
+    // its capital too.
+    approveSubmission(request: PartialMessage<ApproveSubmissionRequest>): Promise<ApproveSubmissionResponse> {
+        const submission = this.submissions.find(each => each.id === request.submissionId)
+        if (submission === undefined) return this.refused("approveSubmission", request, "no such submission", Code.NotFound)
+        const moved = request.pin
+        if (moved !== undefined && !onGlobe(moved)) {
+            return this.refused("approveSubmission", request, "a pin from -90 to 90 and -180 to 180", Code.InvalidArgument)
+        }
+        if (submission.state !== SubmissionState.WAITING) {
+            return this.refused("approveSubmission", request, "the submission is decided already", Code.FailedPrecondition)
+        }
+        const taken = nameRefusalOf(submission.name, this.listed.filter(each => !submission.change || each.code !== submission.flag))
+        if (taken !== undefined) return this.refused("approveSubmission", request, taken, Code.FailedPrecondition)
+        const pin = moved === undefined ? submission.pin : new Pin({latitude: moved.latitude ?? 0, longitude: moved.longitude ?? 0})
+        const approved = this.decided(submission, {state: SubmissionState.APPROVED, pin})
+        const answer = this.admin.answer("approveSubmission", request, new ApproveSubmissionResponse({submission: approved}))
+        if (!this.admin.refusals.has("approveSubmission")) {
+            this.keep(approved)
+            const flag = this.listed.find(each => each.code === submission.flag)
+            if (submission.change && flag !== undefined) {
+                this.listed = this.listed.map(each => each !== flag ? each : soldFlag(flag.code, submission.name,
+                    flag.sold?.endsAt?.toDate() ?? new Date(), flag.sold?.closedAt?.toDate(), submission.picture?.url, pin))
+            }
+        }
+        return answer
+    }
+
+    rejectSubmission(request: PartialMessage<RejectSubmissionRequest>): Promise<RejectSubmissionResponse> {
+        const submission = this.submissions.find(each => each.id === request.submissionId)
+        if (submission === undefined) return this.refused("rejectSubmission", request, "no such submission", Code.NotFound)
+        if (submission.state !== SubmissionState.WAITING) {
+            return this.refused("rejectSubmission", request, "the submission is decided already", Code.FailedPrecondition)
+        }
+        const reason = request.rejection?.reason ?? RejectionReason.UNSPECIFIED
+        const note = (request.rejection?.note ?? "").trim()
+        if (reason === RejectionReason.UNSPECIFIED) return this.refused("rejectSubmission", request, "a reason", Code.InvalidArgument)
+        if (reason === RejectionReason.OTHER && note === "") {
+            return this.refused("rejectSubmission", request, "a note for the reason OTHER", Code.InvalidArgument)
+        }
+        if ([...note].length > 500) return this.refused("rejectSubmission", request, "a note of 500 characters at most", Code.InvalidArgument)
+        const rejected = this.decided(submission, {state: SubmissionState.REJECTED, rejection: new Rejection({reason, note})})
+        const answer = this.admin.answer("rejectSubmission", request, new RejectSubmissionResponse({submission: rejected}))
+        if (!this.admin.refusals.has("rejectSubmission")) this.keep(rejected)
+        return answer
+    }
+
+    // Opened at the submission's pin, with its picture.
+    openSubmittedFlag(request: PartialMessage<OpenSubmittedFlagRequest>): Promise<OpenSubmittedFlagResponse> {
+        const submission = this.submissions.find(each => each.id === request.submissionId)
+        if (submission === undefined) return this.refused("openSubmittedFlag", request, "no such submission", Code.NotFound)
+        if (submission.state !== SubmissionState.APPROVED || submission.change) {
+            return this.refused("openSubmittedFlag", request, "the submission is no approved new flag", Code.FailedPrecondition)
+        }
+        const taken = nameRefusalOf(submission.name, this.listed)
+        if (taken !== undefined) return this.refused("openSubmittedFlag", request, taken, Code.FailedPrecondition)
+        const endsAt = new Timestamp(request.endsAt).toDate()
+        if (endsAt.getTime() <= Date.now()) return this.refused("openSubmittedFlag", request, "an end to come", Code.InvalidArgument)
+        const flag = soldFlag(this.nextCode(), submission.name, endsAt, undefined, submission.picture?.url, submission.pin)
+        const answer = this.admin.answer("openSubmittedFlag", request, new OpenSubmittedFlagResponse({flag}))
+        if (!this.admin.refusals.has("openSubmittedFlag")) {
+            this.add(flag)
+            this.keep(this.decided(submission, {state: SubmissionState.OPENED, flag: flag.code}))
+        }
+        return answer
+    }
+
+    private decided(submission: KeptSubmission, part: PartialMessage<KeptSubmission>): KeptSubmission {
+        return new KeptSubmission({...submission, decidedAt: Timestamp.fromDate(new Date()), ...part})
+    }
+
+    private keep(submission: KeptSubmission) {
+        this.submissions = this.submissions.map(each => each.id === submission.id ? submission : each)
+    }
+
+    private nextCode(): string {
+        return `r-${this.listed.length.toString(36).padStart(10, "0")}`
+    }
+
+    // A sold flag, among the others by name.
+    private add(flag: Flag) {
+        const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
+        this.listed = [...this.listed.filter(each => each.sold === undefined), ...sold]
     }
 
     // Open or closed, its code, picture and land kept.

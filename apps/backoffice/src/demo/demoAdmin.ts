@@ -46,6 +46,7 @@ import {
     TopPlayersRequest,
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetTerritoriesResponse} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
@@ -96,14 +97,15 @@ import {
     ReportDecision,
 } from "../gen/grpc/support/v1/admin_pb.ts"
 import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {FakeAdmin, soldFlag} from "../fakeAdmin.ts"
+import {FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
 import {
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
+    KeptSubmission,
     OpenFlagRequest,
     OpenFlagResponse,
 } from "../gen/grpc/flags/v1/admin_pb.ts"
-import {Flag, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Flag, Picture, Rejection, RejectionReason, Sold, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {Graffiti, GraffitiKind} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {
     Background as PromoBackground,
@@ -374,6 +376,19 @@ export class DemoAdmin extends FakeAdmin {
             })}),
         ]})
         this.flags.listed = [...this.flags.listed.filter(flag => flag.sold === undefined), ...DEMO_FLAGS]
+        // Seven flags players submitted: four waiting (Catalonia, fine; Tyrol, which the game had; a photo of Lake Garda;
+        // a new name and picture for Bavaria), Sardinia approved and waiting to be opened, Brittany rejected, and Cornwall,
+        // opened from its submission.
+        const founders = this.accounts.filter(account => account.name !== "" && !account.guest)
+        this.flags.submissions = DEMO_SUBMISSIONS.map(({id, name, pin, hoursAgo, decidedHoursAgo, picture, part}, n) => keptSubmission(id, name, pin, {
+            accountId: founders[(n * 7 + 3) % founders.length].id,
+            submittedAt: at(NOW - hoursAgo * HOUR),
+            decidedAt: at(NOW - (decidedHoursAgo ?? hoursAgo) * HOUR),
+            picture: new Picture({url: picture, width: 768, height: 512}),
+            ...part,
+        }))
+        // The board the world plays since 2026-11-18: the submissions' capitals are drawn on it.
+        this.territories = new GetTerritoriesResponse({...this.territories, board: "earth-2", tiles: 1004682})
         this.promo.backgrounds = DEMO_BACKGROUNDS
         this.promo.decks.set("rush", [
             new CardDraft({backgroundId: "demo-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country fights at once."}),
@@ -754,6 +769,10 @@ export class DemoAdmin extends FakeAdmin {
         },
         addTime: this.flags.addTime.bind(this.flags),
         closeFlag: this.flags.closeFlag.bind(this.flags),
+        listSubmissions: this.flags.listSubmissions.bind(this.flags),
+        approveSubmission: this.flags.approveSubmission.bind(this.flags),
+        rejectSubmission: this.flags.rejectSubmission.bind(this.flags),
+        openSubmittedFlag: this.flags.openSubmittedFlag.bind(this.flags),
         renameFlag: this.flags.renameFlag.bind(this.flags),
     }
 
@@ -852,28 +871,107 @@ const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const FLAG_PICTURE_BYTES = 5 * 1024 * 1024
 const BAVARIA = "r-demobavar1"
 
-// Made-up sold flags, each picture drawn in the page: Bavaria and Cornwall open, Savoy closed 3 days ago (time added
-// opens it again), Tyrol closed 41 days ago (it no longer comes back).
+// Made-up sold flags, each picture drawn in the page, each pinned on its capital: Bavaria and Cornwall open, Savoy
+// closed 3 days ago (time added opens it again), Tyrol closed 41 days ago (it no longer comes back).
 function flagSvgOf(width: number, height: number, shapes: string): string {
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${shapes}</svg>`)}`
 }
 
+const MUNICH = {latitude: 48.1374, longitude: 11.5755}
+const TRURO = {latitude: 50.2632, longitude: -5.051}
+const INNSBRUCK = {latitude: 47.2692, longitude: 11.4041}
+const RENNES = {latitude: 48.1173, longitude: -1.6778}
+
+const LOZENGES = `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
+    `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
+    `</pattern></defs><rect width="5" height="3" fill="url(#l)"/>`
+
 const DEMO_FLAGS = [
-    soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3,
-        `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
-        `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
-        `</pattern></defs><rect width="5" height="3" fill="url(#l)"/>`)),
+    soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3, LOZENGES), MUNICH),
     soldFlag("xb", "Brittany", new Date(NOW + 27 * DAY), undefined, flagSvgOf(27, 18,
         `<rect width="27" height="18" fill="#fff"/>` +
         [0, 4, 8, 12, 16].map(y => `<rect x="${y < 10 ? 12 : 0}" y="${y}" width="27" height="2" fill="#000"/>`).join("") +
         [[2, 2], [5, 2], [8, 2], [3.5, 5], [6.5, 5], [2, 8], [5, 8], [8, 8]]
-            .map(([x, y]) => `<path d="M${x} ${y}l-.8 1.6h1.6z" fill="#000"/>`).join(""))),
+            .map(([x, y]) => `<path d="M${x} ${y}l-.8 1.6h1.6z" fill="#000"/>`).join("")), RENNES),
     soldFlag("r-democornw1", "Cornwall", new Date(NOW + 20 * HOUR), undefined, flagSvgOf(5, 3,
-        `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`)),
+        `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`), TRURO),
     soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,
-        `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`)),
+        `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`),
+    {latitude: 45.5646, longitude: 5.9178}),
     soldFlag("r-demotyrol1", "Tyrol", new Date(NOW - 41 * DAY), new Date(NOW - 41 * DAY), flagSvgOf(2, 1,
-        `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`)),
+        `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`), INNSBRUCK),
+]
+
+// A photo, as a player might send one for a flag: a lake at dusk, its sky, its hills and the light on the water.
+function photoOf(): string {
+    const roll = random(7)
+    const ripples = Array.from({length: 260}, () => {
+        const x = Math.round(roll() * 768), y = 300 + Math.round(roll() * 212)
+        const light = Math.round(120 + roll() * 135)
+        return `<ellipse cx="${x}" cy="${y}" rx="${4 + Math.round(roll() * 18)}" ry="${1 + Math.round(roll() * 3)}" ` +
+            `fill="rgb(${light},${Math.round(light * 0.75)},${Math.round(90 + roll() * 120)})" opacity=".55"/>`
+    }).join("")
+    return flagSvgOf(768, 512,
+        `<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3a67"/>` +
+        `<stop offset=".55" stop-color="#e3826b"/><stop offset="1" stop-color="#ffd59e"/></linearGradient>` +
+        `<linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9a27c"/><stop offset="1" stop-color="#1f3350"/></linearGradient>` +
+        `<radialGradient id="g"><stop offset="0" stop-color="#fff6d5"/><stop offset="1" stop-color="#ffb46b" stop-opacity="0"/></radialGradient></defs>` +
+        `<rect width="768" height="512" fill="url(#s)"/><circle cx="520" cy="270" r="120" fill="url(#g)"/>` +
+        `<path d="M0 250 L90 170 L170 230 L260 140 L360 240 L450 190 L560 260 L660 180 L768 240 L768 310 L0 310 Z" fill="#4b3f5c"/>` +
+        `<path d="M0 280 L120 230 L230 275 L330 220 L440 280 L560 240 L680 285 L768 260 L768 310 L0 310 Z" fill="#2f2a44"/>` +
+        `<rect y="300" width="768" height="212" fill="url(#w)"/>${ripples}`)
+}
+
+type DemoSubmission = {
+    id: string, name: string, pin: {latitude: number, longitude: number}, hoursAgo: number, decidedHoursAgo?: number,
+    picture: string, part?: PartialMessage<KeptSubmission>,
+}
+
+const DEMO_SUBMISSIONS: DemoSubmission[] = [
+    {
+        id: "demo-sub-catalonia", name: "Catalonia", pin: {latitude: 41.3874, longitude: 2.1686}, hoursAgo: 5,
+        picture: flagSvgOf(9, 6, `<rect width="9" height="6" fill="#fcdd09"/>` +
+            [1, 3, 5, 7].map(n => `<rect y="${(n * 6 / 9).toFixed(3)}" width="9" height="${(6 / 9).toFixed(3)}" fill="#da121a"/>`).join("")),
+        part: {otherColorsPercent: 0},
+    },
+    {
+        id: "demo-sub-tyrol", name: "Tyrol", pin: {latitude: 47.2654, longitude: 11.3928}, hoursAgo: 4,
+        picture: flagSvgOf(5, 3, `<rect width="5" height="3" fill="#fff"/><rect y="1.5" width="5" height="1.5" fill="#c8102e"/>` +
+            `<path d="M2.1 .6 h.8 v.9 q0 .6 -.4 .8 q-.4 -.2 -.4 -.8z" fill="#c8102e" stroke="#fff" stroke-width=".08"/>`),
+        part: {otherColorsPercent: 3},
+    },
+    {
+        id: "demo-sub-garda", name: "Lake Garda", pin: {latitude: 45.6406, longitude: 10.6763}, hoursAgo: 3, picture: photoOf(),
+        part: {otherColorsPercent: 41},
+    },
+    {
+        id: "demo-sub-bavaria", name: "Free State of Bavaria", pin: MUNICH, hoursAgo: 1,
+        picture: flagSvgOf(5, 3, `${LOZENGES}<path d="M2.1 .7 h.8 v.8 q0 .6 -.4 .8 q-.4 -.2 -.4 -.8z" fill="#fff" stroke="#0098d4" stroke-width=".06"/>` +
+            `<path d="M2.25 .55 l.1 -.2 l.15 .12 l.15 -.12 l.1 .2z" fill="#f5c400"/>`),
+        part: {change: true, flag: BAVARIA, otherColorsPercent: 5},
+    },
+    {
+        id: "demo-sub-sardinia", name: "Sardinia", pin: {latitude: 39.2238, longitude: 9.1217}, hoursAgo: 52, decidedHoursAgo: 30,
+        picture: flagSvgOf(30, 20, `<rect width="30" height="20" fill="#fff"/><rect x="13.5" width="3" height="20" fill="#d1001f"/>` +
+            `<rect y="8.5" width="30" height="3" fill="#d1001f"/>` +
+            [[6.75, 4.25], [23.25, 4.25], [6.75, 15.75], [23.25, 15.75]].map(([x, y]) =>
+                `<circle cx="${x}" cy="${y}" r="2.6" fill="#111"/><rect x="${x - 2.6}" y="${y - 1.4}" width="5.2" height=".8" fill="#fff"/>`).join("")),
+        part: {state: SubmissionState.APPROVED, otherColorsPercent: 2},
+    },
+    {
+        id: "demo-sub-brittany", name: "Brittany", pin: {latitude: 48.1173, longitude: -1.6778}, hoursAgo: 75, decidedHoursAgo: 70,
+        picture: flagSvgOf(27, 18, `<rect width="27" height="18" fill="#fff"/>` +
+            [0, 4, 8, 12, 16].map(y => `<rect y="${y}" width="27" height="2" fill="#000"/>`).join("") +
+            `<rect width="11" height="10" fill="#fff"/>` +
+            [[2, 2], [5.5, 2], [9, 2], [3.75, 5], [7.25, 5], [2, 8], [5.5, 8], [9, 8]].map(([x, y]) =>
+                `<path d="M${x} ${y - 1} l.6 1.4 l-.6 .6 l-.6 -.6z" fill="#000"/>`).join("")),
+        part: {state: SubmissionState.REJECTED, rejection: new Rejection({reason: RejectionReason.EXISTS}), otherColorsPercent: 1},
+    },
+    {
+        id: "demo-sub-cornwall", name: "Cornwall", pin: TRURO, hoursAgo: 24 * 32, decidedHoursAgo: 24 * 30,
+        picture: flagSvgOf(5, 3, `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`),
+        part: {state: SubmissionState.OPENED, flag: "r-democornw1", otherColorsPercent: 0},
+    },
 ]
 
 // Made-up backgrounds: a gradient and a few shapes each, drawn in the page.

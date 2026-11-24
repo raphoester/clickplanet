@@ -32,7 +32,11 @@ two halves of a public card side by side (see [Who is playing](who-is-playing.md
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
 clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's Discord server, which a Discord sign-in joins — see [Discord pings](discord-alerts.md).
 `flags.ts` is the list of flags: `FlagLister` and `FlagStream`. `flagsBackend.ts` implements both against
-`flags.v1.FlagService`, and `FakeFlagsBackend` both in fake mode (see [The flags stream](#the-flags-stream)).
+`flags.v1.FlagService`, and `FakeFlagsBackend` both in fake mode (see [The flags stream](#the-flags-stream)). `flags.ts`
+also has `FlagSubmitter`, the flags a player sends for review, with `SubmissionRefusedError`: `ConnectFlagSubmissions`
+(`flagSubmissionsBackend.ts`) over the same service, the sends with the click token and one retry on a refused token
+as support's, the read with the token that names the account; `FakeFlagSubmissions` in fake mode (see [Flag
+submissions](flag-submissions.md)).
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
 stream's notice that another account played from the connection, and `NoticeAcknowledger`.

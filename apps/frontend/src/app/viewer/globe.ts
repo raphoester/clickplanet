@@ -16,6 +16,8 @@ import {BorderField, leastPaintedTiles, loadBorders, loadProvinces} from "./bord
 import {coarseTolerancesOf, createBorderLines, loadBorderLines, loadProvinceLines} from "./borderLines.ts";
 import {FlagAtlas} from "./flagAtlas.ts";
 import {useFlags} from "../flags/flagsStore.ts";
+import type {PinnedPlace} from "../flags/flagFormStore.ts";
+import {pinAt} from "../../domain/flagSubmissions.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
@@ -363,6 +365,9 @@ export type GlobeOptions = {
     onTrapAimChange?: (aimed: boolean) => void
     rallier?: Rallier
     onRallyAimChange?: (aimed: boolean) => void
+    // A flag's pin is aimed from its form: a tap anywhere on the globe puts it there.
+    onPinAimChange?: (aimed: boolean) => void
+    onPinned?: (pinned: PinnedPlace) => void
     // Who called each rally: the name its flag on the globe carries.
     rallyCallers?: RallyCallers
     shielder?: Shielder
@@ -394,6 +399,7 @@ export type Globe = {
     setMineAimed(aimed: boolean): void
     setTrapAimed(aimed: boolean): void
     setRallyAimed(aimed: boolean): void
+    setPinAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     // A territory seen from orbit, and the place it is given in it.
@@ -453,6 +459,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTrapAimChange = () => {},
         rallier,
         onRallyAimChange = () => {},
+        onPinAimChange = () => {},
+        onPinned = () => {},
         rallyCallers,
         shielder,
         onNotice = () => {},
@@ -937,6 +945,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let mineAimed = false
     let trapAimed = false
     let rallyAimed = false
+    let pinAimed = false
 
     let restSwitchedOff = false
 
@@ -1335,6 +1344,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const aimRally = () => {
         if (rallyAimed || charges.rallies === 0 || !rallier || rules?.ralliesOff) return
         disarm()
+        stopAimingPin()
         stopAimingVirus()
         stopAimingMine()
         stopAimingTrap()
@@ -1344,9 +1354,29 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(ALL_OFF)
     }
 
+    const stopAimingPin = () => {
+        if (!pinAimed) return
+        pinAimed = false
+        eventTarget.classList.remove("viewer-canvas--pinning")
+        onPinAimChange(false)
+    }
+
+    const aimPin = () => {
+        if (pinAimed) return
+        putAway()
+        putVirusAway()
+        putMineAway()
+        putTrapAway()
+        putRallyAway()
+        pinAimed = true
+        eventTarget.classList.add("viewer-canvas--pinning")
+        onPinAimChange(true)
+    }
+
     const aimMine = () => {
         if (mineAimed || charges.mines === 0 || !miner) return
         disarm()
+        stopAimingPin()
         stopAimingVirus()
         stopAimingTrap()
         stopAimingRally()
@@ -1359,6 +1389,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const aimTrap = () => {
         if (trapAimed || charges.traps === 0 || !trapper) return
         disarm()
+        stopAimingPin()
         stopAimingVirus()
         stopAimingMine()
         stopAimingRally()
@@ -1371,6 +1402,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const aimVirus = () => {
         if (virusAimed || charges.viruses === 0 || !infector) return
         disarm()
+        stopAimingPin()
         stopAimingMine()
         stopAimingTrap()
         stopAimingRally()
@@ -1382,6 +1414,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const arm = () => {
         if (armed || charges.bombs === 0 || !bomber || !rules || rules.bombsOff) return
+        stopAimingPin()
         stopAimingVirus()
         stopAimingMine()
         stopAimingTrap()
@@ -1604,6 +1637,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("bomb", {volume: ours ? 1 : DISTANT_BOMB_VOLUME})
     }
 
+    const placeNameAt = (tile: number | undefined): string | undefined => {
+        if (tile === undefined) return undefined
+        const province = provinces.province[tile - 1]
+        if (province) return provinceName(province)
+        const landmass = landmassOf(tile)
+        return landmass === undefined ? undefined : translator().landmass(landmass, borders.codes[landmass])
+    }
+
+    // The pin first: the form takes a pin only while it is aimed.
+    const putPin = (point: THREE.Vector3, tile: number | undefined) => {
+        playSound("click")
+        onPinned({pin: pinAt(point), place: placeNameAt(tile)})
+        stopAimingPin()
+    }
+
     // Any point of the globe takes a rally, on land or sea. A rally of the caller still on is refused by the server
     // alone: the rally stays held.
     const callRally = (point: THREE.Vector3) => {
@@ -1783,6 +1831,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         putVirusAway()
         putMineAway()
         putRallyAway()
+        stopAimingPin()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -1817,6 +1866,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (!spot) return
 
         const {x, y} = canvasPosition(spot)
+
+        // A pin goes on the point tapped, at any zoom, land or sea.
+        if (pinAimed) {
+            const point = surfacePoint(x, y)
+            if (point) putPin(point, picker.pick(camera, x, y))
+            return
+        }
 
         if (offered && monotonicNow() >= offered.expiresAt - CLAIM_MARGIN_MS) {
             offered = undefined
@@ -2354,6 +2410,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setMineAimed: (on: boolean) => on ? aimMine() : putMineAway(),
         setTrapAimed: (on: boolean) => on ? aimTrap() : putTrapAway(),
         setRallyAimed: (on: boolean) => on ? aimRally() : putRallyAway(),
+        setPinAimed: (on: boolean) => on ? aimPin() : stopAimingPin(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             if (name === restingSwitch(rules)) restSwitchedOff = !on
             const next = switchesHeld(switched(switches, name, on), charges, rules)

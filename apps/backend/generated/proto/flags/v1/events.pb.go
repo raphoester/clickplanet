@@ -137,7 +137,8 @@ func (x *FlagClosed) GetClosedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// The flag's name from renamed_at. Its code stays.
+// The flag's name from renamed_at: the operator's rename, or its founder's change approved, which may bring a new picture
+// too. Its code stays. Only the flags module listens.
 type FlagRenamed struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Flag  string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`

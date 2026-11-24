@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
+import { CreateSubmissionUploadRequest, CreateSubmissionUploadResponse, FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse, ListMySubmissionsRequest, ListMySubmissionsResponse, SubmitFlagRequest, SubmitFlagResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,47 @@ export const FlagService = {
       I: ListenForEventsRequest,
       O: FlagEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * A link to upload the picture of a flag to submit, good for 10 minutes: PUT the file there with its Content-Type.
+     * PNG, JPEG or WebP, at most 5 MB; the file stays private. For a signed-in account alone: PermissionDenied for a
+     * guest. FailedPrecondition while the flags' pictures are off, ResourceExhausted past the uploads of a day.
+     *
+     * @generated from rpc flags.v1.FlagService.CreateSubmissionUpload
+     */
+    createSubmissionUpload: {
+      name: "CreateSubmissionUpload",
+      I: CreateSubmissionUploadRequest,
+      O: CreateSubmissionUploadResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Submits a flag for the operator's review: a place's name, the picture uploaded with CreateSubmissionUpload, and a
+     * pin on the globe. With flag, a new name or picture for a flag the account founded: the flag keeps its own until
+     * the operator approves the change. The picture is drawn again (as AdminService/OpenFlag draws it) and kept private
+     * until its approval. PermissionDenied for a guest, or for a flag another account founded; AlreadyExists while one
+     * of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
+     * flags' pictures are off.
+     *
+     * @generated from rpc flags.v1.FlagService.SubmitFlag
+     */
+    submitFlag: {
+      name: "SubmitFlag",
+      I: SubmitFlagRequest,
+      O: SubmitFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
+     * guest.
+     *
+     * @generated from rpc flags.v1.FlagService.ListMySubmissions
+     */
+    listMySubmissions: {
+      name: "ListMySubmissions",
+      I: ListMySubmissionsRequest,
+      O: ListMySubmissionsResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

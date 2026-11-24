@@ -8,6 +8,8 @@ type FlagsStore = {
     catalog: FlagCatalog
     // Whether a read ended since the store was served, answered or not.
     read: boolean
+    // How many times the stream opened: what else changed while it was closed is read again then too.
+    openings: number
     // None stops reading and forgets the list.
     serve: (lister: FlagLister | undefined) => void
     // The list may have changed unheard: the stream opened.
@@ -45,6 +47,7 @@ export const useFlags = create<FlagsStore>()((set, get) => {
     return {
         catalog: FlagCatalog.BUILT_IN,
         read: false,
+        openings: 0,
         serve: (next) => {
             lister = next
             served += 1
@@ -54,7 +57,9 @@ export const useFlags = create<FlagsStore>()((set, get) => {
             if (next !== undefined && reads.changed()) read(false)
         },
         changed: () => {
-            if (lister !== undefined && reads.changed()) read(true)
+            if (lister === undefined) return
+            set(({openings}) => ({openings: openings + 1}))
+            if (reads.changed()) read(true)
         },
         told: (flag) => {
             if (lister === undefined) return

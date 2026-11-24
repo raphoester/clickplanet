@@ -1,6 +1,7 @@
 package catalog_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -152,12 +154,41 @@ func TestAFlagEndingNowOrBeforeIsNotOpened(t *testing.T) {
 	picture, err := catalog.TestPicture.Restore()
 	require.NoError(t, err)
 
-	_, err = opening.Open("Rennes", picture, openedAt)
+	_, err = opening.Open("Rennes", picture, catalog.TestPin, openedAt)
 	require.ErrorIs(t, err, catalog.ErrEnded)
 
-	flag, err := opening.Open("Rennes", picture, openedAt.Add(time.Hour))
+	flag, err := opening.Open("Rennes", picture, catalog.TestPin, openedAt.Add(time.Hour))
 	require.NoError(t, err)
 	assert.Equal(t, catalog.FlagID("r-0000000001"), flag.TakeSnapshot().ID)
+}
+
+func TestAPinIsAPointOnTheGlobe(t *testing.T) {
+	for _, valid := range [][2]float64{{48.1173, -1.6778}, {90, 180}, {-90, -180}, {0, 0}} {
+		pin, err := catalog.ParsePin(valid[0], valid[1])
+		require.NoError(t, err, valid)
+		assert.Equal(t, catalog.Pin{Latitude: valid[0], Longitude: valid[1]}, pin)
+	}
+	for _, invalid := range [][2]float64{{90.1, 0}, {-91, 0}, {0, 180.1}, {0, -181}, {math.NaN(), 0}, {0, math.NaN()}} {
+		_, err := catalog.ParsePin(invalid[0], invalid[1])
+		require.ErrorIs(t, err, catalog.ErrInvalidPin, invalid)
+	}
+}
+
+func TestARestyledFlagWearsItsNewNameAndPictureAndTellsItRenamed(t *testing.T) {
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	require.NoError(t, err)
+	picture, err := pictures.Snapshot{Hash: strings.Repeat("cd", 32), Width: 400, Height: 200}.Restore()
+	require.NoError(t, err)
+
+	quimper := catalog.Pin{Latitude: 47.996, Longitude: -4.102}
+	restyled, fact := closed.Restyled("Breizh", picture, quimper, closedAt.Add(time.Hour))
+
+	want := closed.TakeSnapshot()
+	want.Name, want.Picture, want.Pin = "Breizh", picture.TakeSnapshot(), quimper
+	assert.Equal(t, want, restyled.TakeSnapshot(), "closed as it was")
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
+		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(closedAt.Add(time.Hour)),
+	}, fact), "%v", fact)
 }
 
 func TestARenamedFlagKeepsItsCodeAndTellsItsNewName(t *testing.T) {

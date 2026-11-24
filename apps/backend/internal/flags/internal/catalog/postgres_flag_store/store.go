@@ -25,7 +25,8 @@ type Store struct {
 var _ catalog.Store = (*Store)(nil)
 
 const columns = `id, name, state::text, decided_at, ends_at,
-	picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y`
+	picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
+	pin_latitude, pin_longitude`
 
 const (
 	uniqueViolation = "23505"
@@ -77,7 +78,8 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	var picture pictures.Snapshot
 	var focusX, focusY float32
 	if err := scan(&id, &name, &state, &kept.DecidedAt, &kept.EndsAt,
-		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY); err != nil {
+		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
+		&kept.Pin.Latitude, &kept.Pin.Longitude); err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to read a flag: %w", err)
 	}
 	flagID, err := catalog.ParseFlagID(id)
@@ -104,16 +106,18 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 		picture := kept.Picture
 		_, err := s.db.On(ctx).ExecContext(ctx, `
 			INSERT INTO flags (id, name, state, decided_at, ends_at,
-				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y)
-			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11)
+				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
+				pin_latitude, pin_longitude)
+			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state = EXCLUDED.state,
 				decided_at = EXCLUDED.decided_at, ends_at = EXCLUDED.ends_at, picture_hash = EXCLUDED.picture_hash,
 				picture_width = EXCLUDED.picture_width, picture_height = EXCLUDED.picture_height,
 				picture_stretch = EXCLUDED.picture_stretch, picture_focus_x = EXCLUDED.picture_focus_x,
-				picture_focus_y = EXCLUDED.picture_focus_y
+				picture_focus_y = EXCLUDED.picture_focus_y, pin_latitude = EXCLUDED.pin_latitude,
+				pin_longitude = EXCLUDED.pin_longitude
 		`, kept.ID.String(), kept.Name.String(), string(kept.State), kept.DecidedAt.UTC(), kept.EndsAt.UTC(),
 			picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch, float32(picture.Fit.FocusX),
-			float32(picture.Fit.FocusY))
+			float32(picture.Fit.FocusY), kept.Pin.Latitude, kept.Pin.Longitude)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
 			return fmt.Errorf("%s: %w", kept.Name, catalog.ErrNameTaken)

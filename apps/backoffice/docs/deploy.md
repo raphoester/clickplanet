@@ -15,7 +15,9 @@ to `proto/` alone ships nothing: the generated code is committed.
   (the board's runs, see [The home page](home.md)) alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
   the map, and a framed page could be clicked through. **A new API host is a change here.**
 - **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
-  straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
+  straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`), and
+  so does a flag submission's picture before its approval, from the link `ListSubmissions` signs (`flags.pictures.bucket`,
+  the same host: the links are path-style, `/<bucket>/<key>`).
   **Another bucket is a change here too**, or every attachment shows "not shown here".
 - **KLIPY's three media hosts are in `img-src`** too: a chat GIF loads from the address KLIPY gave it.
 - **`https://media.clickplanet.lol` is in `img-src`**: the battle teasers' backgrounds and the sold flags' pictures load
