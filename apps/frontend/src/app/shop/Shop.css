@@ -85,3 +85,63 @@
 .shop-pay {
     flex: 1 1 auto;
 }
+
+/* The shop's modal: one card per product, each with its prices and the one button that takes the order. */
+.shop-products {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shop-product {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.shop-product-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.shop-product-icon {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--gold);
+}
+
+.shop-product-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    font-weight: normal;
+    line-height: 1.1;
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.shop-product-prices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shop-product-price {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+/* The status bar's door to the shop, on a phone. */
+.status-bar-shop {
+    flex-shrink: 0;
+    color: var(--gold);
+}

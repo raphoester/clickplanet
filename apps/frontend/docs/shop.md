@@ -12,6 +12,19 @@ card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/s
   and an approval reads "Approved! It opens soon." as before. A server with no shop at all (`Unimplemented`) reads the
   same.
 
+## The shop's modal
+
+**The shop is a modal, ready for more products** (the owner, 2026-11-24): `ShopModal`, one card per product. Today one,
+the region's flag: its name, each plan with its price, and one button, "Add your flag" ("Your flag" once the account
+sent one), that closes the shop and opens the flag's place, where a guest signs in, a player sends its flag, and an
+approved one shows the plans. A new product is a new card.
+
+- **Its doors**: on a phone, a gold bag at the end of the status bar's lead (`status-bar-shop`), so held sideways it is in
+  the left pill; on the desktop, the rail's Shop, above You (`menu-rail-shop`). Each opens it with
+  `useScreen.setShopOpen(true)` (see [The screen](screen.md)).
+- **No door while the shop is off**: the plans are read at load for every page, a guest's too (`ListPlans` is a GET,
+  the same answer for all), and with none the bag and the rail's Shop do not show.
+
 ## The code
 
 - `domain/shop.ts`: `Plan`, `PlanPrice`, `CheckoutTarget` (a submission or a flag), `Renewal`; `payable` (an approved new
@@ -21,8 +34,11 @@ card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/s
   `PermissionDenied`, `NotFound`, `FailedPrecondition`, `InvalidArgument`). `ConnectShop` (`shopBackend.ts`) sends the
   token that names the account (`identity()`, as `ListMySubmissions`), `ListPlans` none; the reads are retried, and a
   checkout is not: each call is a new page on Stripe. `FakeShop` in fake mode.
-- `app/shop/shopStore.ts`: `useShop`, the plans and the renewals. `useShopFeed`, in `PlayScreen`, serves it for a
-  signed-in account; the flag's place reads both each time it opens (`refresh`), never at load.
+- `app/shop/shopStore.ts`: `useShop`, the plans and the renewals. `useShopFeed`, in `PlayScreen`, reads the plans at
+  load for every page, and a signed-in account's renewals each time the flag's place opens (`refresh`, which reads the
+  plans again too).
+- `app/shop/ShopModal.tsx`: the shop's modal. `app/shop/prices.ts`: a plan's name and its price line, for the modal and
+  the plan picker.
 - `app/shop/PlanPicker.tsx`: the plans, then the consent and Pay.
 - `app/shop/shopReturn.ts`: the way back from Stripe's page.
 - `Backends.toCheckout` goes to Stripe's page: `location.assign` in production.

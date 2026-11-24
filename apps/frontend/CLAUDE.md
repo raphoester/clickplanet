@@ -128,7 +128,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed
   and since when, with the operator's note to its founder), a change of a flag the account founded, each decision and a close told once on the news line; the
   fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
-- [The shop](docs/shop.md) — the founder pays for an approved flag's time on Stripe's page: the plans priced in the
+- [The shop](docs/shop.md) — the shop's modal (one card per product, today the region's flag), opened from the
+  status bar's bag on a phone and the rail's Shop on the desktop, neither while the shop is off; the founder pays for
+  an approved flag's time on Stripe's page: the plans priced in the
   page's language, the consent before Pay, Add time and the renewals in "Your flags", `?shop=paid` read and dropped and
   the submissions read again until the flag opens; nothing while the shop is off; the fake's `shopOff`, `shopOn`,
   `refuseCheckouts`; the terms of sale and refunds pages.

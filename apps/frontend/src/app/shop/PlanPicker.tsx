@@ -1,9 +1,10 @@
 import {useId, useState} from "react"
 import {Shop, ShopRefusal, ShopRefusedError} from "../../backends/shop.ts"
-import type {CheckoutTarget, Plan, PlanPrice} from "../../domain/shop.ts"
-import {t, translator} from "../../i18n/page.ts"
+import type {CheckoutTarget, PlanPrice} from "../../domain/shop.ts"
+import {t} from "../../i18n/page.ts"
 import {Key} from "../../i18n/translator.ts"
 import "../support/Support.css"
+import {planName, priceLine} from "./prices.ts"
 import "./Shop.css"
 
 export type PlanPickerProps = {
@@ -17,42 +18,12 @@ export type PlanPickerProps = {
     onBack?: () => void
 }
 
-const NAMES: Record<Plan, Key> = {
-    week: "shop.plan.week",
-    month: "shop.plan.month",
-    year: "shop.plan.year",
-}
-
 const FAILURES: Record<ShopRefusal | "failed", Key> = {
     "not-yours": "shop.refusal.notYours",
     "not-found": "shop.refusal.notFound",
     "unavailable": "shop.refusal.unavailable",
     "invalid": "shop.refusal.invalid",
     "failed": "shop.refusal.failed",
-}
-
-// In the currency's smallest unit; whole amounts with no cents.
-function priceOf(amount: number, currency: string): string {
-    const digits = amount % 100 === 0 ? 0 : 2
-    return translator().number(amount / 100, {
-        style: "currency",
-        currency: currency.toUpperCase(),
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits,
-    })
-}
-
-function priceLine({plan, amount, currency, renews}: PlanPrice): string {
-    const price = priceOf(amount, currency)
-    if (!renews) return price
-    switch (plan) {
-        case "week":
-            return t("shop.price.week", {price})
-        case "month":
-            return t("shop.price.month", {price})
-        case "year":
-            return t("shop.price.year", {price})
-    }
 }
 
 // The plans, then the one picked with the buyer's consent that the flag starts now, before Stripe's page.
@@ -76,7 +47,7 @@ export default function PlanPicker({shop, plans, target, toCheckout, onBack}: Pl
                                 setAgreed(false)
                                 setFailure(undefined)
                             }}>
-                        <span className="shop-plan-name">{t(NAMES[price.plan])}</span>
+                        <span className="shop-plan-name">{planName(price.plan)}</span>
                         <span className="shop-plan-price">{priceLine(price)}</span>
                     </button>
                 </li>)}
@@ -102,7 +73,7 @@ export default function PlanPicker({shop, plans, target, toCheckout, onBack}: Pl
 
     return <div className="shop-picker" aria-busy={paying}>
         <div className="panel-box shop-plan shop-plan--picked">
-            <span className="shop-plan-name">{t(NAMES[picked.plan])}</span>
+            <span className="shop-plan-name">{planName(picked.plan)}</span>
             <span className="shop-plan-price">{priceLine(picked)}</span>
         </div>
         <label className="shop-consent" htmlFor={consentId}>

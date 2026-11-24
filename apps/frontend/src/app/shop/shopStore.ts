@@ -8,8 +8,8 @@ type ShopStore = {
     plans: readonly PlanPrice[]
     // The account's renewals; none for a guest.
     renewals: readonly Renewal[]
-    // None forgets them.
-    serve: (shop: Shop | undefined) => void
+    // None forgets them. A signed-in account's renewals are read too.
+    serve: (shop: Shop | undefined, signedIn?: boolean) => void
     refresh: () => void
     // A renewal as an answer says it now.
     renewed: (renewal: Renewal) => void
@@ -17,26 +17,32 @@ type ShopStore = {
 
 export const useShop = create<ShopStore>()((set) => {
     let shop: Shop | undefined
+    let signedIn = false
     let served = 0
+
+    const readPlans = (from: Shop, generation: number) => from.plans().then(
+        (plans) => {
+            if (generation === served) set({plans})
+        },
+        (e: unknown) => console.error("could not read the plans on sale", e),
+    )
 
     return {
         plans: [],
         renewals: [],
-        serve: (next) => {
+        serve: (next, linked = false) => {
             shop = next
+            signedIn = linked
             served += 1
             set({plans: [], renewals: []})
+            if (next !== undefined) void readPlans(next, served)
         },
         refresh: () => {
             const from = shop
             if (from === undefined) return
             const generation = served
-            from.plans().then(
-                (plans) => {
-                    if (generation === served) set({plans})
-                },
-                (e: unknown) => console.error("could not read the plans on sale", e),
-            )
+            void readPlans(from, generation)
+            if (!signedIn) return
             from.myRenewals().then(
                 (renewals) => {
                     if (generation === served) set({renewals})
@@ -50,12 +56,12 @@ export const useShop = create<ShopStore>()((set) => {
     }
 })
 
-// A signed-in account's plans and renewals, read when the flag's place opens.
+// The plans for every page, read at once (a GET: none while the shop is off), and a signed-in account's renewals, read
+// when the flag's place or the shop opens.
 export function useShopFeed(shop: Shop, signedIn: boolean): void {
     useEffect(() => {
-        if (!signedIn) return
         const {serve} = useShop.getState()
-        serve(shop)
+        serve(shop, signedIn)
         return () => serve(undefined)
     }, [shop, signedIn])
 }

@@ -126,6 +126,7 @@ import {useFlagSubmissionsFeed} from "../flags/submissionsStore.ts";
 import FlagSubmissionPlace from "../flags/FlagSubmissionPlace.tsx";
 import {Shop} from "../../backends/shop.ts";
 import {useShopFeed} from "../shop/shopStore.ts";
+import ShopModal from "../shop/ShopModal.tsx";
 import {useShopReturn} from "../shop/shopReturn.ts";
 import type {ShopReturn} from "../../domain/shopReturn.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
@@ -621,6 +622,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
+        {ready && <ShopModal/>}
         {ready && <FlagSubmissionPlace account={backends.account}
                                         submitter={backends.flagSubmissions}
                                         shop={backends.shop}
