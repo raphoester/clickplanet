@@ -410,7 +410,8 @@ export class Sold extends Message<Sold> {
 }
 
 /**
- * A point on the globe, in degrees. Never a tile: each board numbers its tiles its own way.
+ * A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
+ * its tiles its own way.
  *
  * @generated from message flags.v1.Pin
  */

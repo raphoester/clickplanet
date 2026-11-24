@@ -5,7 +5,7 @@ import {AccountStore} from "../account/accountStore.ts"
 import SignInButtons from "../account/SignInButtons.tsx"
 import {useAccount} from "../account/useAccount.ts"
 import Modal from "../components/Modal.tsx"
-import {PinIcon} from "../components/icons.tsx"
+import {CrownIcon} from "../components/icons.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
@@ -63,7 +63,7 @@ function PinAim() {
 
     return <div className="pin-aim" role="status" aria-live="polite">
         <div className="pin-aim-line panel">
-            <PinIcon/>
+            <CrownIcon size={18}/>
             <span>{t("flagSubmission.pinAim")}</span>
             <button type="button" className="button button-mini button-secondary" onClick={putAway}>{t("common.cancel")}</button>
         </div>

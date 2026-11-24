@@ -158,15 +158,16 @@ describe("FlagSubmissionPlace", () => {
         render(<FlagSubmissionPlace account={account} submitter={submitter()}/>)
         const user = userEvent.setup()
 
-        await user.click(screen.getByRole("button", {name: "Pin it on the globe"}))
+        await user.click(screen.getByRole("button", {name: "Put the capital on the globe"}))
         expect(screen.queryByRole("dialog")).toBeNull()
-        expect(screen.getByText("Tap the globe where your flag goes")).not.toBeNull()
+        expect(screen.getByText("Tap your region's capital")).not.toBeNull()
 
         await user.keyboard("{Escape}")
         expect((screen.getByRole("textbox", {name: "Name"}) as HTMLInputElement).value).toBe("Bavaria")
 
-        await user.click(screen.getByRole("button", {name: "Pin it on the globe"}))
+        await user.click(screen.getByRole("button", {name: "Put the capital on the globe"}))
         act(() => useFlagForm.getState().pinned({pin: PIN, place: "Upper Bavaria"}))
+        expect(screen.getByText("Capital")).not.toBeNull()
         expect(screen.getByText("Upper Bavaria")).not.toBeNull()
         expect(screen.getByText("48.10° N, 11.60° E")).not.toBeNull()
     })

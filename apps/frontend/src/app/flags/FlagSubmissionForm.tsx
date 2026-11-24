@@ -14,7 +14,7 @@ import {
 import {t, translator} from "../../i18n/page.ts"
 import {Key} from "../../i18n/translator.ts"
 import Modal from "../components/Modal.tsx"
-import {PictureIcon, PinIcon} from "../components/icons.tsx"
+import {CrownIcon, PictureIcon} from "../components/icons.tsx"
 import {useScreen} from "../hud/screenStore.ts"
 import {sizeLine} from "../support/attachmentLines.ts"
 import {useFlags} from "./flagsStore.ts"
@@ -216,10 +216,10 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
             </div>
             {problem && <p className="support-notice" role="alert">{pictureLine(problem)}</p>}
 
-            <span className="menu-label">{t("flagSubmission.place")}</span>
+            <span className="menu-label">{t("flagSubmission.capital")}</span>
             {draft.pinned
                 ? <div className="panel-box flag-form-pin">
-                    <PinIcon/>
+                    <CrownIcon size={18}/>
                     <span className="flag-form-pin-where">
                         {draft.pinned.place && <span className="flag-form-pin-place">{draft.pinned.place}</span>}
                         <span className="flag-form-pin-coordinates">{coordinatesOf(draft.pinned.pin)}</span>
@@ -230,7 +230,7 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
                 </div>
                 : <div>
                     <button type="button" className="button button-mini button-secondary" disabled={busy} onClick={aimPin}>
-                        <PinIcon/>
+                        <CrownIcon size={18}/>
                         {t("flagSubmission.pinIt")}
                     </button>
                 </div>}

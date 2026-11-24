@@ -96,7 +96,7 @@
 
 .flag-form-pin > svg {
     flex-shrink: 0;
-    color: var(--text-soft);
+    color: var(--gold);
 }
 
 .flag-form-pin-where {

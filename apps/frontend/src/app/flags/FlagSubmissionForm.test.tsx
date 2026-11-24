@@ -108,7 +108,7 @@ describe("FlagSubmissionForm", () => {
         useFlagForm.getState().compose({name: "Bavaria"})
         render(<FlagSubmissionForm submitter={submitter}/>)
 
-        await userEvent.setup().click(screen.getByRole("button", {name: "Pin it on the globe"}))
+        await userEvent.setup().click(screen.getByRole("button", {name: "Put the capital on the globe"}))
 
         expect(useFlagForm.getState().aiming).toBe(true)
         expect(useScreen.getState().sheet).toBeUndefined()

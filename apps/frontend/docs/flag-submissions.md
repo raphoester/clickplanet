@@ -1,10 +1,11 @@
 # Flag submissions
 
 **A signed-in player sends its region's flag for the operator's review, and reads the verdict in the game** (step 3 of
-the regional flags, 2026-11-24): a name, a picture and a pin on the globe. The operator approves or rejects it in the
-backoffice; an approved new flag waits to be opened (paid for), a change goes on its flag. The backend's side is
-`flags.v1.FlagService`'s `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in
-`proto/flags/v1/flags.proto`).
+the regional flags, 2026-11-24): a name, a picture and its capital, a pin on the globe. The pin is the region's capital:
+in Capital Siege the flag starts there, as a country starts on its capital. So the page says "capital" wherever the
+player reads about the pin (the owner, 2026-11-24). The operator approves or rejects it in the backoffice; an approved
+new flag waits to be opened (paid for), a change goes on its flag. The backend's side is `flags.v1.FlagService`'s
+`CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`).
 
 ## Where
 
@@ -45,8 +46,9 @@ until the first read), and a guest's sign-in. Opening it reads the submissions a
   (`pictureFileRefusal`), and its shape once the preview loads (`pictureShapeRefusal`: between square and 2 wide by 1
   high, 100 pixels wide at least): a refused file is not kept, and one line says why. The server checks it all again,
   and refuses a moving picture, which the page cannot tell.
-- **The pin**: "Pin it on the globe" puts the form aside and aims the globe (below); once put, the place's name and its
-  coordinates ("Upper Bavaria", "48.14° N, 11.58° E", each language's compass letters), and "Move".
+- **The capital**: "Put the capital on the globe" puts the form aside and aims the globe (below); once put, the name of
+  the place under the pin and its coordinates ("Upper Bavaria", "48.14° N, 11.58° E", each language's compass letters),
+  and "Move".
 - **Send**: `CreateSubmissionUpload` with the type and the size, the `PUT` to the link with a bar on the picture and
   "Uploading… 50%" on the button, then `SubmitFlag`. Its answer goes first in the store (`submitted`) and the place shows
   its status. **Each send uploads the picture again**: the server may have used or dropped an upload it refused.
@@ -57,7 +59,7 @@ until the first read), and a guest's sign-in. Opening it reads the submissions a
 - **Closing it calls the upload off** (an `AbortController` made in an effect, as `NoteModal`'s: made once per component,
   StrictMode aborted it before any use). A click beside it does not close it once something is typed.
 
-## Aiming the pin
+## Aiming the capital
 
 **As the rally is aimed** (see [Rally](rally.md)): `useFlagForm.aim()` sets `aiming`, `useGlobe` follows the store and
 calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the crosshair (`viewer-canvas--pinning`).
@@ -67,10 +69,10 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
   named there is the province's under the tap, or the landmass's, or none at sea. The globe tells the pin
   (`onPinned`), then puts the aim away; the store takes a pin only while it is aimed.
 - **Escape, Cancel, or a bonus aimed** puts it away (`onPinAimChange(false)`), and the form comes back as it was.
-- **While aimed, a line over the globe** says "Tap the globe where your flag goes", with Cancel (`PinAim`, at the
-  news line's place).
-- **A change is prefilled** with the flag's pin, `Sold.pin` from the list of flags: coordinates alone, with no place
-  name.
+- **While aimed, a line over the globe** says "Tap your region's capital", with Cancel (`PinAim`, at the news line's
+  place).
+- **A change is prefilled** with the flag's capital, `Sold.pin` from the list of flags: coordinates alone, with no
+  place name.
 
 ## The status, in the game
 
@@ -80,12 +82,12 @@ plain words (not a place, a flag in the game already, unreadable at a tile's siz
 then the operator's note quoted. Opened: "Bavaria is in the game!", the picture an approval made public beside the name.
 
 - **A new submission can be sent once none waits**: "New flag" after an approval or an opening, "Try again" after a
-  rejection, which opens the form with what was sent (the name, the pin, the flag of a change; the picture is picked
-  again). While one waits, Close alone.
+  rejection, which opens the form with what was sent (the name, the capital, the flag of a change; the picture is
+  picked again). While one waits, Close alone.
 - **A change**: "Your flags" lists each flag the account founded (`foundedFlags`: one of its submissions opened it, or an
   approved change named it), each with Change, off while one waits. The form opens on the flag's name from the list of
-  flags and its pin; Send waits for a picture, the same file for a new name alone: the server draws and reviews every
-  flag as the players will see it.
+  flags and its capital; Send waits for a picture, the same file for a new name alone: the server draws and reviews
+  every flag as the players will see it.
 
 **When the page reads them** (`useFlagSubmissionsFeed`): at once for a signed-in account, each time the flags stream
 opens (`useFlags.openings`, which the flags store counts as it reads the list again), and when the place opens. One read
