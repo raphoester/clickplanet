@@ -92,6 +92,7 @@ func TestTheFirstPaymentOpensTheApprovedSubmissionsFlagForItsPeriod(t *testing.T
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(&flagsv1.FlagOpened{
 		Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now),
+		Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778},
 	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
@@ -142,6 +143,7 @@ func TestAPaymentWithinThirtyDaysOpensAClosedFlagAgain(t *testing.T) {
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(&flagsv1.FlagOpened{
 		Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now),
+		Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778},
 	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
