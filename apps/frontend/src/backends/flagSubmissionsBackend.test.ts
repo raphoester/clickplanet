@@ -3,6 +3,7 @@ import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {FlagService} from "../gen/grpc/flags/v1/flags_connect.ts"
 import {
+    Closure,
     ListMySubmissionsResponse,
     Picture,
     Pin,
@@ -134,6 +135,19 @@ describe("ConnectFlagSubmissions", () => {
         const none = vi.fn()
         expect(await new ConnectFlagSubmissions(clientOf({listMySubmissions: none}), guestPage()).mySubmissions()).toEqual([])
         expect(none).not.toHaveBeenCalled()
+    })
+
+    it("puts the note of a flag's close on the submission that opened it, and on no other", async () => {
+        const opened = new Submission({...waiting(), id: "s-1", flag: "r-k3p9x2ma0b", state: SubmissionState.OPENED})
+        const change = new Submission({...waiting(), id: "s-2", flag: "r-k3p9x2ma0b", change: true, state: SubmissionState.APPROVED})
+        const listMySubmissions = vi.fn().mockResolvedValue(new ListMySubmissionsResponse({
+            submissions: [change, opened],
+            closures: [new Closure({flag: "r-k3p9x2ma0b", note: "A club's crest."})],
+        }))
+
+        const mine = await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("t")).mySubmissions()
+
+        expect(mine.map(({id, closeNote}) => [id, closeNote])).toEqual([["s-2", undefined], ["s-1", "A club's crest."]])
     })
 
     it("reads none from a server without submissions", async () => {

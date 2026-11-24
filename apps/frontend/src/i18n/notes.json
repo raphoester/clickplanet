@@ -298,7 +298,10 @@
   "flagSubmission.state.approved": "A chip: the team approved the flag sent. One short word.",
   "flagSubmission.state.rejected": "A chip: the team refused the flag sent. One short word.",
   "flagSubmission.state.opened": "A chip: the flag is open, players can play for it now. One short word, an adjective.",
+  "flagSubmission.state.closed": "A chip: the flag is closed, nobody can play for it any more. One short word, an adjective.",
   "flagSubmission.status.approved": "The flag is approved and will be in the game soon.",
+  "flagSubmission.status.openUntil": "{date} is the day the flag's time in the game ends, as \"Dec 24, 2026\".",
+  "flagSubmission.status.closed": "{date} is the day the flag was closed, as \"Nov 24, 2026\": nobody can play for it since.",
   "flagSubmission.founded": "Label over the list of flags the player brought into the game.",
   "flagSubmission.change": "A short button: send a new name or picture for this flag."
 }

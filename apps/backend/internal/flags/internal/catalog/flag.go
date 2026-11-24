@@ -55,6 +55,8 @@ type Flag struct {
 	state     State
 	decidedAt time.Time
 	endsAt    time.Time
+	// Only while the operator's close holds: a flag closed at its end has none.
+	note Note
 }
 
 func NewOpening(ids IDProvider, clock cptime.Clock) Opening {
@@ -98,17 +100,20 @@ func (f Flag) TimeAdded(days Days, now time.Time) (Flag, error) {
 		if now.Sub(f.decidedAt) >= comeback {
 			return f, fmt.Errorf("%s closed %s: %w", f.id, f.decidedAt.Format(time.RFC3339), ErrTooLate)
 		}
-		f.state, f.decidedAt, f.endsAt = Open, now, now.Add(days.duration())
+		f.state, f.decidedAt, f.endsAt, f.note = Open, now, now.Add(days.duration()), ""
 		return f, nil
 	}
 	return f, fmt.Errorf("the flag %s is %q, which is no state", f.id, f.state)
 }
 
-func (f Flag) Closed(at time.Time) (Flag, error) {
+func (f Flag) Closed(note Note, at time.Time) (Flag, error) {
 	if f.state == Closed {
 		return f, fmt.Errorf("%s: %w", f.id, ErrClosed)
 	}
-	f.state, f.decidedAt = Closed, at
+	if note == "" {
+		return f, fmt.Errorf("%s: %w", f.id, ErrInvalidNote)
+	}
+	f.state, f.decidedAt, f.note = Closed, at, note
 	return f, nil
 }
 
@@ -142,7 +147,7 @@ func (f Flag) Facts() []proto.Message {
 func (f Flag) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), Pin: f.pin, State: f.state, DecidedAt: f.decidedAt,
-		EndsAt: f.endsAt,
+		EndsAt: f.endsAt, Note: f.note,
 	}
 }
 
@@ -154,6 +159,7 @@ type Snapshot struct {
 	State     State
 	DecidedAt time.Time
 	EndsAt    time.Time
+	Note      Note
 }
 
 func (s Snapshot) Restore() (Flag, error) {
@@ -164,11 +170,14 @@ func (s Snapshot) Restore() (Flag, error) {
 	if err := s.Pin.check(); err != nil {
 		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
 	}
+	if s.Note != "" && s.State != Closed {
+		return Flag{}, fmt.Errorf("the flag %s is %q with a close's note", s.ID, s.State)
+	}
 	switch s.State {
 	case Open, Closed:
 		return Flag{
 			id: s.ID, name: s.Name, picture: picture, pin: s.Pin, state: s.State, decidedAt: s.DecidedAt,
-			endsAt: s.EndsAt,
+			endsAt: s.EndsAt, note: s.Note,
 		}, nil
 	}
 	return Flag{}, fmt.Errorf("the flag %s is %q, which is no state", s.ID, s.State)

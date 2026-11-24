@@ -22,6 +22,8 @@ function lineOf({state, change}: Decided): Key {
             return "news.submission.rejected"
         case "opened":
             return "news.submission.opened"
+        case "closed":
+            return "news.submission.closed"
     }
 }
 
@@ -38,7 +40,7 @@ export default function SubmissionNews({submission, onDone}: SubmissionNewsProps
 
     return <div className="bomb-news" role="status" aria-live="polite">
         <div className="bomb-news-line welcome-news-line panel">
-            {submission.state === "opened" && <CountryFlag code={submission.flag}/>}
+            {(submission.state === "opened" || submission.state === "closed") && <CountryFlag code={submission.flag}/>}
             <span>{rich(lineOf(submission), {flag: <span className="submission-news-name">{submission.name}</span>})}</span>
         </div>
     </div>

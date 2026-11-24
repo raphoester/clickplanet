@@ -12,7 +12,8 @@ new flag waits to be opened (paid for), a change goes on its flag. The backend's
 **At the end of the flag picker** (`FlagSubmissionEntry` under the list in `CountryPicker`, the desktop menu's and the
 phone's Board sheet): it is where a player looks for its region's flag, and finds it missing. A `menu-tile` row: "Add a
 flag", or, once the account has a submission, the latest one's name and its state as a chip (Waiting, Approved,
-Rejected, Open). It shows even while the picker's list is locked.
+Rejected, Open, Closed: see [What the player reads](#what-the-player-reads)). It shows even while the picker's list is
+locked.
 
 - **Who sees it** is `useFlagSubmissions.who`, which `PlayScreen` hands `useFlagSubmissionsFeed`: `player` for a
   signed-in (linked) account, `guest` for a guest the server offers sign-in to, `nobody` otherwise (the account not read,
@@ -79,7 +80,27 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
 **The place shows the latest submission**: its name, its state's chip and one line. Waiting: "Sent on Nov 24, 2026."
 Approved: "Approved! It opens soon.", or for a change "Approved! The change is on your flag." Rejected: its reason in
 plain words (not a place, a flag in the game already, unreadable at a tile's size, hateful, or "It was not approved."),
-then the operator's note quoted. Opened: "Bavaria is in the game!", the picture an approval made public beside the name.
+then the operator's note quoted. Opened: "Bavaria is in the game until Dec 24, 2026!" (its `endsAt`; "Bavaria is in the
+game!" while the list of flags does not hold it yet), the picture an approval made public beside the name. Closed:
+"Bavaria closed on Nov 24, 2026." (its `closedAt`), then the operator's note quoted when the operator closed it (below).
+
+### What the player reads
+
+**Once a submission opened its flag, the page shows the flag's state now, not the submission's** (`shownOf` in
+`domain/flagSubmissions.ts`): the server keeps the submission `opened` for good, and the flag lives on in the flags
+module, which closes it at its end, at the operator's `CloseFlag`, and opens it again at an `AddTime` within 30 days. So
+an opened submission whose flag the list of flags holds closed reads Closed, a muted chip, in the picker's entry and
+the place, and Open again once its flag comes back. "Your flags" marks each closed flag with the same chip. A change
+keeps its own state: its flag's state is on the "Your flags" row.
+
+**Why the operator closed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
+founded that the operator closed and that has not come back; see the backend's [flags module](../../backend/docs/flags.md)):
+`ConnectFlagSubmissions` puts each note on the submission that opened its flag (`Submission.closeNote`), so the store
+holds submissions alone. The place quotes it under "Bavaria closed on …", as a rejection's note, while the flag reads
+Closed; and on that flag's "Your flags" row when the card shows another submission. A flag closed at its end, or
+before the notes existed, has none: the date alone. **The page reads the submissions again when a flag the account
+founded closes or comes back** (`useFlagSubmissionsFeed`, on the list of flags), so the note shows at once in a place
+left open. The note is the operator's, in English, never translated.
 
 - **A new submission can be sent once none waits**: "New flag" after an approval or an opening, "Try again" after a
   rejection, which opens the form with what was sent (the name, the capital, the flag of a change; the picture is
@@ -95,9 +116,12 @@ at a time, one queued behind it; a read that fails keeps what is shown. A guest 
 
 **A decision is told once on the news line** (`SubmissionNews`, the news store's `submission` kind, 4 seconds): "Your
 flag Bavaria is approved!", "Your change to Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in the
-game!". The first time the page sees a submission in a decided state, the newest one is told, and each one's state is
-kept in `localStorage` under `clickplanet-flag-submissions-told` (`{id: state}`), so an approval then an opening is told
-twice, and a reload tells nothing again. A browser that keeps nothing tells nothing.
+game!", "Your flag Bavaria is closed.". The first time the page sees a submission in a decided state, the newest one is
+told, and each one's state as the player reads it is kept in `localStorage` under `clickplanet-flag-submissions-told`
+(`{id: state}`, `closed` among them), so an approval, an opening then a close is told thrice, a comeback again, and a
+reload tells nothing again. A browser that keeps nothing tells nothing. **Nothing is told before the list of flags is
+read** (`useFlags.read`): an opened flag would be told open, then closed. The page looks again when the submissions or
+the list of flags change, so a close the flags stream tells is told at once.
 
 ## In fake mode
 
@@ -115,7 +139,9 @@ flag from the picker, then on the console:
   fails; `refuseSubmissions()` lets them through again.
 
 After each verdict the fake says the flags stream opened again (`FakeFlagsBackend.reopen`), so the page reads it at once
-and the news line tells it, as the real page would at the stream's next opening or the place's next opening.
+and the news line tells it, as the real page would at the stream's next opening or the place's next opening. Then
+`closeFlag(code, note)` (the code `openSubmission` answers; a note by default) closes it as the operator would, with the
+note its founder reads, and `addTime(code, 7)` brings it back.
 
 ## Not built yet
 

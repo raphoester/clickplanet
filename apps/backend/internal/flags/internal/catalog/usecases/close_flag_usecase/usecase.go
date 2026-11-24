@@ -17,6 +17,7 @@ type Flags interface {
 
 type In struct {
 	Flag string
+	Note string
 }
 
 const timeout = 5 * time.Second
@@ -40,6 +41,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
+	note, err := catalog.ParseNote(in.Note)
+	if err != nil {
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+	}
 
 	var closed catalog.Flag
 	if err := u.db.InTx(ctx, func(ctx context.Context) error {
@@ -47,7 +52,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 		if err != nil {
 			return fmt.Errorf("failed to read the flag: %w", err)
 		}
-		closed, err = flag.Closed(u.clock.Now())
+		closed, err = flag.Closed(note, u.clock.Now())
 		if err != nil {
 			return err //nolint:wrapcheck // the flag names it.
 		}

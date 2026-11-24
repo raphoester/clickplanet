@@ -1,4 +1,4 @@
-import type {FlagPicture, Pin} from "./flags.ts"
+import type {FlagCatalog, FlagPicture, Pin} from "./flags.ts"
 
 export type SubmissionState = "waiting" | "approved" | "rejected" | "opened"
 
@@ -20,6 +20,8 @@ export type Submission = {
     decidedAt: number
     rejection?: Rejection
     picture?: FlagPicture
+    // An opened one's, while the operator's close of its flag holds: why, in the operator's words.
+    closeNote?: string
 }
 
 // The server's: flags.v1.SubmitFlagRequest and CreateSubmissionUploadRequest.
@@ -83,22 +85,35 @@ export function foundedFlags(submissions: readonly Submission[]): string[] {
     return [...new Set(founded)]
 }
 
-export type Decided = Submission & {state: Exclude<SubmissionState, "waiting">}
+// What its player reads: once a submission opened its flag, the flag's state now.
+export type ShownState = SubmissionState | "closed"
 
-export function decided(submission: Submission): submission is Decided {
-    return submission.state !== "waiting"
+export type Shown = Omit<Submission, "state"> & {state: ShownState}
+
+export function shownOf(submission: Submission, catalog: FlagCatalog): Shown {
+    if (submission.state !== "opened" || !catalog.closedFlag(submission.flag)) return submission
+    return {...submission, state: "closed"}
+}
+
+export type Decided = Shown & {state: Exclude<ShownState, "waiting">}
+
+function decided(shown: Shown): shown is Decided {
+    return shown.state !== "waiting"
 }
 
 // The state each submission was last told in, by id.
-export type Told = Readonly<Record<string, SubmissionState>>
+export type Told = Readonly<Record<string, ShownState>>
 
-// The decisions not told yet, the newest first: a submission approved, then opened, is told twice.
-export function untold(submissions: readonly Submission[], told: Told): Decided[] {
-    return submissions.filter(decided).filter((submission) => told[submission.id] !== submission.state)
+// The decisions not told yet, the newest first: a submission approved, opened, then its flag closed, is told thrice.
+export function untold(submissions: readonly Submission[], told: Told, catalog: FlagCatalog): Decided[] {
+    return submissions
+        .map((submission) => shownOf(submission, catalog))
+        .filter(decided)
+        .filter(({id, state}) => told[id] !== state)
 }
 
-export function withTold(told: Told, submissions: readonly Submission[]): Told {
-    const next: Record<string, SubmissionState> = {...told}
-    for (const submission of submissions) if (decided(submission)) next[submission.id] = submission.state
+export function withTold(told: Told, fresh: readonly Decided[]): Told {
+    const next: Record<string, ShownState> = {...told}
+    for (const {id, state} of fresh) next[id] = state
     return next
 }

@@ -1,6 +1,6 @@
 import {ReactNode} from "react"
 import type {FlagCatalog} from "../../domain/flags.ts"
-import {foundedFlags, RejectionReason, Submission, waits} from "../../domain/flagSubmissions.ts"
+import {foundedFlags, RejectionReason, Shown, shownOf, Submission, waits} from "../../domain/flagSubmissions.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
 import {Key} from "../../i18n/translator.ts"
@@ -25,17 +25,37 @@ const REASONS: Record<RejectionReason, Key> = {
     "other": "flagSubmission.rejected.other",
 }
 
-function lineOf(submission: Submission): ReactNode {
-    switch (submission.state) {
+function dateOf(ms: number): string {
+    return translator().dateTime(ms, {dateStyle: "medium"})
+}
+
+function lineOf(shown: Shown, catalog: FlagCatalog): ReactNode {
+    const flag = <strong>{shown.name}</strong>
+    const sold = catalog.soldOf(shown.flag)
+    switch (shown.state) {
         case "waiting":
-            return t("flagSubmission.status.waiting", {date: translator().dateTime(submission.submittedAt, {dateStyle: "medium"})})
+            return t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":
-            return submission.change ? t("flagSubmission.status.changed") : t("flagSubmission.status.approved")
+            return shown.change ? t("flagSubmission.status.changed") : t("flagSubmission.status.approved")
         case "rejected":
-            return t(REASONS[submission.rejection?.reason ?? "other"])
+            return t(REASONS[shown.rejection?.reason ?? "other"])
         case "opened":
-            return rich("flagSubmission.status.opened", {flag: <strong>{submission.name}</strong>})
+            return sold === undefined
+                ? rich("flagSubmission.status.opened", {flag})
+                : rich("flagSubmission.status.openUntil", {flag, date: dateOf(sold.endsAt)})
+        case "closed":
+            return sold?.closedAt === undefined ? undefined : rich("flagSubmission.status.closed", {flag, date: dateOf(sold.closedAt)})
     }
+}
+
+function Note({text}: {text: string}) {
+    return <blockquote className="support-quoted flag-status-note">
+        <span className="support-quoted-text">{text}</span>
+    </blockquote>
+}
+
+function closeNoteOf(submissions: readonly Submission[], flag: string): string | undefined {
+    return submissions.find((submission) => submission.state === "opened" && submission.flag === flag)?.closeNote
 }
 
 // The same submission again: the picture is picked again, since the page keeps none.
@@ -53,6 +73,7 @@ export default function FlagSubmissionStatus({submissions}: FlagSubmissionStatus
     const close = useFlagForm((form) => form.close)
     const catalog = useFlags((store) => store.catalog)
     const [latest] = submissions
+    const shown = shownOf(latest, catalog)
     const waiting = waits(submissions)
     const founded = foundedFlags(submissions)
 
@@ -71,26 +92,32 @@ export default function FlagSubmissionStatus({submissions}: FlagSubmissionStatus
                         : latest.state === "opened" ? <CountryFlag code={latest.flag}/> : <FlagIcon size={22}/>}
                 </span>
                 <span className="flag-status-name">{latest.name}</span>
-                <SubmissionStateChip state={latest.state}/>
+                <SubmissionStateChip state={shown.state}/>
             </div>
-            <p className="flag-status-line" role="status">{lineOf(latest)}</p>
-            {latest.state === "rejected" && latest.rejection?.note && <blockquote className="support-quoted flag-status-note">
-                <span className="support-quoted-text">{latest.rejection.note}</span>
-            </blockquote>}
+            <p className="flag-status-line" role="status">{lineOf(shown, catalog)}</p>
+            {latest.state === "rejected" && latest.rejection?.note && <Note text={latest.rejection.note}/>}
+            {shown.state === "closed" && latest.closeNote && <Note text={latest.closeNote}/>}
 
             {founded.length > 0 && <>
                 <span className="menu-label">{t("flagSubmission.founded")}</span>
                 <ul className="flag-founded-list">
-                    {founded.map((flag) => <li key={flag} className="panel-box flag-founded">
-                        <span className="flag-founded-flag"><CountryFlag code={flag}/></span>
-                        <span className="flag-founded-name">{translator().country(flag)}</span>
-                        <button type="button"
-                                className="button button-mini button-secondary"
-                                disabled={waiting}
-                                onClick={() => compose(changeOf(catalog, flag))}>
-                            {t("flagSubmission.change")}
-                        </button>
-                    </li>)}
+                    {founded.map((flag) => {
+                        const closeNote = catalog.closedFlag(flag) && !(shown.state === "closed" && shown.flag === flag)
+                            ? closeNoteOf(submissions, flag)
+                            : undefined
+                        return <li key={flag} className="panel-box flag-founded">
+                            <span className="flag-founded-flag"><CountryFlag code={flag}/></span>
+                            <span className="flag-founded-name">{translator().country(flag)}</span>
+                            {catalog.closedFlag(flag) && <SubmissionStateChip state="closed"/>}
+                            <button type="button"
+                                    className="button button-mini button-secondary"
+                                    disabled={waiting}
+                                    onClick={() => compose(changeOf(catalog, flag))}>
+                                {t("flagSubmission.change")}
+                            </button>
+                            {closeNote && <Note text={closeNote}/>}
+                        </li>
+                    })}
                 </ul>
             </>}
         </div>

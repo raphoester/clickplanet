@@ -309,9 +309,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         rejectSubmission: (reason?: RejectionReason, note?: string) => fakeSubmissions.reject(reason, note),
         openSubmission: (days?: number) => fakeSubmissions.open(days),
         refuseSubmissions: (refusal?: Parameters<typeof fakeSubmissions.refuse>[0]) => fakeSubmissions.refuse(refusal),
-        closeFlag: (code: string) => fakeFlags.close(code)
-            ? `${code} is closed: its players pick another flag, its land stays, and addTime(code) brings it back`
-            : `no open flag ${code}: openFlag(name) answers one`,
+        closeFlag: (code: string, note = "It broke the game's rules.") => fakeFlags.close(code, note)
+            ? `${code} is closed: its players pick another flag, its land stays, its founder reads the note, and addTime(code) brings it back`
+            : `no open flag ${code}, or no note: openFlag(name) answers one`,
         renameFlag: (code: string, name: string) => {
             const renamed = fakeFlags.rename(code, name)
             switch (renamed) {

@@ -21,7 +21,7 @@ import (
 func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
 	openedAt := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(openedAt.Add(time.Hour))
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", openedAt.Add(time.Hour))
 	require.NoError(t, err)
 	require.NoError(t, postgres_flag_store.New(db).Save(t.Context(),
 		closed, catalog.OpenFlag("r-0000000002", "Bavaria", openedAt)))

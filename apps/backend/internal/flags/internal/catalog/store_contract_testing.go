@@ -46,7 +46,7 @@ func (s *StoreContractSuite) TestAFlagNeverOpenedIsUnknown() {
 
 func (s *StoreContractSuite) TestAFlagKeptAgainKeepsWhatChanged() {
 	flag := s.opened("r-0000000001", "Rennes")
-	closed, err := flag.Closed(closedAt)
+	closed, err := flag.Closed("Broke the rules.", closedAt)
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Save(s.T().Context(), closed))
 
@@ -56,9 +56,31 @@ func (s *StoreContractSuite) TestAFlagKeptAgainKeepsWhatChanged() {
 	s.Equal(Closed, kept.TakeSnapshot().State)
 }
 
+func (s *StoreContractSuite) TestAnEarlyClosesNoteIsKeptUntilTheFlagComesBack() {
+	closed, err := s.opened("r-0000000001", "Rennes").Closed("Broke the rules.", closedAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), closed))
+
+	kept, err := s.store.Flag(s.T().Context(), "r-0000000001")
+	s.Require().NoError(err)
+	s.Equal(Note("Broke the rules."), kept.TakeSnapshot().Note)
+
+	days, err := ParseDays(7)
+	s.Require().NoError(err)
+	back, err := kept.TimeAdded(days, closedAt.Add(time.Hour))
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), back))
+
+	flags, err := s.store.Flags(s.T().Context())
+	s.Require().NoError(err)
+	s.Require().Len(flags, 1)
+	s.Equal(back.TakeSnapshot(), flags[0].TakeSnapshot())
+	s.Empty(flags[0].TakeSnapshot().Note)
+}
+
 func (s *StoreContractSuite) TestFlagsAreEveryFlagKeptTheClosedOnesToo() {
 	rennes := s.opened("r-0000000001", "Rennes")
-	closed, err := s.opened("r-0000000002", "Bavaria").Closed(closedAt)
+	closed, err := s.opened("r-0000000002", "Bavaria").Closed("Broke the rules.", closedAt)
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Save(s.T().Context(), closed))
 
@@ -80,7 +102,7 @@ func (s *StoreContractSuite) TestNoFlagIsKeptAtFirst() {
 func (s *StoreContractSuite) TestEndingIsTheOpenFlagsWhoseEndPassed() {
 	rennes := s.opened("r-0000000001", "Rennes")
 	s.opened("r-0000000002", "Bavaria")
-	closed, err := OpenFlag("r-0000000003", "Corsica", openedAt.Add(-time.Hour)).Closed(closedAt)
+	closed, err := OpenFlag("r-0000000003", "Corsica", openedAt.Add(-time.Hour)).Closed("Broke the rules.", closedAt)
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Save(s.T().Context(), closed))
 	days, err := ParseDays(1)
