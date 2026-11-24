@@ -16,6 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/postgres_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/postgres_judgement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/postgres_submission_store"
@@ -139,4 +141,29 @@ func TestWhileTheShopSellsTheOperatorReadsOnlyTheFlagsPaidFor(t *testing.T) {
 	submission, err := store.Submission(t.Context(), submissions.SubmissionID{15: 1})
 	require.NoError(t, err)
 	assert.True(t, submission.TakeSnapshot().Paid)
+}
+
+func TestTheOperatorReadsWhatTheJudgeRuled(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
+	store := postgres_submission_store.New(db)
+	query := submissions_query.NewPostgresQuery(db,
+		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.EveryWaiting)
+	for i := byte(1); i <= 2; i++ {
+		row := submissions.TestWaiting(submissions.SubmissionID{15: i}, ada, at.Add(time.Duration(i)*time.Hour))
+		require.NoError(t, store.Save(t.Context(), submissions.Restored(row)))
+	}
+	unsure, err := judgements.Snapshot{
+		Submission: submissions.SubmissionID{15: 1}, Verdict: judgements.Unsure, Why: "an unknown place", JudgedAt: at,
+	}.Restore()
+	require.NoError(t, err)
+	require.NoError(t, postgres_judgement_store.New(db).Save(t.Context(), unsure))
+
+	kept, err := query.Kept(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, kept.GetSubmissions(), 2)
+	judged := kept.GetSubmissions()[0].GetJudgement()
+	assert.Equal(t, flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_UNSURE, judged.GetVerdict())
+	assert.Equal(t, "an unknown place", judged.GetWhy())
+	assert.Nil(t, kept.GetSubmissions()[1].GetJudgement(), "never judged")
 }

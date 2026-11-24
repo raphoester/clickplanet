@@ -8,6 +8,7 @@ import (
 
 	"github.com/stripe/stripe-go/v87"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/plans"
@@ -34,7 +35,7 @@ type Gateway struct {
 }
 
 // Checkout makes a Stripe Checkout Session under Managed Payments, Stripe being the seller, and answers its page.
-func (g Gateway) Checkout(ctx context.Context, order orders.Order, price plans.Price) (string, error) {
+func (g Gateway) Checkout(ctx context.Context, order orders.Order, price plans.Price) (checkouts.Page, error) {
 	kept := order.TakeSnapshot()
 	metadata := order.Metadata()
 	params := &stripe.CheckoutSessionCreateParams{
@@ -54,9 +55,27 @@ func (g Gateway) Checkout(ctx context.Context, order orders.Order, price plans.P
 	}
 	session, err := g.client.V1CheckoutSessions.Create(ctx, params)
 	if err != nil {
-		return "", fmt.Errorf("failed to make a Stripe Checkout Session: %w", err)
+		return checkouts.Page{}, fmt.Errorf("failed to make a Stripe Checkout Session: %w", err)
 	}
-	return session.URL, nil
+	id, err := checkouts.ParseSessionID(session.ID)
+	if err != nil {
+		return checkouts.Page{}, err //nolint:wrapcheck // the parse names it.
+	}
+	return checkouts.Page{Session: id, URL: session.URL}, nil
+}
+
+// Expire closes a Checkout Session's page before it is paid. Stripe refuses one no longer open, paid or expired
+// already: nothing is left to close.
+func (g Gateway) Expire(ctx context.Context, id checkouts.SessionID) error {
+	_, err := g.client.V1CheckoutSessions.Expire(ctx, id.String(), &stripe.CheckoutSessionExpireParams{})
+	var refused *stripe.Error
+	if errors.As(err, &refused) && refused.Type == stripe.ErrorTypeInvalidRequest {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to expire the Checkout Session %s: %w", id, err)
+	}
+	return nil
 }
 
 func (g Gateway) back(outcome string) string {

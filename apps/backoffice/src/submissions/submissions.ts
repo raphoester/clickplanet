@@ -3,7 +3,7 @@ import {loadPlaces, Places} from "../boards/places.ts"
 import {FlagsAdmin, PlayerAdmin, SupportAdmin} from "../clients.ts"
 import {learnFlags, listedOf} from "../flags.ts"
 import {distanceKm, Place} from "../flags/pin.ts"
-import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
+import {JudgementVerdict, KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
 import {Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 // From this share of a picture in colours past its 8 most common, it is most likely a photo: the game's own flags hold
@@ -111,6 +111,20 @@ export const REASONS: {reason: RejectionReason, label: string}[] = [
 
 export function reasonLabel(reason: RejectionReason): string {
     return REASONS.find(each => each.reason === reason)?.label ?? "No reason"
+}
+
+// What the judge, a Claude model, ruled on a submission as it waited.
+export function judgementLabel(verdict: JudgementVerdict): string {
+    switch (verdict) {
+        case JudgementVerdict.APPROVE:
+            return "Approved"
+        case JudgementVerdict.REJECT:
+            return "Rejected"
+        case JudgementVerdict.UNSURE:
+            return "Unsure, left to you"
+        case JudgementVerdict.UNSPECIFIED:
+            return "Not judged"
+    }
 }
 
 export function looksLikePhoto(submission: KeptSubmission): boolean {

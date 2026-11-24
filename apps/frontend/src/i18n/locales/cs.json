@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "Na velikost pole se to špatně čte.",
   "flagSubmission.rejected.hateful": "Je to nenávistné.",
   "flagSubmission.rejected.other": "Nebylo schváleno.",
+  "flagSubmission.appeal": "Myslíš, že jsme se spletli? Požádej člověka, ať se na to podívá znovu.",
   "flagSubmission.picture.type": "{file} není obrázek PNG, JPEG ani WebP.",
   "flagSubmission.picture.size": "{file} je větší než {size}.",
   "flagSubmission.picture.narrow": "Tenhle obrázek je moc úzký.",

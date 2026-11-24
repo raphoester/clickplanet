@@ -155,11 +155,27 @@ func TestAPaymentPastTheThirtyDaysGrantsNothing(t *testing.T) {
 
 	err = f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Week))
 
+	require.ErrorIs(t, err, grants.ErrRefused)
 	require.ErrorIs(t, err, catalog.ErrTooLate)
 	assert.Equal(t, catalog.Closed, f.flag(t, "r-0000000001").State)
-	grant, err := f.grants.Grant(t.Context(), "stripe:cs_1")
+	f.refused(t, "stripe:cs_1")
+}
+
+// refused checks the payment bought nothing for good, and that the shop is told to refund it.
+func (f fixture) refused(t *testing.T, grant grants.GrantID) {
+	t.Helper()
+	kept, err := f.grants.Grant(t.Context(), grant)
 	require.NoError(t, err)
-	assert.False(t, grant.Heard(), "nothing was granted")
+	assert.True(t, kept.TakenBackAlready(), "it never grants, its refund takes back nothing")
+	_, granted := kept.GrantedFlag()
+	assert.False(t, granted)
+	require.Len(t, f.outbox.Recorded(), 1)
+	assert.True(t, proto.Equal(&flagsv1.TimeRefused{GrantId: grant.String(), RefusedAt: timestamppb.New(f.clock.Now())},
+		f.outbox.Recorded()[0]))
+
+	again := f.grant.Execute(t.Context(), grants.Paid{Grant: grant, Target: submissionTarget(t), Period: grants.Week})
+	require.NoError(t, again, "told again, refused once")
+	assert.Len(t, f.outbox.Recorded(), 1)
 }
 
 func TestAPaymentForASubmissionThatWaitsHoldsItsTimeAndOpensNothing(t *testing.T) {
@@ -201,9 +217,7 @@ func TestAPaymentForARejectedSubmissionGrantsNothing(t *testing.T) {
 	err = f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week))
 
 	require.ErrorIs(t, err, submissions.ErrNotApproved)
-	grant, err := f.grants.Grant(t.Context(), "stripe:cs_1")
-	require.NoError(t, err)
-	assert.False(t, grant.Heard())
+	f.refused(t, "stripe:cs_1")
 }
 
 func TestARefundTakesBackThePaymentsTimeAndClosesTheFlagItOpened(t *testing.T) {

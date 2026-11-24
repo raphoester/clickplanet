@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "Trudno ją odczytać w rozmiarze pola.",
   "flagSubmission.rejected.hateful": "Jest nienawistna.",
   "flagSubmission.rejected.other": "Nie została zatwierdzona.",
+  "flagSubmission.appeal": "Myślisz, że się pomyliliśmy? Poproś człowieka, żeby jeszcze raz na to spojrzał.",
   "flagSubmission.picture.type": "{file} to nie jest obrazek PNG, JPEG ani WebP.",
   "flagSubmission.picture.size": "{file} waży więcej niż {size}.",
   "flagSubmission.picture.narrow": "Ten obrazek jest za wąski.",

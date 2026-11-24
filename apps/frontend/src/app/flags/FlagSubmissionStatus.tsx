@@ -59,6 +59,11 @@ function lineOf(shown: Shown, catalog: FlagCatalog, selling: boolean): ReactNode
     }
 }
 
+// A person looks at a rejection again: the first review may be Claude's.
+function appealOf({name}: Submission): string {
+    return `mailto:support@clickplanet.lol?subject=${encodeURIComponent(`Look again at my flag ${name}`)}`
+}
+
 // The same submission again: the picture is picked again, since the page keeps none.
 function againOf({name, pin}: Submission): Draft {
     return {name, pinned: pin && {pin}}
@@ -119,6 +124,7 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
             </div>
             <p className="flag-status-line" role="status">{lineOf(shown, catalog, selling)}</p>
             {latest.state === "rejected" && latest.rejection?.note && <FlagNote text={latest.rejection.note}/>}
+            {latest.state === "rejected" && <a className="flag-status-appeal" href={appealOf(latest)}>{t("flagSubmission.appeal")}</a>}
             {shown.state === "closed" && latest.closeNote && <FlagNote text={latest.closeNote}/>}
             {offered && <PlanOffer shop={shop}
                                    plans={plans}

@@ -17,8 +17,8 @@ import {FlagFigure} from "./FlagFigure.tsx"
 import {OpenSubmittedPanel} from "./OpenSubmittedPanel.tsx"
 import {SubmissionVerdict} from "./SubmissionVerdict.tsx"
 import {
-    Around, aroundOf, founderOf, Ground, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
-    waiting,
+    Around, aroundOf, founderOf, Ground, judgementLabel, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf,
+    stateLabel, toOpen, waiting,
 } from "./submissions.ts"
 
 type Props = {
@@ -81,6 +81,12 @@ export function SubmissionDetail({
                             : <>{placeWords(pin)} · <a href={globeLinkOf(pin)} target="_blank" rel="noreferrer">Open on the globe</a></>}
                     </Fact>
                     {submission.flag !== "" && <Fact label="Flag"><FlagMark id={submission.flag}/> <Copyable text={submission.flag}/></Fact>}
+                    {submission.judgement !== undefined && (
+                        <Fact label="Claude">
+                            {judgementLabel(submission.judgement.verdict)}
+                            {submission.judgement.why !== "" && <> · <span className="text">{submission.judgement.why}</span></>}
+                        </Fact>
+                    )}
                     {rejection !== undefined && (
                         <>
                             <Fact label="Reason">{reasonLabel(rejection.reason)}</Fact>

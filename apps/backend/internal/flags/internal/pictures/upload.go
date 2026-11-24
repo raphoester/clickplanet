@@ -119,15 +119,24 @@ func (g Gallery) Hold(ctx context.Context, key string, drawn Drawn) error {
 	return nil
 }
 
-// Release makes public the picture held in private under the key, once it is checked to be the picture approved.
-func (g Gallery) Release(ctx context.Context, key string, picture Picture) error {
+// Held is the picture held in private under the key: ErrNotThePicture for a file that is not the one kept.
+func (g Gallery) Held(ctx context.Context, key string, picture Picture) ([]byte, error) {
 	png, err := g.bucket.Held(ctx, key, g.rules.MaxBytes)
 	if err != nil {
-		return fmt.Errorf("failed to read the picture held: %w", err)
+		return nil, fmt.Errorf("failed to read the picture held: %w", err)
 	}
 	sum := sha256.Sum256(png)
 	if hex.EncodeToString(sum[:]) != picture.hash {
-		return fmt.Errorf("%w: %s", ErrNotThePicture, key)
+		return nil, fmt.Errorf("%w: %s", ErrNotThePicture, key)
+	}
+	return png, nil
+}
+
+// Release makes public the picture held in private under the key, once it is checked to be the picture approved.
+func (g Gallery) Release(ctx context.Context, key string, picture Picture) error {
+	png, err := g.Held(ctx, key, picture)
+	if err != nil {
+		return err
 	}
 	if err := g.bucket.Publish(ctx, Drawn{PNG: png, Picture: picture}); err != nil {
 		return fmt.Errorf("failed to make the picture public: %w", err)

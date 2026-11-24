@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase"
@@ -24,9 +26,15 @@ var (
 )
 
 type stripe struct {
+	expired   []checkouts.SessionID
 	refunded  []payments.IntentID
 	cancelled []renewals.SubscriptionID
 	fails     error
+}
+
+func (s *stripe) Expire(_ context.Context, id checkouts.SessionID) error {
+	s.expired = append(s.expired, id)
+	return nil
 }
 
 func (s *stripe) Refund(_ context.Context, intent payments.IntentID) error {
@@ -68,8 +76,16 @@ func TestARejectedFlagIsRefundedInFullAndItsRenewalCancelled(t *testing.T) {
 	ended.State = renewals.Ended
 	renewed.Seed(renewals.TestRenewing("sub_1", buyer, at.AddDate(0, 1, 0), at), ended)
 
-	require.NoError(t, refund_rejected_usecase.New(paid, renewed, gate).Execute(t.Context(), rejected))
+	opened := checkouts.NewMemoryStore()
+	target, err := orders.ParseTarget(rejected, "")
+	require.NoError(t, err)
+	require.NoError(t, opened.Save(t.Context(), checkouts.Opened(checkouts.Page{Session: "cs_old"}, target, at.Add(-25*time.Hour))))
+	require.NoError(t, opened.Save(t.Context(), checkouts.Opened(checkouts.Page{Session: "cs_open"}, target, at.Add(-time.Minute))))
 
+	require.NoError(t, refund_rejected_usecase.New(cptime.NewFixedClock(at), opened, paid, renewed, gate).Execute(
+		t.Context(), rejected))
+
+	assert.Equal(t, []checkouts.SessionID{"cs_open"}, gate.expired, "a page a day old closed on its own")
 	assert.Equal(t, []payments.IntentID{"pi_1"}, gate.refunded, "not another flag's, nor one refunded already")
 	assert.Equal(t, []renewals.SubscriptionID{"sub_1"}, gate.cancelled, "not one ended already")
 }
@@ -78,7 +94,8 @@ func TestAFailedRefundIsToldAgain(t *testing.T) {
 	paid, gate := payments.NewMemoryStore(), &stripe{fails: errors.New("stripe is down")}
 	pay(t, paid, "in_1", "pi_1", rejected)
 
-	err := refund_rejected_usecase.New(paid, renewals.NewMemoryStore(), gate).Execute(t.Context(), rejected)
+	err := refund_rejected_usecase.New(cptime.NewFixedClock(at), checkouts.NewMemoryStore(), paid,
+		renewals.NewMemoryStore(), gate).Execute(t.Context(), rejected)
 
 	require.Error(t, err, "the event comes again")
 }

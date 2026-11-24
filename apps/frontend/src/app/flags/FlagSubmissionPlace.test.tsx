@@ -169,6 +169,8 @@ describe("FlagSubmissionPlace", () => {
 
         expect(screen.getByText("It is not the flag of a place.")).not.toBeNull()
         expect(screen.getByText("A club's crest.")).not.toBeNull()
+        expect(screen.getByRole("link", {name: "Think we got it wrong? Ask a person to look again."}).getAttribute("href"))
+            .toBe("mailto:support@clickplanet.lol?subject=Look%20again%20at%20my%20flag%20Bavaria")
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Try again"}))
 

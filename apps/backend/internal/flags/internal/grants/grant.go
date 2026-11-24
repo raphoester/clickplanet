@@ -8,7 +8,9 @@ import (
 	"unicode"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 )
@@ -21,7 +23,22 @@ var (
 	ErrInvalidGranted = errors.New("a grant kept in no state it can be in")
 	ErrNotHeld        = errors.New("the payment's time is not held for a review")
 	ErrStillWaiting   = errors.New("held time is released once its submission is decided")
+	ErrRefused        = errors.New("the rules refused the payment: it bought no time, and the shop refunds it")
 )
+
+// Refuses is true for what makes a payment buy nothing for good: a submission rejected or gone, a name another flag
+// took since, a flag closed 30 days ago or more.
+func Refuses(err error) bool {
+	for _, refusal := range []error{
+		submissions.ErrUnknownSubmission, submissions.ErrNotApproved, catalog.ErrUnknownFlag, catalog.ErrTooLate,
+		catalog.ErrNameTaken, catalog.ErrEnded, ErrNotTheFlag,
+	} {
+		if errors.Is(err, refusal) {
+			return true
+		}
+	}
+	return false
+}
 
 const maxGrantID = 255
 
@@ -237,6 +254,13 @@ func (g Grant) TakenBack(flag catalog.Flag, now time.Time) (Grant, catalog.Flag,
 		return g, shortened, nil, nil
 	}
 	return g, shortened, shortened.Facts(), nil
+}
+
+// Refused is the payment the rules refused, kept as taken back so it never grants, and what the shop hears to refund
+// it.
+func (g Grant) Refused(now time.Time) (Grant, *flagsv1.TimeRefused) {
+	g.takenBack, g.takenBackAt = true, now
+	return g, &flagsv1.TimeRefused{GrantId: g.id.String(), RefusedAt: timestamppb.New(now)}
 }
 
 // GrantedFlag is the flag the payment's time went to, once granted.

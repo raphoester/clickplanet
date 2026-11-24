@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts/postgres_checkout_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/notices/postgres_inbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/notices/usecases/receive_notice_usecase"
@@ -27,6 +28,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders/usecases/create_checkout_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/postgres_payment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/pay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_refused_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_refused_usecase/log_refund_refused"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase/log_refund_rejected"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/take_back_usecase"
@@ -43,6 +46,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/shopv1controller/stop_renewal_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripe_gateway"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripecontroller/receive_notice_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/subscribers/refused_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/subscribers/rejected_subscriber"
 )
 
@@ -66,7 +70,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 // Stripe's API, in the shop's words.
 type gateway interface {
-	create_checkout_usecase.Checkouts
+	create_checkout_usecase.Pages
 	stop_renewal_usecase.Subscriptions
 	pay_usecase.Intents
 	refund_rejected_usecase.Refunder
@@ -108,17 +112,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to connect the shop to redis: %w", err)
 	}
-	paid, renewed := postgres_payment_store.New(db), postgres_renewal_store.New(db)
+	paid, renewed, opened := postgres_payment_store.New(db), postgres_renewal_store.New(db), postgres_checkout_store.New(db)
 	// A flag rejected after it was paid for is refunded, and its renewal cancelled.
 	rejected, err := cpredis.Subscribe(ctx, streams, "shop-refund-rejected", rejected_subscriber.New(
-		log_refund_rejected.New(refund_rejected_usecase.New(paid, renewed, stripeAPI), props.Logger)))
+		log_refund_rejected.New(refund_rejected_usecase.New(clock, opened, paid, renewed, stripeAPI), props.Logger)))
 	if err != nil {
 		_ = streams.Close()
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to flags.v1.SubmissionRejected: %w", err)
 	}
+	// A payment the flags module refused bought nothing: it is refunded.
+	refused, err := cpredis.Subscribe(ctx, streams, "shop-refund-refused", refused_subscriber.New(
+		log_refund_refused.New(refund_refused_usecase.New(paid, stripeAPI), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to flags.v1.TimeRefused: %w", err)
+	}
 	// Not a closer: closers run before the runners stop, and the relay uses the pool.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, rejected,
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, rejected, refused,
 		cpoutbox.NewRelay("shop-outbox", db, streams.Commands(), props.Logger))))
 
 	if err := props.RPC.Mount(
@@ -126,7 +138,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return shopv1connect.NewShopServiceHandler(shopv1controller.ShopService{
 				ListPlansHandler: list_plans_handler.New(catalog),
 				CreateCheckoutHandler: create_checkout_handler.New(create_checkout_usecase.New(
-					clock, catalog, rpc_payables.New(flags), renewed, stripeAPI,
+					clock, catalog, rpc_payables.New(flags),
+					create_checkout_usecase.Stores{Renewals: renewed, Checkouts: opened}, stripeAPI,
 				)),
 				ListMyRenewalsHandler: list_my_renewals_handler.New(renewals_query.NewPostgresQuery(db)),
 				StopRenewalHandler:    stop_renewal_handler.New(stop_renewal_usecase.New(clock, renewed, stripeAPI)),

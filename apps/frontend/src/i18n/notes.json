@@ -339,5 +339,6 @@
   "shop.closedOn": "Under a flag's name: it left the game on {date}; more time brings it back.",
   "shop.stopRenewal": "A short button: stop paying for this flag's plan each month or year. The time already paid stays.",
   "news.shop.paid": "A line over the globe when the player comes back from the payment page after paying.",
-  "news.shop.cancelled": "A line over the globe when the player comes back from the payment page without paying."
+  "news.shop.cancelled": "A line over the globe when the player comes back from the payment page without paying.",
+  "flagSubmission.appeal": "A link under a rejected regional flag: it opens an email to the game's team, who look at the flag again. The first review may have been automatic. Keep it short."
 }

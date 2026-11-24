@@ -86,7 +86,9 @@ while the shop sells, "Sent! Pay to send it for review." over the plans, or once
 opens.". Approved: "Approved! It opens soon.", or "Approved! Pick a plan to open it." over the plans while the shop sells
 (see [The shop](shop.md#the-offer)), or "Approved! It opens now." once paid. Rejected: its reason in
 plain words (not a place, a flag in the game already, unreadable at a tile's size, hateful, or "It was not approved."),
-then the operator's note quoted. Opened: "Bavaria is in the game until Dec 24, 2026!" (its `endsAt`; "Bavaria is in the
+then the operator's note quoted, then "Think we got it wrong? Ask a person to look again.", an email to
+support@clickplanet.lol named after the flag: the first review may be Claude's (the backend's
+[The judge](../../backend/docs/flags.md#the-judge)). Opened: "Bavaria is in the game until Dec 24, 2026!" (its `endsAt`; "Bavaria is in the
 game!" while the list of flags does not hold it yet), the picture an approval made public beside the name. Closed:
 "Bavaria closed on Nov 24, 2026." (its `closedAt`), then the operator's note quoted when the operator closed it (below).
 

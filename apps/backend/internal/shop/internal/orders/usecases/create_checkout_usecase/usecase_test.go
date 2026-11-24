@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders/usecases/create_checkout_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/plans"
@@ -25,11 +26,15 @@ type payables struct{ refusal error }
 
 func (p payables) Payable(context.Context, orders.AccountID, orders.Target) error { return p.refusal }
 
-type checkouts struct{ orders []orders.Snapshot }
+type pages struct{ orders []orders.Snapshot }
 
-func (c *checkouts) Checkout(_ context.Context, order orders.Order, _ plans.Price) (string, error) {
-	c.orders = append(c.orders, order.TakeSnapshot())
-	return "https://checkout.stripe.com/c/pay/cs_1", nil
+func (p *pages) Checkout(_ context.Context, order orders.Order, _ plans.Price) (checkouts.Page, error) {
+	p.orders = append(p.orders, order.TakeSnapshot())
+	return checkouts.Page{Session: "cs_1", URL: "https://checkout.stripe.com/c/pay/cs_1"}, nil
+}
+
+func stores(kept *renewals.MemoryStore) create_checkout_usecase.Stores {
+	return create_checkout_usecase.Stores{Renewals: kept, Checkouts: checkouts.NewMemoryStore()}
 }
 
 func catalog(t *testing.T) plans.Catalog {
@@ -58,20 +63,25 @@ func in(t *testing.T, plan string) create_checkout_usecase.In {
 }
 
 func TestTheFounderGetsStripesPageForItsOrder(t *testing.T) {
-	sold := &checkouts{}
-	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, renewals.NewMemoryStore(), sold)
+	sold, opened := &pages{}, checkouts.NewMemoryStore()
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{},
+		create_checkout_usecase.Stores{Renewals: renewals.NewMemoryStore(), Checkouts: opened}, sold)
 
 	page, err := useCase.Execute(t.Context(), in(t, "month"))
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://checkout.stripe.com/c/pay/cs_1", page)
 	assert.Equal(t, []orders.Snapshot{{Buyer: buyer, Plan: plans.Month, Target: target(t), AgreedAt: now}}, sold.orders)
+	kept, err := opened.OfTarget(t.Context(), target(t))
+	require.NoError(t, err)
+	require.Len(t, kept, 1, "kept, so a rejection closes the page")
+	assert.Equal(t, checkouts.Snapshot{Session: "cs_1", Target: target(t), OpenedAt: now}, kept[0].TakeSnapshot())
 }
 
 func TestNoPageIsMadeForWhatTheFlagsModuleRefuses(t *testing.T) {
-	sold := &checkouts{}
+	sold := &pages{}
 	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t),
-		payables{refusal: rpc_payables.ErrNotYours}, renewals.NewMemoryStore(), sold)
+		payables{refusal: rpc_payables.ErrNotYours}, stores(renewals.NewMemoryStore()), sold)
 
 	_, err := useCase.Execute(t.Context(), in(t, "week"))
 
@@ -80,8 +90,8 @@ func TestNoPageIsMadeForWhatTheFlagsModuleRefuses(t *testing.T) {
 }
 
 func TestAGuestBuysNothing(t *testing.T) {
-	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, renewals.NewMemoryStore(),
-		&checkouts{})
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, stores(renewals.NewMemoryStore()),
+		&pages{})
 	guest := in(t, "week")
 	guest.Linked = false
 
@@ -91,8 +101,8 @@ func TestAGuestBuysNothing(t *testing.T) {
 }
 
 func TestNoPageWithoutTheBuyersAgreementToStartNow(t *testing.T) {
-	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, renewals.NewMemoryStore(),
-		&checkouts{})
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, stores(renewals.NewMemoryStore()),
+		&pages{})
 	unagreed := in(t, "week")
 	unagreed.StartsNow = false
 
@@ -103,7 +113,7 @@ func TestNoPageWithoutTheBuyersAgreementToStartNow(t *testing.T) {
 
 func TestTheShopOffSellsNothing(t *testing.T) {
 	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), plans.Catalog{}, payables{},
-		renewals.NewMemoryStore(), &checkouts{})
+		stores(renewals.NewMemoryStore()), &pages{})
 
 	_, err := useCase.Execute(t.Context(), in(t, "week"))
 
@@ -113,7 +123,7 @@ func TestTheShopOffSellsNothing(t *testing.T) {
 func TestASecondPlanIsNotSoldWhileARenewalRuns(t *testing.T) {
 	kept := renewals.NewMemoryStore()
 	kept.Seed(renewals.TestRenewing("sub_1", buyer, now.AddDate(0, 1, 0), now))
-	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, kept, &checkouts{})
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t), payables{}, stores(kept), &pages{})
 
 	_, err := useCase.Execute(t.Context(), in(t, "year"))
 

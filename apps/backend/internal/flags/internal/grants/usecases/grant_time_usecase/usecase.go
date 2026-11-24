@@ -40,8 +40,10 @@ type UseCase struct {
 	outbox  cpatomic.Outbox
 }
 
-// Execute grants a payment's time once: a payment told again, or taken back first, grants nothing.
+// Execute grants a payment's time once: a payment told again, or taken back first, grants nothing. One the rules
+// refuse is kept refused and told, so the shop refunds it: ErrRefused, with why.
 func (u *UseCase) Execute(ctx context.Context, paid grants.Paid) error {
+	var refusal error
 	if err := u.db.InTx(ctx, func(ctx context.Context) error {
 		grant, err := u.stores.Grants.Grant(ctx, paid.Grant)
 		if err != nil {
@@ -51,18 +53,25 @@ func (u *UseCase) Execute(ctx context.Context, paid grants.Paid) error {
 			return nil
 		}
 		granted, facts, err := u.grant(ctx, grant, paid)
-		if err != nil {
+		if grants.Refuses(err) {
+			refusal = err
+			refused, told := grant.Refused(u.clock.Now())
+			granted, facts = refused, []proto.Message{told}
+		} else if err != nil {
 			return err
 		}
 		if err := u.stores.Grants.Save(ctx, granted); err != nil {
 			return fmt.Errorf("failed to keep the grant: %w", err)
 		}
 		if err := u.outbox.Record(ctx, facts...); err != nil {
-			return fmt.Errorf("failed to record that the flag opened: %w", err)
+			return fmt.Errorf("failed to record what the grant told: %w", err)
 		}
 		return nil
 	}); err != nil {
 		return fmt.Errorf("failed to grant the time of %s: %w", paid.Grant, err)
+	}
+	if refusal != nil {
+		return fmt.Errorf("%w: %s: %w", grants.ErrRefused, paid.Grant, refusal)
 	}
 	return nil
 }
