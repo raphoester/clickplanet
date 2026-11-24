@@ -105,22 +105,28 @@ shop is on.
 |---|---|
 | `checkout.session.completed`, `checkout.session.async_payment_succeeded` | a week paid (`mode=payment`, `payment_status=paid`): the payment kept, `GrantTime` of a week. A session paid by a bank debit is told by the second event; one not paid yet, and a month's or a year's session, are left to their later event |
 | `checkout.session.async_payment_failed` | nothing: no time was granted |
-| `invoice.paid` | a month or a year paid, the first invoice and each renewal (Managed Payments subscriptions are Billing's, with their invoices): its intent read from Stripe (`GET /v1/invoice_payments?invoice=…&status=paid`: since 2025-03-31 an invoice no longer names it), the payment kept, `GrantTime` of the plan's period |
+| `invoice.paid` | a month or a year paid, the first invoice and each renewal (`billing_reason` `subscription_create` or `subscription_cycle`; Managed Payments subscriptions are Billing's, with their invoices): its intent read from Stripe (`GET /v1/invoice_payments?invoice=…&status=paid`: since 2025-03-31 an invoice no longer names it), the payment kept, `GrantTime` of the plan's period. Any other reason (a change's prorations, often of €0 with no intent) and a week's own invoice: nothing |
 | `charge.refunded` | refunded in full: the payment's `TakeBackTime`, once. In part: nothing (the operator refunds the unused time of a flag closed already) |
 | `charge.dispute.closed` | `lost`: the payment's `TakeBackTime`, once. Won or else: nothing |
 | `customer.subscription.created`, `.updated`, `.deleted` | the renewal as told: renewing (active, trialing, past due), stopping (`cancel_at_period_end` or `cancel_at`), ended (deleted, cancelled, never paid, unpaid, paused) |
 | any other, or one the shop never sold | `200`, nothing |
 
-**What Stripe's pages do not say** (checked 2026-11-24), so the choice is ours:
+**Tried on ClickPlanet's test environment** (2026-11-24, API `2026-11-18.endive`, the shop's real gateway, signature
+check and use cases, events from `stripe listen`, the test card 4242):
 
-- Which events a refund and a dispute send under Managed Payments. The pages say Stripe "handles disputes for you" and
-  "might issue a refund without your approval" within 60 days; Billing's page names `charge.refunded` and
-  `charge.dispute.created`. The shop takes back on `charge.refunded` (in full) and on `charge.dispute.closed` (lost),
-  the dispute's final word. If Managed Payments sends neither to the account, a refund keeps the flag's time: the
-  operator then closes the flag by hand (`flags_close_flag`).
-- Whether the renewal under Managed Payments is told as `invoice.paid`: the pages say an invoice is made each period,
-  and Stripe's guide for subscriptions names `invoice.paid`. The first payment of a month or a year is its first
-  invoice, so it opens the flag the same way.
+- A week: `checkout.session.completed` grants it. Managed Payments then sends an `invoice.paid` of no subscription,
+  which the shop ignores.
+- A month: `customer.subscription.created` and `invoice.paid` (`subscription_create`), in either order; the invoice's
+  intent read; the month granted once.
+- A renewal, on a test clock moved 32 days: `customer.subscription.updated`, then `invoice.paid`
+  (`subscription_cycle`): one more month.
+- A refund in full, of the week and of a renewal (`POST /v1/refunds` works under Managed Payments): `charge.refunded`,
+  and `TakeBackTime` of that payment.
+- A stop from the game: `cancel_at_period_end`, then `customer.subscription.updated` reads it as stopping.
+- A change of the subscription (`billing_cycle_anchor` reset): an `invoice.paid` of €0 with no intent, which failed
+  with a 500 until the shop ignored invoices of other `billing_reason`s.
+- Not tried: a dispute, and a refund Stripe makes on its own. The shop takes back on `charge.dispute.closed` (lost);
+  if Managed Payments sends nothing for one, the operator closes the flag by hand (`flags_close_flag`).
 
 ## The schema
 

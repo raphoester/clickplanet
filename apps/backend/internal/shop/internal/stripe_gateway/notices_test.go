@@ -63,6 +63,16 @@ func TestARenewalsInvoiceIsReadAsAPaymentWhoseIntentIsAskedLater(t *testing.T) {
 	assert.Empty(t, notice.Payment.Intent)
 }
 
+func TestAnInvoiceOfAChangeToTheSubscriptionPaysNoPeriod(t *testing.T) {
+	for _, reason := range []string{"subscription_update", "manual", "subscription_threshold"} {
+		invoice := stripe_gateway.Invoice("in_1", "sub_1", stripe_gateway.Metadata(account, submission, "month"))
+		invoice["billing_reason"], invoice["amount_paid"] = reason, 0
+		payload, signature := stripe_gateway.Signed("evt_1", stripe.EventTypeInvoicePaid, invoice, time.Now())
+
+		assert.Equal(t, notices.Ignored, read(t, payload, signature).Kind, reason)
+	}
+}
+
 func TestARenewingPlansSessionIsLeftToItsInvoice(t *testing.T) {
 	session := stripe_gateway.Session("cs_1", "", stripe_gateway.Metadata(account, submission, "month"))
 	session["mode"], session["payment_intent"] = "subscription", nil

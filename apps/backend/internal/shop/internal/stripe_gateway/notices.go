@@ -137,6 +137,12 @@ func invoice(notice *notices.Notice, raw json.RawMessage) error {
 	if err != nil {
 		return err //nolint:wrapcheck // the order names it.
 	}
+	// A change of the subscription is billed in prorations, often of nothing and with no intent: no period is paid.
+	if invoice.BillingReason != stripe.InvoiceBillingReasonSubscriptionCreate &&
+		invoice.BillingReason != stripe.InvoiceBillingReasonSubscriptionCycle {
+		*notice = ignored(*notice, "no period in a "+string(invoice.BillingReason)+" invoice")
+		return nil
+	}
 	id, err := payments.ParsePaymentID(invoice.ID)
 	if err != nil {
 		return err //nolint:wrapcheck // the parse names it.
