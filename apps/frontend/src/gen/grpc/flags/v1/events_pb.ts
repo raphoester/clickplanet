@@ -104,3 +104,56 @@ export class FlagClosed extends Message<FlagClosed> {
   }
 }
 
+/**
+ * The flag's name from renamed_at. Its code stays.
+ *
+ * @generated from message flags.v1.FlagRenamed
+ */
+export class FlagRenamed extends Message<FlagRenamed> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * In English.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp renamed_at = 3;
+   */
+  renamedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<FlagRenamed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.FlagRenamed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "renamed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagRenamed | PlainMessage<FlagRenamed> | undefined, b: FlagRenamed | PlainMessage<FlagRenamed> | undefined): boolean {
+    return proto3.util.equals(FlagRenamed, a, b);
+  }
+}
+

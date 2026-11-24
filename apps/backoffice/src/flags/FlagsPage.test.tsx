@@ -142,6 +142,19 @@ describe("FlagsPage", () => {
         expect(screen.queryByRole("heading", {name: "Rennes"})).toBeNull()
     })
 
+    it("says the server's refusal of a name another flag has", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        await card("Bavaria")
+
+        const form = fill("bavaria", later(20))
+        fireEvent.click(within(form).getByRole("button", {name: "Open"}))
+        fireEvent.click(within(form).getByRole("button", {name: "Yes, open"}))
+
+        expect(await within(form).findByText("The server refused it: the flag r-k3p9x2ma0b is named Bavaria")).toBeTruthy()
+        expect(screen.getAllByRole("heading", {name: "Bavaria"})).toHaveLength(1)
+    })
+
     it("sends no picture when the server has the pictures off", async () => {
         const admin = new FakeAdmin()
         admin.refuse("createFlagUpload", Code.FailedPrecondition)
@@ -227,6 +240,68 @@ describe("FlagsPage", () => {
         fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
 
         expect(await within(bavaria).findByText("It is closed already.")).toBeTruthy()
+        expect(admin.askedFor("listFlags")).toHaveLength(1)
+    })
+
+    it("renames a flag once asked, open or closed, and reads the list again", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        const field = within(bavaria).getByLabelText(/^Name/) as HTMLInputElement
+        expect(field.value).toBe("Bavaria")
+        expect(within(bavaria).getByText("Name · 7/40")).toBeTruthy()
+        expect((within(bavaria).getByRole("button", {name: "Rename"}) as HTMLButtonElement).disabled).toBe(true)
+
+        fireEvent.change(field, {target: {value: " Bayern "}})
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Rename"}))
+        const question = within(bavaria).getByRole("group", {name: "Rename"}).textContent
+        expect(question).toContain("Rename Bavaria to Bayern?")
+        expect(question).toContain("Every player sees the new name at once.")
+        expect(admin.askedFor("renameFlag")).toEqual([])
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, rename"}))
+
+        expect(await within(bavaria).findByText("Renamed to Bayern.")).toBeTruthy()
+        expect(admin.askedFor("renameFlag")).toEqual([{code: "r-k3p9x2ma0b", name: "Bayern"}])
+        expect(await card("Bayern")).toBe(bavaria)
+        expect(admin.askedFor("listFlags")).toHaveLength(2)
+
+        const savoy = await card("Savoy")
+        fireEvent.change(within(savoy).getByLabelText(/^Name/), {target: {value: "Savoie"}})
+        fireEvent.click(within(savoy).getByRole("button", {name: "Rename"}))
+        fireEvent.click(within(savoy).getByRole("button", {name: "Yes, rename"}))
+
+        expect(await within(savoy).findByText("Renamed to Savoie.")).toBeTruthy()
+        expect(await card("Savoie")).toBe(savoy)
+    })
+
+    it("counts the new name as it is typed, and renames nothing too long", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        fireEvent.change(within(bavaria).getByLabelText(/^Name/), {target: {value: "B".repeat(41)}})
+
+        expect(within(bavaria).getByText("Name · 41/40")).toBeTruthy()
+        expect(within(bavaria).getByText("A name of 40 characters at most.")).toBeTruthy()
+        expect((within(bavaria).getByRole("button", {name: "Rename"}) as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it("says the server's refusal of a name another flag has, built-in or sold, whatever its case", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        for (const [name, words] of [
+            ["savoy", "The server refused it: the flag r-0a1b2c3d4e is named Savoy"],
+            ["FRANCE", "The server refused it: the flag fr is named France"],
+        ]) {
+            fireEvent.change(within(bavaria).getByLabelText(/^Name/), {target: {value: name}})
+            fireEvent.click(within(bavaria).getByRole("button", {name: "Rename"}))
+            fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, rename"}))
+            expect(await within(bavaria).findByText(words)).toBeTruthy()
+        }
+        expect(screen.getByRole("heading", {name: "Bavaria"})).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(1)
     })
 

@@ -45,3 +45,20 @@ func (s Closed) Handle(ctx context.Context, event *flagsv1.FlagClosed) error {
 		Flag: event.GetFlag(), DecidedAt: event.GetClosedAt().AsTime(),
 	})
 }
+
+func NewRenamed(useCase UseCase) Renamed {
+	return Renamed{useCase: useCase}
+}
+
+// Renamed hears the module's own flags.v1.FlagRenamed, for the open streams.
+type Renamed struct {
+	useCase UseCase
+}
+
+var _ cpredis.Handler[*flagsv1.FlagRenamed] = Renamed{}
+
+func (s Renamed) Handle(ctx context.Context, event *flagsv1.FlagRenamed) error {
+	return s.useCase.Execute(ctx, tell_streams_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Flag: event.GetFlag(), DecidedAt: event.GetRenamedAt().AsTime(),
+	})
+}

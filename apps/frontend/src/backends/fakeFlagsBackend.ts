@@ -8,9 +8,13 @@ const CODE_LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
 const DAY_MS = 24 * 60 * 60 * 1000
 // Time added within this long of a close opens the flag again.
 const COMEBACK_MS = 30 * DAY_MS
+const MAX_NAME = 40
 
 // A flag's picture, as the server would have drawn it from an upload.
 export type FlagPainter = (name: string) => Promise<FlagPicture>
+
+// What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
+export type NameRefusal = "empty" | "too long" | "taken"
 
 // As the server lists Brittany since it left the build: sold, under the code it shipped with.
 const BRITTANY_PICTURE: FlagPicture = {
@@ -18,8 +22,8 @@ const BRITTANY_PICTURE: FlagPicture = {
     width: 768, height: 512, stretch: false, focusX: 0.4344, focusY: 0.5151,
 }
 
-// `openFlag("Bavaria")`, `addTime(code, days)` and `closeFlag(code)` on the console, each told as the flags module's
-// stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
+// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code)` and `renameFlag(code, name)` on the console, each told
+// as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
     private readonly sold: ListedFlag[]
     private readonly listeners = new Set<FlagHandlers>()
@@ -50,12 +54,15 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         return () => this.closings.delete(onClosed)
     }
 
-    public async open(name: string, days = 30): Promise<string> {
+    public async open(name: string, days = 30): Promise<{code: string} | {refused: NameRefusal}> {
+        const trimmed = name.trim()
+        const refused = this.nameRefusalOf(trimmed, undefined)
+        if (refused !== undefined) return {refused}
         const code = `r-${Array.from({length: 10}, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("")}`
-        const flag: ListedFlag = {code, name, closed: false, sold: {picture: await this.paint(name), endsAt: this.now() + days * DAY_MS}}
+        const flag: ListedFlag = {code, name: trimmed, closed: false, sold: {picture: await this.paint(trimmed), endsAt: this.now() + days * DAY_MS}}
         this.sold.push(flag)
         this.tell(flag)
-        return code
+        return {code}
     }
 
     // An open flag ends later; one closed less than 30 days ago opens again, ending that many days from now.
@@ -82,6 +89,26 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         flag.sold = {...flag.sold, closedAt: this.now()}
         this.tell(flag)
         return true
+    }
+
+    // Open or closed: its code, picture and land stay.
+    public rename(code: string, name: string): "renamed" | "unknown" | NameRefusal {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag === undefined) return "unknown"
+        const trimmed = name.trim()
+        const refused = this.nameRefusalOf(trimmed, code)
+        if (refused !== undefined) return refused
+        flag.name = trimmed
+        this.tell(flag)
+        return "renamed"
+    }
+
+    private nameRefusalOf(name: string, renamed: string | undefined): NameRefusal | undefined {
+        if (name === "") return "empty"
+        if ([...name].length > MAX_NAME) return "too long"
+        const lower = name.toLowerCase()
+        const taken = [...BUILT_IN, ...this.sold].some((flag) => flag.code !== renamed && flag.name.toLowerCase() === lower)
+        return taken ? "taken" : undefined
     }
 
     private closed(): ReadonlySet<string> {

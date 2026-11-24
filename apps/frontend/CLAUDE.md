@@ -121,8 +121,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the flags module's stream opens, and each flag it tells merged with no read; one read at a time and once for a code it
   does not know, never a loop; a sold flag's picture drawn under the built atlas in the globe's texture, in the far
   view's slots, and as its URL in the picker, the chat, the share card and the clips; a held flag closed and its window;
-  a code it does not know: its code as its name, a grey flag; Brittany, sold since it left the build; the fake's
-  `openFlag`, `addTime`, `closeFlag`.
+  a flag renamed; a code it does not know: its code as its name, a grey flag; Brittany, sold since it left the build;
+  the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

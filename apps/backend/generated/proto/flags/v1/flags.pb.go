@@ -214,7 +214,7 @@ type FlagEvent_Heartbeat struct {
 }
 
 type FlagEvent_FlagChanged struct {
-	// A flag opened or closed, as the catalog holds it now.
+	// A flag opened, closed or renamed, as the catalog holds it now.
 	FlagChanged *Flag `protobuf:"bytes,2,opt,name=flag_changed,json=flagChanged,proto3,oneof"`
 }
 

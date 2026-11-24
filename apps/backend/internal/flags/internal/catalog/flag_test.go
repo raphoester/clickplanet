@@ -159,3 +159,12 @@ func TestAFlagEndingNowOrBeforeIsNotOpened(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, catalog.FlagID("r-0000000001"), flag.TakeSnapshot().ID)
 }
+
+func TestARenamedFlagKeepsItsCodeAndTellsItsNewName(t *testing.T) {
+	renamed, fact := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Renamed("Roazhon", closedAt)
+
+	assert.Equal(t, catalog.Name("Roazhon"), renamed.TakeSnapshot().Name)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), renamed.TakeSnapshot().ID)
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{Flag: "r-0000000001", Name: "Roazhon", RenamedAt: timestamppb.New(closedAt)},
+		fact), "%v", fact)
+}

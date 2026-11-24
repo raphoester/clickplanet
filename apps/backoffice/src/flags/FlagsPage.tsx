@@ -13,7 +13,7 @@ import {SoldCard} from "./SoldCard.tsx"
 
 const ORDERS: {order: Order, label: string}[] = [{order: "end", label: "By end"}, {order: "name", label: "By name"}]
 
-// The sold flags, opened by hand: a form to open one, then each with its days added and its close.
+// The sold flags, opened by hand: a form to open one, then each with its days added, its rename and its close.
 export function FlagsPage({flags, put = putFile}: {flags: FlagsAdmin, put?: Put}) {
     // The rest of the console names a flag by the same list: one opened here is named there at once.
     const list = useCallback(async (signal: AbortSignal) => {

@@ -5,7 +5,7 @@
 
 import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, OpenFlagRequest, OpenFlagResponse } from "./admin_pb.js";
+import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, OpenFlagRequest, OpenFlagResponse, RenameFlagRequest, RenameFlagResponse } from "./admin_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -46,8 +46,8 @@ export const AdminService = {
      * Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
      * CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
      * data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
-     * wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
-     * one only when the owner says so.
+     * wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
+     * player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
      *
      * @generated from rpc flags.v1.AdminService.OpenFlag
      */
@@ -81,6 +81,19 @@ export const AdminService = {
       name: "CloseFlag",
       I: CloseFlagRequest,
       O: CloseFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
+     * picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
+     * InvalidArgument, as is an empty one or one over 40 characters.
+     *
+     * @generated from rpc flags.v1.AdminService.RenameFlag
+     */
+    renameFlag: {
+      name: "RenameFlag",
+      I: RenameFlagRequest,
+      O: RenameFlagResponse,
       kind: MethodKind.Unary,
     },
   }

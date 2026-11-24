@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/expire_flags_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/restate_flags_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/listen_for_events_usecase"
@@ -32,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler/flags_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
@@ -107,6 +109,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagClosed: %w", err)
 	}
+	renamed, err := cpredis.Subscribe(ctx, redis, "flags-streams-renamed",
+		log_subscriber.New(told_subscriber.NewRenamed(tell), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagRenamed: %w", err)
+	}
 
 	// Each module keeps what it heard: one that subscribed after a flag was told hears it at the next boot.
 	if err := restate_flags_usecase.New(db, store, cpoutbox.New(db)).Execute(ctx); err != nil {
@@ -119,7 +128,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		expire_flags_usecase.NewRunner(expiryInterval, expire_flags_usecase.New(clock, db, store, cpoutbox.New(db)),
 			props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed,
+			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -139,8 +149,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			OpenFlagHandler: open_flag_handler.New(open_flag_usecase.New(
 				catalog.NewOpening(random_flag_ids.Provider{}, clock), pictures.NewGallery(bucket, rules), db, store,
 				cpoutbox.New(db)), messages),
-			AddTimeHandler:   add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			CloseFlagHandler: close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			AddTimeHandler:    add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			CloseFlagHandler:  close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			RenameFlagHandler: rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 		}, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.AdminService: %w", err)

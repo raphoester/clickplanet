@@ -721,7 +721,8 @@ export class DemoAdmin extends FakeAdmin {
     }
 
     // flags.v1, as the server answers it: a PNG, a JPEG or a WebP of 5 MB at most, the file in the made-up bucket, a
-    // name of 1 to 40 characters and an end to come; the picture shown from the page's memory.
+    // name of 1 to 40 characters no other flag has and an end to come; the picture shown from the page's memory. A rename
+    // as FakeFlags keeps it.
     readonly demoFlags = {
         listFlags: this.flags.listFlags.bind(this.flags),
         createFlagUpload: (request: PartialMessage<CreateFlagUploadRequest>) => {
@@ -753,6 +754,7 @@ export class DemoAdmin extends FakeAdmin {
         },
         addTime: this.flags.addTime.bind(this.flags),
         closeFlag: this.flags.closeFlag.bind(this.flags),
+        renameFlag: this.flags.renameFlag.bind(this.flags),
     }
 
     readonly demoProgression = {

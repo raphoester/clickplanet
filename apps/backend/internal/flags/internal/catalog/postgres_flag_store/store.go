@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lib/pq"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -25,8 +27,14 @@ var _ catalog.Store = (*Store)(nil)
 const columns = `id, name, state::text, decided_at, ends_at,
 	picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y`
 
+const (
+	uniqueViolation = "23505"
+	uniqueNameIndex = "flags_name_key"
+)
+
 func (s *Store) Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, error) {
-	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+` FROM flags WHERE id = $1`, id.String())
+	// Locked to the end of the transaction a change reads it in, so two changes never undo each other.
+	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+` FROM flags WHERE id = $1 FOR UPDATE`, id.String())
 	flag, err := flagOf(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return catalog.Flag{}, fmt.Errorf("%s: %w", id, catalog.ErrUnknownFlag)
@@ -94,7 +102,7 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 	for _, flag := range flags {
 		kept := flag.TakeSnapshot()
 		picture := kept.Picture
-		if _, err := s.db.On(ctx).ExecContext(ctx, `
+		_, err := s.db.On(ctx).ExecContext(ctx, `
 			INSERT INTO flags (id, name, state, decided_at, ends_at,
 				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y)
 			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -105,7 +113,12 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 				picture_focus_y = EXCLUDED.picture_focus_y
 		`, kept.ID.String(), kept.Name.String(), string(kept.State), kept.DecidedAt.UTC(), kept.EndsAt.UTC(),
 			picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch, float32(picture.Fit.FocusX),
-			float32(picture.Fit.FocusY)); err != nil {
+			float32(picture.Fit.FocusY))
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
+			return fmt.Errorf("%s: %w", kept.Name, catalog.ErrNameTaken)
+		}
+		if err != nil {
 			return fmt.Errorf("failed to keep the flag %s: %w", kept.ID, err)
 		}
 	}

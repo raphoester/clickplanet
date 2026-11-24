@@ -236,6 +236,8 @@ import {
     CreateFlagUploadResponse,
     OpenFlagRequest,
     OpenFlagResponse,
+    RenameFlagRequest,
+    RenameFlagResponse,
 } from "./gen/grpc/flags/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
@@ -811,6 +813,29 @@ export function soldFlag(code: string, name: string, endsAt: Date, closedAt?: Da
     })
 }
 
+// The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
+const GAME_FLAG_NAMES: readonly string[] = (() => {
+    const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const names = ["England", "Scotland", "Wales"]
+    for (const first of letters) {
+        for (const second of letters) {
+            const name = regions.of(first + second)
+            if (name !== undefined) names.push(name)
+        }
+    }
+    return names
+})()
+
+// What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
+export function nameRefusalOf(name: string, others: readonly Flag[]): string | undefined {
+    if (name === "" || [...name].length > 40) return "a name of 1 to 40 characters"
+    const taken = others.find(other => other.name.toLowerCase() === name.toLowerCase())
+    if (taken !== undefined) return `the flag ${taken.code} is named ${taken.name}`
+    const game = GAME_FLAG_NAMES.find(other => other.toLowerCase() === name.toLowerCase())
+    return game === undefined ? undefined : `a flag the game ships with is named ${game}`
+}
+
 // flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, then the ones opened
 // since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it. Each change is kept as the
 // server keeps it, at the time of the call.
@@ -843,8 +868,11 @@ export class FakeFlags implements FlagsAdmin {
         if (!this.uploads.has(request.uploadId ?? "")) {
             return this.refused("openFlag", request, "no picture uploaded under this id", Code.InvalidArgument)
         }
+        const name = (request.name ?? "").trim()
+        const taken = nameRefusalOf(name, this.listed)
+        if (taken !== undefined) return this.refused("openFlag", request, taken, Code.InvalidArgument)
         const code = `r-${this.listed.length.toString(36).padStart(10, "0")}`
-        const flag = soldFlag(code, (request.name ?? "").trim(), new Timestamp(request.endsAt).toDate())
+        const flag = soldFlag(code, name, new Timestamp(request.endsAt).toDate())
         const answer = this.admin.answer("openFlag", request, new OpenFlagResponse({flag}))
         if (!this.admin.refusals.has("openFlag")) {
             const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
@@ -875,6 +903,17 @@ export class FakeFlags implements FlagsAdmin {
         const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
             flag.sold?.picture?.url)
         return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))
+    }
+
+    // Open or closed, its code, picture and land kept.
+    renameFlag(request: PartialMessage<RenameFlagRequest>): Promise<RenameFlagResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("renameFlag", request, "no flag opened under this code", Code.NotFound)
+        const name = (request.name ?? "").trim()
+        const refused = nameRefusalOf(name, this.listed.filter(each => each.code !== flag.code))
+        if (refused !== undefined) return this.refused("renameFlag", request, refused, Code.InvalidArgument)
+        const renamed = new Flag({...flag, name})
+        return this.replaced("renameFlag", request, renamed, new RenameFlagResponse({flag: renamed}))
     }
 
     private replaced<T>(method: string, request: unknown, flag: Flag, response: T): Promise<T> {

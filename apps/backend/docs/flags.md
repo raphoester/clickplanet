@@ -3,7 +3,8 @@
 **The flags module owns the catalog of flags**: the 238 the game ships with, and the flags sold since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
-itself at its end, and comes back within 30 days. The first real one opens when the owner says so.
+itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. The first real one opens
+when the owner says so.
 
 ## The catalog
 
@@ -14,21 +15,26 @@ itself at its end, and comes back within 30 days. The first real one opens when 
 - **A flag opened since** is a row of `flags.flags`: `id`, `name`, `state` (`flag_state`: `open` or `closed`),
   `decided_at`, when it took that state, `ends_at`, and its picture (`picture_hash`, `_width`, `_height`, `_stretch`,
   `_focus_x`, `_focus_y`). **A flag is closed, never deleted**: the season standings, the Hall of Fame, the map
-  history and the videos still name it.
+  history and the videos still name it. A flag opened by mistake that nobody played for was deleted by hand in postgres
+  (`flags.flags` and `planet.heard_flags`) on 2026-11-24; there is no call for it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
   with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
   review in step 2 may change the name, and the id stays. **A flag that left the build keeps the code it shipped with**
   (Brittany, `xb`, below), so its land, players, room and points stay its own.
 - **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
+  **Two flags never share a name**, whatever its case, a flag the game ships with included (`catalog.Names`, at the open
+  and at a rename), and `flags_name_key`, a unique index on `lower(name)`, holds it against two calls at once.
 
 ## What it tells
 
-`flags.v1.FlagOpened{flag, name, opened_at}` and `flags.v1.FlagClosed{flag, closed_at}`, through its outbox (a lost one
-would leave planet refusing a flag for good), in the transaction that opens or closes the flag.
+`flags.v1.FlagOpened{flag, name, opened_at}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name, renamed_at}`,
+through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`.
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
-(`bans.Book.Restate`): an open flag as `FlagOpened`, a closed one as `FlagClosed` alone. A module that subscribes after a
-flag was told hears it at the next boot, with no hand migration. With no flag opened, it tells nothing.
+(`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
+subscribes after a flag was told hears it at the next boot, with no hand migration. With no flag opened, it tells
+nothing.
 
 **Of one flag, the fact with the latest time holds.** The two facts go on two streams, so a listener may hear a close
 before the opening it follows; it keeps the later one, and a fact told again changes nothing.
@@ -81,12 +87,12 @@ land stays, shields too: the game never removes land by itself, and rivals take 
 ## The stream
 
 **The flags module tells the pages itself**, on a stream of its own: `flags.v1.FlagService/ListenForEvents`, a
-`heartbeat` at once and every `httpServer.streamHeartbeat`, and `flag_changed`, each flag opened or closed while the
-stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`). It reads no token: every page hears
-the same.
+`heartbeat` at once and every `httpServer.streamHeartbeat`, `flag_changed`, each flag opened, closed or renamed while the
+stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`). It reads no token: every page hears the
+same.
 
-- **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`) and tells each to the open streams
-  (`tell_streams_usecase`), the flag read from its table, so a close heard before its opening still tells the flag
+- **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`, `flags-streams-renamed`) and
+  tells each to the open streams (`tell_streams_usecase`), the flag read from its table, so a close heard before its opening still tells the flag
   closed. A fact told again (the restatement at each boot) changes nothing for a page, so it is skipped: only a fact
   decided since this process started is news (`feed.News`). A page reads `ListFlags` each time its stream opens, so it
   misses nothing told while the stream was down.
@@ -114,20 +120,26 @@ its stream opens, and a cached answer would not hold a flag opened while it was 
 ## The operator's calls
 
 `flags.v1.AdminService`, on the backoffice's Flags page and as Claude's tools (`flags_create_flag_upload`,
-`flags_open_flag`, `flags_add_time`, `flags_close_flag`). **Every player sees a flag opened at once, and a closed flag is
-never deleted: open one only when the owner says so.**
+`flags_open_flag`, `flags_add_time`, `flags_close_flag`, `flags_rename_flag`). **Every player sees a flag opened at
+once, and a closed flag is never deleted: open one only when the owner says so.** Each change reads the flag
+`FOR UPDATE` in its transaction, so two changes at once never undo each other (a rename as the runner closes the flag
+at its end keeps it closed).
 
 - **`CreateFlagUpload(content_type, size_bytes)`**: a one-time link, good for 10 minutes, to `PUT` a PNG, JPEG or WebP
   of 5 MB at most into the bucket, under `flags/uploads/<id>`, private.
 - **`OpenFlag(name, upload_id, ends_at)`** (`open_flag_usecase`): the picture drawn again (below), made public, then the
   flag kept and `FlagOpened` recorded in one transaction; the upload deleted once the flag is kept, so a refused open (an
-  end in the past) can be tried again with the same file. `catalog.Opening` draws the id and checks the end is ahead.
+  end in the past, a name taken) can be tried again with the same file. `catalog.Opening` draws the id and checks the
+  end is ahead.
 - **`AddTime(code, days)`** (`add_time_usecase`, 1 to 3,660 days): an open flag ends that much later, and tells nobody.
   **A flag closed less than 30 days ago comes back** (`Flag.TimeAdded`): the same code, name and picture, the land it
   still holds, open from now until that many days from now, told as `FlagOpened`. Past the 30 days,
   `catalog.ErrTooLate` (`FailedPrecondition`): the place is free for a new flag.
 - **`CloseFlag(code)`** (`close_flag_usecase`): now, as a flag that broke the rules. `catalog.ErrClosed` for one closed
   already.
+- **`RenameFlag(code, name)`** (`rename_flag_usecase`): open or closed; `catalog.ErrNameTaken` or `ErrInvalidName`
+  (`InvalidArgument`) for a name another flag has or no name. Told as `FlagRenamed`: the pages show it at once, and the
+  code, the picture, the land and the players stay.
 - **At its end a flag closes by itself**: `expire_flags_usecase`, every 30 seconds, closes each open flag whose
   `ends_at` passed (`Store.Ending`, an index on `ends_at` of the open ones), at its end, and records `FlagClosed`.
 
@@ -153,7 +165,7 @@ pictures of the flags there are.
 - `shared/cps3` reads (`Read`, with a size limit) and writes (`Write`, with its cache header) through signed links.
 
 `internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and shows the fact reach
-another module's subscriber and an open page's stream with no restart, then the close.
+another module's subscriber and an open page's stream with no restart, then the close and a rename.
 
 ## Brittany, from the build to the sold flags
 

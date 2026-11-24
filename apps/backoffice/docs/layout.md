@@ -54,8 +54,8 @@ src/
   lab/              The Lab: LabPage over readout.ts (each post at 7 days, each experiment against its control, the
                     arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
-  flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days and
-                    Close), actions.ts (the open's steps, the refusals, days left, the order)
+  flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days,
+                    Rename and Close), actions.ts (the open's steps, the refusals, days left, the order)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)

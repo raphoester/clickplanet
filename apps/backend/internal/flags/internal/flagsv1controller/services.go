@@ -8,6 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
 )
 
 type FlagService struct {
@@ -23,6 +24,7 @@ type AdminService struct {
 	open_flag_handler.OpenFlagHandler
 	add_time_handler.AddTimeHandler
 	close_flag_handler.CloseFlagHandler
+	rename_flag_handler.RenameFlagHandler
 }
 
 var _ flagsv1connect.AdminServiceHandler = AdminService{}

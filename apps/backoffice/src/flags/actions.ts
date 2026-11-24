@@ -72,10 +72,21 @@ export function lengthOf(name: string): number {
     return [...name.trim()].length
 }
 
+export function nameProblem(name: string): string | undefined {
+    return lengthOf(name) > MAX_NAME ? `A name of ${MAX_NAME} characters at most.` : undefined
+}
+
+// A name the server may take as typed, other than the flag's own: undefined for none.
+export function renamedOf(typed: string, current: string): string | undefined {
+    const name = typed.trim()
+    return name === "" || name === current || nameProblem(name) !== undefined ? undefined : name
+}
+
 // What the server would refuse of a flag to open, as it is typed. A field left empty is not one: Open waits for it.
 export function draftProblems(draft: Draft, now: Date): string[] {
     const problems: string[] = []
-    if (lengthOf(draft.name) > MAX_NAME) problems.push(`A name of ${MAX_NAME} characters at most.`)
+    const name = nameProblem(draft.name)
+    if (name !== undefined) problems.push(name)
     if (draft.file !== undefined && !ACCEPTED.split(",").includes(draft.file.type)) problems.push("A PNG, a JPEG or a WebP.")
     if (draft.file !== undefined && draft.file.size > MAX_BYTES) problems.push("A picture of 5 MB at most.")
     const end = endOf(draft.endsAt)
@@ -118,7 +129,13 @@ export async function closeFlag(flags: FlagsAdmin, code: string): Promise<Flag> 
     return answered((await flags.closeFlag({code})).flag)
 }
 
+export async function renameFlag(flags: FlagsAdmin, code: string, name: string): Promise<Flag> {
+    return answered((await flags.renameFlag({code, name})).flag)
+}
+
 export const openRefusalOf = refusalWith({failedPrecondition: PICTURES_OFF})
+
+export const renameRefusalOf = refusalWith({notFound: NO_SUCH_FLAG})
 
 export const addTimeRefusalOf = refusalWith({
     failedPrecondition: `Closed over ${COMEBACK_DAYS} days ago: time added no longer opens it.`,

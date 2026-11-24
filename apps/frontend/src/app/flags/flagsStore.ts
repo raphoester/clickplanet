@@ -12,7 +12,7 @@ type FlagsStore = {
     serve: (lister: FlagLister | undefined) => void
     // The list may have changed unheard: the stream opened.
     changed: () => void
-    // A flag opened or closed, as the stream tells it: no read.
+    // A flag opened, closed or renamed, as the stream tells it: no read.
     told: (flag: ListedFlag) => void
     missed: (code: string) => void
 }

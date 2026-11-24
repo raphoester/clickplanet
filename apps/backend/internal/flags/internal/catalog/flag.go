@@ -100,6 +100,11 @@ func (f Flag) Closed(at time.Time) (Flag, error) {
 	return f, nil
 }
 
+func (f Flag) Renamed(name Name, at time.Time) (Flag, *flagsv1.FlagRenamed) {
+	f.name = name
+	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}
+}
+
 // Expired is false while the flag has time left, or is closed already.
 func (f Flag) Expired(now time.Time) (Flag, bool) {
 	if f.state != Open || f.endsAt.After(now) {

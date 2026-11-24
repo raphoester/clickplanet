@@ -44,7 +44,7 @@ const (
 type FlagServiceClient interface {
 	// Every flag of the catalog, the closed ones too: history still names them. A GET.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
-	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+	// Each flag opened, closed or renamed while the stream is open, as it is now, and a heartbeat at once and every
 	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.FlagEvent], error)
 }
@@ -96,7 +96,7 @@ func (c *flagServiceClient) ListenForEvents(ctx context.Context, req *connect.Re
 type FlagServiceHandler interface {
 	// Every flag of the catalog, the closed ones too: history still names them. A GET.
 	ListFlags(context.Context, *connect.Request[v1.ListFlagsRequest]) (*connect.Response[v1.ListFlagsResponse], error)
-	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+	// Each flag opened, closed or renamed while the stream is open, as it is now, and a heartbeat at once and every
 	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.FlagEvent]) error
 }

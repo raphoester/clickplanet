@@ -122,7 +122,7 @@ export class FlagEvent extends Message<FlagEvent> {
     case: "heartbeat";
   } | {
     /**
-     * A flag opened or closed, as the catalog holds it now.
+     * A flag opened, closed or renamed, as the catalog holds it now.
      *
      * @generated from field: flags.v1.Flag flag_changed = 2;
      */

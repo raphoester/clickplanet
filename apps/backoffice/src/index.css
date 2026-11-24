@@ -2414,3 +2414,19 @@ a.button {
 .sold-add > .action-refused, .sold-add > .confirm {
     flex-basis: 100%;
 }
+
+.sold-rename {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.sold-rename .field {
+    flex: 1 1 12em;
+    min-width: 0;
+}
+
+.sold-rename > .action-refused, .sold-rename > .confirm {
+    flex-basis: 100%;
+}

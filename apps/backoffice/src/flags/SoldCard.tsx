@@ -5,15 +5,16 @@ import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {When} from "../components/When.tsx"
 import {timeOf} from "../components/time.ts"
+import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {countOf} from "../support/labels.ts"
 import {
-    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, MAX_DAYS,
-    Sold,
+    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, lengthOf,
+    MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
 } from "./actions.ts"
 
 const FIRST_DAYS = "30"
 
-// One sold flag: its picture, its name and code, open or closed and until when, and the two things done to it.
+// One sold flag: its picture, its name and code, open or closed and until when, and what is done to it.
 export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sold, onChanged: () => void}) {
     const {flag, picture, endsAt, closedAt} = sold
     const now = new Date()
@@ -51,6 +52,7 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                     late={comeback !== undefined && comeback <= now}
                     onChanged={onChanged}
                 />
+                <Rename flags={flags} flag={flag} onChanged={onChanged}/>
                 <ConfirmAction
                     label="Close"
                     tone="danger"
@@ -77,6 +79,36 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                 />
             </div>
         </li>
+    )
+}
+
+function Rename({flags, flag, onChanged}: {flags: FlagsAdmin, flag: Flag, onChanged: () => void}) {
+    const [typed, setTyped] = useState(flag.name)
+    const name = renamedOf(typed, flag.name)
+    const problem = nameProblem(typed)
+
+    return (
+        <div className="sold-rename">
+            <label className="field">
+                <span className="muted">Name · {lengthOf(typed)}/{MAX_NAME}</span>
+                <input value={typed} onChange={event => setTyped(event.target.value)}/>
+            </label>
+            {problem !== undefined && <p className="action-refused" role="alert">{problem}</p>}
+            <ConfirmAction
+                label="Rename"
+                disabled={name === undefined}
+                question={
+                    <>
+                        <p>Rename <strong>{flag.name}</strong> to <strong>{name}</strong>?</p>
+                        <p>Every player sees the new name at once.</p>
+                    </>
+                }
+                run={() => renameFlag(flags, flag.code, name ?? "")}
+                said={renamed => `Renamed to ${renamed.name}.`}
+                refusal={renameRefusalOf}
+                onDone={onChanged}
+            />
+        </div>
     )
 }
 

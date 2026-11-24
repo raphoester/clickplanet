@@ -358,9 +358,9 @@ construction through `openStream`, as the boxes'.
 ## The flags stream
 
 **The flags come on a stream of the flags module's** (2026-11-23): `flags.v1.FlagService/ListenForEvents`, which sends
-`FlagEvent`: a heartbeat at once and every 30 s, and `flag_changed`, a flag opened or closed while the stream is open, as
-the catalog holds it now. `ConnectFlagsBackend.listenForFlags` opens it through `openStream` while the flags store
-listens (`useFlagsFeed`). It carries no token: it is the same for every page.
+`FlagEvent`: a heartbeat at once and every 30 s, and `flag_changed`, a flag opened, closed or renamed while the stream
+is open, as the catalog holds it now. `ConnectFlagsBackend.listenForFlags` opens it through `openStream` while the
+flags store listens (`useFlagsFeed`). It carries no token: it is the same for every page.
 
 - **Each connection's first message says the stream opened** (`onOpened`), the first connection's included. The store
   then reads `ListFlags` again past the cache: nothing told before the stream opened is sent again, so a read covers
@@ -372,8 +372,9 @@ listens (`useFlagsFeed`). It carries no token: it is the same for every page.
 - **One more stream on the page: seven for a guest.** Fine in production on HTTP/2. Locally, on plain HTTP/1.1, a guest
   page already held six, which fill Chrome's six connections to a host: the flags stream waits for one, and so does
   every unary call.
-- **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, and tells each `openFlag(name)` and
-  `closeFlag(code)` as `flag_changed`. The archive page opens no stream: it reads the list once.
+- **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, and tells each `openFlag(name)`,
+  `addTime(code)`, `closeFlag(code)` and `renameFlag(code, name)` as `flag_changed`. The archive page opens no stream: it
+  reads the list once.
 
 See [The list of flags](flag-catalog.md).
 
