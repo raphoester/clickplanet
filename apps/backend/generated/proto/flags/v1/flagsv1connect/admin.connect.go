@@ -91,10 +91,11 @@ type AdminServiceClient interface {
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
-	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
+	// waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
+	// capital too. NotFound for an unknown submission;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
-	// pictures are off.
+	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
 	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
@@ -277,10 +278,11 @@ type AdminServiceHandler interface {
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
-	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
+	// waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
+	// capital too. NotFound for an unknown submission;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
-	// pictures are off.
+	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
 	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no

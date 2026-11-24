@@ -521,7 +521,8 @@ func (x *Sold) GetPin() *Pin {
 	return nil
 }
 
-// A point on the globe, in degrees. Never a tile: each board numbers its tiles its own way.
+// A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
+// its tiles its own way.
 type Pin struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// -90 to 90.

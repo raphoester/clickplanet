@@ -53,7 +53,7 @@ func newFixture(t *testing.T, submission submissions.Snapshot) fixture {
 func TestAnApprovedNewFlagIsPublicAndWaitsToBePaidFor(t *testing.T) {
 	f := newFixture(t, submissions.TestWaiting(id, ada, now.Add(-time.Hour)))
 
-	approved, err := f.useCase.Execute(t.Context(), id.String())
+	approved, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String()})
 	require.NoError(t, err)
 
 	assert.Equal(t, submissions.Approved, approved.State)
@@ -70,7 +70,7 @@ func TestAnApprovedChangeIsOnItsFlagForEveryPlayer(t *testing.T) {
 	f := newFixture(t, change)
 	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-24*time.Hour))))
 
-	_, err := f.useCase.Execute(t.Context(), id.String())
+	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String()})
 	require.NoError(t, err)
 
 	flag, err := f.flags.Flag(t.Context(), "r-0000000001")
@@ -88,7 +88,7 @@ func TestASubmissionDecidedIsNotApprovedAgain(t *testing.T) {
 	rejected.State, rejected.Rejection = submissions.Rejected, submissions.Rejection{Reason: submissions.Hateful}
 	f := newFixture(t, rejected)
 
-	_, err := f.useCase.Execute(t.Context(), id.String())
+	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String()})
 
 	require.ErrorIs(t, err, submissions.ErrDecided)
 	assert.Empty(t, f.bucket.Published(), "a rejected picture never becomes public")
@@ -97,9 +97,9 @@ func TestASubmissionDecidedIsNotApprovedAgain(t *testing.T) {
 func TestAnUnknownSubmissionIsNotApproved(t *testing.T) {
 	f := newFixture(t, submissions.TestWaiting(id, ada, now))
 
-	_, err := f.useCase.Execute(t.Context(), submissions.SubmissionID{15: 2}.String())
+	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: submissions.SubmissionID{15: 2}.String()})
 	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
-	_, err = f.useCase.Execute(t.Context(), "Rennes")
+	_, err = f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: "Rennes"})
 	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
 }
 
@@ -107,9 +107,40 @@ func TestANewFlagWithAnotherFlagsNameIsNotApproved(t *testing.T) {
 	f := newFixture(t, submissions.TestWaiting(id, ada, now.Add(-time.Hour)))
 	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "rennes", now.Add(-24*time.Hour))))
 
-	_, err := f.useCase.Execute(t.Context(), id.String())
+	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String()})
 
 	require.ErrorIs(t, err, catalog.ErrNameTaken)
 	assert.Empty(t, f.bucket.Published())
 	assert.Equal(t, submissions.Waiting, f.store.Kept()[0].State)
+}
+
+func TestTheOperatorMovesTheCapitalBeforeTheApproval(t *testing.T) {
+	f := newFixture(t, submissions.TestWaiting(id, ada, now.Add(-time.Hour)))
+
+	approved, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{
+		Submission: id.String(), Moved: true, Latitude: 47.218, Longitude: -1.5536,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, catalog.Pin{Latitude: 47.218, Longitude: -1.5536}, approved.Pin)
+	assert.Equal(t, catalog.Pin{Latitude: 47.218, Longitude: -1.5536}, f.store.Kept()[0].Pin)
+
+	_, err = f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String(), Moved: true, Latitude: 95})
+	require.ErrorIs(t, err, catalog.ErrInvalidPin)
+}
+
+func TestAChangeApprovedMovesItsFlagsCapital(t *testing.T) {
+	change := submissions.TestWaiting(id, ada, now.Add(-time.Hour))
+	change.Kind, change.Flag, change.Name = submissions.Change, "r-0000000001", "Breizh"
+	f := newFixture(t, change)
+	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-24*time.Hour))))
+
+	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{
+		Submission: id.String(), Moved: true, Latitude: 47.996, Longitude: -4.102,
+	})
+	require.NoError(t, err)
+
+	flag, err := f.flags.Flag(t.Context(), "r-0000000001")
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Pin{Latitude: 47.996, Longitude: -4.102}, flag.TakeSnapshot().Pin)
 }

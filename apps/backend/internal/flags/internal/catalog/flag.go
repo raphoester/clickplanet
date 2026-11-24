@@ -78,9 +78,10 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 	return Flag{id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt}, nil
 }
 
-// Restyled wears the name and the picture a review approved, whether the flag is open or closed: history names it too.
-func (f Flag) Restyled(name Name, picture pictures.Picture, at time.Time) (Flag, proto.Message) {
-	f.name, f.picture = name, picture
+// Restyled wears the name, the picture and the capital a review approved, whether the flag is open or closed: history
+// names it too.
+func (f Flag) Restyled(name Name, picture pictures.Picture, pin Pin, at time.Time) (Flag, proto.Message) {
+	f.name, f.picture, f.pin = name, picture, pin
 	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: f.name.String(), RenamedAt: timestamppb.New(at)}
 }
 

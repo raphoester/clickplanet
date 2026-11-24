@@ -41,17 +41,34 @@ type UseCase struct {
 	outbox  cpatomic.Outbox
 }
 
-func (u *UseCase) Execute(ctx context.Context, submission string) (submissions.Snapshot, error) {
+type In struct {
+	Submission string
+	// The operator moved its capital before the verdict.
+	Moved     bool
+	Latitude  float64
+	Longitude float64
+}
+
+func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	id, err := submissions.ParseSubmissionID(submission)
+	id, err := submissions.ParseSubmissionID(in.Submission)
 	if err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
 	waiting, err := u.store.Submission(ctx, id)
 	if err != nil {
 		return submissions.Snapshot{}, fmt.Errorf("failed to read the submission: %w", err)
+	}
+	if in.Moved {
+		pin, err := catalog.ParsePin(in.Latitude, in.Longitude)
+		if err != nil {
+			return submissions.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+		}
+		if waiting, err = waiting.Moved(pin); err != nil {
+			return submissions.Snapshot{}, err //nolint:wrapcheck // the rule names it.
+		}
 	}
 	flags, err := u.flags.Flags(ctx)
 	if err != nil {

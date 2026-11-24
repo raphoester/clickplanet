@@ -180,10 +180,11 @@ func TestARestyledFlagWearsItsNewNameAndPictureAndTellsItRenamed(t *testing.T) {
 	picture, err := pictures.Snapshot{Hash: strings.Repeat("cd", 32), Width: 400, Height: 200}.Restore()
 	require.NoError(t, err)
 
-	restyled, fact := closed.Restyled("Breizh", picture, closedAt.Add(time.Hour))
+	quimper := catalog.Pin{Latitude: 47.996, Longitude: -4.102}
+	restyled, fact := closed.Restyled("Breizh", picture, quimper, closedAt.Add(time.Hour))
 
 	want := closed.TakeSnapshot()
-	want.Name, want.Picture = "Breizh", picture.TakeSnapshot()
+	want.Name, want.Picture, want.Pin = "Breizh", picture.TakeSnapshot(), quimper
 	assert.Equal(t, want, restyled.TakeSnapshot(), "closed as it was")
 	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
 		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(closedAt.Add(time.Hour)),

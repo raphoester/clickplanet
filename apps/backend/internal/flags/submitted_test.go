@@ -61,7 +61,7 @@ func TestASubmittedFlagOpensAndItsApprovedChangeReachesTheOpenPages(t *testing.T
 	})
 	require.NoError(t, err)
 	assert.Empty(t, bucket.Published(), "private until its review")
-	_, err = approve.Execute(t.Context(), rennes.ID.String())
+	_, err = approve.Execute(t.Context(), approve_submission_usecase.In{Submission: rennes.ID.String()})
 	require.NoError(t, err)
 	flag, err := open_submitted_flag_usecase.New(catalog.NewOpening(&catalog.Sequence{}, clock), db, submitted, flags,
 		cpoutbox.New(db)).Execute(t.Context(), open_submitted_flag_usecase.In{
@@ -82,7 +82,7 @@ func TestASubmittedFlagOpensAndItsApprovedChangeReachesTheOpenPages(t *testing.T
 	require.NoError(t, err)
 	assert.Equal(t, catalog.Name("Rennes"), kept.TakeSnapshot().Name, "the old name stays until the change's approval")
 
-	_, err = approve.Execute(t.Context(), change.ID.String())
+	_, err = approve.Execute(t.Context(), approve_submission_usecase.In{Submission: change.ID.String()})
 	require.NoError(t, err)
 	restyled := <-page
 	assert.Equal(t, catalog.Name("Breizh"), restyled.Name, "the page hears the new name")

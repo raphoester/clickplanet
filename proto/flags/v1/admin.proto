@@ -47,10 +47,11 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
-  // OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+  // Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
+  // waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
+  // capital too. NotFound for an unknown submission;
   // FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
-  // pictures are off.
+  // pictures are off; InvalidArgument for a capital off the globe.
   rpc ApproveSubmission(ApproveSubmissionRequest) returns (ApproveSubmissionResponse);
 
   // Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
@@ -152,6 +153,8 @@ message KeptSubmission {
 
 message ApproveSubmissionRequest {
   string submission_id = 1;
+  // The capital where the operator moved it; unset keeps the player's. A change moves its flag's capital too.
+  Pin pin = 2;
 }
 
 message ApproveSubmissionResponse {

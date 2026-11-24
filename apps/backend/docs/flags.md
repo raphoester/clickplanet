@@ -26,8 +26,9 @@ opens when the owner says so.
   **Two flags never share a name**, whatever its case, a flag the game ships with included (`catalog.Names`, at the open,
   at a rename, and at a submission's approval and opening), and `flags_name_key`, a unique index on `lower(name)`, holds
   it against two calls at once.
-- **Its pin is `catalog.Pin`**: a latitude from -90 to 90 and a longitude from -180 to 180, in degrees. It is where the
-  flag will start in Capital Siege (step 6), as a country starts on its capital. **A point, never a tile**: each board
+- **Its capital is `catalog.Pin`**: a latitude from -90 to 90 and a longitude from -180 to 180, in degrees. It is where
+  the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
+  it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
   carries it. The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
   Corsica Ajaccio's pin and Brittany Rennes', by name, and stops on any other flag, so none is left with no pin.
@@ -208,10 +209,12 @@ flag in production unless the owner says so.**
 
 - **`ListSubmissions`**: every one waiting, the oldest first, then the 500 decided last, the latest first, each with its
   account, its picture (the private link, or the public one once approved) and its share of other colours.
-- **`ApproveSubmission(submission_id)`** (`approve_submission_usecase`): the picture held is read, checked against the
+- **`ApproveSubmission(submission_id, pin)`** (`approve_submission_usecase`): with `pin`, the capital where the operator
+  moved it on the backoffice's map (`Submission.Moved`, a waiting submission alone; unset keeps the player's, never a
+  move to 0, 0). Then the picture held is read, checked against the
   hash the submission keeps (`ErrNotThePicture`), and written public at `flags/pictures/<sha256>.png`, as a flag sold by
   hand; then the approval is kept and the private copy deleted. **A new flag waits to be paid for**: nothing opens.
-  **A change is on its flag at once**: in the same transaction the flag wears the new name and picture
+  **A change is on its flag at once**: in the same transaction the flag wears the new name, picture and capital
   (`Submission.Restyle`, `Flag.Restyled`) and `FlagRenamed` is recorded. `ErrDecided` (`FailedPrecondition`) for one
   decided already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: a change keeps its
   own flag's name, and the operator rejects the rest as `exists`.

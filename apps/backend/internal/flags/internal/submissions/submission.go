@@ -128,6 +128,15 @@ func (s Submission) Approved(names catalog.Names, at time.Time) (Submission, err
 	return s, nil
 }
 
+// Moved is the submission with its capital where the operator put it, before its verdict.
+func (s Submission) Moved(pin catalog.Pin) (Submission, error) {
+	if s.state != Waiting {
+		return s, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrDecided)
+	}
+	s.pin = pin
+	return s, nil
+}
+
 func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, error) {
 	if s.state != Waiting {
 		return s, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrDecided)
@@ -136,12 +145,12 @@ func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, err
 	return s, nil
 }
 
-// Restyle puts an approved change on its flag: the flag wears the name and the picture approved.
+// Restyle puts an approved change on its flag: the flag wears the name, the picture and the capital approved.
 func (s Submission) Restyle(flag catalog.Flag, at time.Time) (catalog.Flag, proto.Message, error) {
 	if s.kind != Change || s.state != Approved {
 		return flag, nil, fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotApproved)
 	}
-	restyled, fact := flag.Restyled(s.name, s.picture, at)
+	restyled, fact := flag.Restyled(s.name, s.picture, s.pin, at)
 	return restyled, fact, nil
 }
 

@@ -749,8 +749,10 @@ func (x *KeptSubmission) GetOtherColorsPercent() uint32 {
 }
 
 type ApproveSubmissionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SubmissionId  string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SubmissionId string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
+	// The capital where the operator moved it; unset keeps the player's. A change moves its flag's capital too.
+	Pin           *Pin `protobuf:"bytes,2,opt,name=pin,proto3" json:"pin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -790,6 +792,13 @@ func (x *ApproveSubmissionRequest) GetSubmissionId() string {
 		return x.SubmissionId
 	}
 	return ""
+}
+
+func (x *ApproveSubmissionRequest) GetPin() *Pin {
+	if x != nil {
+		return x.Pin
+	}
+	return nil
 }
 
 type ApproveSubmissionResponse struct {
@@ -1081,9 +1090,10 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\trejection\x18\n" +
 	" \x01(\v2\x13.flags.v1.RejectionR\trejection\x12+\n" +
 	"\apicture\x18\v \x01(\v2\x11.flags.v1.PictureR\apicture\x120\n" +
-	"\x14other_colors_percent\x18\f \x01(\rR\x12otherColorsPercent\"?\n" +
+	"\x14other_colors_percent\x18\f \x01(\rR\x12otherColorsPercent\"`\n" +
 	"\x18ApproveSubmissionRequest\x12#\n" +
-	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\"U\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12\x1f\n" +
+	"\x03pin\x18\x02 \x01(\v2\r.flags.v1.PinR\x03pin\"U\n" +
 	"\x19ApproveSubmissionResponse\x128\n" +
 	"\n" +
 	"submission\x18\x01 \x01(\v2\x18.flags.v1.KeptSubmissionR\n" +
@@ -1171,36 +1181,37 @@ var file_flags_v1_admin_proto_depIdxs = []int32{
 	19, // 10: flags.v1.KeptSubmission.decided_at:type_name -> google.protobuf.Timestamp
 	23, // 11: flags.v1.KeptSubmission.rejection:type_name -> flags.v1.Rejection
 	24, // 12: flags.v1.KeptSubmission.picture:type_name -> flags.v1.Picture
-	12, // 13: flags.v1.ApproveSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
-	23, // 14: flags.v1.RejectSubmissionRequest.rejection:type_name -> flags.v1.Rejection
-	12, // 15: flags.v1.RejectSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
-	19, // 16: flags.v1.OpenSubmittedFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
-	21, // 17: flags.v1.OpenSubmittedFlagResponse.flag:type_name -> flags.v1.Flag
-	25, // 18: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	0,  // 19: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
-	2,  // 20: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
-	4,  // 21: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
-	6,  // 22: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
-	8,  // 23: flags.v1.AdminService.RenameFlag:input_type -> flags.v1.RenameFlagRequest
-	10, // 24: flags.v1.AdminService.ListSubmissions:input_type -> flags.v1.ListSubmissionsRequest
-	13, // 25: flags.v1.AdminService.ApproveSubmission:input_type -> flags.v1.ApproveSubmissionRequest
-	15, // 26: flags.v1.AdminService.RejectSubmission:input_type -> flags.v1.RejectSubmissionRequest
-	17, // 27: flags.v1.AdminService.OpenSubmittedFlag:input_type -> flags.v1.OpenSubmittedFlagRequest
-	26, // 28: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	1,  // 29: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
-	3,  // 30: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
-	5,  // 31: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
-	7,  // 32: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
-	9,  // 33: flags.v1.AdminService.RenameFlag:output_type -> flags.v1.RenameFlagResponse
-	11, // 34: flags.v1.AdminService.ListSubmissions:output_type -> flags.v1.ListSubmissionsResponse
-	14, // 35: flags.v1.AdminService.ApproveSubmission:output_type -> flags.v1.ApproveSubmissionResponse
-	16, // 36: flags.v1.AdminService.RejectSubmission:output_type -> flags.v1.RejectSubmissionResponse
-	18, // 37: flags.v1.AdminService.OpenSubmittedFlag:output_type -> flags.v1.OpenSubmittedFlagResponse
-	28, // [28:38] is the sub-list for method output_type
-	18, // [18:28] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	20, // 13: flags.v1.ApproveSubmissionRequest.pin:type_name -> flags.v1.Pin
+	12, // 14: flags.v1.ApproveSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
+	23, // 15: flags.v1.RejectSubmissionRequest.rejection:type_name -> flags.v1.Rejection
+	12, // 16: flags.v1.RejectSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
+	19, // 17: flags.v1.OpenSubmittedFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
+	21, // 18: flags.v1.OpenSubmittedFlagResponse.flag:type_name -> flags.v1.Flag
+	25, // 19: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	0,  // 20: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
+	2,  // 21: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
+	4,  // 22: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
+	6,  // 23: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
+	8,  // 24: flags.v1.AdminService.RenameFlag:input_type -> flags.v1.RenameFlagRequest
+	10, // 25: flags.v1.AdminService.ListSubmissions:input_type -> flags.v1.ListSubmissionsRequest
+	13, // 26: flags.v1.AdminService.ApproveSubmission:input_type -> flags.v1.ApproveSubmissionRequest
+	15, // 27: flags.v1.AdminService.RejectSubmission:input_type -> flags.v1.RejectSubmissionRequest
+	17, // 28: flags.v1.AdminService.OpenSubmittedFlag:input_type -> flags.v1.OpenSubmittedFlagRequest
+	26, // 29: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	1,  // 30: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
+	3,  // 31: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
+	5,  // 32: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
+	7,  // 33: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
+	9,  // 34: flags.v1.AdminService.RenameFlag:output_type -> flags.v1.RenameFlagResponse
+	11, // 35: flags.v1.AdminService.ListSubmissions:output_type -> flags.v1.ListSubmissionsResponse
+	14, // 36: flags.v1.AdminService.ApproveSubmission:output_type -> flags.v1.ApproveSubmissionResponse
+	16, // 37: flags.v1.AdminService.RejectSubmission:output_type -> flags.v1.RejectSubmissionResponse
+	18, // 38: flags.v1.AdminService.OpenSubmittedFlag:output_type -> flags.v1.OpenSubmittedFlagResponse
+	29, // [29:39] is the sub-list for method output_type
+	19, // [19:29] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_admin_proto_init() }

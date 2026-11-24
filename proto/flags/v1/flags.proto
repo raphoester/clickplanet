@@ -76,7 +76,8 @@ message Sold {
   Pin pin = 4;
 }
 
-// A point on the globe, in degrees. Never a tile: each board numbers its tiles its own way.
+// A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
+// its tiles its own way.
 message Pin {
   // -90 to 90.
   double latitude = 1;

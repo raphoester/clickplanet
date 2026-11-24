@@ -257,3 +257,17 @@ func TestTwoFlagsNeverShareAName(t *testing.T) {
 	_, _, err = approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), taken, at.Add(time.Hour))
 	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag took its name since")
 }
+
+func TestOnlyAWaitingSubmissionsCapitalMoves(t *testing.T) {
+	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
+	nantes := catalog.Pin{Latitude: 47.218, Longitude: -1.5536}
+
+	moved, err := waiting.Moved(nantes)
+	require.NoError(t, err)
+	assert.Equal(t, nantes, moved.TakeSnapshot().Pin)
+
+	approved, err := moved.Approved(none, at)
+	require.NoError(t, err)
+	_, err = approved.Moved(catalog.TestPin)
+	require.ErrorIs(t, err, submissions.ErrDecided)
+}
