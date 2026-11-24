@@ -10,7 +10,7 @@ import {lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
 import {cutOf} from "./map/provinces.mjs"
-import {REGIONS, seatsOf} from "./map/seats.mjs"
+import {seatsOf} from "./map/seats.mjs"
 import {terrainOf} from "./map/terrain.mjs"
 
 const ANTIMERIDIAN_DEGREES = 1
@@ -78,7 +78,7 @@ async function main() {
 
     const flags = JSON.parse(fs.readFileSync(path.join(staticDir, "countries", "countries.json"), "utf8"))
     const grounded = new Set(borders.codes.slice(1))
-    const groundless = Object.keys(flags).filter((code) => !REGIONS.has(code) && !grounded.has(code))
+    const groundless = Object.keys(flags).filter((code) => !grounded.has(code))
     faults.flagsWithNoGround = groundless.length
 
     const {capitals} = readCapitals(tiles)

@@ -14,7 +14,7 @@ const (
 	FlagIDLength = 10
 )
 
-// FlagID names a flag sold, for good: drawn at random, or the code a flag kept when it left the build (Brittany's xb).
+// FlagID names a flag sold, for good: drawn at random, or the code a flag kept when it left the build (xb, gb-eng).
 type FlagID string
 
 func ParseFlagID(s string) (FlagID, error) {

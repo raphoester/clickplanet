@@ -1,6 +1,6 @@
 # The flags module
 
-**The flags module owns the catalog of flags**: the 238 the game ships with, and the flags sold since. Step 1 of the
+**The flags module owns the catalog of flags**: the 235 the game ships with, and the flags sold since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
 itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. Step 3 (2026-11-24) lets a
@@ -19,9 +19,9 @@ opens when the owner says so.
   standings, the Hall of Fame, the map history and the videos still name it. A flag opened by mistake that nobody played
   for was deleted by hand in postgres (`flags.flags` and `planet.heard_flags`) on 2026-11-24; there is no call for it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
-  with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
-  review in step 2 may change the name, and the id stays. **A flag that left the build keeps the code it shipped with**
-  (Brittany, `xb`, below), so its land, players, room and points stay its own.
+  with is two letters, so no ISO code can take one. Never the name: a review in step 2 may change the name, and the id
+  stays. **A flag that left the build keeps the code it shipped with** (Brittany, `xb`; England, Scotland and Wales,
+  `gb-eng`, `gb-sct`, `gb-wls`; below), so its land, players, room and points stay its own.
 - **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
   **Two flags never share a name**, whatever its case, a flag the game ships with included (`catalog.Names`, at the open,
   at a rename, and at a submission's approval and opening), and `flags_name_key`, a unique index on `lower(name)`, holds
@@ -31,9 +31,10 @@ opens when the owner says so.
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
   carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)). The
-  game's own flags have no pin: England, Scotland and Wales move to the sold flags, with theirs (the owner,
-  2026-11-24). The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
-  Corsica Ajaccio's pin and Brittany Rennes', by name, and stops on any other flag, so none is left with no pin.
+  game's own flags have no pin: each has ground of its own since England, Scotland and Wales, the last that had none,
+  moved to the sold flags with their pins (below). The migration that brought the pins
+  (`20261124101101_flag_submissions`) gave production's test flag of Corsica Ajaccio's pin and Brittany Rennes', by
+  name, and stops on any other flag, so none is left with no pin.
 
 ## What it tells
 
@@ -79,9 +80,9 @@ plays the flags: whether one is open is a rule of the click, and where it starts
 | `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a trap, a rally |
 | `Known` | the operator's `FindPlayers`, a flag and an area |
 
-**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): two letters or `gb-` and three, as the
-flags the game ships with, or `r-` and ten letters or digits. A code of that shape the game does not ship is a sold
-flag's (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by one: the flag
+**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): two letters, as the flags the game ships
+with, `gb-` and three, as England, Scotland and Wales shipped, or `r-` and ten letters or digits. A code of that shape
+the game does not ship is a sold flag's (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by one: the flag
 a message is sent under, a board or a tally asked for one flag, the flag a player is announced under. A made-up code
 there shows as its code with a grey flag on the page, and a board of it is empty. Their code is
 `main`'s, with `cpflags.Codes{}` in place of `cpcountries.New()`.
@@ -313,6 +314,41 @@ Production, in order, each with the owner's yes:
 2. Deploy: frontend first, then the backend (see [A server restart reloads the page](../../../docs/reload-on-restart.md)).
 3. Then the owner's call: keep it until a date (`flags_add_time`, `xb`, the days past its 30), or close it now
    (`flags_close_flag`, `xb`); within 30 days of a close, `flags_add_time` brings it back.
+
+## England, Scotland and Wales, from the build to the sold flags
+
+**England (`gb-eng`), Scotland (`gb-sct`) and Wales (`gb-wls`) shipped with the game until 2026-11-24.** The owner
+decided that day that they are sold like Brittany. One deploy moves them, as it moved Brittany, and each keeps its code,
+so nothing of them is rewritten: land and shields, pledges, chat rooms, season points, ledger rows. In production that
+morning none held land, nobody had taken a tile for them in 72 hours, and none had a flag day in the week; Wales had 1
+point of Season 1, England and Scotland none.
+
+- **The build no longer lists them**, as Brittany: `countries.json` (`make flags`), the atlas, the SVGs, the fit, the
+  names in the page's languages, the backoffice's own names and its emoji of the three nations. With them went the
+  last built-in flags with no ground: `cpflags.Pins` and its `make flag-pins`, and the map audit's `REGIONS`.
+- **The flags module holds them from the first boot of that build** (`20261124143335_regions_sold`): open, named
+  "England", "Scotland" and "Wales", ending 30 days after the deploy (the owner's choice), each picture the build's SVG
+  rendered at 1500 x 900 with `rsvg-convert` and drawn by `pictures.Redraw`, 768 x 461, each pin its capital as
+  `cmd/flagpins` read it from Natural Earth's populated places: London (51.501941, -0.118668), Edinburgh (55.948328,
+  -3.219091), Cardiff (51.499995, -3.225008). The restatement at boot tells them to planet, pins and all.
+- **Planet hears them open, on their pins, in the same deploy** (`20261124143336_regions_heard`), so their players are
+  never told their flag closed, and a Capital Siege opened before the restatement arrives still seats them.
+- **Their pictures go into the bucket by hand, once**: until then the page draws them as the blank.
+- **What they lost**: their Discord roles (the alerts' tidy at boot deletes them), their names in other languages, their
+  old addresses (`clickplanet.lol/gb-eng/<name>`). Their 85 quiz questions (31 England, 33 Scotland, 21 Wales) moved to
+  subject `gb`, their ids kept, so their ratings stay. England keeps the United Kingdom's anthem: `anthemsAsset.ts` maps
+  a code, whatever the build lists.
+
+Production, in order, each with the owner's yes:
+
+1. Put each picture in the bucket `clickplanet-media`, `Content-Type: image/png`, `Cache-Control: public,
+   max-age=31536000, immutable`, at `flags/pictures/<sha256>.png`: England
+   `a5bbe1742db6aa08e5850c063ca9feb11b17c99fbf2546f07ed1f2e57bb44edb`, Scotland
+   `e044e22d0d52a24b10503b26b85c66d0c9223e2ddd07842b65d0c9b00ab0a5f8`, Wales
+   `625234995a5a9c1da4e98805b1f62053d49ee570cc82c79494ae5e6914fb32d5`. The files are on the PR's assets branch.
+2. Deploy: frontend first, then the backend.
+3. Then the owner's call for each: keep it longer (`flags_add_time`), or close it (`flags_close_flag`); within 30 days of
+   a close, `flags_add_time` brings it back.
 
 ## The pool
 

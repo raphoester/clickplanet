@@ -1,9 +1,6 @@
 {
   "format.ordinal": "{rank, selectordinal, other {ke-#}}",
   "country.xk": "Kosovo",
-  "country.gb-eng": "Inggris",
-  "country.gb-sct": "Skotlandia",
-  "country.gb-wls": "Wales",
   "country.cd": "RD Kongo",
   "country.cg": "Kongo",
   "country.sx": "Sint Maarten",

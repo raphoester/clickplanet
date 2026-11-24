@@ -7,8 +7,7 @@ describe("countryName", () => {
         expect(countryName(" DZ ")).toBe("Algeria")
     })
 
-    it("names the game's own ids, which no standard names", () => {
-        expect(countryName("gb-sct")).toBe("Scotland")
+    it("names Kosovo, which ISO gives no code", () => {
         expect(countryName("xk")).toBe("Kosovo")
     })
 
@@ -20,6 +19,10 @@ describe("countryName", () => {
     it("takes no name Intl gives a private-use code as a test, as it does Brittany's", () => {
         expect(countryName("xb")).toBeUndefined()
         expect(countryName("xa")).toBeUndefined()
+    })
+
+    it("names a flag that left the build only from the server's list, as every sold flag", () => {
+        expect(countryName("gb-sct")).toBeUndefined()
     })
 })
 
@@ -42,12 +45,9 @@ describe("flagOf", () => {
         expect(flagOf("ps")).toBe("\u{1F1F5}\u{1F1F8}")
     })
 
-    it("is the tag sequence of the nations Unicode draws a flag for", () => {
-        expect(flagOf("gb-sct")).toBe("\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}")
-    })
-
     it("is nothing for an id with no flag, rather than two letters in boxes", () => {
         expect(flagOf("xb")).toBe("")
+        expect(flagOf("gb-sct")).toBe("")
         expect(flagOf("zz-top")).toBe("")
         expect(flagOf("")).toBe("")
     })

@@ -121,8 +121,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the flags module's stream opens, and each flag it tells merged with no read; one read at a time and once for a code it
   does not know, never a loop; a sold flag's picture drawn under the built atlas in the globe's texture, in the far
   view's slots, and as its URL in the picker, the chat, the share card and the clips; a held flag closed and its window;
-  a flag renamed; a code it does not know: its code as its name, a grey flag; Brittany, sold since it left the build;
-  the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
+  a flag renamed; a code it does not know: its code as its name, a grey flag; Brittany, England, Scotland and Wales,
+  sold since they left the build; the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
 - [Flag submissions](docs/flag-submissions.md) — a signed-in player sends its region's flag (a name, a picture, its
   capital: a pin aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
   submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed

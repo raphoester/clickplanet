@@ -16,11 +16,17 @@ export type FlagPainter = (name: string) => Promise<FlagPicture>
 // What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
 export type NameRefusal = "empty" | "too long" | "taken"
 
-// As the server lists Brittany since it left the build: sold, under the code it shipped with.
-const BRITTANY_PICTURE: FlagPicture = {
-    url: "https://media.clickplanet.lol/flags/pictures/ed47508c67e67af2c0711725441736fbe62b614fb9b9c587a05efc51023c3eb6.png",
-    width: 768, height: 512, stretch: false, focusX: 0.4344, focusY: 0.5151,
-}
+// As the server lists the flags that left the build: sold, under the codes they shipped with.
+const LEFT_THE_BUILD: readonly {code: string, name: string, hash: string, height: number, focusX: number, focusY: number, pin: Pin}[] = [
+    {code: "xb", name: "Brittany", hash: "ed47508c67e67af2c0711725441736fbe62b614fb9b9c587a05efc51023c3eb6", height: 512,
+        focusX: 0.4344, focusY: 0.5151, pin: {latitude: 48.1173, longitude: -1.6778}},
+    {code: "gb-eng", name: "England", hash: "a5bbe1742db6aa08e5850c063ca9feb11b17c99fbf2546f07ed1f2e57bb44edb", height: 461,
+        focusX: 0.5, focusY: 0.5, pin: {latitude: 51.501941, longitude: -0.118668}},
+    {code: "gb-sct", name: "Scotland", hash: "e044e22d0d52a24b10503b26b85c66d0c9223e2ddd07842b65d0c9b00ab0a5f8", height: 461,
+        focusX: 0.5, focusY: 0.5, pin: {latitude: 55.948328, longitude: -3.219091}},
+    {code: "gb-wls", name: "Wales", hash: "625234995a5a9c1da4e98805b1f62053d49ee570cc82c79494ae5e6914fb32d5", height: 461,
+        focusX: 0.5, focusY: 0.4711, pin: {latitude: 51.499995, longitude: -3.225008}},
+]
 
 // `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code, note)` and `renameFlag(code, name)` on the console, each told
 // as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
@@ -31,7 +37,11 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
     private readonly closeNotes = new Map<string, string>()
 
     constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
-        this.sold = [{code: "xb", name: "Brittany", closed: false, sold: {picture: BRITTANY_PICTURE, endsAt: now() + 30 * DAY_MS, pin: {latitude: 48.1173, longitude: -1.6778}}}]
+        this.sold = LEFT_THE_BUILD.map(({code, name, hash, height, focusX, focusY, pin}) => ({code, name, closed: false, sold: {
+            picture: {url: `https://media.clickplanet.lol/flags/pictures/${hash}.png`, width: 768, height, stretch: false, focusX, focusY},
+            endsAt: now() + 30 * DAY_MS,
+            pin,
+        }}))
     }
 
     public async listFlags(): Promise<ListedFlag[]> {

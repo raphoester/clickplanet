@@ -5,8 +5,7 @@
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
 (`clicks.Capitals`): each country's tile nearest its capital city, and on an arena's map the **seats** its seed gave the
 sold flags, which have no ground of their own ([The seats](#the-seats), regional flags step 6, 2026-11-24). On the
-world's map a sold flag has no capital. England, Scotland and Wales, flags the game ships with and no ground, have none
-either until they move to the sold flags (the owner, 2026-11-24).
+world's map a sold flag has no capital.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
 (`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
