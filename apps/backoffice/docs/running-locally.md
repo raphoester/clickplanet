@@ -4,7 +4,7 @@
 `src/demo/api.ts` in place of `src/api.ts` (an alias in `vite.config.ts`): every client answers in the page, from
 `DemoAdmin` (`src/demo/demoAdmin.ts`), a `FakeAdmin` with a hundred and twenty made-up players, a day and a half of
 chat with insults in it, a dozen reports, seven notes (new, replied to, answered, closed, and one with no address), four rule sets in each of planet, the offers, the quizzes and the antibot, three videos, four graffiti
-drawn from the vandal squad's test samples, a few of the game's own flags and four sold ones (see [Flags](flags.md)), the
+drawn from the vandal squad's test samples, a few of the game's own flags and five sold ones, Brittany among them (see [Flags](flags.md)), the
 same on every load. It keeps what the
 operator does (a ban, a mute, a closed report, an answered note, a saved set, an uploaded video, a flag opened, and each in the account's moderation
 history, beside a few actions Claude took) until the page reloads, and answers

@@ -192,7 +192,7 @@ func (s *testSuite) TestAnotherBookIsAnEmptyAnswer() {
 func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	s.player(1, "fr", 4)
 
-	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "zz")
+	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "zzz")
 
 	s.Require().ErrorIs(err, my_tally_query.ErrUnknownCountry)
 }

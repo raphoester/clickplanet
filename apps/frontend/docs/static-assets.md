@@ -144,7 +144,7 @@ first landing. **It sells the game, not its mechanics**: country
 against country on one live planet. What only makes sense once playing (signing
 in to click faster, bonus boxes, the camera) stays in the game. The hero's
 counts are written by hand, since plain HTML cannot read them: 1,000,000 tiles is
-`earth-2`'s manifest's `tiles` (1,004,682) rounded down, 239 flags is
+`earth-2`'s manifest's `tiles` (1,004,682) rounded down, 238 flags is
 `static/countries/countries.json`. Its screenshots are `static/home/*.jpg`,
 taken from the live game at 1440×900 (390×844 for the phone) at 2× with a fresh
 profile; a new one must not show the chat, which carries players' own words, and

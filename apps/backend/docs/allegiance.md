@@ -21,7 +21,7 @@ player could paint for one country and defend another click to click. **Only
   click learns it.
 - **While the knock-out plays, only a flag still in may be picked** (the owner, 2026-11-09): `Pledged(flag, at, lock, standing)` reads
   `Standing.Stands`, which the tile storage answers (see [The knock-out](capitals.md#the-knock-out-capitalsknockout)). A flag knocked
-  out, or with no capital (England, Scotland, Wales, Brittany), is refused, `ErrDown` (`FailedPrecondition`), to a
+  out, or with no capital (England, Scotland, Wales, a sold flag), is refused, `ErrDown` (`FailedPrecondition`), to a
   newcomer too. **An account whose flag does not stand changes at once, past the lock and the hour, and the change
   starts no wait** (the owner, 2026-11-23): the account keeps no `changed_at`, as after a release. While the battle
   plays, its lock still holds the flag picked, unless that one is knocked out too. **Once the knock-out ends, such an

@@ -16,7 +16,7 @@ export function nameOf(code: string): string {
     return english !== undefined && cutFrom(game, english) ? english : game
 }
 
-// ISO's x codes are for private use: CLDR has a test name where the game has Brittany.
+// ISO's x codes are for private use: CLDR names some of them as tests, and the game names its own.
 function englishNameOf(code: string): string | undefined {
     if (!/^[a-wyz][a-z]$/.test(code)) return undefined
     const name = ENGLISH.of(code.toUpperCase())

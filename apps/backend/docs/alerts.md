@@ -141,7 +141,7 @@ nickname is the one place a name can go, so the bot owns it, and the operator ta
 
 **The bot makes a flag's role the first time one is needed**, mentionable, below its own role, in a color of its own,
 and `roles` keeps its id and its color by key, `flag:<code>`. A role's name is the flag's English name
-(`golang.org/x/text/language/display`; `xb` is Brittany), so a new name in the library changes nothing that is kept.
+(`golang.org/x/text/language/display`), so a new name in the library changes nothing that is kept.
 `roles.Book` makes each role once in one process: two subscribers that need the same new one wait on each other.
 
 - **The color is the flag's hue** (`roles.ColorOf`): FNV-1a of the code, at saturation 62% and lightness 55%, so it is

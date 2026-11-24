@@ -64,7 +64,7 @@ describe("the name of a country", () => {
         expect(nameOf("ae")).toBe("UAE")
         expect(nameOf("us")).toBe("USA")
         expect(nameOf("cd")).toBe("DR Congo")
-        expect(nameOf("xb")).toBe("Brittany")
+        expect(nameOf("xk")).toBe("Kosovo")
     })
 
     it("is said with its article where English wants one", () => {

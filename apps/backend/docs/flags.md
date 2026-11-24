@@ -1,6 +1,6 @@
 # The flags module
 
-**The flags module owns the catalog of flags**: the 239 the game ships with, and the flags opened since. Step 1 of the
+**The flags module owns the catalog of flags**: the 238 the game ships with, and the flags sold since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
 itself at its end, and comes back within 30 days. The first real one opens when the owner says so.
@@ -17,7 +17,8 @@ itself at its end, and comes back within 30 days. The first real one opens when 
   history and the videos still name it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
   with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
-  review in step 2 may change the name, and the id stays.
+  review in step 2 may change the name, and the id stays. **A flag that left the build keeps the code it shipped with**
+  (Brittany, `xb`, below), so its land, players, room and points stay its own.
 - **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
 
 ## What it tells
@@ -52,10 +53,11 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 | `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a trap, a rally |
 | `Known` | the operator's `FindPlayers`, a flag and an area |
 
-**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): a flag the game ships with, or `r-` and
-ten letters or digits (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by
-one: the flag a message is sent under, a board or a tally asked for one flag, the flag a player is announced under. A
-made-up `r-` code there shows as its code with a grey flag on the page, and a board of it is empty. Their code is
+**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): two letters or `gb-` and three, as the
+flags the game ships with, or `r-` and ten letters or digits. A code of that shape the game does not ship is a sold
+flag's (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by one: the flag
+a message is sent under, a board or a tally asked for one flag, the flag a player is announced under. A made-up code
+there shows as its code with a grey flag on the page, and a board of it is empty. Their code is
 `main`'s, with `cpflags.Codes{}` in place of `cpcountries.New()`.
 
 **`shared/cpflags` holds what more than one module needs**: the flags the game ships with (planet, the flags module,
@@ -152,6 +154,37 @@ pictures of the flags there are.
 
 `internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and shows the fact reach
 another module's subscriber and an open page's stream with no restart, then the close.
+
+## Brittany, from the build to the sold flags
+
+**Brittany shipped with the game as `xb` until 2026-11-24.** It is a region, so the owner wants it sold and managed
+like the others. One deploy moves it, and it keeps its code, so nothing of it is rewritten: its land and shields, its
+players' pledges, its chat room, its season points, its ledger rows.
+
+- **The build no longer lists it**: the page's `countries.json` (so `generated/flags/countries.json`, `make flags`), its
+  sprite in the atlas (`npm run atlas`), its SVG for the far view's slots, its fit (`npm run flagFit`), its names in the
+  page's languages (dropped by `cmd/translations apply`), the backoffice's and the alerts' own names for it.
+- **The flags module holds it from the first boot of that build** (`20261124083424_brittany_sold`): open, named
+  "Brittany", ending 30 days after the deploy, its picture the build's `xb.svg` (rendered at its 1350 x 900 with
+  `rsvg-convert`) as `pictures.Redraw` draws an upload, `flags/pictures/ed47508c…3c3eb6.png`, 768 x 512. The restatement
+  at boot tells it to planet.
+- **Planet hears it open in the same deploy** (`20261124083425_brittany_heard`): the restatement travels through the
+  outbox and Redis, and a page reloads within a second of the restart, so without it a Brittany player could be told its
+  flag closed and asked for another.
+- **Its picture goes into the bucket by hand, once**, since no flag was opened through `OpenFlag`: until it does, the
+  page draws Brittany as the blank.
+- **What it lost**: its Discord role (the alerts' tidy at boot deletes a role whose flag the game does not ship; sold
+  flags get roles in a later step), its names in other languages (a sold flag's name is English), its old address
+  (`clickplanet.lol/xb/<name>`). Its 16 quiz questions moved to subject `fr`, their ids kept, so their ratings stay: the
+  quiz generator takes only a subject the game ships.
+
+Production, in order, each with the owner's yes:
+
+1. Put the picture in the bucket: `clickplanet-media`, key `flags/pictures/ed47508c67e67af2c0711725441736fbe62b614fb9b9c587a05efc51023c3eb6.png`,
+   `Content-Type: image/png`, `Cache-Control: public, max-age=31536000, immutable`. The file is on the PR's assets branch.
+2. Deploy: frontend first, then the backend (see [A server restart reloads the page](../../../docs/reload-on-restart.md)).
+3. Then the owner's call: keep it until a date (`flags_add_time`, `xb`, the days past its 30), or close it now
+   (`flags_close_flag`, `xb`); within 30 days of a close, `flags_add_time` brings it back.
 
 ## The pool
 

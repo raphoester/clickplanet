@@ -4416,77 +4416,77 @@
     },
     {
       "id": "extra:xb-breton-celtic",
-      "subject": "xb",
+      "subject": "fr",
       "text": "The Breton language belongs to which family of languages?",
       "answer": "Celtic",
       "wrong": ["Romance", "Germanic", "Slavic", "Uralic", "Hellenic"]
     },
     {
       "id": "extra:xb-breton-cornish",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Which language is the closest relative of Breton?",
       "answer": "Cornish",
       "wrong": ["Irish", "Scottish Gaelic", "Manx", "Basque", "Galician"]
     },
     {
       "id": "extra:xb-britons-origin",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Brittany was settled in the 400s–600s by Celts from which island?",
       "answer": "Great Britain",
       "wrong": ["Ireland", "The Isle of Man", "Iceland", "Jersey", "Corsica"]
     },
     {
       "id": "extra:xb-gwenn-ha-du",
-      "subject": "xb",
+      "subject": "fr",
       "text": "What is the black-and-white flag of Brittany called?",
       "answer": "Gwenn ha Du",
       "wrong": ["Bro Gozh", "Breizh Atao", "Kan ha Diskan", "Ar Mor", "Tro Breizh"]
     },
     {
       "id": "extra:xb-ermine",
-      "subject": "xb",
+      "subject": "fr",
       "text": "The black spots on the Breton flag stand for the fur of which animal?",
       "answer": "The ermine",
       "wrong": ["The leopard", "The lynx", "The otter", "The seal", "The marten"]
     },
     {
       "id": "extra:xb-anne-two-kings",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Anne, Duchess of Brittany, married two kings of which country?",
       "answer": "France",
       "wrong": ["England", "Spain", "Scotland", "Portugal", "Naples"]
     },
     {
       "id": "extra:xb-union-1532",
-      "subject": "xb",
+      "subject": "fr",
       "text": "In which year was Brittany formally united with the kingdom of France?",
       "answer": "1532",
       "wrong": ["1453", "1515", "1598", "1415", "1610"]
     },
     {
       "id": "extra:xb-galettes",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Brittany is famous for sweet crêpes and which savoury buckwheat pancakes?",
       "answer": "Galettes",
       "wrong": ["Rösti", "Socca", "Tartines", "Gaufres", "Beignets"]
     },
     {
       "id": "extra:xb-carnac",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Carnac, in Brittany, is famous for thousands of what?",
       "answer": "Standing stones",
       "wrong": ["Roman villas", "Castles", "Lighthouses", "Shipwrecks", "Windmills"]
     },
     {
       "id": "extra:xb-broceliande",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Which forest of Brittany is linked in legend to Merlin and King Arthur?",
       "answer": "Brocéliande",
       "wrong": ["Sherwood", "The Ardennes", "The Black Forest", "Fontainebleau", "Teutoburg"]
     },
     {
       "id": "extra:xb-fest-noz",
-      "subject": "xb",
+      "subject": "fr",
       "text": "In Brittany, what is a fest-noz?",
       "answer": "A night dance festival",
       "wrong": [
@@ -4499,35 +4499,35 @@
     },
     {
       "id": "extra:xb-nantes-castle",
-      "subject": "xb",
+      "subject": "fr",
       "text": "The Castle of the Dukes of Brittany stands in which city?",
       "answer": "Nantes",
       "wrong": ["Rennes", "Vannes", "Brest", "Quimper", "Lorient"]
     },
     {
       "id": "extra:xb-cartier",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Jacques Cartier, explorer of Canada, sailed from which Breton port?",
       "answer": "Saint-Malo",
       "wrong": ["Brest", "Lorient", "Saint-Brieuc", "Concarneau", "Morlaix"]
     },
     {
       "id": "extra:xb-kouign-amann",
-      "subject": "xb",
+      "subject": "fr",
       "text": "The Breton cake kouign-amann is famous for being rich in what?",
       "answer": "Butter",
       "wrong": ["Chocolate", "Honey", "Almonds", "Apples", "Cream cheese"]
     },
     {
       "id": "extra:xb-chouchen",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Chouchen, a traditional drink of Brittany, is made from what?",
       "answer": "Honey",
       "wrong": ["Apples", "Pears", "Buckwheat", "Barley", "Seaweed"]
     },
     {
       "id": "extra:xb-gouren",
-      "subject": "xb",
+      "subject": "fr",
       "text": "Gouren is a traditional Breton sport. What kind?",
       "answer": "Wrestling",
       "wrong": ["Rowing", "Stone lifting", "Archery", "Horse racing", "Hurling"]
