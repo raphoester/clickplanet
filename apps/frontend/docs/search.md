@@ -22,7 +22,7 @@ know the name in every spelling, say plainly what the game is, and show one site
     so we get no stars. Never add a rating we did not collect.
   - `npm run og-image` rewrites every `/static/og-image-*.jpg` in the three pages, so the JSON-LD image follows it.
 - **Canonicals.** Each page names its own. A tracked address (`/r?f=pl&r=kutza`) and a flag's old address (`/pl/kutza`) are the home page, canonical `/`.
-- **Sitemap** (`public/sitemap.xml`): `/`, `/play`, `/archive`, `/privacy`, `/terms`. Add a page when it is a real
+- **Sitemap** (`public/sitemap.xml`): `/`, `/play`, `/archive`, `/privacy`, `/terms`, `/sale`, `/refunds`. Add a page when it is a real
   public page with its own canonical. Submitted in Search Console on Nov 13 2026.
 - **robots.txt** allows everything and names the sitemap (see [Static assets](static-assets.md)).
 

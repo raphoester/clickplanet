@@ -56,7 +56,12 @@
   `Allegiance.closed` says the flag held is closed: its account picks another at once. `FlagService/ListenForEvents` is
   its stream: a heartbeat, and each flag opened, closed or renamed while it is open (`flag_changed`), and a page reads
   `ListFlags` as it opens (see the backend's
-  [The flags module](../apps/backend/docs/flags.md))
+  [The flags module](../apps/backend/docs/flags.md)). Since 2026-11-24 `time.proto` is `TimeTarget` (a submission or a
+  flag) and `TimePeriod` (a week, a month, a year), `commands.proto` the shop's `GrantTime` and `TakeBackTime`, and
+  `internal.proto` `InternalService/GetPayable`, which the shop asks before a checkout
+- `proto/shop/v1/shop.proto` — what a player pays for (`ShopService`): `ListPlans` (none while the shop is off),
+  `CreateCheckout` (a plan for a submission or a flag of the caller's, with `starts_now`, answered by Stripe's page),
+  `ListMyRenewals` and `StopRenewal` (see the backend's [The shop](../apps/backend/docs/shop.md))
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the identity token resumed from the cookie, the caller's account, sign-in with Google, Discord or an emailed code, sign-out and deletion; the `Landing` the calls that make an account carry, with the recruiter's account (`optional`). Beside it, `admin.proto` is the admin page's own sign-in, `WhoAmI` and the connection of an app, and `CountArrivals`, the accounts made each UTC day by `ArrivalSource`, which the Lab page reads and Claude calls as `auth_count_arrivals`

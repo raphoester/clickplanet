@@ -7,11 +7,13 @@ import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 afterEach(cleanup)
 
 describe("About", () => {
-    it("links to the privacy policy and the terms of service", () => {
+    it("links to the privacy policy, the terms of service, the terms of sale and the refunds", () => {
         render(<About/>)
 
         expect(screen.getByRole("link", {name: "Privacy policy"}).getAttribute("href")).toBe("/privacy")
         expect(screen.getByRole("link", {name: "Terms of service"}).getAttribute("href")).toBe("/terms")
+        expect(screen.getByRole("link", {name: "Terms of sale"}).getAttribute("href")).toBe("/sale")
+        expect(screen.getByRole("link", {name: "Refunds"}).getAttribute("href")).toBe("/refunds")
     })
 
     it("joins Discord by its sign-in, and shows no Discord when nothing is offered", () => {

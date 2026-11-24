@@ -127,6 +127,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   capital: a pin aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
   submission's status in the same place, a change of a flag the account founded, each decision told once on the news
   line; the fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
+- [The shop](docs/shop.md) — the founder pays for an approved flag's time on Stripe's page: the plans priced in the
+  page's language, the consent before Pay, Add time and the renewals in "Your flags", `?shop=paid` read and dropped and
+  the submissions read again until the flag opens; nothing while the shop is off; the fake's `shopOff`, `shopOn`,
+  `refuseCheckouts`; the terms of sale and refunds pages.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

@@ -92,6 +92,11 @@ import {paintFakeFlag, pictureOfUpload} from "./backends/fakeFlagPictures.ts"
 import type {RejectionReason} from "./domain/flagSubmissions.ts"
 import {afterFirstRead} from "./app/flags/flagsStore.ts"
 import {isOpenedCode} from "./domain/flags.ts"
+import {ConnectShop, newShopServiceClient} from "./backends/shopBackend.ts"
+import {FakeShop} from "./backends/fakeShop.ts"
+import type {ShopRefusal} from "./backends/shop.ts"
+import {SHOP_RETURN_PARAM, shopReturnOf, withoutShopReturn} from "./domain/shopReturn.ts"
+import {returnFromShop} from "./app/shop/shopReturn.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -107,9 +112,10 @@ const guided = enterFrontGuide()
 const speaking = speakChosenLanguage()
 const seen = landingOf(page, handedReferrer() ?? document.referrer)
 const recruiterName = recruiterNameOf(page)
+const shopReturn = shopReturnOf(page)
 if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)
-    || page.searchParams.has(RECRUITER_PARAM) || shot || joinDiscord) {
-    window.history.replaceState(null, "", withoutDiscordJoin(withoutLinkedShot(withoutLanding(withoutSharedFlag(page)))))
+    || page.searchParams.has(RECRUITER_PARAM) || shot || joinDiscord || page.searchParams.has(SHOP_RETURN_PARAM)) {
+    window.history.replaceState(null, "", withoutShopReturn(withoutDiscordJoin(withoutLinkedShot(withoutLanding(withoutSharedFlag(page))))))
 }
 
 const connection = new ConnectionHealth()
@@ -191,6 +197,7 @@ function start(backends: Backends) {
             <SignInGate callback={callback} account={backends.account}>
                 <PlayScreen linkedShot={shot}
                             showFront={guided}
+                            shopReturn={shopReturn}
                             backends={backends}/>
             </SignInGate>
         </StrictMode>,
@@ -226,6 +233,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeFlags = new FakeFlagsBackend(paintFakeFlag)
     fakeFlags.listenForClosed((closed) => fake.closeFlags(closed))
     const fakeSubmissions = new FakeFlagSubmissions(fakeFlags, async () => (await fakeAccount.me()).linked.length > 0, pictureOfUpload)
+    const fakeShop = new FakeShop(fakeFlags, fakeSubmissions, async () => (await fakeAccount.me()).linked.length > 0, window.location.origin)
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -309,6 +317,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         rejectSubmission: (reason?: RejectionReason, note?: string) => fakeSubmissions.reject(reason, note),
         openSubmission: (days?: number) => fakeSubmissions.open(days),
         refuseSubmissions: (refusal?: Parameters<typeof fakeSubmissions.refuse>[0]) => fakeSubmissions.refuse(refusal),
+        shopOff: () => fakeShop.turn(false),
+        shopOn: () => fakeShop.turn(true),
+        refuseCheckouts: (refusal?: ShopRefusal) => fakeShop.refuse(refusal),
         closeFlag: (code: string) => fakeFlags.close(code)
             ? `${code} is closed: its players pick another flag, its land stays, and addTime(code) brings it back`
             : `no open flag ${code}: openFlag(name) answers one`,
@@ -513,6 +524,13 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landings: localLandingStore(),
         flags: fakeFlags,
         flagSubmissions: fakeSubmissions,
+        shop: fakeShop,
+        // "Stripe" is paid at once: the page comes back from it in place, since a load would forget the fakes.
+        toCheckout: (url) => {
+            const back = shopReturnOf(new URL(url))
+            if (back) returnFromShop(back)
+            else window.location.assign(url)
+        },
     })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config), boards)
@@ -584,5 +602,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landings: localLandingStore(),
         flags: new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true)),
         flagSubmissions: new ConnectFlagSubmissions(newFlagServiceClient(config), session),
+        shop: new ConnectShop(newShopServiceClient(config), session),
+        toCheckout: (url) => window.location.assign(url),
     })
 }

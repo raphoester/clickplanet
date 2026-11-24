@@ -24,7 +24,7 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Nineteen bounded contexts, one process](docs/bounded-contexts.md) — flags, planet, boxes, bonuses, quizzes, chat, auth, player,
+- [Twenty bounded contexts, one process](docs/bounded-contexts.md) — flags, shop, planet, boxes, bonuses, quizzes, chat, auth, player,
   progression, scoring, support, missions, antibot, gamemaster, alerts, clips, promo, publishing and vandalsquad. A module publishes its root package and hides the rest; the
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
@@ -195,7 +195,13 @@ and says what is in it. Read the doc before you change its area.
   Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move; each
   sold flag's pin (a point, never a tile); a signed-in player's submission (one waiting at a time, its picture held in
   private), the operator's approval (public, a change on its flag at once) or rejection with a reason (the picture
-  deleted 30 days later), and the opening of an approved one by hand.
+  deleted 30 days later), and the opening of an approved one by hand; the paid time: `GetPayable`, the shop's
+  `GrantTime` (the first payment opens the flag, each one adds its week, month or year, once per payment) and
+  `TakeBackTime` (a refund ends the flag that much sooner).
+- [The shop](docs/shop.md) — the founder pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
+  once, a month or a year that renews; off with no Stripe key; the Checkout Session, Stripe's signed events at
+  `/stripe/webhook` acted on once each, what each event does and what Stripe's pages leave open (refunds, disputes),
+  stopping a renewal; downstream of the flags, which it asks and commands in their words.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
   with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the

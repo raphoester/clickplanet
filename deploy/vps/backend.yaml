@@ -47,7 +47,9 @@ antiBot:
     sslMode: disable
     schema: antibot
     pool:
-      maxOpenConns: 2
+      # One since the shop took the second (2026-11-24), so the sum below max_connections did not grow: its writes are
+      # the evidence each minute and a ban with its command, which lose nothing by waiting.
+      maxOpenConns: 1
 
   redis:
     address: redis:6379
@@ -372,6 +374,25 @@ flags:
       name: clickplanet-media
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
+
+# Time for a regional flag, paid on Stripe's page under Managed Payments. Off until the owner's Stripe setup is done
+# (deploy/vps/README.md, "The shop"): with no key or no webhook secret, no plan is on sale and /stripe/webhook is not
+# served. Then: secretKey env://STRIPE_SECRET_KEY, webhookSecret env://STRIPE_WEBHOOK_SECRET, returnURL
+# https://clickplanet.lol/play, and each plan's price.
+shop:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: shop
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
 
 support:
   database:

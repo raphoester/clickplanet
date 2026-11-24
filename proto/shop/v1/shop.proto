@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package shop.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What a player pays for: time for a regional flag, on Stripe's own page.
+service ShopService {
+  // The plans on sale, with their prices. None while the shop is off. A GET.
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // A Stripe Checkout page that sells the plan for a submission or a flag of the caller's: the page goes to its url,
+  // and Stripe sends the buyer back to the game. For a signed-in account alone. PermissionDenied for a guest, or for
+  // another account's submission or flag; NotFound for none; FailedPrecondition while the shop is off, for a submission
+  // not approved, a flag closed 30 days ago or more, or one whose renewal runs; InvalidArgument for no plan, no target,
+  // or without starts_now.
+  rpc CreateCheckout(CreateCheckoutRequest) returns (CreateCheckoutResponse);
+
+  // The caller's plans that renew, each until the end of its period paid. None for a guest.
+  rpc ListMyRenewals(ListMyRenewalsRequest) returns (ListMyRenewalsResponse);
+
+  // Stops a renewal of the caller's at the end of the period paid: the time paid stays. NotFound for no renewal of the
+  // caller's; a renewal stopping already stays so. FailedPrecondition while the shop is off.
+  rpc StopRenewal(StopRenewalRequest) returns (StopRenewalResponse);
+}
+
+enum Plan {
+  PLAN_UNSPECIFIED = 0;
+  // A week, paid once.
+  PLAN_WEEK = 1;
+  // A month, renewed each month.
+  PLAN_MONTH = 2;
+  // A year, renewed each year.
+  PLAN_YEAR = 3;
+}
+
+message ListPlansRequest {}
+
+message ListPlansResponse {
+  // The week, the month and the year, in that order.
+  repeated PlanPrice plans = 1;
+}
+
+message PlanPrice {
+  Plan plan = 1;
+  // In the currency's smallest unit, taxes included: 400 is 4.00 EUR.
+  uint32 amount = 2;
+  // ISO 4217, lower case: eur.
+  string currency = 3;
+  bool renews = 4;
+}
+
+message CreateCheckoutRequest {
+  Plan plan = 1;
+  oneof target {
+    // An approved submission of a new flag: the first payment opens its flag.
+    string submission_id = 2;
+    // A flag the caller founded.
+    string flag = 3;
+  }
+  // The buyer asked for the flag to start at once, and knows that the right to cancel ends when it starts.
+  bool starts_now = 4;
+}
+
+message CreateCheckoutResponse {
+  // Stripe's page.
+  string url = 1;
+}
+
+message ListMyRenewalsRequest {}
+
+message ListMyRenewalsResponse {
+  repeated Renewal renewals = 1;
+}
+
+message Renewal {
+  string id = 1;
+  Plan plan = 2;
+  oneof target {
+    string submission_id = 3;
+    string flag = 4;
+  }
+  RenewalState state = 5;
+  // The end of the period paid: the next payment, or the end of a renewal stopping.
+  google.protobuf.Timestamp period_ends_at = 6;
+}
+
+enum RenewalState {
+  RENEWAL_STATE_UNSPECIFIED = 0;
+  RENEWAL_STATE_RENEWING = 1;
+  // Stopped: no payment after period_ends_at.
+  RENEWAL_STATE_STOPPING = 2;
+}
+
+message StopRenewalRequest {
+  string renewal_id = 1;
+}
+
+message StopRenewalResponse {
+  Renewal renewal = 1;
+}

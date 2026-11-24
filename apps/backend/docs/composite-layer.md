@@ -4,7 +4,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](error-net.md)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](admin.md)
-- `props.AdminHTTP.Handle(pattern, handler)` — a plain `http.Handler` on the admin listener alone, **outside the gate's middlewares**: what is served there says who may call it. The connector's OAuth and MCP endpoints are the only ones (see [Claude as a connector](connector.md)). A pattern two modules claim, or one that conflicts with an admin service, refuses the boot; with no admin listener it is not served, and logged
+- `props.AdminHTTP.Handle(pattern, handler)` — a plain `http.Handler` on the admin listener alone, **outside the gate's middlewares**: what is served there says who may call it. The connector's OAuth and MCP endpoints, the mailroom's replies and Stripe's webhook (the shop's, [The shop](shop.md)) are served there (see [Claude as a connector](connector.md)). A pattern two modules claim, or one that conflicts with an admin service, refuses the boot; with no admin listener it is not served, and logged
 - `props.Admin.Dial()` — the client and base URL of the admin listener, on loopback when it listens on every address: the connector calls the admin services there, as the app the operator let in
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
@@ -214,6 +214,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `planet-flags-opened`, `planet-flags-closed` | each fact names when the flag was opened or closed; the catalog keeps the latest per flag (`catalog.Heard`), under an advisory lock, so a fact told again (at each boot) or older than the one kept changes nothing |
 | `flags-streams-opened`, `flags-streams-closed` (the flags module's own) | each tells the open streams the flag as its table holds it now: told twice, a page merges the same flag twice; a fact decided before the boot is not told |
 | `commands:support.v1.DecideReport` (support's `handler`) | the report's id is the command's: `SaveOnce` keeps a decision only for a report not decided yet, so one told again, or one the operator decided first, changes nothing |
+| `commands:flags.v1.GrantTime`, `commands:flags.v1.TakeBackTime` (the flags module's `handler`) | each command names its payment (`grant_id`); the flags module keeps each grant and each taking back under an advisory lock on it (`flags.time_grants`, `flags.time_takebacks`), so a payment told again grants once, a refund told twice takes back once, and a refund heard before its payment leaves the payment granting nothing |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
 
@@ -247,6 +248,9 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   mission's use cases record it beside the `scoring.v1.GrantPoints` of its points, in the transaction that finishes it.
 - `support.v1.PlayerReported`: a lost one is a report the chat's judge never reads, left to the operator's eyes alone.
   `report_player_usecase` records it in the transaction that keeps the report.
+- `flags.v1.GrantTime` and `TakeBackTime`, commands from the shop: a lost one is a payment that never opened or kept
+  its flag, or a refund that left its time on the flag. `pay_usecase` and `take_back_usecase` record each in the
+  transaction that keeps the payment, and the relay sends them to the flags' command streams.
 - `flags.v1.FlagOpened` and `FlagClosed`: a lost one leaves planet refusing an open flag, or playing a closed one,
   for good. `open_flag_usecase` and `close_flag_usecase` record it in the transaction that keeps the flag, and
   `restate_flags_usecase` records every flag again at each boot (see [The flags module](flags.md)).
@@ -303,6 +307,7 @@ The commands today:
 | `support.v1.DecideReport{report_id, outcome, comment}` | `chat`, through its outbox, from `judge_report_usecase` | the judge acted on a report or dismissed it; a report it leaves open sends none | `support` (`decide_report_handler`), which keeps the decision once per report with `decide_report_usecase`, and leaves one decided already |
 | `bonuses.v1.PayLevelUp{grant_id, account_id, level, unlocked}` | `progression`, through its outbox, from `levels.Book` | a raise by play that wrote a level of 2 or more: one per raise, however many levels it jumps; never for a reconciliation | the bonuses module (`pay_level_up_handler`), which fills the stack of every kind the account may be drawn (`unlocked` with the open ones) through planet's `FillCharges`, once per `grant_id` kept for good |
 | `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}` | `progression`, through its outbox, from `levels.Book` | a raise that wrote a level, with every kind it unlocks; each account of a `ReconcileLevels` page, at the level its stats reach (none for a guest) | the bonuses module (`keep_unlocks_handler`), which keeps the latest list per account by `decided_at` in `bonuses.unlocks`, and draws from it while its set's gates are on |
+| `flags.v1.GrantTime{grant_id, target, period, paid_at}`, `TakeBackTime{grant_id, decided_at}` | `shop`, through its outbox, from `pay_usecase` and `take_back_usecase` | Stripe told a payment (a week, or a month's or a year's invoice), or a refund in full or a dispute lost | the flags module (`grant_time_handler`, `take_back_time_handler`): an approved submission's flag opens for the period, a flag ends a period later or comes back within 30 days, once per `grant_id`; a taking back ends it that much sooner (see [The flags module](flags.md#paid-time)) |
 
 ### The gamemaster's calls
 

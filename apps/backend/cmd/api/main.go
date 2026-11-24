@@ -27,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad"
 )
@@ -38,7 +39,9 @@ type Config struct {
 
 	Auth auth.Config
 	// The catalog of flags: the ones the game ships with, and the ones opened since.
-	Flags       flags.Config
+	Flags flags.Config
+	// Time for a regional flag, paid on Stripe's page. Off with no Stripe key.
+	Shop        shop.Config
 	AntiBot     antibot.Config
 	Chat        chat.Config
 	Player      player.Config
@@ -100,6 +103,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
 		flags.NewModule(config.Flags),
+		shop.NewModule(config.Shop),
 		planet.NewModule(config.Planet),
 		boxes.NewModule(config.Boxes),
 		bonuses.NewModule(config.Bonuses),
@@ -138,6 +142,7 @@ func (c Config) Validate() error {
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Flags.Validate(),
+		c.Shop.Validate(),
 		c.Player.Validate(),
 		c.Progression.Validate(),
 		c.Scoring.Validate(),

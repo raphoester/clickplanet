@@ -4,7 +4,7 @@
 the regional flags, 2026-11-24): a name, a picture and its capital, a pin on the globe. The pin is the region's capital:
 in Capital Siege the flag starts there, as a country starts on its capital. So the page says "capital" wherever the
 player reads about the pin (the owner, 2026-11-24). The operator approves or rejects it in the backoffice; an approved
-new flag waits to be opened (paid for), a change goes on its flag. The backend's side is `flags.v1.FlagService`'s
+new flag waits to be opened (paid for, see [The shop](shop.md)), a change goes on its flag. The backend's side is `flags.v1.FlagService`'s
 `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`).
 
 ## Where
@@ -77,20 +77,23 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
 ## The status, in the game
 
 **The place shows the latest submission**: its name, its state's chip and one line. Waiting: "Sent on Nov 24, 2026."
-Approved: "Approved! It opens soon.", or for a change "Approved! The change is on your flag." Rejected: its reason in
+Approved: "Approved! It opens soon.", or "Approved! Pick a plan to open it." over the plans while the shop sells (see
+[The shop](shop.md#the-offer)), or for a change "Approved! The change is on your flag." Rejected: its reason in
 plain words (not a place, a flag in the game already, unreadable at a tile's size, hateful, or "It was not approved."),
 then the operator's note quoted. Opened: "Bavaria is in the game!", the picture an approval made public beside the name.
 
 - **A new submission can be sent once none waits**: "New flag" after an approval or an opening, "Try again" after a
   rejection, which opens the form with what was sent (the name, the capital, the flag of a change; the picture is
   picked again). While one waits, Close alone.
-- **A change**: "Your flags" lists each flag the account founded (`foundedFlags`: one of its submissions opened it, or an
-  approved change named it), each with Change, off while one waits. The form opens on the flag's name from the list of
+- **A change**: "Your flags" (`FoundedFlags`) lists each flag the account founded (`foundedFlags`: one of its submissions
+  opened it, or an approved change named it), each with Change, off while one waits, and while the shop sells its time:
+  Add time, or its renewal (see [The shop](shop.md#time-for-a-founded-flag)). The form opens on the flag's name from the list of
   flags and its capital; Send waits for a picture, the same file for a new name alone: the server draws and reviews
   every flag as the players will see it.
 
 **When the page reads them** (`useFlagSubmissionsFeed`): at once for a signed-in account, each time the flags stream
-opens (`useFlags.openings`, which the flags store counts as it reads the list again), and when the place opens. One read
+opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the place opens, and every 3
+seconds for a while after a payment (see [The shop](shop.md#back-from-stripe)). One read
 at a time, one queued behind it; a read that fails keeps what is shown. A guest reads none, and a sign-out forgets them.
 
 **A decision is told once on the news line** (`SubmissionNews`, the news store's `submission` kind, 4 seconds): "Your
@@ -113,6 +116,9 @@ flag from the picker, then on the console:
   for 30 days by default.
 - `refuseSubmissions("waiting")`: the next sends are refused with that refusal, or `"upload-failed"` for a `PUT` that
   fails; `refuseSubmissions()` lets them through again.
+
+The fake shop pays for an approved flag in the place itself (see [The shop](shop.md#in-fake-mode)): `openSubmission()` is
+the same opening without the plans.
 
 After each verdict the fake says the flags stream opened again (`FakeFlagsBackend.reopen`), so the page reads it at once
 and the news line tells it, as the real page would at the stream's next opening or the place's next opening.

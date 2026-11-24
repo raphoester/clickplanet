@@ -32,7 +32,8 @@ const columns = `s.id, s.account_id, s.kind::text, s.flag, s.name, s.pin_latitud
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
 func (s *Store) Submission(ctx context.Context, id submissions.SubmissionID) (submissions.Submission, error) {
-	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+from+` WHERE s.id = $1`, uuid.UUID(id))
+	// Locked to the end of the transaction a change reads it in: a payment and the operator never open it twice.
+	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+from+` WHERE s.id = $1 FOR UPDATE OF s`, uuid.UUID(id))
 	submission, err := submissionOf(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return submissions.Submission{}, fmt.Errorf("%s: %w", id, submissions.ErrUnknownSubmission)

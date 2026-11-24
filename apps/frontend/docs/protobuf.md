@@ -29,6 +29,8 @@ the whole `proto` directory, so a new package needs no config change; run
 - [`gamemaster/v1/gamemaster.proto`](../../../proto/gamemaster/v1/gamemaster.proto) — the
   kind of the schedule's entry that plays, a battle or a plain one
   (`GamemasterService`, see [Battles](battle.md))
+- [`shop/v1/shop.proto`](../../../proto/shop/v1/shop.proto) — time for a regional flag, paid on Stripe's page
+  (`ShopService`: `ListPlans`, `CreateCheckout`, `ListMyRenewals`, `StopRenewal`, see [The shop](shop.md))
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

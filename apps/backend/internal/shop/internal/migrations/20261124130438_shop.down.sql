@@ -1,0 +1,9 @@
+DROP TABLE outbox;
+DROP TYPE outbox_event;
+DROP TABLE stripe_events;
+DROP TABLE renewals;
+DROP TYPE renewal_state;
+DROP TABLE payments;
+DROP TYPE payment_state;
+DROP TYPE target_kind;
+DROP TYPE plan;

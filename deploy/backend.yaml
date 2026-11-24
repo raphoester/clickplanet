@@ -157,6 +157,19 @@ flags:
   redis:
     address: redis:6379
 
+# Off: no Stripe key. A Stripe sandbox's keys and prices turn it on (deploy/vps/README.md, "The shop").
+shop:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: shop
+  redis:
+    address: redis:6379
+
 support:
   database:
     host: postgres

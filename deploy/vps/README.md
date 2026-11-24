@@ -1841,8 +1841,9 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
   alone), since 2026-11-12 support holds 1 and the vandal squad the other (its graffiti alone), since 2026-11-13
   the alerts module holds 1 and the quizzes module the other (its rule sets and the answers counted), and since
   2026-11-15 progression holds 3 and the boxes module the fourth (its rule sets and each box caught), and since
-  2026-11-23 player holds 3 and the flags module the fourth (the flags opened since the game shipped), so
-  `max_connections` stayed 42.
+  2026-11-23 player holds 3 and the flags module the fourth (the flags opened since the game shipped), and since
+  2026-11-24 the antibot holds 1 and the shop the other (each payment and renewal, section 17), so `max_connections`
+  stayed 42.
 
 ## 14. Answering notes by email
 
@@ -1926,6 +1927,68 @@ endpoint, as a note's photos. The WAF rule of step 15 keeps `/flags/submissions/
 **Not done: a lifecycle rule** on `clickplanet-media` that deletes what is under `flags/uploads/` a day after it was
 written. A file uploaded and never submitted stays there otherwise (20 a day per account and address at most). The
 server deletes each upload it reads, and each rejected picture 30 days after its rejection.
+
+## 17. The shop
+
+The founder of an approved flag pays on Stripe's own page, under **Stripe Managed Payments** (Stripe, through Link, is
+the merchant of record): see the backend's [The shop](../../apps/backend/docs/shop.md). **The shop is off** until
+`backend.yaml` names a key and a webhook secret: no plan shows, `/stripe/webhook` is not served, and the operator's
+`flags_open_submitted_flag` still opens a flag sold by hand. Every step below is the owner's, in Stripe's Dashboard
+(the account is live-only: no sandbox yet). Nothing in the repo writes to Stripe but the shop itself, once on.
+
+1. **The business profile** describes the game (Settings, Business, Public details): it still describes coaching. Then
+   **activate Managed Payments** (Settings, Managed Payments): accept its terms and pass Stripe's eligibility review.
+2. **Three products** (Product catalog, Create product), each with its tax code and one price, **tax included** in the
+   price (Managed Payments uses the price's tax behavior):
+
+   | product | tax code | price |
+   |---|---|---|
+   | Regional flag, 1 week | `txcd_10201003` (Video Games, streamed, non subscription, limited rights) | 4.00 EUR, one-off |
+   | Regional flag, 1 month | `txcd_10201004` (Video Games, streamed, subscription) | 10.00 EUR, recurring monthly |
+   | Regional flag, 1 year | `txcd_10201004` | 60.00 EUR, recurring yearly |
+
+   Keep each price's id (`price_…`).
+3. **The terms on Stripe's page** (Settings, Checkout and Payment Links, Public details): terms of service
+   `https://clickplanet.lol/sale`, privacy policy `https://clickplanet.lol/privacy`.
+4. **A restricted key** (Developers, API keys, Create restricted key), named `clickplanet-shop`: Checkout Sessions
+   **Write**, Subscriptions **Write**, Invoices **Read** (the shop lists an invoice's payments). If a call is refused for
+   a missing right, the backend's log names the resource: add it to the key.
+5. **The webhook endpoint** (Developers, Webhooks, Add destination): URL **`https://api.clickplanet.lol/stripe/webhook`**,
+   API version **`2026-10-28.endive`** (stripe-go's: an event of another version is refused), and these events:
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `invoice.paid`, `charge.refunded`, `charge.dispute.closed`, `customer.subscription.created`,
+   `customer.subscription.updated`, `customer.subscription.deleted`. Keep its signing secret (`whsec_…`).
+6. **The two secrets**, each pasted when `gh` asks:
+
+   ```bash
+   gh secret set STRIPE_SECRET_KEY --repo raphoester/clickplanet
+   ```
+
+   ```bash
+   gh secret set STRIPE_WEBHOOK_SECRET --repo raphoester/clickplanet
+   ```
+
+7. **Then `backend.yaml`**, in the deploy that turns the shop on (an `env://` that names no secret refuses the boot):
+
+   ```yaml
+   shop:
+     stripe:
+       secretKey: env://STRIPE_SECRET_KEY
+       webhookSecret: env://STRIPE_WEBHOOK_SECRET
+       returnURL: https://clickplanet.lol/play
+       plans:
+         week: {priceId: price_…, amount: 400, currency: eur}
+         month: {priceId: price_…, amount: 1000, currency: eur}
+         year: {priceId: price_…, amount: 6000, currency: eur}
+   ```
+
+   The amounts are what the page shows: they must be the prices' own.
+8. **Check it**: Stripe's "Send test event" to the endpoint answers `200` (an event the shop never sold is ignored), and
+   journald shows `Stripe event heard`. A first real payment, by the owner, of an approved flag of the owner's, then
+   its refund, shows the whole path (`time paid for granted`, then `time paid for taken back`).
+
+**Caddy** routes `/stripe/*` to the admin listener with no CORS, as `/mailroom/*`; a request nobody signed is `400`.
+**The postgres pool**: the shop holds 1 connection, the antibot's second (section 13).
 
 ## Rollback
 

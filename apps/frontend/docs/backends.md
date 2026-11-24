@@ -37,6 +37,9 @@ also has `FlagSubmitter`, the flags a player sends for review, with `SubmissionR
 (`flagSubmissionsBackend.ts`) over the same service, the sends with the click token and one retry on a refused token
 as support's, the read with the token that names the account; `FakeFlagSubmissions` in fake mode (see [Flag
 submissions](flag-submissions.md)).
+`shop.ts` is time for a regional flag, paid on Stripe's page: `Shop` and `ShopRefusedError`. `ConnectShop`
+(`shopBackend.ts`) implements it against `shop.v1.ShopService` with the token that names the account, `ListPlans` with
+none; `FakeShop` in fake mode (see [The shop](shop.md)).
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
 stream's notice that another account played from the connection, and `NoticeAcknowledger`.

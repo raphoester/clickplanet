@@ -1,0 +1,87 @@
+.shop-picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.shop-plans {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shop-plan {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.shop-plan--picked {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-m);
+    cursor: default;
+}
+
+.shop-plan-name {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.shop-plan-price {
+    color: var(--text-soft);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.shop-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: var(--text-m);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.shop-consent input {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+
+.shop-legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    font-size: var(--text-s);
+}
+
+.shop-legal a {
+    color: var(--text-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--gold);
+    text-underline-offset: 3px;
+}
+
+.shop-legal a:hover {
+    color: var(--text);
+}
+
+.shop-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.shop-pay {
+    flex: 1 1 auto;
+}

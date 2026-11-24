@@ -7,7 +7,7 @@ import {
     RejectionReason,
     Submission,
 } from "../domain/flagSubmissions.ts"
-import {FakeFlagsBackend} from "./fakeFlagsBackend.ts"
+import {FakeFlagsBackend, NameRefusal} from "./fakeFlagsBackend.ts"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {UploadOptions} from "./support.ts"
 
@@ -115,12 +115,22 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     public async open(days = 30): Promise<string> {
         const kept = this.kept.find(({submission}) => submission.state === "approved" && !submission.change)
         if (!kept) return "no new flag is approved: approveSubmission() approves the one that waits"
+        const {name} = kept.submission
+        const opened = await this.openApproved(kept.submission.id, days)
+        if ("refused" in opened) return `${name} cannot open: ${opened.refused}`
+        return `${name} is open as ${opened.code} for ${days} days`
+    }
+
+    // An approved new flag opened, as its first payment would open it.
+    public async openApproved(id: string, days: number): Promise<{code: string} | {refused: NameRefusal | "not approved"}> {
+        const kept = this.kept.find(({submission}) => submission.id === id)
+        if (!kept || kept.submission.state !== "approved" || kept.submission.change) return {refused: "not approved"}
         const {name, pin, picture} = kept.submission
         const opened = await this.flags.open(name, days, {picture, pin})
-        if ("refused" in opened) return `${name} cannot open: ${opened.refused}`
+        if ("refused" in opened) return opened
         this.decide(kept, {state: "opened", flag: opened.code})
         this.flags.reopen()
-        return `${name} is open as ${opened.code} for ${days} days`
+        return opened
     }
 
     private submissions(): Submission[] {

@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_submission_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/get_payable_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_my_submissions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_submissions_handler"
@@ -42,3 +43,9 @@ type AdminService struct {
 }
 
 var _ flagsv1connect.AdminServiceHandler = AdminService{}
+
+type InternalService struct {
+	get_payable_handler.GetPayableHandler
+}
+
+var _ flagsv1connect.InternalServiceHandler = InternalService{}

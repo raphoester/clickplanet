@@ -52,6 +52,8 @@ export default function About({discord}: AboutProps) {
             <a href="/#home">{t("menu.homePage")}</a>
             <a href="/privacy" target="_blank" rel="noopener noreferrer">{t("about.privacy")}</a>
             <a href="/terms" target="_blank" rel="noopener noreferrer">{t("about.terms")}</a>
+            <a href="/sale" target="_blank" rel="noopener noreferrer">{t("about.sale")}</a>
+            <a href="/refunds" target="_blank" rel="noopener noreferrer">{t("about.refunds")}</a>
         </p>
     </>
 }

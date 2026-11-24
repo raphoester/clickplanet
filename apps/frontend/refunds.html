@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="When ClickPlanet refunds a payment for a regional flag, and how to ask"/>
+    <link rel="canonical" href="https://clickplanet.lol/refunds"/>
+    <title>Refunds · ClickPlanet</title>
+    <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Rubik:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="/src/tokens.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 32px 16px 64px;
+            background-color: var(--ground);
+            background-image: radial-gradient(130% 700px at 50% -120px, var(--ground-glow), transparent 75%);
+            background-repeat: no-repeat;
+            color: var(--text-soft);
+            font-family: var(--font-text);
+            font-size: var(--text-l);
+            line-height: 1.6;
+        }
+
+        main {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 28px 40px 40px;
+            background: var(--panel);
+            border: var(--outline) solid var(--ink);
+            border-radius: var(--radius-l);
+            box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen);
+        }
+
+        h1, h2 {
+            font-family: var(--font-display);
+            font-weight: normal;
+            line-height: 1.05;
+            text-shadow: var(--text-drop);
+        }
+
+        h1 {
+            font-size: var(--display-xxl);
+            margin: 24px 0 8px;
+            color: var(--text);
+        }
+
+        h2 {
+            font-size: var(--display-l);
+            margin: 36px 0 8px;
+            color: var(--gold);
+            scroll-margin-top: 16px;
+        }
+
+        a {
+            color: var(--text);
+            text-decoration-color: var(--gold);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+        }
+
+        a:hover, a:focus-visible {
+            color: var(--gold);
+        }
+
+        strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        li + li {
+            margin-top: 6px;
+        }
+
+        .back {
+            font-size: var(--text-m);
+            font-weight: 600;
+            color: var(--text-soft);
+            text-decoration: none;
+        }
+
+        .back:hover, .back:focus-visible {
+            color: var(--text);
+        }
+
+        .updated {
+            margin: 0;
+            font-size: var(--text-s);
+            color: var(--text-muted);
+        }
+
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 16px 16px 48px;
+            }
+
+            main {
+                padding: 20px 16px 28px;
+            }
+
+            h1 {
+                font-size: var(--display-xl);
+                margin-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <!-- DRAFT: the owner reviews this text before the merge. -->
+    <a class="back" href="/">← Back to the planet</a>
+
+    <h1>Refunds</h1>
+    <p class="updated">Last updated: 24 November 2026</p>
+
+    <p>This page says when we refund a payment for a regional flag. The <a href="/sale">terms of sale</a> say what you
+        buy.</p>
+
+    <h2>When we refund</h2>
+    <ul>
+        <li><strong>We close your flag</strong> because it breaks the terms of service or the review rules: we refund the
+            time not used.</li>
+        <li><strong>We shut down the game, or stop the regional flags</strong>: we refund the time not used.</li>
+        <li><strong>You paid twice by mistake</strong> for the same flag: write to us within 14 days, and we refund the
+            second payment.</li>
+    </ul>
+    <p>In other cases, we do not refund time already used.</p>
+
+    <h2>How a refund works</h2>
+    <p>A refund goes back to the card or account you paid with, through Stripe.</p>
+    <p>A full refund takes back the time it paid for, and so does a chargeback (when you ask your bank to take back a
+        payment). Your flag then ends sooner, and it may close at once.</p>
+    <p>Stripe, through Link, may also refund a payment in some cases, within 60 days of it.</p>
+
+    <h2>How to ask</h2>
+    <p>Email <a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a> with your flag's name and your receipt.
+        You can also ask Link's support at
+        <a href="https://link.com" target="_blank" rel="noopener noreferrer">link.com</a>.</p>
+</main>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "%WEB_ANALYTICS_TOKEN%", "spa": false}'></script>
+</body>
+</html>

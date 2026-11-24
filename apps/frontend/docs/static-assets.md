@@ -123,7 +123,7 @@ what we ask Google for, why, that nobody else gets it, and the Limited Use
 sentence. A new Google scope changes that section.
 
 **Cloudflare Web Analytics counts the page views**, with no cookie. Each of the
-five pages ends with the beacon tag, its token written once in
+seven pages ends with the beacon tag, its token written once in
 `src/webAnalytics.ts` and fed to the pages as `%WEB_ANALYTICS_TOKEN%`, like the
 social profiles. The token is public. **`/auth/callback` has no beacon**: its URL
 holds the one-time code, and its referrer is Google or Discord, which would read
@@ -164,6 +164,9 @@ invite there**: the pages link `/play?discord=join`, the game's Discord sign-in
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
+**`sale.html` and `refunds.html`** are the terms of sale and the refunds of a regional flag's time, at `/sale` and
+`/refunds`, built the same way and linked from the terms' "Regional flags", the privacy policy, the home page and About
+(see [The shop](shop.md#the-legal-pages)).
 **`BannedModal` and `WarningModal` link its "Play fair" section** by its `id="play-fair"`, which
 `BannedModal.test.tsx` pins: keep the id if the heading changes. The
 privacy policy says what Google and Discord send us; a new provider, or a new

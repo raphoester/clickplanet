@@ -156,6 +156,9 @@ support:
 flags:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: flags}
   redis: {address: localhost:6379}
+shop:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: shop}
+  redis: {address: localhost:6379}
 clips:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
   redis: {address: localhost:6379}
@@ -376,6 +379,19 @@ func TestTheExampleConfigReachesTheFlagsBlock(t *testing.T) {
 
 func TestTheFlagsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "flags.database")
+}
+
+func TestTheExampleConfigKeepsTheShopOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "shop", config.Shop.Database.Schema)
+	assert.Empty(t, config.Shop.Stripe.SecretKey)
+	require.NoError(t, config.Shop.Validate())
+}
+
+func TestTheShopModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "shop.database")
 }
 
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {

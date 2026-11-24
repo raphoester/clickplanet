@@ -66,7 +66,7 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
-            input: {home: "index.html", play: "play.html", archive: "archive.html", video: "video.html", privacy: "privacy.html", terms: "terms.html"},
+            input: {home: "index.html", play: "play.html", archive: "archive.html", video: "video.html", privacy: "privacy.html", terms: "terms.html", sale: "sale.html", refunds: "refunds.html"},
         },
     },
     test: {

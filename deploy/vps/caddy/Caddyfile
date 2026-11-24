@@ -36,9 +36,11 @@
 	@connector path /mcp /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
 	# The mailroom Worker posts the players' replies with a secret of its own, and no page: no CORS.
 	@mailroom path /mailroom/*
+	# Stripe posts its events signed with the webhook endpoint's secret, and no page: no CORS.
+	@stripe path /stripe/*
 	@game {
 		not path_regexp ^/[a-z]+\.v1\.AdminService/
-		not path /mcp /oauth/* /.well-known/* /mailroom/*
+		not path /mcp /oauth/* /.well-known/* /mailroom/* /stripe/*
 	}
 
 	header @game {
@@ -138,6 +140,12 @@
 		}
 	}
 
+	handle /shop.v1.ShopService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /support.v1.SupportService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
@@ -178,6 +186,10 @@
 	}
 
 	handle @mailroom {
+		reverse_proxy backend:8083
+	}
+
+	handle @stripe {
 		reverse_proxy backend:8083
 	}
 

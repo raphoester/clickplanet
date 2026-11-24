@@ -18,6 +18,8 @@ var (
 	ErrDecided      = errors.New("the submission is decided already")
 	ErrNotApproved  = errors.New("only an approved submission of a new flag opens one")
 	ErrInvalidState = errors.New("a submission kept in no state it can be in")
+	ErrNotYours     = errors.New("only its founder pays for a submission or its flag")
+	ErrNotPayable   = errors.New("only an approved or opened submission of a new flag is paid for")
 )
 
 // A rejected picture is deleted this long after the rejection. It never became public.
@@ -103,7 +105,7 @@ func Submit(
 		if submission.state == Waiting {
 			return Submission{}, fmt.Errorf("%w: %s", ErrWaiting, submission.id)
 		}
-		founded = founded || (submission.kind == New && submission.state == Opened && submission.flag == draft.Flag)
+		founded = founded || submission.opened(draft.Flag)
 	}
 	if kind == Change && !founded {
 		return Submission{}, fmt.Errorf("%w: %s", ErrNotFounder, draft.Flag)
@@ -170,6 +172,37 @@ func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt ti
 	opened := flag.TakeSnapshot()
 	s.state, s.flag, s.decidedAt = Opened, opened.ID, opened.DecidedAt
 	return s, flag, nil
+}
+
+// PayableBy is nil when the account may pay for the submission: its founder, once approved (the payment opens its
+// flag) or opened (the time goes to its flag).
+func (s Submission) PayableBy(account AccountID) error {
+	if s.account != account {
+		return fmt.Errorf("%w: %s", ErrNotYours, s.id)
+	}
+	if s.kind != New || (s.state != Approved && s.state != Opened) {
+		return fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotPayable)
+	}
+	return nil
+}
+
+// OpenedFlag is the flag opened from the submission, once one was.
+func (s Submission) OpenedFlag() (catalog.FlagID, bool) {
+	return s.flag, s.kind == New && s.state == Opened
+}
+
+// FoundedBy is nil when one of the account's submissions opened the flag: its founder.
+func FoundedBy(founded []Submission, flag catalog.FlagID) error {
+	for _, submission := range founded {
+		if submission.opened(flag) {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: %s", ErrNotYours, flag)
+}
+
+func (s Submission) opened(flag catalog.FlagID) bool {
+	return s.kind == New && s.state == Opened && s.flag == flag
 }
 
 // PictureDeleted is the submission once its rejected picture is deleted, 30 days after the rejection.

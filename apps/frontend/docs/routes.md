@@ -1,6 +1,6 @@
 # Pages and routes
 
-Five pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
+Five pages and four plain ones, built by Vite as a multi-page app (`build.rollupOptions.input` in
 `vite.config.ts`):
 
 | Path | File | What |
@@ -11,6 +11,7 @@ Five pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/video` | `video.html` | The page that draws a player's video, in a hidden frame of the game (see [Player videos](player-videos.md)). The `pageRoutes` plugin serves it at that path in `npm run dev`. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
+| `/sale`, `/refunds` | `sale.html`, `refunds.html` | The terms of sale and the refunds of a regional flag's time (see [The shop](shop.md)): plain pages, as `terms.html`. |
 | `/t`, `/y`, `/r`, `/v` | `index.html` | A tracked address: its first script opens the game with the letter as the source (see [Arrivals](arrivals.md)). |
 | `/<flag>`, `/<flag>/<name>` | `index.html` | A player's old address: its first script opens the game on the flag. |
 | anything else | `index.html` | `not_found_handling` fallback. |
@@ -21,7 +22,7 @@ the globe, and found no text that says what the app is and no visible link to
 the privacy policy. A plain intro inside `#root` did not help: hidden as soon as
 JavaScript ran (it flashed), the checker never saw it. So `/` is a plain page
 built like `privacy.html`: what the game is, "no account needed", a Play button,
-and links to both pages, the contact address and Discord. **Keep that text and
+and links to both pages (and the terms of sale and the refunds since 2026-11-24), the contact address and Discord. **Keep that text and
 those links on it**; they are what the verification reads.
 
 **Only a first visit sees it.** An inline script, first in the home page's
