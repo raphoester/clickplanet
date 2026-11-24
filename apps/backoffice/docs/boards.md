@@ -5,12 +5,14 @@ answer that names tiles names their board, and the page places them on that boar
 
 ## Every board, by name
 
-- **`npm run map`** (`scripts/syncMap.mjs`) copies every board in `/map/boards` into `src/gen/map/<name>/`, its manifest
-  and its runs, and writes `src/gen/map/boards.ts`: `BOARDS`, each board's manifest and the address Vite serves its
-  runs at (`?url`, a file under `/assets/` each, 121 KB for `earth-1`, 282 KB for `earth-2`, 30 KB for `siege-1`). A
+- **`npm run map`** (`scripts/syncMap.mjs`) copies every board in `/map/boards` into `src/gen/map/<name>/`, its
+  manifest, its runs and its capitals, and writes `src/gen/map/boards.ts`: `BOARDS`, each board's manifest, the address
+  Vite serves its runs at (`?url`, a file under `/assets/` each, 121 KB for `earth-1`, 282 KB for `earth-2`, 30 KB for
+  `siege-1`) and its capitals file as text (`?raw`, in the page's script: 2.4 to 2.8 KB each, under Vite's inline
+  limit, so a `?url` would be a `data:` address the CSP's `connect-src` refuses). A
   directory whose manifest names another board stops it. Three exist: `earth-1`, and `earth-2` and `siege-1`, which
   nothing plays yet.
-- **`boards.ts`**: `BOARDS`, a `Map` by name of `{board, runsUrl}`, and `boardOf(name)`, which refuses a name the page
+- **`boards.ts`**: `BOARDS`, a `Map` by name of `{board, runsUrl, capitals}`, and `boardOf(name)`, which refuses a name the page
   does not carry (`earth-9 is not a board this page carries (it has earth-1, earth-2, siege-1)`) and an answer that names none (`""`). A
   page shows the refusal where the tiles would be drawn, and the rest of what it read.
 - **`places.ts`**: `loadPlaces(name)` reads a board's runs the first time an answer names it, rebuilds its positions
@@ -18,6 +20,10 @@ answer that names tiles names their board, and the page places them on that boar
   `Places` carries its `board` (the manifest) beside each tile's latitude and longitude, so whatever reads them knows
   the board's spacing. Each tile's latitude and longitude are read as the map's generator reads a point: `asin(y)` and
   `atan2(z, -x)`.
+- **`capitals.ts`**: `capitalsOf(places, file)` places each country's capital (`{"tiles": N, "capitals": {"fr": <tile
+  id>, …}}`, see the root's [map README](../../../map/README.md#capitals-and-bridges)) at its tile, and refuses a file of
+  another tile count or a tile the board does not hold; `loadCapitals(name)` reads the board's places first. Only Flag
+  submissions reads them, for its map and its list of capitals near one.
 - **`lattice.ts`** is the backoffice's own copy of the game page's lattice: it walks the lattice in the board's order
   (three's walk for `earth-1`, canonical ids for `earth-2` and `siege-1`) and keeps the points the runs hold, to the bit,
   about 0.1 s for `earth-1`, on the page itself. A warped and rotated board's point is its barycentric weights warped
@@ -32,7 +38,7 @@ answer that names tiles names their board, and the page places them on that boar
 | --- | --- |
 | Home, the heatmap ([home.md](home.md)) | `GetLedgerResponse.board`, the board the world plays |
 | Graffiti ([graffiti.md](graffiti.md)) | each `Graffiti.board`, each board read once |
-| Flag submissions ([flag-submissions.md](flag-submissions.md)) | `GetTerritoriesResponse.board`, the board the world plays: a pin is in degrees, on no board |
+| Flag submissions ([flag-submissions.md](flag-submissions.md)) | `GetTerritoriesResponse.board`, the board the world plays: its land and its capitals; a submission's capital is in degrees, on no board |
 | Download a replay ([map-tools.md](map-tools.md)) | none: it draws nothing, and the file keeps `eras`, each era's board |
 | Game rules ([ops.md](ops.md)) | none: it lists `BOARDS`' names for `arena.board` |
 

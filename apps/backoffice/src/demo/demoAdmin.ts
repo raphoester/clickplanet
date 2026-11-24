@@ -46,6 +46,7 @@ import {
     TopPlayersRequest,
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetTerritoriesResponse} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
@@ -386,6 +387,8 @@ export class DemoAdmin extends FakeAdmin {
             picture: new Picture({url: picture, width: 768, height: 512}),
             ...part,
         }))
+        // The board the world plays since 2026-11-18: the submissions' capitals are drawn on it.
+        this.territories = new GetTerritoriesResponse({...this.territories, board: "earth-2", tiles: 1004682})
         this.promo.backgrounds = DEMO_BACKGROUNDS
         this.promo.decks.set("rush", [
             new CardDraft({backgroundId: "demo-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country fights at once."}),

@@ -2503,37 +2503,145 @@ a.button {
     overflow-wrap: anywhere;
 }
 
-.pin-figure {
+/* A submission's capital on a planisphere: the land drawn on a canvas, the capitals as marks over it. */
+.capital-figure {
     display: grid;
     gap: 6px;
     margin: 0;
 }
 
-.pin-map {
-    display: block;
-    width: 100%;
-    max-width: 560px;
-    aspect-ratio: 1;
+.capital-map {
+    position: relative;
+    overflow: hidden;
     border-radius: var(--radius);
+    box-shadow: 0 0 0 1px var(--line);
     background: var(--map-sea);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.pin-mark {
-    fill: var(--bug);
+.capital-map.movable {
+    cursor: crosshair;
 }
 
-.pin-ring {
-    fill: none;
-    stroke: var(--bug);
-    stroke-width: 2px;
-    vector-effect: non-scaling-stroke;
+.capital-land {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
-.pin-other {
-    fill: var(--accent);
-    stroke: var(--surface);
-    stroke-width: 1.5px;
-    vector-effect: non-scaling-stroke;
+.map-marks {
+    position: absolute;
+    inset: 0;
+}
+
+.map-mark {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.mark-country {
+    width: 6px;
+    height: 6px;
+    background: var(--muted);
+}
+
+.mark-flag {
+    background: var(--accent);
+    box-shadow: 0 0 0 1.5px var(--surface);
+}
+
+.mark-submission {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.mark-own {
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+    background: var(--bug);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--bug);
+}
+
+.mark-own.mark-movable {
+    cursor: move;
+}
+
+/* A finger's room around the capital, to drag it on a phone. */
+.mark-own.mark-movable::after {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+}
+
+.map-label {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    color: var(--text);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    transform: translate(9px, -50%);
+    pointer-events: none;
+}
+
+.map-label.label-left {
+    transform: translate(calc(-100% - 9px), -50%);
+}
+
+.map-label .flag {
+    font-size: 13px;
+}
+
+.label-own {
+    z-index: 3;
+    font-weight: 600;
+}
+
+.label-own.label-right {
+    transform: translate(12px, -50%);
+}
+
+.label-own.label-left {
+    transform: translate(calc(-100% - 12px), -50%);
+}
+
+.map-buttons {
+    position: absolute;
+    z-index: 4;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.map-buttons .button-small {
+    min-width: 32px;
+    background: var(--surface);
+}
+
+.capital-moved {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    overflow-wrap: anywhere;
 }
 
 .near-title {

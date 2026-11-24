@@ -14,12 +14,14 @@ export type Board = {
     files: {runs: string} & Record<string, string>
 }
 
-// A board the page bundles: its manifest, and the address its runs are served at.
-export type Bundled = {board: Board, runsUrl: string}
+// A board the page bundles: its manifest, the address its runs are served at, and its capitals file as text.
+export type Bundled = {board: Board, runsUrl: string, capitals: string}
 
 // Every board in /map/boards, by name, as `npm run map` copied them into src/gen/map.
 export const BOARDS: ReadonlyMap<string, Bundled> = new Map(
-    Object.entries(BUNDLED).map(([name, {manifest, runs}]): [string, Bundled] => [name, {board: manifest, runsUrl: runs}]),
+    Object.entries(BUNDLED).map(([name, {manifest, runs, capitals}]): [string, Bundled] => [
+        name, {board: manifest, runsUrl: runs, capitals},
+    ]),
 )
 
 // The board an answer names. One the page does not bundle is refused: its tile ids are places on no map the page has.

@@ -1,5 +1,4 @@
 import {useCallback, useEffect, useState} from "react"
-import {loadPlaces, Places} from "../boards/places.ts"
 import {Clients, CLIENTS} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {timeOf} from "../components/time.ts"
@@ -8,15 +7,15 @@ import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useCall} from "../useCall.ts"
 import {SubmissionDetail} from "./SubmissionDetail.tsx"
 import {SubmissionList} from "./SubmissionList.tsx"
-import {Filter, Listed, listOf, nextOf, shownOf, waiting} from "./submissions.ts"
+import {Filter, Ground, loadGround, Listed, listOf, nextOf, shownOf, waiting} from "./submissions.ts"
 
 type Props = {
     // The submission open, by its id, or "" for none.
     opened: string
     onOpen: (submissionId: string) => void
     clients?: Clients
-    // A board's places, by its name.
-    places?: (board: string) => Promise<Places>
+    // A board's land and capitals, by its name.
+    ground?: (board: string) => Promise<Ground>
 }
 
 // What the operator did last, said above the next one.
@@ -32,7 +31,7 @@ const FILTERS: {filter: Filter, label: string}[] = [
 ]
 
 // An inbox: the flags players submitted on the left, the one open on the right. A verdict opens the next waiting one.
-export function SubmissionsView({opened, onOpen, clients = CLIENTS, places: readPlaces = loadPlaces}: Props) {
+export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: readBoard = loadGround}: Props) {
     const {flags, player, planet} = clients
     const list = useCallback((signal: AbortSignal) => listOf(flags, player, signal), [flags, player])
     const [read, again] = useCall(list)
@@ -41,10 +40,10 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, places: read
     useEffect(() => {
         if (read.state === "done") setKept(read.value)
     }, [read])
-    // The land around a pin is drawn on the board the world plays.
+    // A capital is drawn on the board the world plays.
     const readGround = useCallback(
-        async (signal: AbortSignal) => readPlaces((await planet.getTerritories({}, {signal})).board),
-        [planet, readPlaces],
+        async (signal: AbortSignal) => readBoard((await planet.getTerritories({}, {signal})).board),
+        [planet, readBoard],
     )
     const [ground] = useCall(readGround)
     const [filter, setFilter] = useState<Filter>("waiting")
@@ -122,7 +121,7 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, places: read
                         submissions={submissions}
                         flags={listed.flags}
                         names={listed.names}
-                        places={ground}
+                        ground={ground}
                         clients={clients}
                         onBack={() => pick("")}
                         onOpen={pick}

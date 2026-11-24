@@ -9,7 +9,7 @@ import {openRefusalOf, openSubmitted} from "./actions.ts"
 
 const FIRST_DAYS = 30
 
-// An approved new flag, opened for every player once paid for, until the end picked, at its submission's pin.
+// An approved new flag, opened for every player once paid for, until the end picked, at its submission's capital.
 export function OpenSubmittedPanel({flags, submission, onOpened}: {
     flags: FlagsAdmin, submission: KeptSubmission, onOpened: (flag: Flag) => void,
 }) {
@@ -32,7 +32,7 @@ export function OpenSubmittedPanel({flags, submission, onOpened}: {
                 disabled={end === undefined || gone}
                 question={end !== undefined && (
                     <>
-                        <p>Open <strong>{submission.name}</strong> until {timeOf(end)} ({leftOf(end, now)}), at its pin?</p>
+                        <p>Open <strong>{submission.name}</strong> until {timeOf(end)} ({leftOf(end, now)}), at its capital?</p>
                         <p>
                             Every player sees it at once and may play for it. A flag is never deleted: closed, it stays in
                             the list for good.

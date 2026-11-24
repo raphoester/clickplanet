@@ -1,3 +1,5 @@
+import {Capital, loadCapitals} from "../boards/capitals.ts"
+import {loadPlaces, Places} from "../boards/places.ts"
 import {FlagsAdmin, PlayerAdmin} from "../clients.ts"
 import {learnFlags, listedOf} from "../flags.ts"
 import {distanceKm, Place} from "../flags/pin.ts"
@@ -12,13 +14,21 @@ export const PHOTO_FROM_PERCENT = 15
 // on a phone, 75 on a screen 1,000 px high; the tiles fill the frame from 8 px.
 export const TILE_SIZES = [50, 16]
 
-// The flags near a pin worth a look, and how many of them to show.
+// The capitals near a submission's worth a look, and how many of the flags' and of the countries' to show.
 export const NEAR_KM = 1000
 export const NEAREST = 5
 
 // What the page read: the submissions as the server orders them, the catalog of flags, and each founder's name (unset
 // when the names could not be read).
 export type Listed = {submissions: KeptSubmission[], flags: Flag[], names: Map<string, string> | undefined}
+
+// The board the world plays: where its land is, and the game's countries' capitals on it.
+export type Ground = {places: Places, capitals: Capital[]}
+
+export async function loadGround(board: string): Promise<Ground> {
+    const [places, capitals] = await Promise.all([loadPlaces(board), loadCapitals(board)])
+    return {places, capitals}
+}
 
 export async function listOf(flags: FlagsAdmin, player: PlayerAdmin, signal: AbortSignal): Promise<Listed> {
     const [{submissions}, catalog] = await Promise.all([
@@ -112,29 +122,42 @@ export function kindOf(submission: KeptSubmission, flags: Flag[]): string {
     return `Change of ${flags.find(flag => flag.code === submission.flag)?.name ?? submission.flag}`
 }
 
-// Another flag, sold or the game's own, or another submission, as the open one is compared with it.
+// Another flag, sold or the game's own, another submission, or one of the game's countries, as the open one is
+// compared with it.
 export type Other =
     | {kind: "flag", flag: Flag}
     | {kind: "submission", submission: KeptSubmission}
+    | {kind: "country", country: string}
 
-export type Near = {other: Other, place: Place, km: number}
+export type Around = {other: Other, place: Place}
 
-// The other flags' pins and the other new flags submitted, nearest first, within NEAR_KM: the NEAREST of them. The
-// flag a submission changes or opened is the submission's own, and a submission opened is its flag.
-export function nearOf(submission: KeptSubmission, flags: Flag[], submissions: KeptSubmission[]): Near[] {
-    const pin = submission.pin
-    if (pin === undefined) return []
-    const near: Near[] = []
+export type Near = Around & {km: number}
+
+// The capitals a submission's is compared with: the sold flags' but the one it changes or opened, which is its own; the
+// other new flags submitted but the ones opened, whose flag is listed; and the game's countries'.
+export function aroundOf(submission: KeptSubmission, flags: Flag[], submissions: KeptSubmission[], capitals: Capital[]): Around[] {
+    const around: Around[] = []
     for (const flag of flags) {
         const at = flag.sold?.pin
         if (at === undefined || flag.code === submission.flag) continue
-        near.push({other: {kind: "flag", flag}, place: at, km: distanceKm(pin, at)})
+        around.push({other: {kind: "flag", flag}, place: {latitude: at.latitude, longitude: at.longitude}})
     }
     for (const other of submissions) {
         if (other.id === submission.id || other.change || other.state === SubmissionState.OPENED || other.pin === undefined) continue
-        near.push({other: {kind: "submission", submission: other}, place: other.pin, km: distanceKm(pin, other.pin)})
+        around.push({other: {kind: "submission", submission: other}, place: {latitude: other.pin.latitude, longitude: other.pin.longitude}})
     }
-    return near.filter(each => each.km <= NEAR_KM).sort((a, b) => a.km - b.km).slice(0, NEAREST)
+    for (const {country, latitude, longitude} of capitals) around.push({other: {kind: "country", country}, place: {latitude, longitude}})
+    return around
+}
+
+// Within NEAR_KM of a capital, nearest first: the NEAREST flags and submissions, and the NEAREST countries.
+export function nearOf(capital: Place, around: Around[]): Near[] {
+    const within = around.map(each => ({...each, km: distanceKm(capital, each.place)}))
+        .filter(each => each.km <= NEAR_KM)
+        .sort((a, b) => a.km - b.km)
+    const countries = within.filter(each => each.other.kind === "country")
+    const others = within.filter(each => each.other.kind !== "country")
+    return [...others.slice(0, NEAREST), ...countries.slice(0, NEAREST)].sort((a, b) => a.km - b.km)
 }
 
 // Every other flag, the game's own included, and every other submission whose name is this one's, case and accents

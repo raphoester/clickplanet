@@ -10,9 +10,9 @@ game's own flags are not on this page: they never end.
 ## Opening one
 
 - **The form** (`OpenPanel`): a name of 1 to 40 characters, counted as it is typed; the end, a `datetime-local` in the
-  operator's own time zone, which the page names, 30 days from now at first, with the days left beside it; **the pin**,
-  a latitude and a longitude in degrees (where the flag starts in Capital Siege: the place's capital, or its middle),
-  with a link that opens the globe there; and one picture (`image/png`, `image/jpeg` or `image/webp`, 5 MB at most),
+  operator's own time zone, which the page names, 30 days from now at first, with the days left beside it; **the
+  capital**, a latitude and a longitude in degrees (where the flag starts in Capital Siege: the place's capital, or its
+  middle; `pin` in the code and on the wire), with a link that opens the globe there; and one picture (`image/png`, `image/jpeg` or `image/webp`, 5 MB at most),
   shown as picked. A latitude and a longitude pasted together in either field ("48.1374, 11.5755", as a map copies
   them) go each to its own field (`pastedPlaceOf` in `pin.ts`). What the server would refuse is in red as it is typed
   (a name too long, another type, a file too big, an end gone by, a latitude past −90 to 90, a longitude past −180 to
@@ -21,7 +21,7 @@ game's own flags are not on this page: they never end.
   and a flag is never deleted: closed, it stays in the list for good. Only Yes uploads anything.
 - **Then three steps** (`openFlag` in `actions.ts`): `CreateFlagUpload` with the file's type and size, which answers an
   upload id and a signed link; one `PUT` of the file to that link with the same `Content-Type` (`putFile`, as a
-  video's, see [Videos](videos.md)), with a progress bar; then `OpenFlag` with the name, the upload id, the end and the pin. The
+  video's, see [Videos](videos.md)), with a progress bar; then `OpenFlag` with the name, the upload id, the end and the capital. The
   server draws the picture again and makes it public. The page says "Opened Rennes (r-…), until …", empties the form
   and reads the list again.
 - **A refused step says why**: `CreateFlagUpload`'s and `OpenFlag`'s `failed_precondition` is "The flags' pictures are
@@ -32,7 +32,7 @@ game's own flags are not on this page: they never end.
 ## The list
 
 - **Every sold flag** (`ListFlags`, the game's own left out), each a card: its picture as the server drew it, its
-  name, its code with Copy, its pin (`Sold.pin`, a link that opens the globe there), and Open or Closed. **An open flag** shows its end and the days left (to the nearest day,
+  name, its code with Copy, its capital (`Sold.pin`, a link that opens the globe there), and Open or Closed. **An open flag** shows its end and the days left (to the nearest day,
   hours in its last two). **A closed one** shows when it closed, and until when time added opens it again (30 days
   after the close), or that it no longer can.
 - **By end** (open first, the soonest to end first, then the closed ones, the last closed first) or **By name**. The
@@ -67,10 +67,10 @@ already in `img-src` (see [Deploy](deploy.md)): nothing to change in `public/_he
 ## In the demo
 
 `npm run demo`: Bavaria and Cornwall open (Cornwall in its last day), Savoy closed 3 days ago, Tyrol closed 41 days
-ago, each picture drawn in the page (SVG) and pinned on its capital, and a few made-up players for Bavaria, so the
+ago, each picture drawn in the page (SVG), each capital where its place's is, and a few made-up players for Bavaria, so the
 other pages show its picture. The made-up bucket takes a picture in two seconds; `OpenFlag` refuses a picture it does
-not hold, a name of more than 40 characters or another flag's, an end gone by and a pin off the globe, and the flag
+not hold, a name of more than 40 characters or another flag's, an end gone by and a capital off the globe, and the flag
 shows its picture from the page's memory until a reload. `OpenFlag` and `RenameFlag` check a name as the server does
 (`nameRefusalOf`): against the flags the fake lists, and every built-in flag by its region name (`GAME_FLAG_NAMES`),
-whatever its case. The tests drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps Bavaria (pinned on Munich)
-and Savoy (on Chambéry) the same way, at `AT`.
+whatever its case. The tests drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps Bavaria (its capital Munich)
+and Savoy (its capital Chambéry) the same way, at `AT`.

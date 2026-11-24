@@ -110,10 +110,11 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
-     * OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+     * Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
+     * waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
+     * capital too. NotFound for an unknown submission;
      * FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
-     * pictures are off.
+     * pictures are off; InvalidArgument for a capital off the globe.
      *
      * @generated from rpc flags.v1.AdminService.ApproveSubmission
      */

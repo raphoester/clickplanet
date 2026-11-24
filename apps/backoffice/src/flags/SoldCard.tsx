@@ -32,7 +32,7 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
             </div>
             <dl className="facts">
                 <Fact label="Code"><Copyable text={flag.code}/></Fact>
-                <Fact label="Pin">
+                <Fact label="Capital">
                     {pin === undefined
                         ? <span className="muted">none</span>
                         : <a href={globeLinkOf(pin)} target="_blank" rel="noreferrer">{placeWords(pin)}</a>}

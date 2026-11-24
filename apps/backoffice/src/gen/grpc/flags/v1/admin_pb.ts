@@ -633,6 +633,13 @@ export class ApproveSubmissionRequest extends Message<ApproveSubmissionRequest> 
    */
   submissionId = "";
 
+  /**
+   * The capital where the operator moved it; unset keeps the player's. A change moves its flag's capital too.
+   *
+   * @generated from field: flags.v1.Pin pin = 2;
+   */
+  pin?: Pin;
+
   constructor(data?: PartialMessage<ApproveSubmissionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -642,6 +649,7 @@ export class ApproveSubmissionRequest extends Message<ApproveSubmissionRequest> 
   static readonly typeName = "flags.v1.ApproveSubmissionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "pin", kind: "message", T: Pin },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ApproveSubmissionRequest {

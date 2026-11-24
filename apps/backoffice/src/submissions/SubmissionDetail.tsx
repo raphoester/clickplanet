@@ -1,21 +1,23 @@
-import {useMemo} from "react"
-import {Places} from "../boards/places.ts"
+import {useMemo, useState} from "react"
 import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
+import {Country} from "../components/Country.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {FlagMark} from "../components/FlagMark.tsx"
 import {When} from "../components/When.tsx"
-import {globeLinkOf, kmWords, placeWords} from "../flags/pin.ts"
+import {countryLabel} from "../countries.ts"
+import {globeLinkOf, kmWords, Place, placeWords} from "../flags/pin.ts"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
 import {Flag, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {Call} from "../useCall.ts"
+import {CapitalMap, Mark} from "./CapitalMap.tsx"
 import {FlagFigure} from "./FlagFigure.tsx"
 import {OpenSubmittedPanel} from "./OpenSubmittedPanel.tsx"
-import {PinMap} from "./PinMap.tsx"
 import {SubmissionVerdict} from "./SubmissionVerdict.tsx"
 import {
-    kindOf, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen, waiting,
+    Around, aroundOf, Ground, kindOf, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
+    waiting,
 } from "./submissions.ts"
 
 type Props = {
@@ -24,8 +26,8 @@ type Props = {
     submissions: KeptSubmission[]
     flags: Flag[]
     names: Map<string, string> | undefined
-    // The places of the board the world plays, to draw the land around the pin.
-    places: Call<Places>
+    // The board the world plays, to draw the capital on.
+    ground: Call<Ground>
     clients: Clients
     onBack: () => void
     onOpen: (submissionId: string) => void
@@ -33,14 +35,20 @@ type Props = {
     onOpened: (flag: Flag) => void
 }
 
-// One submission, read top down as it is judged: the picture, the name, who sent it, the pin and the flags near it,
-// the flags of the same name; then the verdict, or the open of an approved new flag.
-export function SubmissionDetail({submission, submissions, flags, names, places, clients, onBack, onOpen, onDecided, onOpened}: Props) {
+// One submission, read top down as it is judged: the picture, the name, who sent it, its capital on a map and the
+// capitals near it, the flags of the same name; then the verdict, or the open of an approved new flag. A waiting one's
+// capital moves on the map before the verdict.
+export function SubmissionDetail({submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onOpened}: Props) {
     const changed = submission.change ? flags.find(flag => flag.code === submission.flag) : undefined
-    const near = useMemo(() => nearOf(submission, flags, submissions), [submission, flags, submissions])
-    const marked = useMemo(() => near.map(each => ({place: each.place, name: nameOf(each.other)})), [near])
-    const same = sameNameOf(submission, flags, submissions)
     const {pin, rejection} = submission
+    const [moved, setMoved] = useState<Place>()
+    const capital = moved ?? pin
+    const capitals = ground.state === "done" ? ground.value.capitals : NO_CAPITALS
+    const around = useMemo(() => aroundOf(submission, flags, submissions, capitals), [submission, flags, submissions, capitals])
+    const marks = useMemo(() => around.map(markOf), [around])
+    const near = useMemo(() => capital === undefined ? [] : nearOf(capital, around), [capital, around])
+    const same = sameNameOf(submission, flags, submissions)
+    const move = (place: Place) => setMoved(pin !== undefined && placeWords(place) === placeWords(pin) ? undefined : place)
 
     return (
         <section className="detail submission-detail" aria-label="Submission">
@@ -78,7 +86,7 @@ export function SubmissionDetail({submission, submissions, flags, names, places,
                     {submission.picture !== undefined && (
                         <Fact label="Other colours">{submission.otherColorsPercent}% past the 8 most common</Fact>
                     )}
-                    <Fact label="Pin">
+                    <Fact label="Capital">
                         {pin === undefined
                             ? <span className="muted">none</span>
                             : <>{placeWords(pin)} · <a href={globeLinkOf(pin)} target="_blank" rel="noreferrer">Open on the globe</a></>}
@@ -92,24 +100,41 @@ export function SubmissionDetail({submission, submissions, flags, names, places,
                     )}
                 </dl>
             </article>
-            {pin !== undefined && (
-                <section className="panel" aria-label="The pin">
-                    <h2>The pin</h2>
-                    {places.state === "loading" && <p className="muted">Loading the map…</p>}
-                    {places.state === "failed" && <p className="muted">The map could not be drawn: {places.detail}</p>}
-                    {places.state === "done" && (
-                        <PinMap
-                            places={places.value}
-                            pin={pin}
-                            others={marked}
-                            label={`The land around the pin of ${submission.name}, north up`}
+            {pin !== undefined && capital !== undefined && (
+                <section className="panel" aria-label="The capital">
+                    <h2>The capital</h2>
+                    {ground.state === "loading" && <p className="muted">Loading the map…</p>}
+                    {ground.state === "failed" && <p className="muted">The map could not be drawn: {ground.detail}</p>}
+                    {ground.state === "done" && (
+                        <CapitalMap
+                            places={ground.value.places}
+                            capital={capital}
+                            name={submission.name}
+                            icon={<PictureMark submission={submission}/>}
+                            marks={marks}
+                            onMove={waiting(submission) ? move : undefined}
+                            label={`The capital of ${submission.name} on a map of the world`}
                         />
                     )}
-                    <h3 className="near-title">Near it</h3>
+                    {moved !== undefined && (
+                        <div className="capital-moved">
+                            <span>
+                                Moved to <strong>{placeWords(moved)}</strong> ·{" "}
+                                <a href={globeLinkOf(moved)} target="_blank" rel="noreferrer">Open on the globe</a>
+                            </span>
+                            <button type="button" className="button-small" onClick={() => setMoved(undefined)}>
+                                Back to the player's
+                            </button>
+                        </div>
+                    )}
+                    {moved === undefined && waiting(submission) && ground.state === "done" && (
+                        <p className="hint">Drag the red mark, or tap the map, to move the capital.</p>
+                    )}
+                    <h3 className="near-title">Capitals near it</h3>
                     {near.length === 0
-                        ? <p className="muted">No flag within {kmWords(NEAR_KM)}.</p>
+                        ? <p className="muted">No capital within {kmWords(NEAR_KM)}.</p>
                         : (
-                            <ol className="near-list" aria-label="Flags near it">
+                            <ol className="near-list" aria-label="Capitals near it">
                                 {near.map(each => (
                                     <li key={keyOf(each.other)}>
                                         <OtherLine other={each.other} onOpen={onOpen}/>
@@ -134,6 +159,7 @@ export function SubmissionDetail({submission, submissions, flags, names, places,
                     flags={clients.flags}
                     submission={submission}
                     changes={submission.change ? changed?.name ?? submission.flag : undefined}
+                    moved={moved}
                     onDecided={onDecided}
                 />
             )}
@@ -155,16 +181,42 @@ function badgeOf(state: SubmissionState): string {
     }
 }
 
-function nameOf(other: Other): string {
-    return other.kind === "flag" ? other.flag.name : other.submission.name
-}
+const NO_CAPITALS: Ground["capitals"] = []
 
 function keyOf(other: Other): string {
-    return other.kind === "flag" ? `flag-${other.flag.code}` : `submission-${other.submission.id}`
+    switch (other.kind) {
+        case "flag":
+            return `flag-${other.flag.code}`
+        case "submission":
+            return `submission-${other.submission.id}`
+        case "country":
+            return `country-${other.country}`
+    }
 }
 
-// A flag the game ships with, a sold one, or another submission: one click to it.
+function markOf({other, place}: Around): Mark {
+    const key = keyOf(other)
+    switch (other.kind) {
+        case "flag":
+            return {key, place, kind: "flag", name: other.flag.name, icon: <FlagMark id={other.flag.code}/>}
+        case "submission":
+            return {key, place, kind: "submission", name: other.submission.name, icon: <PictureMark submission={other.submission}/>}
+        case "country":
+            return {key, place, kind: "country", name: countryLabel(other.country), icon: <FlagMark id={other.country}/>}
+    }
+}
+
+// A submission's picture where a flag goes, before it is a flag.
+function PictureMark({submission}: {submission: KeptSubmission}) {
+    if (submission.picture === undefined) return null
+    return <img className="flag flag-picture" src={submission.picture.url} alt="" aria-hidden="true"/>
+}
+
+// A flag the game ships with, a sold one, one of the game's countries, or another submission: one click to it.
 function OtherLine({other, onOpen}: {other: Other, onOpen: (submissionId: string) => void}) {
+    if (other.kind === "country") {
+        return <span className="near-name"><Country id={other.country}/> <span className="muted">the game's own</span></span>
+    }
     if (other.kind === "flag") {
         const {flag} = other
         const what = flag.sold === undefined ? "the game's own" : flag.closed ? "sold, closed" : "sold"

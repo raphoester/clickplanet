@@ -844,6 +844,10 @@ export function keptSubmission(
     })
 }
 
+function onGlobe(pin: PartialMessage<Pin>): boolean {
+    return Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180
+}
+
 // The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
 const GAME_FLAG_NAMES: readonly string[] = (() => {
     const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
@@ -924,7 +928,7 @@ export class FakeFlags implements FlagsAdmin {
             return this.refused("openFlag", request, "no picture uploaded under this id", Code.InvalidArgument)
         }
         const pin = request.pin
-        if (pin === undefined || !(Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180)) {
+        if (pin === undefined || !onGlobe(pin)) {
             return this.refused("openFlag", request, "a pin from -90 to 90 and -180 to 180", Code.InvalidArgument)
         }
         const name = (request.name ?? "").trim()
@@ -969,23 +973,29 @@ export class FakeFlags implements FlagsAdmin {
         return this.admin.answer("listSubmissions", request, new ListSubmissionsResponse({submissions: [...waiting, ...decided]}))
     }
 
-    // Its picture made public; a change is on its flag at once.
+    // Its picture made public, at the capital the operator moved it to or the player's; a change is on its flag at once,
+    // its capital too.
     approveSubmission(request: PartialMessage<ApproveSubmissionRequest>): Promise<ApproveSubmissionResponse> {
         const submission = this.submissions.find(each => each.id === request.submissionId)
         if (submission === undefined) return this.refused("approveSubmission", request, "no such submission", Code.NotFound)
+        const moved = request.pin
+        if (moved !== undefined && !onGlobe(moved)) {
+            return this.refused("approveSubmission", request, "a pin from -90 to 90 and -180 to 180", Code.InvalidArgument)
+        }
         if (submission.state !== SubmissionState.WAITING) {
             return this.refused("approveSubmission", request, "the submission is decided already", Code.FailedPrecondition)
         }
         const taken = nameRefusalOf(submission.name, this.listed.filter(each => !submission.change || each.code !== submission.flag))
         if (taken !== undefined) return this.refused("approveSubmission", request, taken, Code.FailedPrecondition)
-        const approved = this.decided(submission, {state: SubmissionState.APPROVED})
+        const pin = moved === undefined ? submission.pin : new Pin({latitude: moved.latitude ?? 0, longitude: moved.longitude ?? 0})
+        const approved = this.decided(submission, {state: SubmissionState.APPROVED, pin})
         const answer = this.admin.answer("approveSubmission", request, new ApproveSubmissionResponse({submission: approved}))
         if (!this.admin.refusals.has("approveSubmission")) {
             this.keep(approved)
             const flag = this.listed.find(each => each.code === submission.flag)
             if (submission.change && flag !== undefined) {
                 this.listed = this.listed.map(each => each !== flag ? each : soldFlag(flag.code, submission.name,
-                    flag.sold?.endsAt?.toDate() ?? new Date(), flag.sold?.closedAt?.toDate(), submission.picture?.url, flag.sold?.pin))
+                    flag.sold?.endsAt?.toDate() ?? new Date(), flag.sold?.closedAt?.toDate(), submission.picture?.url, pin))
             }
         }
         return answer

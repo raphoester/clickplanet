@@ -47,11 +47,11 @@ export function OpenPanel({flags, put, onOpened}: {flags: FlagsAdmin, put: Put, 
             <p className="hint">Times are in {zoneOf()}.{end !== undefined && end > now && ` ${leftOf(end, now)}.`}</p>
             <div className="fields">
                 <label className="field">
-                    <span className="muted">Pin latitude</span>
+                    <span className="muted">Capital latitude</span>
                     <input inputMode="decimal" value={draft.latitude} onChange={event => typePin(event.target.value, "latitude")}/>
                 </label>
                 <label className="field">
-                    <span className="muted">Pin longitude</span>
+                    <span className="muted">Capital longitude</span>
                     <input inputMode="decimal" value={draft.longitude} onChange={event => typePin(event.target.value, "longitude")}/>
                 </label>
             </div>
@@ -86,7 +86,7 @@ export function OpenPanel({flags, put, onOpened}: {flags: FlagsAdmin, put: Put, 
                     <>
                         <p>
                             Open <strong>{draft.name.trim()}</strong> until {timeOf(end)} ({leftOf(end, now)})
-                            {pin !== undefined && `, pinned at ${placeWords(pin)}`}?
+                            {pin !== undefined && `, its capital at ${placeWords(pin)}`}?
                         </p>
                         <p>
                             Every player sees it at once and may play for it. A flag is never deleted: closed, it stays in
@@ -96,7 +96,7 @@ export function OpenPanel({flags, put, onOpened}: {flags: FlagsAdmin, put: Put, 
                 )}
                 run={async () => {
                     if (file === undefined || end === undefined || pin === undefined) {
-                        throw new Refused("Pick a picture, an end and a pin first.")
+                        throw new Refused("Pick a picture, an end and a capital first.")
                     }
                     setSent(0)
                     try {

@@ -49,8 +49,5 @@ names `earth-1` today.
 - **Each tile is its Voronoi cell**: the circumcentres of the tile and each pair of its neighbours in turn, a hexagon.
   The map holds land alone, so a tile on the coast misses the neighbours the sea would be; each missing one stands where
   the lattice would put it, a step away at 60° from the next, so a drawing on the shore is drawn whole.
-- **`groundOf` draws the land around a place the same way**, with no drawing: a frame of a given width in km, the
-  cells of every tile in it, and where other places fall in it. Flag submissions draws a pin on it (see
-  [Flag submissions](flag-submissions.md)).
 - `npm run demo` lists four drawings of the squad's test samples (`swastikas/testdata/drawings.json`), painted by
   made-up players: three swastikas, two of them by one player, and one the operator judged none.

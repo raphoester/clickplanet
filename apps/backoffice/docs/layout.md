@@ -14,6 +14,7 @@ src/
   useRoute.ts       the page shown and what is open on it, kept in the address bar
   useWide.ts        whether the window is wide enough for the sidebar
   usePageVisible.ts whether the tab is shown
+  useDarkScheme.ts  whether the dark scheme is on, for a canvas that reads its colors as it draws
   navigation.ts     MENU, the pages by group, the route (routeOf, hashOf) and OpenPlayer
   countries.ts      a country id's name and its flag
   flags.ts          the server's list of flags, read at load and by the Flags page, which names a flag opened since and
@@ -27,6 +28,7 @@ src/
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
   boards/           the boards: boards.ts (BOARDS by name, boardOf), places.ts (a board's places, read once by name),
+                    capitals.ts (each country's capital at its tile),
                     lattice.ts (each tile's position, rebuilt from the board's runs), scale.ts (a number tuned on
                     earth-1, read at a board's spacing); testBoards.ts (earth-1 and fixture-1, for the tests)
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts, and
@@ -45,8 +47,7 @@ src/
                     caller.ts (an account or a scope, from what was typed), charges.ts (a grant and what is held, in
                     words), durations.ts (the mute and ban choices, a span in words)
   graffiti/         Graffiti: GraffitiView (the inbox), GraffitiDetail (one, with its painter's Ban and Revert),
-                    GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell, and groundOf,
-                    the land around a place, which Flag submissions draws a pin on), graffiti.ts
+                    GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell), graffiti.ts
                     (the list, the painters' names and standings, the boards' places, a graffiti's key); testPlaces.ts
                     (a patch of a board's lattice, for the tests)
   map/              Download a replay, actions.ts (the file, and the eras it is on); download.ts (a file saved from
@@ -56,13 +57,16 @@ src/
                     arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days,
-                    Rename and Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a pin
-                    as typed, in words, as a globe link, and the great-circle distance)
+                    Rename and Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a
+                    capital as typed, in words, as a globe link, and the great-circle distance)
   submissions/      Flag submissions: SubmissionsView (the inbox), SubmissionList, SubmissionDetail (one, as it is
-                    judged), FlagFigure (a picture as drawn and on a tile), PinMap (the land around a pin),
-                    SubmissionVerdict (Approve or Reject), OpenSubmittedPanel (an approved new flag opened), actions.ts
-                    (the calls and their refusals), submissions.ts (the lists, the filters, the next one, the flags near
-                    a pin and of the same name, the photo warning)
+                    judged), FlagFigure (a picture as drawn and on a tile), CapitalMap (the capital on a planisphere,
+                    the other capitals, zoom, pan and the capital moved) over mapView.ts (the view: region, world, zoom,
+                    pan, a place under a point) and mapLand.ts (the board's land in pixels, a box at a time, the
+                    whole world once a board), SubmissionVerdict (Approve or Reject, at the capital moved),
+                    OpenSubmittedPanel (an approved new flag opened), actions.ts (the calls and their refusals),
+                    submissions.ts (the lists, the filters, the next one, the board's land and capitals, the capitals
+                    near one and the flags of the same name, the photo warning)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)
@@ -78,8 +82,8 @@ src/
                     schedule's rows and what each module plays), seasons.ts (the seasons' rows and form), timeline.ts
                     (the Timeline's lanes and instants)
   gen/grpc/         generated from ../../proto, committed
-  gen/map/          every board's manifest and runs, copied from ../../map/boards, and boards.ts, the table of them by
-                    name; committed
+  gen/map/          every board's manifest, runs and capitals, copied from ../../map/boards, and boards.ts, the table
+                    of them by name; committed
   testdata/boards/  fixture-1, the tests' second board, read by the tests alone and never bundled
 ```
 

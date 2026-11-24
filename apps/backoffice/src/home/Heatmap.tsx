@@ -1,5 +1,6 @@
 import {PointerEvent, useEffect, useMemo, useRef, useState} from "react"
 import {Places} from "../boards/places.ts"
+import {useDarkScheme} from "../useDarkScheme.ts"
 import {wholeOf} from "./activity.ts"
 import {busiestOf, cellOf, Cells, cellsOf, colorAt, levelsOf, Picture, pictureOf, placeOf, Rgb, rgbOf} from "./heat.ts"
 
@@ -85,23 +86,4 @@ function draw(canvas: HTMLCanvasElement, picture: Picture, levels: Float32Array)
 
 function mix(from: Rgb, to: Rgb, share: number): Rgb {
     return [0, 1, 2].map(c => Math.round(from[c] + (to[c] - from[c]) * share)) as Rgb
-}
-
-// The canvas reads its colors when it draws, so it draws again when the scheme changes.
-function useDarkScheme(): boolean {
-    const [dark, setDark] = useState(() => schemeQuery()?.matches ?? false)
-
-    useEffect(() => {
-        const query = schemeQuery()
-        if (query === undefined) return
-        const follow = (event: MediaQueryListEvent) => setDark(event.matches)
-        query.addEventListener("change", follow)
-        return () => query.removeEventListener("change", follow)
-    }, [])
-
-    return dark
-}
-
-function schemeQuery(): MediaQueryList | undefined {
-    return typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : undefined
 }

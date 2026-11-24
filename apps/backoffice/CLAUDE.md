@@ -16,8 +16,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   config it needs: auth on and an admin listener.
 - [Deploy](docs/deploy.md) — the `clickplanet-backoffice` Cloudflare Worker.
 - [Layout](docs/layout.md) — the `src/` tree, one line per file.
-- [Boards on the page](docs/boards.md) — every board in `/map/boards` bundled by name (`npm run map`, `boardOf` refuses
-  another), each one's places rebuilt once when an answer names it, the pages that place tiles and the board each reads,
+- [Boards on the page](docs/boards.md) — every board in `/map/boards` bundled by name with its capitals (`npm run map`,
+  `boardOf` refuses another), each one's places rebuilt once when an answer names it, the pages that place tiles and the board each reads,
   the sizes tuned on `earth-1` read at a board's spacing (`scale.ts`), and `fixture-1`, the tests' second board.
 
 ## The pages
@@ -41,12 +41,13 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [A country on the page](docs/countries.md) — typed by its id and named below it, a flag opened since by the server's
   list, read at load and by the Flags page; a flag is an emoji, a sold flag's picture, or a plain grey flag for one the
   page does not know.
-- [Flags](docs/flags.md) — the sold flags: one opened by hand (a name, a picture uploaded, an end, a pin, asked first
-  with what it costs), each with its pin, its days left or its comeback, Add days, Rename and Close;
+- [Flags](docs/flags.md) — the sold flags: one opened by hand (a name, a picture uploaded, an end, a capital, asked
+  first with what it costs), each with its capital, its days left or its comeback, Add days, Rename and Close;
   `flags.v1.AdminService`.
 - [Flag submissions](docs/flag-submissions.md) — the flags players submit, under Moderation: an inbox, the picture as
-  drawn and on a tile, a photo warning, the pin on a map, the flags near it and of the same name, Approve or Reject with
-  the reason the player reads, then the next; an approved new flag opened once paid for.
+  drawn and on a tile, a photo warning, the capital on a planisphere that zooms out to the world with the other capitals,
+  moved before Approve, the capitals near it and the flags of the same name, Approve or Reject with the reason the
+  player reads, then the next; an approved new flag opened once paid for.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.
 - [The Lab](docs/lab.md) — the video lab's readout: each experiment on each platform against the control of the same

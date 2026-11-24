@@ -6,7 +6,7 @@ import {Put} from "../videos/actions.ts"
 import {degreesOf, pinProblems, Place} from "./pin.ts"
 
 export const ACCEPTED = "image/png,image/jpeg,image/webp"
-export const PICTURES_OFF = "The flags' pictures are off on the server."
+const PICTURES_OFF = "The flags' pictures are off on the server."
 export const NO_SUCH_FLAG = "No flag is kept under this code."
 
 // The backend's rules for a sold flag (flags.v1.AdminService).

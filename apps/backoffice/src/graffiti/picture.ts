@@ -19,7 +19,9 @@ const LONE_STEP = 0.0075
 
 // The map's convention, as its generator reads a vertex (boards/places.ts reads it the same way).
 function vectorOf(places: Places, index: number): Vector {
-    return vectorOfDegrees(places.latitudes[index], places.longitudes[index])
+    const lat = places.latitudes[index] * Math.PI / 180
+    const lon = places.longitudes[index] * Math.PI / 180
+    return [-Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)]
 }
 
 const dot = (a: Vector, b: Vector) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -96,77 +98,26 @@ export function pictureOf(places: Places, tileIds: number[], margin = 4): Pictur
     const sum = vectors.reduce<Vector>((total, v) => [total[0] + v[0], total[1] + v[1], total[2] + v[2]], [0, 0, 0])
     const length = Math.hypot(...sum)
     if (length === 0) return undefined
-    const frame = frameAt([sum[0] / length, sum[1] / length, sum[2] / length])
-
-    const spacing = stepAt(places, vectors[0], [...drawn][0] - 1)
-    const reach = Math.max(...vectors.map(v => angle(v, frame.centre)))
-    const half = reach + margin * spacing
-
-    return {
-        cells: cellsIn(places, frame, half, spacing, drawn),
-        latitude: frame.latitude * 180 / Math.PI,
-        longitude: frame.longitude * 180 / Math.PI,
-    }
-}
-
-// A place on the globe, in degrees.
-export type Spot = {latitude: number, longitude: number}
-
-// The land around a spot, north up, `halfKm` from its middle to each side, and where each of `marks` falls in the
-// picture: undefined for one on the far side of the globe.
-export type Ground = {cells: Cell[], marks: (Point | undefined)[]}
-
-const EARTH_KM = 6371
-
-export function groundOf(places: Places, spot: Spot, halfKm: number, marks: Spot[] = []): Ground {
-    const frame = frameAt(vectorOfDegrees(spot.latitude, spot.longitude))
-    const half = halfKm / EARTH_KM
-    const nearest = tilesNear(places, frame.centre, scaleOf(places.board).length(NEIGHBOUR_REACH))
-        .sort((a, b) => angle(vectorOf(places, a), frame.centre) - angle(vectorOf(places, b), frame.centre))[0]
-    const spacing = nearest === undefined ? places.board.spacing : stepAt(places, vectorOf(places, nearest), nearest)
-    return {
-        cells: cellsIn(places, frame, half, spacing, new Set()),
-        marks: marks.map(mark => {
-            const v = vectorOfDegrees(mark.latitude, mark.longitude)
-            return dot(v, frame.centre) <= 0 ? undefined : [dot(v, frame.east) / half, -dot(v, frame.north) / half]
-        }),
-    }
-}
-
-function vectorOfDegrees(latitude: number, longitude: number): Vector {
-    const lat = latitude * Math.PI / 180
-    const lon = longitude * Math.PI / 180
-    return [-Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)]
-}
-
-// The plane a picture is drawn on, at its middle: east to the right and north up, wherever it is.
-type Frame = {centre: Vector, east: Vector, north: Vector, latitude: number, longitude: number}
-
-function frameAt(centre: Vector): Frame {
+    const centre: Vector = [sum[0] / length, sum[1] / length, sum[2] / length]
     const latitude = Math.asin(centre[1])
     const longitude = Math.atan2(centre[2], -centre[0])
-    return {
-        centre,
-        east: [Math.sin(longitude), 0, Math.cos(longitude)],
-        north: [Math.sin(latitude) * Math.cos(longitude), Math.cos(latitude), -Math.sin(latitude) * Math.sin(longitude)],
-        latitude,
-        longitude,
-    }
-}
+    const east: Vector = [Math.sin(longitude), 0, Math.cos(longitude)]
+    const north: Vector = [
+        Math.sin(latitude) * Math.cos(longitude), Math.cos(latitude), -Math.sin(latitude) * Math.sin(longitude),
+    ]
 
-// The lattice's step at a tile, from its nearest neighbour: 0.17° to 0.25° on earth-1, as the lattice stretches.
-function stepAt(places: Places, tile: Vector, index: number): number {
+    // The lattice's step, from the first tile's nearest neighbour: 0.17° to 0.25° on earth-1, as the lattice stretches.
     const scale = scaleOf(places.board)
+    const first = vectors[0]
+    const firstId = [...drawn][0]
     let spacing = Infinity
-    for (const other of tilesNear(places, tile, scale.length(NEIGHBOUR_REACH))) {
-        if (other !== index) spacing = Math.min(spacing, angle(vectorOf(places, other), tile))
+    for (const index of tilesNear(places, first, scale.length(NEIGHBOUR_REACH))) {
+        if (index !== firstId - 1) spacing = Math.min(spacing, angle(vectorOf(places, index), first))
     }
-    return Number.isFinite(spacing) ? spacing : scale.length(LONE_STEP)
-}
+    if (!Number.isFinite(spacing)) spacing = scale.length(LONE_STEP)
+    const reach = Math.max(...vectors.map(v => angle(v, centre)))
+    const half = reach + margin * spacing
 
-// Each tile's cell within `half` (radians) of the frame's middle, the drawn ones last, so they are painted over the land.
-function cellsIn(places: Places, frame: Frame, half: number, spacing: number, drawn: Set<number>): Cell[] {
-    const {centre, east, north} = frame
     // The tiles a little past the frame, so a cell on its edge has all its neighbours.
     const points = new Map<number, Point>()
     for (const index of tilesNear(places, centre, half * Math.SQRT2 + 3 * spacing)) {
@@ -228,6 +179,8 @@ function cellsIn(places: Places, frame: Frame, half: number, spacing: number, dr
         }
         cells.push({tile, corners, drawn: drawn.has(tile)})
     }
+    // The drawing last, so it is painted over the land.
     cells.sort((a, b) => Number(a.drawn) - Number(b.drawn))
-    return cells
+
+    return {cells, latitude: latitude * 180 / Math.PI, longitude: longitude * 180 / Math.PI}
 }

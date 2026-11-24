@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Places} from "../boards/places.ts"
 import {EARTH_1, FIXTURE_1, placesOn} from "../boards/testBoards.ts"
-import {Cell, groundOf, pictureOf} from "./picture.ts"
+import {Cell, pictureOf} from "./picture.ts"
 import {patch} from "./testPlaces.ts"
 
 const middleOf = (cell: Cell) => [
@@ -114,32 +114,5 @@ describe("pictureOf on another board", () => {
         expect(picture.cells.filter(cell => cell.drawn)).toHaveLength(1)
         expect(picture.cells.length).toBeGreaterThan(3)
         expect(unscaled.cells).toHaveLength(1)
-    })
-})
-
-describe("groundOf", () => {
-    it("draws the land around a place, north up and east right, and where each mark falls", () => {
-        const {places, idOf} = patch(48.14, 11.58, 30)
-        const ground = groundOf(places, {latitude: 48.14, longitude: 11.58}, 60, [
-            {latitude: 48.14, longitude: 11.58}, {latitude: 48.4, longitude: 11.58}, {latitude: 48.14, longitude: 12}, {latitude: -48.14, longitude: -168.42},
-        ])
-
-        const middle = middleOf(ground.cells.find(cell => cell.tile === idOf(0, 0))!)
-        expect(middle[0]).toBeCloseTo(0, 3)
-        expect(middle[1]).toBeCloseTo(0, 3)
-        expect(ground.cells.every(cell => !cell.drawn && cell.corners.length === 6)).toBe(true)
-        const [here, north, east, antipode] = ground.marks
-        expect(here![0]).toBeCloseTo(0, 5)
-        expect(here![1]).toBeCloseTo(0, 5)
-        // 0.26° of latitude is 28.9 km: about half of the 60 km to the frame's edge, upwards.
-        expect(north![0]).toBeCloseTo(0, 3)
-        expect(north![1]).toBeCloseTo(-28.9 / 60, 2)
-        expect(east![0]).toBeGreaterThan(0.4)
-        expect(antipode).toBeUndefined()
-    })
-
-    it("draws a place at sea as no land", () => {
-        const {places} = patch(48.14, 11.58, 6)
-        expect(groundOf(places, {latitude: 0, longitude: -30}, 250).cells).toEqual([])
     })
 })

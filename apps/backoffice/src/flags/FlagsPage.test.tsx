@@ -40,8 +40,8 @@ function fill(name: string, ends: Date, latitude = "48.1173", longitude = "-1.67
     const form = screen.getByRole("region", {name: "Open a flag"})
     fireEvent.change(within(form).getByLabelText(/^Name/), {target: {value: name}})
     fireEvent.change(within(form).getByLabelText("Ends"), {target: {value: localOf(ends)}})
-    fireEvent.change(within(form).getByLabelText("Pin latitude"), {target: {value: latitude}})
-    fireEvent.change(within(form).getByLabelText("Pin longitude"), {target: {value: longitude}})
+    fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: latitude}})
+    fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: longitude}})
     fireEvent.change(within(form).getByLabelText("Pick a picture"), {target: {files: [picture()]}})
     return form
 }
@@ -103,7 +103,7 @@ describe("FlagsPage", () => {
         fireEvent.click(within(form).getByRole("button", {name: "Open"}))
 
         const question = within(form).getByRole("group", {name: "Open"})
-        expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left), pinned at 48.1173, -1.6778?`)
+        expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left), its capital at 48.1173, -1.6778?`)
         expect(question.textContent).toContain("Every player sees it at once")
         expect(question.textContent).toContain("A flag is never deleted")
         expect(admin.askedFor("createFlagUpload")).toEqual([])
@@ -122,26 +122,26 @@ describe("FlagsPage", () => {
         expect((within(form).getByLabelText(/^Name/) as HTMLInputElement).value).toBe("")
     })
 
-    it("takes a pin pasted as a map copies it, and refuses one off the globe as it is typed", async () => {
+    it("takes a capital pasted as a map copies it, and refuses one off the globe as it is typed", async () => {
         const admin = new FakeAdmin()
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         await card("Bavaria")
 
         const form = fill("Rennes", later(20), "", "")
-        fireEvent.change(within(form).getByLabelText("Pin latitude"), {target: {value: "48.1173, -1.6778"}})
-        expect((within(form).getByLabelText("Pin latitude") as HTMLInputElement).value).toBe("48.1173")
-        expect((within(form).getByLabelText("Pin longitude") as HTMLInputElement).value).toBe("-1.6778")
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "48.1173, -1.6778"}})
+        expect((within(form).getByLabelText("Capital latitude") as HTMLInputElement).value).toBe("48.1173")
+        expect((within(form).getByLabelText("Capital longitude") as HTMLInputElement).value).toBe("-1.6778")
         expect(within(form).getByRole("link", {name: "Open 48.1173, -1.6778 on the globe"})).toBeTruthy()
         expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(false)
 
-        fireEvent.change(within(form).getByLabelText("Pin latitude"), {target: {value: "91"}})
-        fireEvent.change(within(form).getByLabelText("Pin longitude"), {target: {value: "east"}})
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "91"}})
+        fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: "east"}})
         expect(within(form).getByText("A latitude from −90 to 90.")).toBeTruthy()
         expect(within(form).getByText("A longitude from −180 to 180.")).toBeTruthy()
         expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(true)
 
-        fireEvent.change(within(form).getByLabelText("Pin latitude"), {target: {value: "48,1173"}})
-        fireEvent.change(within(form).getByLabelText("Pin longitude"), {target: {value: ""}})
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "48,1173"}})
+        fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: ""}})
         expect(within(form).queryByRole("alert")).toBeNull()
         expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(true)
     })

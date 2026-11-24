@@ -1,10 +1,30 @@
 import {describe, expect, it} from "vitest"
 import {FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
-import {foldName, founderOf, looksLikePhoto, nearOf, nextOf, PHOTO_FROM_PERCENT, sameNameOf, shownOf} from "./submissions.ts"
+import {
+    aroundOf, foldName, founderOf, looksLikePhoto, Near, nearOf, nextOf, Other, PHOTO_FROM_PERCENT, sameNameOf, shownOf,
+} from "./submissions.ts"
 
 const {listed, submissions} = new FakeAdmin().flags
 const byId = (id: string) => submissions.find(each => each.id === id)!
+const MADRID = {country: "es", latitude: 40.4168, longitude: -3.7038}
+const ANDORRA = {country: "ad", latitude: 42.5063, longitude: 1.5218}
+const PARIS = {country: "fr", latitude: 48.8566, longitude: 2.3522}
+const TOKYO = {country: "jp", latitude: 35.6762, longitude: 139.6503}
+
+function nameOf(other: Other): string {
+    switch (other.kind) {
+        case "flag":
+            return `flag ${other.flag.name}`
+        case "submission":
+            return `submission ${other.submission.name}`
+        case "country":
+            return `country ${other.country}`
+    }
+}
+
+const namesOf = (near: Near[]) => near.map(each => [nameOf(each.other), Math.round(each.km)])
+const pinOf = (id: string) => ({latitude: byId(id).pin!.latitude, longitude: byId(id).pin!.longitude})
 
 describe("the filters", () => {
     it("keeps the waiting ones, the approved new flags to open, or all", () => {
@@ -22,22 +42,36 @@ describe("the filters", () => {
 })
 
 describe("nearOf", () => {
-    it("lists the other pins within 1,000 km, nearest first, but the flag a change is for", () => {
-        const near = nearOf(byId("sub-bavaria"), listed, submissions)
-        expect(near.map(each => [each.other.kind === "flag" ? each.other.flag.name : each.other.submission.name, Math.round(each.km)]))
-            .toEqual([["Lake Garda", 292], ["Savoy", 516], ["Brittany", 982]])
+    it("lists the other capitals within 1,000 km, nearest first, but the flag a change is for", () => {
+        const near = nearOf(pinOf("sub-bavaria"), aroundOf(byId("sub-bavaria"), listed, submissions, []))
+        expect(namesOf(near)).toEqual([["submission Lake Garda", 292], ["flag Savoy", 516], ["submission Brittany", 982]])
     })
 
     it("leaves out a submission opened, whose flag is listed, and a change, whose flag is", () => {
-        const near = nearOf(byId("sub-catalonia"), listed, submissions)
-        const names = near.map(each => each.other.kind === "flag" ? `flag ${each.other.flag.name}` : `submission ${each.other.submission.name}`)
-        expect(names).toEqual(["flag Savoy", "submission Sardinia", "submission Brittany", "submission Lake Garda"])
+        const near = nearOf(pinOf("sub-catalonia"), aroundOf(byId("sub-catalonia"), listed, submissions, []))
+        expect(near.map(each => nameOf(each.other))).toEqual(["flag Savoy", "submission Sardinia", "submission Brittany", "submission Lake Garda"])
     })
 
-    it("shows the nearest five at most", () => {
+    it("adds the game's countries' capitals, with their distance", () => {
+        const around = aroundOf(byId("sub-catalonia"), listed, submissions, [MADRID, ANDORRA, PARIS, TOKYO])
+        expect(namesOf(nearOf(pinOf("sub-catalonia"), around)).slice(0, 4))
+            .toEqual([["country ad", 135], ["country es", 505], ["flag Savoy", 554], ["submission Sardinia", 637]])
+        expect(around.map(each => nameOf(each.other))).toContain("country jp")
+        expect(namesOf(nearOf(pinOf("sub-catalonia"), around)).map(([name]) => name)).not.toContain("country jp")
+    })
+
+    it("measures from where the capital moved", () => {
+        const around = aroundOf(byId("sub-catalonia"), listed, submissions, [MADRID, ANDORRA, PARIS])
+        expect(namesOf(nearOf({latitude: 48.85, longitude: 2.35}, around))[0]).toEqual(["country fr", 1])
+    })
+
+    it("shows the nearest five flags and submissions, and the nearest five countries", () => {
         const many = Array.from({length: 8}, (_, i) => soldFlag(`r-near00000${i}`, `Near ${i}`, new Date(), undefined, undefined,
             {latitude: 41.4 + i / 10, longitude: 2.17}))
-        expect(nearOf(byId("sub-catalonia"), many, [])).toHaveLength(5)
+        const countries = Array.from({length: 8}, (_, i) => ({country: `c${i}`, latitude: 41 - i / 10, longitude: 2.17}))
+        const near = nearOf(pinOf("sub-catalonia"), aroundOf(byId("sub-catalonia"), many, [], countries))
+        expect(near.filter(each => each.other.kind === "flag")).toHaveLength(5)
+        expect(near.filter(each => each.other.kind === "country")).toHaveLength(5)
     })
 })
 
@@ -47,11 +81,9 @@ describe("sameNameOf", () => {
         const others = [...submissions, keptSubmission("sub-savoie", "SAVÔY", {latitude: 45.5, longitude: 6})]
 
         const brittany = keptSubmission("sub-again", "brittany", {latitude: 48, longitude: -2})
-        expect(sameNameOf(brittany, flags, others).map(other => other.kind === "flag" ? other.flag.code : other.submission.id))
-            .toEqual(["gb-brt", "sub-brittany"])
+        expect(sameNameOf(brittany, flags, others).map(nameOf)).toEqual(["flag Brittany", "submission Brittany"])
         // Savoy's own submission opened its flag: the flag is listed once.
-        expect(sameNameOf(byId("sub-savoy"), flags, others).map(other => other.kind === "flag" ? other.flag.code : other.submission.id))
-            .toEqual(["sub-savoie"])
+        expect(sameNameOf(byId("sub-savoy"), flags, others).map(nameOf)).toEqual(["submission SAVÔY"])
     })
 
     it("folds case and accents alone", () => {
