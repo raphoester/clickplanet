@@ -40,3 +40,20 @@ func bands(width, height int) *image.NRGBA {
 	}
 	return picture
 }
+
+// TestNoisePNG is a picture of every colour, as a photo holds.
+func TestNoisePNG(width, height int) []byte {
+	picture := image.NewNRGBA(image.Rect(0, 0, width, height))
+	for y := range height {
+		for x := range width {
+			picture.SetNRGBA(x, y, color.NRGBA{
+				R: uint8(x * 7 % 256), G: uint8(y * 13 % 256), B: uint8((x + y) * 31 % 256), A: 255, //nolint:gosec // a test's noise.
+			})
+		}
+	}
+	var out bytes.Buffer
+	if err := png.Encode(&out, picture); err != nil {
+		panic(err)
+	}
+	return out.Bytes()
+}

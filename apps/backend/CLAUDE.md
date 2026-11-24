@@ -191,7 +191,10 @@ and says what is in it. Read the doc before you change its area.
   (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename), the close at the end date and
   the comeback within 30 days; a closed flag's players changing at once, its land kept, its room read-only, a battle's
   lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
-  Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move.
+  Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move; each
+  sold flag's pin (a point, never a tile); a signed-in player's submission (one waiting at a time, its picture held in
+  private), the operator's approval (public, a change on its flag at once) or rejection with a reason (the picture
+  deleted 30 days later), and the opening of an approved one by hand.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
   with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the

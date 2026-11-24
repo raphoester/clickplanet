@@ -10,15 +10,16 @@ const GEN = fileURLToPath(new URL("../gen/map/", import.meta.url))
 const MAP = fileURLToPath(new URL("../../../../map/boards/", import.meta.url))
 
 describe("the bundled boards", () => {
-    it("are every board in /map, by name, each copied byte for byte", () => {
+    it("are every board in /map, by name, each copied byte for byte with its capitals", () => {
         const inMap = readdirSync(MAP, {withFileTypes: true}).filter(entry => entry.isDirectory()).map(entry => entry.name)
         expect([...BOARDS.keys()].sort()).toEqual(inMap.sort())
 
-        for (const [name, {board}] of BOARDS) {
+        for (const [name, {board, capitals}] of BOARDS) {
             expect(board.name).toBe(name)
             const manifest = readdirSync(`${MAP}${name}/`).find(file => /^board-[0-9a-f]{8}\.json$/.test(file))!
             expect(JSON.parse(readFileSync(`${MAP}${name}/${manifest}`, "utf8"))).toEqual(board)
-            for (const file of [manifest, board.files.runs]) {
+            expect(capitals).toBe(readFileSync(`${MAP}${name}/${board.files.capitals}`, "utf8"))
+            for (const file of [manifest, board.files.runs, board.files.capitals]) {
                 expect(readFileSync(`${GEN}${name}/${file}`).equals(readFileSync(`${MAP}${name}/${file}`))).toBe(true)
             }
         }

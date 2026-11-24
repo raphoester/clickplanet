@@ -1,5 +1,5 @@
 import countriesData from "../../static/countries/countries.json"
-import type {FlagPicture, ListedFlag} from "../domain/flags.ts"
+import type {FlagPicture, ListedFlag, Pin} from "../domain/flags.ts"
 import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 
 const BUILT_IN: readonly ListedFlag[] = Object.entries(countriesData).map(([code, name]) => ({code, name, closed: false}))
@@ -30,7 +30,7 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
     private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
 
     constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
-        this.sold = [{code: "xb", name: "Brittany", closed: false, sold: {picture: BRITTANY_PICTURE, endsAt: now() + 30 * DAY_MS}}]
+        this.sold = [{code: "xb", name: "Brittany", closed: false, sold: {picture: BRITTANY_PICTURE, endsAt: now() + 30 * DAY_MS, pin: {latitude: 48.1173, longitude: -1.6778}}}]
     }
 
     public async listFlags(): Promise<ListedFlag[]> {
@@ -54,15 +54,32 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         return () => this.closings.delete(onClosed)
     }
 
-    public async open(name: string, days = 30): Promise<{code: string} | {refused: NameRefusal}> {
+    // A submission opened brings its own picture and pin; the console's openFlag has its picture painted from its name.
+    public async open(name: string, days = 30, from: {picture?: FlagPicture, pin?: Pin} = {}): Promise<{code: string} | {refused: NameRefusal}> {
         const trimmed = name.trim()
         const refused = this.nameRefusalOf(trimmed, undefined)
         if (refused !== undefined) return {refused}
         const code = `r-${Array.from({length: 10}, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("")}`
-        const flag: ListedFlag = {code, name: trimmed, closed: false, sold: {picture: await this.paint(trimmed), endsAt: this.now() + days * DAY_MS}}
+        const picture = from.picture ?? await this.paint(trimmed)
+        const flag: ListedFlag = {code, name: trimmed, closed: false, sold: {picture, endsAt: this.now() + days * DAY_MS, pin: from.pin}}
         this.sold.push(flag)
         this.tell(flag)
         return {code}
+    }
+
+    // A change approved: the flag's new name, and its new picture when one came.
+    public change(code: string, name: string, picture?: FlagPicture): boolean {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined) return false
+        flag.name = name
+        if (picture) flag.sold = {...flag.sold, picture}
+        this.tell(flag)
+        return true
+    }
+
+    // As the stream would open again after a drop: the page reads what changed while it was closed.
+    public reopen(): void {
+        this.listeners.forEach(({onOpened}) => onOpened())
     }
 
     // An open flag ends later; one closed less than 30 days ago opens again, ending that many days from now.

@@ -17,6 +17,7 @@ import {useRefusedClicks} from '../clicks/refusedClicksStore.ts';
 import {useBonus} from '../bonus/bonusStore.ts';
 import {useNews} from '../news/newsStore.ts';
 import {useStanding} from '../knockout/standingStore.ts';
+import {useFlagForm} from '../flags/flagFormStore.ts';
 import {Peek} from '../../domain/tilePeek.ts';
 import {Place, Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
@@ -126,6 +127,7 @@ export function useGlobe(options: UseGlobeOptions) {
         const bonus = useBonus.getState()
         const news = useNews.getState()
         const standing = useStanding.getState()
+        const form = useFlagForm.getState()
 
         createGlobe({
             board,
@@ -173,6 +175,10 @@ export function useGlobe(options: UseGlobeOptions) {
             onTrapAimChange: bonus.setTrapAimed,
             rallier,
             onRallyAimChange: bonus.setRallyAimed,
+            onPinAimChange: (aimed) => {
+                if (!aimed) form.putAway()
+            },
+            onPinned: form.pinned,
             rallyCallers: rallyCallers.current,
             shielder,
             onNotice: bonus.notify,
@@ -197,6 +203,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globe.setMapView(latestMapView.current)
             globe.setHalo(latestHalo.current)
             globe.setMissions(latestMissions.current)
+            globe.setPinAimed(useFlagForm.getState().aiming)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -221,6 +228,11 @@ export function useGlobe(options: UseGlobeOptions) {
         useNews.setState(useNews.getInitialState(), true)
         useStanding.setState(useStanding.getInitialState(), true)
     }, [])
+
+    // The flag form's pin is aimed from the form: the globe follows its store.
+    useEffect(() => useFlagForm.subscribe(({aiming}, was) => {
+        if (aiming !== was.aiming) globeRef.current?.setPinAimed(aiming)
+    }), [])
 
     useEffect(() => {
         initialCountry.current = country

@@ -105,7 +105,8 @@ export class FlagClosed extends Message<FlagClosed> {
 }
 
 /**
- * The flag's name from renamed_at. Its code stays.
+ * The flag's name from renamed_at: the operator's rename, or its founder's change approved, which may bring a new picture
+ * too. Its code stays. Only the flags module listens.
  *
  * @generated from message flags.v1.FlagRenamed
  */

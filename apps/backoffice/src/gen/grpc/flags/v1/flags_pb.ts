@@ -4,7 +4,99 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+
+/**
+ * @generated from enum flags.v1.SubmissionState
+ */
+export enum SubmissionState {
+  /**
+   * @generated from enum value: SUBMISSION_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SUBMISSION_STATE_WAITING = 1;
+   */
+  WAITING = 1,
+
+  /**
+   * A new flag waits to be paid for; a change is on its flag.
+   *
+   * @generated from enum value: SUBMISSION_STATE_APPROVED = 2;
+   */
+  APPROVED = 2,
+
+  /**
+   * @generated from enum value: SUBMISSION_STATE_REJECTED = 3;
+   */
+  REJECTED = 3,
+
+  /**
+   * A flag was opened from it.
+   *
+   * @generated from enum value: SUBMISSION_STATE_OPENED = 4;
+   */
+  OPENED = 4,
+}
+// Retrieve enum metadata with: proto3.getEnumType(SubmissionState)
+proto3.util.setEnumType(SubmissionState, "flags.v1.SubmissionState", [
+  { no: 0, name: "SUBMISSION_STATE_UNSPECIFIED" },
+  { no: 1, name: "SUBMISSION_STATE_WAITING" },
+  { no: 2, name: "SUBMISSION_STATE_APPROVED" },
+  { no: 3, name: "SUBMISSION_STATE_REJECTED" },
+  { no: 4, name: "SUBMISSION_STATE_OPENED" },
+]);
+
+/**
+ * @generated from enum flags.v1.RejectionReason
+ */
+export enum RejectionReason {
+  /**
+   * @generated from enum value: REJECTION_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Not the flag a place is known by: a cause, a party, a brand, a person, a meme or a photo.
+   *
+   * @generated from enum value: REJECTION_REASON_NOT_A_PLACE = 1;
+   */
+  NOT_A_PLACE = 1,
+
+  /**
+   * The place has a flag in the game already.
+   *
+   * @generated from enum value: REJECTION_REASON_EXISTS = 2;
+   */
+  EXISTS = 2,
+
+  /**
+   * Unreadable at the size of a tile.
+   *
+   * @generated from enum value: REJECTION_REASON_UNREADABLE = 3;
+   */
+  UNREADABLE = 3,
+
+  /**
+   * @generated from enum value: REJECTION_REASON_HATEFUL = 4;
+   */
+  HATEFUL = 4,
+
+  /**
+   * @generated from enum value: REJECTION_REASON_OTHER = 5;
+   */
+  OTHER = 5,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RejectionReason)
+proto3.util.setEnumType(RejectionReason, "flags.v1.RejectionReason", [
+  { no: 0, name: "REJECTION_REASON_UNSPECIFIED" },
+  { no: 1, name: "REJECTION_REASON_NOT_A_PLACE" },
+  { no: 2, name: "REJECTION_REASON_EXISTS" },
+  { no: 3, name: "REJECTION_REASON_UNREADABLE" },
+  { no: 4, name: "REJECTION_REASON_HATEFUL" },
+  { no: 5, name: "REJECTION_REASON_OTHER" },
+]);
 
 /**
  * @generated from message flags.v1.ListFlagsRequest
@@ -279,6 +371,13 @@ export class Sold extends Message<Sold> {
    */
   closedAt?: Timestamp;
 
+  /**
+   * Where the flag starts in Capital Siege, as a country starts on its capital.
+   *
+   * @generated from field: flags.v1.Pin pin = 4;
+   */
+  pin?: Pin;
+
   constructor(data?: PartialMessage<Sold>) {
     super();
     proto3.util.initPartial(data, this);
@@ -290,6 +389,7 @@ export class Sold extends Message<Sold> {
     { no: 1, name: "picture", kind: "message", T: Picture },
     { no: 2, name: "ends_at", kind: "message", T: Timestamp },
     { no: 3, name: "closed_at", kind: "message", T: Timestamp },
+    { no: 4, name: "pin", kind: "message", T: Pin },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sold {
@@ -306,6 +406,462 @@ export class Sold extends Message<Sold> {
 
   static equals(a: Sold | PlainMessage<Sold> | undefined, b: Sold | PlainMessage<Sold> | undefined): boolean {
     return proto3.util.equals(Sold, a, b);
+  }
+}
+
+/**
+ * A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
+ * its tiles its own way.
+ *
+ * @generated from message flags.v1.Pin
+ */
+export class Pin extends Message<Pin> {
+  /**
+   * -90 to 90.
+   *
+   * @generated from field: double latitude = 1;
+   */
+  latitude = 0;
+
+  /**
+   * -180 to 180.
+   *
+   * @generated from field: double longitude = 2;
+   */
+  longitude = 0;
+
+  constructor(data?: PartialMessage<Pin>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Pin";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "latitude", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "longitude", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pin {
+    return new Pin().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Pin {
+    return new Pin().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Pin {
+    return new Pin().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Pin | PlainMessage<Pin> | undefined, b: Pin | PlainMessage<Pin> | undefined): boolean {
+    return proto3.util.equals(Pin, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.CreateSubmissionUploadRequest
+ */
+export class CreateSubmissionUploadRequest extends Message<CreateSubmissionUploadRequest> {
+  /**
+   * image/png, image/jpeg or image/webp.
+   *
+   * @generated from field: string content_type = 1;
+   */
+  contentType = "";
+
+  /**
+   * @generated from field: uint64 size_bytes = 2;
+   */
+  sizeBytes = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CreateSubmissionUploadRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.CreateSubmissionUploadRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateSubmissionUploadRequest {
+    return new CreateSubmissionUploadRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateSubmissionUploadRequest {
+    return new CreateSubmissionUploadRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateSubmissionUploadRequest {
+    return new CreateSubmissionUploadRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateSubmissionUploadRequest | PlainMessage<CreateSubmissionUploadRequest> | undefined, b: CreateSubmissionUploadRequest | PlainMessage<CreateSubmissionUploadRequest> | undefined): boolean {
+    return proto3.util.equals(CreateSubmissionUploadRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.CreateSubmissionUploadResponse
+ */
+export class CreateSubmissionUploadResponse extends Message<CreateSubmissionUploadResponse> {
+  /**
+   * What SubmitFlag takes.
+   *
+   * @generated from field: string upload_id = 1;
+   */
+  uploadId = "";
+
+  /**
+   * @generated from field: string upload_url = 2;
+   */
+  uploadUrl = "";
+
+  constructor(data?: PartialMessage<CreateSubmissionUploadResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.CreateSubmissionUploadResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "upload_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "upload_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateSubmissionUploadResponse {
+    return new CreateSubmissionUploadResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateSubmissionUploadResponse {
+    return new CreateSubmissionUploadResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateSubmissionUploadResponse {
+    return new CreateSubmissionUploadResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateSubmissionUploadResponse | PlainMessage<CreateSubmissionUploadResponse> | undefined, b: CreateSubmissionUploadResponse | PlainMessage<CreateSubmissionUploadResponse> | undefined): boolean {
+    return proto3.util.equals(CreateSubmissionUploadResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.SubmitFlagRequest
+ */
+export class SubmitFlagRequest extends Message<SubmitFlagRequest> {
+  /**
+   * 1 to 40 characters, in English: the place's name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string upload_id = 2;
+   */
+  uploadId = "";
+
+  /**
+   * Required.
+   *
+   * @generated from field: flags.v1.Pin pin = 3;
+   */
+  pin?: Pin;
+
+  /**
+   * Empty for a new flag; the code of a flag the account founded, for its new name or picture.
+   *
+   * @generated from field: string flag = 4;
+   */
+  flag = "";
+
+  constructor(data?: PartialMessage<SubmitFlagRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SubmitFlagRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "upload_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "pin", kind: "message", T: Pin },
+    { no: 4, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmitFlagRequest {
+    return new SubmitFlagRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubmitFlagRequest {
+    return new SubmitFlagRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubmitFlagRequest {
+    return new SubmitFlagRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SubmitFlagRequest | PlainMessage<SubmitFlagRequest> | undefined, b: SubmitFlagRequest | PlainMessage<SubmitFlagRequest> | undefined): boolean {
+    return proto3.util.equals(SubmitFlagRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.SubmitFlagResponse
+ */
+export class SubmitFlagResponse extends Message<SubmitFlagResponse> {
+  /**
+   * @generated from field: flags.v1.Submission submission = 1;
+   */
+  submission?: Submission;
+
+  constructor(data?: PartialMessage<SubmitFlagResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SubmitFlagResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission", kind: "message", T: Submission },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmitFlagResponse {
+    return new SubmitFlagResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubmitFlagResponse {
+    return new SubmitFlagResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubmitFlagResponse {
+    return new SubmitFlagResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SubmitFlagResponse | PlainMessage<SubmitFlagResponse> | undefined, b: SubmitFlagResponse | PlainMessage<SubmitFlagResponse> | undefined): boolean {
+    return proto3.util.equals(SubmitFlagResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.ListMySubmissionsRequest
+ */
+export class ListMySubmissionsRequest extends Message<ListMySubmissionsRequest> {
+  constructor(data?: PartialMessage<ListMySubmissionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.ListMySubmissionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMySubmissionsRequest {
+    return new ListMySubmissionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMySubmissionsRequest {
+    return new ListMySubmissionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMySubmissionsRequest {
+    return new ListMySubmissionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListMySubmissionsRequest | PlainMessage<ListMySubmissionsRequest> | undefined, b: ListMySubmissionsRequest | PlainMessage<ListMySubmissionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListMySubmissionsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.ListMySubmissionsResponse
+ */
+export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse> {
+  /**
+   * @generated from field: repeated flags.v1.Submission submissions = 1;
+   */
+  submissions: Submission[] = [];
+
+  constructor(data?: PartialMessage<ListMySubmissionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.ListMySubmissionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submissions", kind: "message", T: Submission, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMySubmissionsResponse {
+    return new ListMySubmissionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMySubmissionsResponse {
+    return new ListMySubmissionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMySubmissionsResponse {
+    return new ListMySubmissionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListMySubmissionsResponse | PlainMessage<ListMySubmissionsResponse> | undefined, b: ListMySubmissionsResponse | PlainMessage<ListMySubmissionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListMySubmissionsResponse, a, b);
+  }
+}
+
+/**
+ * A flag a player submitted, as its player reads it.
+ *
+ * @generated from message flags.v1.Submission
+ */
+export class Submission extends Message<Submission> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: flags.v1.Pin pin = 3;
+   */
+  pin?: Pin;
+
+  /**
+   * A new name or picture for a flag already opened, in place of a new flag.
+   *
+   * @generated from field: bool change = 4;
+   */
+  change = false;
+
+  /**
+   * The flag a change is for, or the flag opened from a new one; empty until then.
+   *
+   * @generated from field: string flag = 5;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: flags.v1.SubmissionState state = 6;
+   */
+  state = SubmissionState.UNSPECIFIED;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp submitted_at = 7;
+   */
+  submittedAt?: Timestamp;
+
+  /**
+   * When it took its state: its submission, while it waits.
+   *
+   * @generated from field: google.protobuf.Timestamp decided_at = 8;
+   */
+  decidedAt?: Timestamp;
+
+  /**
+   * Only for a rejected one.
+   *
+   * @generated from field: flags.v1.Rejection rejection = 9;
+   */
+  rejection?: Rejection;
+
+  /**
+   * Public from its approval; unset before, and for a rejected one.
+   *
+   * @generated from field: flags.v1.Picture picture = 10;
+   */
+  picture?: Picture;
+
+  constructor(data?: PartialMessage<Submission>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Submission";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "pin", kind: "message", T: Pin },
+    { no: 4, name: "change", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "state", kind: "enum", T: proto3.getEnumType(SubmissionState) },
+    { no: 7, name: "submitted_at", kind: "message", T: Timestamp },
+    { no: 8, name: "decided_at", kind: "message", T: Timestamp },
+    { no: 9, name: "rejection", kind: "message", T: Rejection },
+    { no: 10, name: "picture", kind: "message", T: Picture },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Submission {
+    return new Submission().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Submission {
+    return new Submission().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Submission {
+    return new Submission().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Submission | PlainMessage<Submission> | undefined, b: Submission | PlainMessage<Submission> | undefined): boolean {
+    return proto3.util.equals(Submission, a, b);
+  }
+}
+
+/**
+ * Why the operator refused a submission: the player reads it, as the EU's rules for online platforms ask.
+ *
+ * @generated from message flags.v1.Rejection
+ */
+export class Rejection extends Message<Rejection> {
+  /**
+   * @generated from field: flags.v1.RejectionReason reason = 1;
+   */
+  reason = RejectionReason.UNSPECIFIED;
+
+  /**
+   * The operator's own words, which the player reads too: required for OTHER, 500 characters at most.
+   *
+   * @generated from field: string note = 2;
+   */
+  note = "";
+
+  constructor(data?: PartialMessage<Rejection>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Rejection";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(RejectionReason) },
+    { no: 2, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rejection {
+    return new Rejection().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rejection {
+    return new Rejection().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rejection {
+    return new Rejection().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Rejection | PlainMessage<Rejection> | undefined, b: Rejection | PlainMessage<Rejection> | undefined): boolean {
+    return proto3.util.equals(Rejection, a, b);
   }
 }
 

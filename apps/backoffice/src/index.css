@@ -2415,6 +2415,278 @@ a.button {
     flex-basis: 100%;
 }
 
+/* Flag submissions: each flag a player submitted, judged as it will show. */
+.submission-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.submission-row-text {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.submission-thumb {
+    flex: none;
+    display: block;
+    width: 56px;
+    height: 37px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--map-land);
+}
+
+.submission-detail, .submission-card {
+    display: grid;
+    gap: 12px;
+}
+
+.photo-warning {
+    margin: 0;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: var(--bug);
+    border: 1px solid currentColor;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--bug) 8%, transparent);
+}
+
+.submission-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 16px;
+}
+
+.submission-figure {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.submission-picture {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px var(--line);
+}
+
+.submission-figures .submission-figure {
+    flex: 1 1 280px;
+}
+
+.on-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* A tile's disc: the middle of the flag, its height whole. */
+.on-tile {
+    display: block;
+    flex: none;
+    object-fit: cover;
+    border-radius: 50%;
+    background: var(--map-land);
+}
+
+.submission-name {
+    margin: 0;
+    font-size: 22px;
+    overflow-wrap: anywhere;
+}
+
+/* A submission's capital on a planisphere: the land drawn on a canvas, the capitals as marks over it. */
+.capital-figure {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+}
+
+.capital-map {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius);
+    box-shadow: 0 0 0 1px var(--line);
+    background: var(--map-sea);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.capital-map.movable {
+    cursor: crosshair;
+}
+
+.capital-land {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.map-marks {
+    position: absolute;
+    inset: 0;
+}
+
+.map-mark {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.mark-country {
+    width: 6px;
+    height: 6px;
+    background: var(--muted);
+}
+
+.mark-flag {
+    background: var(--accent);
+    box-shadow: 0 0 0 1.5px var(--surface);
+}
+
+.mark-submission {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.mark-own {
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+    background: var(--bug);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--bug);
+}
+
+.mark-own.mark-movable {
+    cursor: move;
+}
+
+/* A finger's room around the capital, to drag it on a phone. */
+.mark-own.mark-movable::after {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+}
+
+.map-label {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    color: var(--text);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    transform: translate(9px, -50%);
+    pointer-events: none;
+}
+
+.map-label.label-left {
+    transform: translate(calc(-100% - 9px), -50%);
+}
+
+.map-label .flag {
+    font-size: 13px;
+}
+
+.label-own {
+    z-index: 3;
+    font-weight: 600;
+}
+
+.label-own.label-right {
+    transform: translate(12px, -50%);
+}
+
+.label-own.label-left {
+    transform: translate(calc(-100% - 12px), -50%);
+}
+
+.map-buttons {
+    position: absolute;
+    z-index: 4;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.map-buttons .button-small {
+    min-width: 32px;
+    background: var(--surface);
+}
+
+.capital-moved {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    overflow-wrap: anywhere;
+}
+
+.near-title {
+    margin: 4px 0 0;
+    font-size: 16px;
+}
+
+.near-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.near-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
+    overflow-wrap: anywhere;
+}
+
+.near-km {
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.reject {
+    display: grid;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.reject select {
+    justify-self: start;
+}
+
+.open-end {
+    justify-self: start;
+}
+
 .sold-rename {
     display: flex;
     flex-wrap: wrap;

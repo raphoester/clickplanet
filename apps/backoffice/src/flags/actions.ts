@@ -3,9 +3,10 @@ import {FlagsAdmin} from "../clients.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Put} from "../videos/actions.ts"
+import {degreesOf, pinProblems, Place} from "./pin.ts"
 
 export const ACCEPTED = "image/png,image/jpeg,image/webp"
-export const PICTURES_OFF = "The flags' pictures are off on the server."
+const PICTURES_OFF = "The flags' pictures are off on the server."
 export const NO_SUCH_FLAG = "No flag is kept under this code."
 
 // The backend's rules for a sold flag (flags.v1.AdminService).
@@ -20,7 +21,7 @@ const DAY_MS = 24 * HOUR_MS
 export type Order = "end" | "name"
 
 // A sold flag as the page shows it.
-export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined}
+export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined, pin: Place | undefined}
 
 export function soldOf(flags: readonly Flag[]): Sold[] {
     return flags.flatMap(flag => flag.sold === undefined ? [] : [{
@@ -28,6 +29,7 @@ export function soldOf(flags: readonly Flag[]): Sold[] {
         picture: flag.sold.picture?.url ?? "",
         endsAt: flag.sold.endsAt?.toDate() ?? new Date(0),
         closedAt: flag.sold.closedAt?.toDate(),
+        pin: flag.sold.pin === undefined ? undefined : {latitude: flag.sold.pin.latitude, longitude: flag.sold.pin.longitude},
     }])
 }
 
@@ -60,7 +62,7 @@ export function comebackUntil(closedAt: Date): Date {
     return daysLater(closedAt, COMEBACK_DAYS)
 }
 
-export type Draft = {name: string, file: File | undefined, endsAt: string}
+export type Draft = {name: string, file: File | undefined, endsAt: string, latitude: string, longitude: string}
 
 // A datetime-local, in the operator's own time; undefined for none.
 export function endOf(local: string): Date | undefined {
@@ -91,12 +93,24 @@ export function draftProblems(draft: Draft, now: Date): string[] {
     if (draft.file !== undefined && draft.file.size > MAX_BYTES) problems.push("A picture of 5 MB at most.")
     const end = endOf(draft.endsAt)
     if (end !== undefined && end <= now) problems.push("An end in the future.")
+    const latitude = draft.latitude.trim() === "" ? 0 : degreesOf(draft.latitude) ?? NaN
+    const longitude = draft.longitude.trim() === "" ? 0 : degreesOf(draft.longitude) ?? NaN
+    problems.push(...pinProblems({latitude, longitude}))
     return problems
+}
+
+// The pin as typed, once both its numbers are there.
+export function draftPin(draft: Draft): Place | undefined {
+    const latitude = degreesOf(draft.latitude)
+    const longitude = degreesOf(draft.longitude)
+    if (latitude === undefined || longitude === undefined) return undefined
+    const pin = {latitude, longitude}
+    return pinProblems(pin).length === 0 ? pin : undefined
 }
 
 export function ready(draft: Draft, now: Date): boolean {
     return lengthOf(draft.name) > 0 && draft.file !== undefined && endOf(draft.endsAt) !== undefined
-        && draftProblems(draft, now).length === 0
+        && draftPin(draft) !== undefined && draftProblems(draft, now).length === 0
 }
 
 // A step's own words, which the refusal shows as they are.
@@ -104,7 +118,7 @@ export class Refused extends Error {}
 
 // Three steps: a link for the picture, the picture sent there, then the flag opened with it.
 export async function openFlag(
-    flags: FlagsAdmin, put: Put, name: string, file: File, endsAt: Date, onSent: (bytes: number) => void,
+    flags: FlagsAdmin, put: Put, name: string, file: File, endsAt: Date, pin: Place, onSent: (bytes: number) => void,
 ): Promise<Flag> {
     let link
     try {
@@ -117,7 +131,7 @@ export async function openFlag(
     } catch (err) {
         throw new Refused(`The upload failed: ${err instanceof Error ? err.message : String(err)}.`)
     }
-    const {flag} = await flags.openFlag({name: name.trim(), uploadId: link.uploadId, endsAt: Timestamp.fromDate(endsAt)})
+    const {flag} = await flags.openFlag({name: name.trim(), uploadId: link.uploadId, endsAt: Timestamp.fromDate(endsAt), pin})
     return answered(flag)
 }
 

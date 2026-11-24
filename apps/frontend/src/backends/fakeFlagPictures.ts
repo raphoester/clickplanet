@@ -23,3 +23,11 @@ export async function paintFakeFlag(name: string): Promise<FlagPicture> {
         (made) => made ? resolve(made) : reject(new Error("the fake flag did not encode")), "image/png"))
     return {url: URL.createObjectURL(blob), width, height, stretch: false, focusX: 0.5, focusY: 0.5}
 }
+
+// An upload as the server would draw it again: its own pixels, at its own size.
+export async function pictureOfUpload(upload: Blob): Promise<FlagPicture> {
+    const bitmap = await createImageBitmap(upload)
+    const {width, height} = bitmap
+    bitmap.close()
+    return {url: URL.createObjectURL(upload), width, height, stretch: false, focusX: 0.5, focusY: 0.5}
+}

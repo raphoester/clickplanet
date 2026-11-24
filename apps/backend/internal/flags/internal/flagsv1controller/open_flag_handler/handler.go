@@ -30,11 +30,16 @@ func (h OpenFlagHandler) OpenFlag(
 	ctx context.Context,
 	req *connect.Request[flagsv1.OpenFlagRequest],
 ) (*connect.Response[flagsv1.OpenFlagResponse], error) {
+	if req.Msg.GetPin() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, catalog.ErrNoPin)
+	}
 	flag, err := h.useCase.Execute(ctx, open_flag_usecase.In{
-		Name: req.Msg.GetName(), Upload: req.Msg.GetUploadId(), EndsAt: req.Msg.GetEndsAt().AsTime(),
+		Name: req.Msg.GetName(), Upload: req.Msg.GetUploadId(), Latitude: req.Msg.GetPin().GetLatitude(),
+		Longitude: req.Msg.GetPin().GetLongitude(), EndsAt: req.Msg.GetEndsAt().AsTime(),
 	})
 	switch {
 	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrNameTaken), errors.Is(err, catalog.ErrEnded),
+		errors.Is(err, catalog.ErrInvalidPin),
 		errors.Is(err, pictures.ErrUnknownUpload), errors.Is(err, pictures.ErrTooLarge),
 		errors.Is(err, pictures.ErrNotAPicture), errors.Is(err, pictures.ErrMoves),
 		errors.Is(err, pictures.ErrShape), errors.Is(err, pictures.ErrTooSmall):

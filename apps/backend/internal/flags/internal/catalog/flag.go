@@ -51,6 +51,7 @@ type Flag struct {
 	id        FlagID
 	name      Name
 	picture   pictures.Picture
+	pin       Pin
 	state     State
 	decidedAt time.Time
 	endsAt    time.Time
@@ -65,7 +66,7 @@ type Opening struct {
 	clock cptime.Clock
 }
 
-func (o Opening) Open(name Name, picture pictures.Picture, endsAt time.Time) (Flag, error) {
+func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.Time) (Flag, error) {
 	now := o.clock.Now()
 	if !endsAt.After(now) {
 		return Flag{}, fmt.Errorf("%w: %s", ErrEnded, endsAt.Format(time.RFC3339))
@@ -74,7 +75,14 @@ func (o Opening) Open(name Name, picture pictures.Picture, endsAt time.Time) (Fl
 	if err != nil {
 		return Flag{}, fmt.Errorf("failed to draw a flag id: %w", err)
 	}
-	return Flag{id: id, name: name, picture: picture, state: Open, decidedAt: now, endsAt: endsAt}, nil
+	return Flag{id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt}, nil
+}
+
+// Restyled wears the name, the picture and the capital a review approved, whether the flag is open or closed: history
+// names it too.
+func (f Flag) Restyled(name Name, picture pictures.Picture, pin Pin, at time.Time) (Flag, proto.Message) {
+	f.name, f.picture, f.pin = name, picture, pin
+	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: f.name.String(), RenamedAt: timestamppb.New(at)}
 }
 
 func (f Flag) TimeAdded(days Days, now time.Time) (Flag, error) {
@@ -129,7 +137,8 @@ func (f Flag) Facts() []proto.Message {
 
 func (f Flag) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), State: f.state, DecidedAt: f.decidedAt, EndsAt: f.endsAt,
+		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), Pin: f.pin, State: f.state, DecidedAt: f.decidedAt,
+		EndsAt: f.endsAt,
 	}
 }
 
@@ -137,6 +146,7 @@ type Snapshot struct {
 	ID        FlagID
 	Name      Name
 	Picture   pictures.Snapshot
+	Pin       Pin
 	State     State
 	DecidedAt time.Time
 	EndsAt    time.Time
@@ -147,10 +157,14 @@ func (s Snapshot) Restore() (Flag, error) {
 	if err != nil {
 		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
 	}
+	if err := s.Pin.check(); err != nil {
+		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
+	}
 	switch s.State {
 	case Open, Closed:
 		return Flag{
-			id: s.ID, name: s.Name, picture: picture, state: s.State, decidedAt: s.DecidedAt, endsAt: s.EndsAt,
+			id: s.ID, name: s.Name, picture: picture, pin: s.Pin, state: s.State, decidedAt: s.DecidedAt,
+			endsAt: s.EndsAt,
 		}, nil
 	}
 	return Flag{}, fmt.Errorf("the flag %s is %q, which is no state", s.ID, s.State)

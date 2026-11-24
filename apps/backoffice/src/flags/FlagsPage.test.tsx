@@ -36,10 +36,12 @@ const card = async (name: string) => (await screen.findByRole("heading", {name})
 const names = () => within(screen.getByRole("region", {name: "Sold flags"})).getAllByRole("heading").map(h => h.textContent)
 const picture = () => new File(["0123456789"], "rennes.png", {type: "image/png"})
 
-function fill(name: string, ends: Date) {
+function fill(name: string, ends: Date, latitude = "48.1173", longitude = "-1.6778") {
     const form = screen.getByRole("region", {name: "Open a flag"})
     fireEvent.change(within(form).getByLabelText(/^Name/), {target: {value: name}})
     fireEvent.change(within(form).getByLabelText("Ends"), {target: {value: localOf(ends)}})
+    fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: latitude}})
+    fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: longitude}})
     fireEvent.change(within(form).getByLabelText("Pick a picture"), {target: {files: [picture()]}})
     return form
 }
@@ -56,6 +58,8 @@ describe("FlagsPage", () => {
         expect(within(bavaria).getByText("r-k3p9x2ma0b")).toBeTruthy()
         expect(within(bavaria).getByRole("img", {name: "The flag of Bavaria"}).getAttribute("src"))
             .toBe("https://media.test/flags/pictures/r-k3p9x2ma0b.png")
+        expect(within(bavaria).getByRole("link", {name: "48.1374, 11.5755"}).getAttribute("href"))
+            .toBe("https://clickplanet.lol/play?lat=48.1374&lon=11.5755&zoom=20")
 
         const savoy = await card("Savoy")
         expect(within(savoy).getByText("Closed", {selector: ".status"})).toBeTruthy()
@@ -99,7 +103,7 @@ describe("FlagsPage", () => {
         fireEvent.click(within(form).getByRole("button", {name: "Open"}))
 
         const question = within(form).getByRole("group", {name: "Open"})
-        expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left)?`)
+        expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left), its capital at 48.1173, -1.6778?`)
         expect(question.textContent).toContain("Every player sees it at once")
         expect(question.textContent).toContain("A flag is never deleted")
         expect(admin.askedFor("createFlagUpload")).toEqual([])
@@ -111,9 +115,35 @@ describe("FlagsPage", () => {
         expect(admin.asked.map(call => call.method)).toEqual(["listFlags", "createFlagUpload", "put", "openFlag", "listFlags"])
         expect(admin.askedFor("createFlagUpload")).toEqual([{contentType: "image/png", sizeBytes: 10n}])
         expect(put).toHaveBeenCalledWith("https://bucket.test/flags/uploads/flag-upload-1", expect.any(File), "image/png", expect.any(Function))
-        expect(admin.askedFor("openFlag")).toEqual([expect.objectContaining({name: "Rennes", uploadId: "flag-upload-1"})])
+        expect(admin.askedFor("openFlag")).toEqual([expect.objectContaining({
+            name: "Rennes", uploadId: "flag-upload-1", pin: {latitude: 48.1173, longitude: -1.6778},
+        })])
         expect((admin.askedFor("openFlag")[0] as {endsAt: {toDate: () => Date}}).endsAt.toDate()).toEqual(later(20))
         expect((within(form).getByLabelText(/^Name/) as HTMLInputElement).value).toBe("")
+    })
+
+    it("takes a capital pasted as a map copies it, and refuses one off the globe as it is typed", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        await card("Bavaria")
+
+        const form = fill("Rennes", later(20), "", "")
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "48.1173, -1.6778"}})
+        expect((within(form).getByLabelText("Capital latitude") as HTMLInputElement).value).toBe("48.1173")
+        expect((within(form).getByLabelText("Capital longitude") as HTMLInputElement).value).toBe("-1.6778")
+        expect(within(form).getByRole("link", {name: "Open 48.1173, -1.6778 on the globe"})).toBeTruthy()
+        expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(false)
+
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "91"}})
+        fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: "east"}})
+        expect(within(form).getByText("A latitude from −90 to 90.")).toBeTruthy()
+        expect(within(form).getByText("A longitude from −180 to 180.")).toBeTruthy()
+        expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(true)
+
+        fireEvent.change(within(form).getByLabelText("Capital latitude"), {target: {value: "48,1173"}})
+        fireEvent.change(within(form).getByLabelText("Capital longitude"), {target: {value: ""}})
+        expect(within(form).queryByRole("alert")).toBeNull()
+        expect((within(form).getByRole("button", {name: "Open"}) as HTMLButtonElement).disabled).toBe(true)
     })
 
     it("opens nothing with a name too long or an end gone by", async () => {

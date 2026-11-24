@@ -1,8 +1,8 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {FlagService} from "../gen/grpc/flags/v1/flags_connect.ts"
-import {Flag, FlagEvent} from "../gen/grpc/flags/v1/flags_pb.ts"
-import type {ListedFlag} from "../domain/flags.ts"
+import {Flag, FlagEvent, Picture as PicturePb, Pin as PinPb} from "../gen/grpc/flags/v1/flags_pb.ts"
+import type {FlagPicture, ListedFlag, Pin} from "../domain/flags.ts"
 import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
@@ -29,13 +29,22 @@ export function listedOf({code, name, closed, sold}: Flag): ListedFlag {
     return {
         code, name, closed,
         sold: {
-            picture: {
-                url: picture.url, width: picture.width, height: picture.height,
-                stretch: picture.stretch, focusX: picture.focusX, focusY: picture.focusY,
-            },
+            picture: pictureOf(picture),
             endsAt: sold.endsAt ? sold.endsAt.toDate().getTime() : 0,
             closedAt: sold.closedAt ? sold.closedAt.toDate().getTime() : undefined,
+            ...sold.pin ? {pin: pinOf(sold.pin)} : {},
         },
+    }
+}
+
+export function pinOf({latitude, longitude}: PinPb): Pin {
+    return {latitude, longitude}
+}
+
+export function pictureOf(picture: PicturePb): FlagPicture {
+    return {
+        url: picture.url, width: picture.width, height: picture.height,
+        stretch: picture.stretch, focusX: picture.focusX, focusY: picture.focusY,
     }
 }
 

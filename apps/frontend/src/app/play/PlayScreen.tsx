@@ -120,8 +120,10 @@ import Moments from "../announcements/Moments.tsx";
 import {runningSeason, useSchedule} from "../battle/scheduleStore.ts";
 import {useScheduleFeed} from "../battle/useScheduleFeed.ts";
 import {useTeaserCardsFeed} from "../battle/useTeaserCardsFeed.ts";
-import {FlagLister, FlagStream} from "../../backends/flags.ts";
+import {FlagLister, FlagStream, FlagSubmitter} from "../../backends/flags.ts";
 import {useFlagsFeed} from "../flags/flagsStore.ts";
+import {useFlagSubmissionsFeed} from "../flags/submissionsStore.ts";
+import FlagSubmissionPlace from "../flags/FlagSubmissionPlace.tsx";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
@@ -208,6 +210,8 @@ export type Backends = {
     landings: LandingStore
     // The list of flags, and the flags module's stream.
     flags: FlagLister & FlagStream
+    // The flags the player submits for the operator's review.
+    flagSubmissions: FlagSubmitter
 }
 
 export type PlayScreenProps = {
@@ -278,6 +282,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     useScheduleFeed(backends.turn, backends.standings)
     useTeaserCardsFeed(backends.promo)
     useFlagsFeed(backends.flags)
+    useFlagSubmissionsFeed(backends.flagSubmissions,
+        account.kind !== 'ready' ? "nobody" : linked ? "player" : account.offered.length > 0 ? "guest" : "nobody")
     useHeldFlagClosings(backends.allegiance, allegiance?.countryId)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
@@ -603,6 +609,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
+        {ready && <FlagSubmissionPlace account={backends.account} submitter={backends.flagSubmissions}/>}
 
         <HolderCardPlace holders={backends.tileHolders}
                          players={backends.playerInfo}

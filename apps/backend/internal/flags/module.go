@@ -26,24 +26,42 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/add_time_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/approve_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_submission_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler/flags_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_my_submissions_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_submissions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_submitted_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reject_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/uuid_upload_ids"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/postgres_submission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/approve_submission_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/create_submission_upload_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/delete_rejected_pictures_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/open_submitted_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/reject_submission_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/submit_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/uuid_submission_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -124,34 +142,66 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return err //nolint:wrapcheck // the use case named it.
 	}
 
+	gallery := pictures.NewGallery(bucket, rules)
+	submitted := postgres_submission_store.New(db)
+	uploads := create_upload_usecase.New(uuid_upload_ids.Provider{}, rules, bucket)
+	uploadLimiter := cpratelimit.New("flags-upload-limiter", config.SubmissionUploads, clock)
+	props.Runners.Add(uploadLimiter)
+
 	// Not a closer: closers run before the runners stop, and the relay uses the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		expire_flags_usecase.NewRunner(expiryInterval, expire_flags_usecase.New(clock, db, store, cpoutbox.New(db)),
 			props.Logger),
+		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
+			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
 		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed,
 			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
-	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return flagsv1connect.NewFlagServiceHandler(flagsv1controller.FlagService{
-			ListFlagsHandler: list,
-			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(streams, props.Server.StreamHeartbeat), messages),
-		}, options...)
-	}); err != nil {
+	reviews := submissionmessage.New(messages, bucket)
+	submittedQuery := submissions_query.NewPostgresQuery(db, reviews)
+	if err := props.RPC.Mount(
+		func(options ...connect.HandlerOption) (string, http.Handler) {
+			return flagsv1connect.NewFlagServiceHandler(flagsv1controller.FlagService{
+				ListFlagsHandler: list,
+				ListenForEventsHandler: listen_for_events_handler.New(
+					listen_for_events_usecase.New(streams, props.Server.StreamHeartbeat), messages,
+				),
+				CreateSubmissionUploadHandler: create_submission_upload_handler.New(
+					create_submission_upload_usecase.New(uploads),
+				),
+				SubmitFlagHandler: submit_flag_handler.New(
+					submit_flag_usecase.New(uuid_submission_ids.Provider{}, clock, gallery, submitted), reviews,
+				),
+				ListMySubmissionsHandler: list_my_submissions_handler.New(submittedQuery),
+			}, options...)
+		},
+		flagsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
+		flagsv1controller.NewUploadLimitInterceptor(uploadLimiter),
+	); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.FlagService: %w", err)
 	}
+	opening := catalog.NewOpening(random_flag_ids.Provider{}, clock)
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return flagsv1connect.NewAdminServiceHandler(flagsv1controller.AdminService{
-			ListFlagsHandler: list,
-			CreateFlagUploadHandler: create_flag_upload_handler.New(
-				create_upload_usecase.New(uuid_upload_ids.Provider{}, rules, bucket)),
+			ListFlagsHandler:        list,
+			CreateFlagUploadHandler: create_flag_upload_handler.New(uploads),
 			OpenFlagHandler: open_flag_handler.New(open_flag_usecase.New(
-				catalog.NewOpening(random_flag_ids.Provider{}, clock), pictures.NewGallery(bucket, rules), db, store,
-				cpoutbox.New(db)), messages),
-			AddTimeHandler:    add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			CloseFlagHandler:  close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			RenameFlagHandler: rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+				opening, gallery, db, store, cpoutbox.New(db),
+			), messages),
+			AddTimeHandler:         add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			CloseFlagHandler:       close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			RenameFlagHandler:      rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			ListSubmissionsHandler: list_submissions_handler.New(submittedQuery),
+			ApproveSubmissionHandler: approve_submission_handler.New(approve_submission_usecase.New(
+				clock, gallery, db, submitted, store, cpoutbox.New(db),
+			), reviews),
+			RejectSubmissionHandler: reject_submission_handler.New(
+				reject_submission_usecase.New(clock, submitted), reviews,
+			),
+			OpenSubmittedFlagHandler: open_submitted_flag_handler.New(open_submitted_flag_usecase.New(
+				opening, db, submitted, store, cpoutbox.New(db),
+			), messages),
 		}, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.AdminService: %w", err)
@@ -169,6 +219,8 @@ type Config struct {
 	Redis cpredis.Config
 	// The pictures of the flags opened since the game shipped.
 	Pictures PicturesConfig
+	// The pictures of flags an account and an address may upload in a day, for a submission.
+	SubmissionUploads cpratelimit.Config
 }
 
 // In the support module's bucket: uploaded under flags/uploads/, private, and drawn again under flags/pictures/, which
@@ -195,6 +247,11 @@ const (
 	bucketTimeout = 10 * time.Second
 	// A flag closes at most this long after its end.
 	expiryInterval = 30 * time.Second
+	// A rejected picture is deleted at most this long after its time.
+	rejectedSweep = time.Hour
+
+	defaultUploadsADay = 20
+	day                = 24 * time.Hour
 
 	defaultMaxPictureBytes = 5 << 20
 	defaultUploadTTL       = 10 * time.Minute
@@ -208,6 +265,13 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Pictures.UploadTTL <= 0 {
 		c.Pictures.UploadTTL = defaultUploadTTL
+	}
+	// A burst of a day's allowance, refilled over the day.
+	if c.SubmissionUploads.Burst <= 0 {
+		c.SubmissionUploads.Burst = defaultUploadsADay
+	}
+	if c.SubmissionUploads.PerSecond <= 0 {
+		c.SubmissionUploads.PerSecond = float64(c.SubmissionUploads.Burst) / day.Seconds()
 	}
 	return c
 }
