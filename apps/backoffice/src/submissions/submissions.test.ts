@@ -27,14 +27,15 @@ const namesOf = (near: Near[]) => near.map(each => [nameOf(each.other), Math.rou
 const pinOf = (id: string) => ({latitude: byId(id).pin!.latitude, longitude: byId(id).pin!.longitude})
 
 describe("the filters", () => {
-    it("keeps the waiting ones, the approved new flags to open, or all", () => {
-        expect(shownOf(submissions, "waiting").map(each => each.id)).toEqual(["sub-catalonia", "sub-beach", "sub-bavaria"])
-        expect(shownOf(submissions, "toOpen").map(each => each.id)).toEqual(["sub-sardinia"])
-        expect(shownOf(submissions, "all")).toHaveLength(6)
+    it("keeps the waiting ones, the approved new flags to open, the ones whose founder replied, or all", () => {
+        expect(shownOf(submissions, "waiting", new Set()).map(each => each.id)).toEqual(["sub-catalonia", "sub-beach", "sub-bavaria"])
+        expect(shownOf(submissions, "toOpen", new Set()).map(each => each.id)).toEqual(["sub-sardinia"])
+        expect(shownOf(submissions, "replies", new Set(["account-gone"])).map(each => each.id)).toEqual(["sub-beach"])
+        expect(shownOf(submissions, "all", new Set())).toHaveLength(6)
     })
 
     it("opens the next waiting one after a verdict, or the first one left", () => {
-        const waiting = shownOf(submissions, "waiting")
+        const waiting = shownOf(submissions, "waiting", new Set())
         expect(nextOf(waiting, "sub-catalonia")).toBe("sub-beach")
         expect(nextOf(waiting, "sub-bavaria")).toBe("sub-catalonia")
         expect(nextOf(waiting.slice(0, 1), "sub-catalonia")).toBe("")

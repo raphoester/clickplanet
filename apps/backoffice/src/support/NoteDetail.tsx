@@ -83,7 +83,7 @@ function Said({entry, note, name}: {entry: Entry, note: Note, name: string}) {
         case "note":
             return (
                 <li className="line">
-                    <Head who={name} at={entry.at}/>
+                    <LineHead who={name} at={entry.at}/>
                     <p className="line-text">{entry.text}</p>
                     <Attachments files={note.attachments}/>
                 </li>
@@ -91,27 +91,28 @@ function Said({entry, note, name}: {entry: Entry, note: Note, name: string}) {
         case "answer":
             return (
                 <li className="line line-answer">
-                    <Head who="ClickPlanet" at={entry.at}/>
+                    <LineHead who="ClickPlanet" at={entry.at}/>
                     <p className="line-text">{entry.text}</p>
                 </li>
             )
         case "reply":
             return (
                 <li className="line">
-                    <Head who={entry.from !== "" && entry.from !== note.replyAddress ? entry.from : name} at={entry.at}/>
+                    <LineHead who={entry.from !== "" && entry.from !== note.replyAddress ? entry.from : name} at={entry.at}/>
                     <p className="line-text">{entry.text}</p>
                 </li>
             )
         case "closed":
             return (
                 <li className="line line-closed">
-                    <Head who="Closed with no answer" at={entry.at}/>
+                    <LineHead who="Closed with no answer" at={entry.at}/>
                 </li>
             )
     }
 }
 
-function Head({who, at}: {who: string, at: Entry["at"]}) {
+// Who said a line of a conversation, and when.
+export function LineHead({who, at}: {who: string, at: Entry["at"]}) {
     return (
         <div className="line-head">
             <span className="name">{who}</span>

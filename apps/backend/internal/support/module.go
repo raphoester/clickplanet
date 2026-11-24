@@ -32,6 +32,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase/audit_decide_report"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/letter_post"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/postgres_letter_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/anonymize_letters_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/close_letter_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/prune_letters_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/receive_letter_reply_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/receive_letter_reply_usecase/log_receive_letter_reply"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/write_letter_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/write_letter_usecase/audit_write_letter"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/uuid_letter_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/mailroomcontroller/receive_reply_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
@@ -55,10 +65,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/answer_note_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_letter_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_note_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	admin_decide_report_handler "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_letters_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_letters_handler/letters_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
@@ -67,6 +80,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/write_letter_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads/postgres_upload_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads/usecases/discard_unsent_usecase"
@@ -121,6 +135,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	conversationStore := postgres_conversation_store.New(db)
 	reportStore := postgres_report_store.New(db)
 	uploadStore := postgres_upload_store.New(db)
+	letterStore := postgres_letter_store.New(db)
 
 	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
 		&http.Client{Timeout: bucketTimeout})
@@ -135,6 +150,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger.With(slog.String("pruned", "notes")))
 	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
 		props.Logger.With(slog.String("pruned", "reports")))
+	letterPrune := log_prune.New(prune_letters_usecase.New(config.Retention, clock, letterStore),
+		props.Logger.With(slog.String("pruned", "letters")))
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
@@ -152,6 +169,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the reports to player.v1.PlayerForgotten: %w", err)
 	}
 
+	letterDeletions, err := cpredis.Subscribe(ctx, streams, "support-letters-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(anonymize_letters_usecase.New(letterStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the letters to player.v1.PlayerForgotten: %w", err)
+	}
+
 	decideReport := decide_report_usecase.New(postgres_decision_store.New(db), clock)
 	decisionCommands, err := cpredis.Handle(ctx, streams,
 		log_subscriber.New(decide_report_handler.New(decideReport, props.Logger), props.Logger))
@@ -162,8 +186,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard),
-		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions, decisionCommands,
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, letterPrune, unsentDiscard),
+		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions, letterDeletions, decisionCommands,
 			cpoutbox.NewRelay("support-outbox", db, streams, props.Logger))))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
@@ -216,6 +240,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AnswerNoteHandler: answer_note_handler.New(audit_answer_note.New(
 			answer_note_usecase.New(noteStore, conversationStore, post, clock), props.Logger)),
 		CloseNoteHandler: close_note_handler.New(close_note_usecase.New(conversationStore, clock)),
+		WriteLetterHandler: write_letter_handler.New(audit_write_letter.New(write_letter_usecase.New(
+			uuid_letter_ids.Provider{}, addresses, letterStore, letter_post.New(mailer, config.Email.Sender(), inbox), clock,
+		), props.Logger)),
+		ListLettersHandler: list_letters_handler.New(letters_query.NewPostgresQuery(db)),
+		CloseLetterHandler: close_letter_handler.New(close_letter_usecase.New(letterStore, clock)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)
@@ -226,8 +255,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if config.Mailroom.Secret != "" {
 		replies := log_receive_reply.New(receive_reply_usecase.New(inbox, mime_reader.Reader{}, noteStore, conversationStore, clock),
 			props.Logger)
+		letterReplies := log_receive_letter_reply.New(
+			receive_letter_reply_usecase.New(inbox, mime_reader.Reader{}, letterStore, clock), props.Logger)
 		if err := props.AdminHTTP.Handle("POST "+receive_reply_handler.Path,
-			receive_reply_handler.New(replies, config.Mailroom.Secret, config.Mailroom.MaxBytes)); err != nil {
+			receive_reply_handler.New(replies, letterReplies, config.Mailroom.Secret, config.Mailroom.MaxBytes)); err != nil {
 			return fmt.Errorf("failed to mount the mailroom's endpoint: %w", err)
 		}
 	}

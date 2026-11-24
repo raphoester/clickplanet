@@ -1,6 +1,6 @@
 import {Capital, loadCapitals} from "../boards/capitals.ts"
 import {loadPlaces, Places} from "../boards/places.ts"
-import {FlagsAdmin, PlayerAdmin} from "../clients.ts"
+import {FlagsAdmin, PlayerAdmin, SupportAdmin} from "../clients.ts"
 import {learnFlags, listedOf} from "../flags.ts"
 import {distanceKm, Place} from "../flags/pin.ts"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
@@ -47,7 +47,14 @@ export async function listOf(flags: FlagsAdmin, player: PlayerAdmin, signal: Abo
     }
 }
 
-export type Filter = "waiting" | "toOpen" | "all"
+// The players who replied to a letter and wait for the operator, by account id: the server's open letters, read once a
+// list read.
+export async function repliedOf(support: SupportAdmin, signal: AbortSignal): Promise<ReadonlySet<string>> {
+    const {letters} = await support.listLetters({openOnly: true, limit: 500}, {signal})
+    return new Set(letters.map(letter => letter.accountId).filter(accountId => accountId !== ""))
+}
+
+export type Filter = "waiting" | "toOpen" | "replies" | "all"
 
 export function waiting(submission: KeptSubmission): boolean {
     return submission.state === SubmissionState.WAITING
@@ -58,12 +65,15 @@ export function toOpen(submission: KeptSubmission): boolean {
     return submission.state === SubmissionState.APPROVED && !submission.change
 }
 
-export function shownOf(submissions: KeptSubmission[], filter: Filter): KeptSubmission[] {
+// `replied` holds the founders whose reply to a letter waits.
+export function shownOf(submissions: KeptSubmission[], filter: Filter, replied: ReadonlySet<string>): KeptSubmission[] {
     switch (filter) {
         case "waiting":
             return submissions.filter(waiting)
         case "toOpen":
             return submissions.filter(toOpen)
+        case "replies":
+            return submissions.filter(submission => replied.has(submission.accountId))
         case "all":
             return submissions
     }

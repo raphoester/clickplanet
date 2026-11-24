@@ -34,6 +34,25 @@ service AdminService {
 
   // Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
   rpc DecideReport(DecideReportRequest) returns (DecideReportResponse);
+
+  // Writes to a player first, by email, from support@clickplanet.lol: with no letter_id, a new letter to the account's
+  // verified address, under its subject; with a letter_id, one more mail in that letter, in the thread of the earlier
+  // ones. The player's replies come back to the letter. Write it to the player, in their language, in plain words.
+  // FailedPrecondition for an account with no verified address, or a letter past the 90 days; NotFound for a letter no
+  // longer kept; InvalidArgument for no subject, a subject over 200 characters, or a text the rule of an answer
+  // refuses; Unavailable when the mail could not be sent, and then nothing is kept: send again.
+  rpc WriteLetter(WriteLetterRequest) returns (WriteLetterResponse);
+
+  // The letters the operator wrote to players, the latest written or replied to first, each with its mails and the
+  // player's replies. With account_id, the letters to that account alone. open_only lists the letters the player
+  // replied to since the last mail and the last close.
+  rpc ListLetters(ListLettersRequest) returns (ListLettersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Closes a letter with no further mail: it waits for nothing until the player writes again. NotFound for a letter no
+  // longer kept.
+  rpc CloseLetter(CloseLetterRequest) returns (CloseLetterResponse);
 }
 
 enum NoteKind {
@@ -169,4 +188,60 @@ message CloseNoteRequest {
 
 message CloseNoteResponse {
   google.protobuf.Timestamp closed_at = 1;
+}
+
+message WriteLetterRequest {
+  // Empty for a new letter.
+  string letter_id = 1;
+  // For a new letter: the player written to.
+  string account_id = 2;
+  // For a new letter: 1 to 200 characters, the mail's subject.
+  string subject = 3;
+  // Plain text, up to 5,000 characters. Lines are kept.
+  string text = 4;
+}
+
+message WriteLetterResponse {
+  Letter letter = 1;
+}
+
+message ListLettersRequest {
+  // Empty for every account.
+  string account_id = 1;
+  bool open_only = 2;
+  // 100 unless asked, 500 at most.
+  uint32 limit = 3;
+}
+
+message ListLettersResponse {
+  repeated Letter letters = 1;
+}
+
+message CloseLetterRequest {
+  string letter_id = 1;
+}
+
+message CloseLetterResponse {
+  google.protobuf.Timestamp closed_at = 1;
+}
+
+// What the operator wrote to a player first, and what followed.
+message Letter {
+  string id = 1;
+  // Empty once the letter is anonymized: its account was deleted, or it is past the retention.
+  string account_id = 2;
+  // Where its mails go. Empty once anonymized.
+  string address = 3;
+  string subject = 4;
+  // Oldest first; the first is the letter itself.
+  repeated LetterMail mails = 5;
+  // Oldest first.
+  repeated NoteReply replies = 6;
+  // Unset if never closed.
+  google.protobuf.Timestamp closed_at = 7;
+}
+
+message LetterMail {
+  string text = 1;
+  google.protobuf.Timestamp sent_at = 2;
 }
