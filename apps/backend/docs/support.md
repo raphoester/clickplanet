@@ -15,7 +15,9 @@ internal/support/internal/
                                     is. It signs its own links
     inmemory_attachment_bucket/     the same with no bucket, and Put for a file a test uploads — behind the testing tag, tests only
     uuid_id_provider/               IDProvider: a UUIDv7 per note; AttachmentIDProvider: a random UUID per file
-    rpc_addresses/                  AddressBook: the account's address, from player.v1.InternalService/GetEmail
+    rpc_addresses/                  AddressBook: the account's address, from player.v1.InternalService/GetEmail, one
+                                    account or a page
+    rpc_accounts/                   which senders signed in, from player.v1.InternalService/GetAccounts
     mail_post/                      the operator's answer as a mail: from support.email, Reply-To the note's own address, threaded
     usecases/create_upload_usecase/     draws a file's id, checks it against the rules, keeps its room on the shelf,
                                         answers the link to put it at — AttachmentIDProvider, Shelf, Uploads
@@ -23,6 +25,9 @@ internal/support/internal/
                                         suggestion with them and keeps it — IDProvider, Saver, Files, AddressBook
     usecases/report_bug_usecase/        the same, for a bug report — IDProvider, Saver, Files, AddressBook
     usecases/anonymize_notes_usecase/   reads the notes an account sent, anonymizes them, saves — Notes
+    usecases/backfill_addresses_usecase/  reads the notes with a sender and no address, the senders' addresses and who
+                                        signed in, fills them, saves unless a dry run — Notes, Addresses, Accounts
+      audit_backfill_addresses/         logs each run at Warn, with its counts
     usecases/prune_usecase/             reads the notes past retention that still have a sender, anonymizes them, saves;
                                         Runner, which runs each prune — Notes
       log_prune/                        logs how many a prune went through
@@ -141,6 +146,14 @@ internal/support/internal/
 - **Kept in `support.notes.reply_address`** (`text NOT NULL`, empty for none; migration
   `20261123115501_note_reply_address`): every note has the field, and the notes sent before it have none, so they
   cannot be answered. `Restore` checks a stored one with `cpmail.AddressOf`.
+- **The notes sent before addresses were kept take their account's address once**:
+  `AdminService/BackfillReplyAddresses(dry_run)` reads every note that still has its sender and no address
+  (`Storage.Unaddressed`), asks player for each sender's address and which senders signed in, and has
+  `notes.Backfilled` give each its account's verified address. It answers three counts, in notes: `filled`, `guests`
+  (a guest holds no address) and `no_address` (signed in, no verified address). A note with an address, or no sender,
+  is not touched, so a second run fills nothing new; `dry_run` saves nothing. `audit_backfill_addresses` logs each run.
+  **Delete it after 2027-02-21**: it only serves the notes from before 2026-11-23, which the 90-day prune anonymizes
+  by then.
 - **`Anonymized()` blanks it with the account**: the prune at 90 days and `PlayerForgotten` take both. The privacy page
   says so.
 

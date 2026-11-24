@@ -155,6 +155,15 @@ func (s *Store) WithSenderBefore(ctx context.Context, cutoff time.Time, limit in
 	`, cutoff.UTC(), limit)
 }
 
+func (s *Store) Unaddressed(ctx context.Context) ([]notes.Note, error) {
+	return s.restored(ctx, `
+		SELECT `+columns+`
+		FROM notes
+		WHERE account_id IS NOT NULL AND reply_address = ''
+		ORDER BY submitted_at, id
+	`)
+}
+
 func (s *Store) restored(ctx context.Context, query string, args ...any) ([]notes.Note, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
