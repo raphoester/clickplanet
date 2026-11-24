@@ -4,9 +4,6 @@ import {SupportAdmin} from "../clients.ts"
 import {Letter} from "../gen/grpc/support/v1/admin_pb.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 
-// The backend's most for a letter's subject.
-export const MAX_SUBJECT = 200
-
 export type LetterEntry =
     | {kind: "mail", at: Timestamp | undefined, text: string}
     | {kind: "reply", at: Timestamp | undefined, text: string, from: string}
@@ -28,13 +25,13 @@ export function waitsOf(letter: Letter): boolean {
     return replied > msOf(letter.mails.at(-1)?.sentAt) && replied > msOf(letter.closedAt)
 }
 
-// A new letter to an account, or one more mail in a letter.
-export type Writing = {letterId: string} | {accountId: string, subject: string}
+// The letter about a submission, to its founder, or one more mail in a letter.
+export type Writing = {letterId: string} | {submissionId: string, accountId: string, subject: string}
 
 export async function writeLetter(support: SupportAdmin, writing: Writing, text: string): Promise<Letter> {
     const request = "letterId" in writing
         ? {letterId: writing.letterId, text: text.trim()}
-        : {accountId: writing.accountId, subject: writing.subject.trim(), text: text.trim()}
+        : {submissionId: writing.submissionId, accountId: writing.accountId, subject: writing.subject.trim(), text: text.trim()}
     const {letter} = await support.writeLetter(request)
     if (letter === undefined) throw new ConnectError("the server answered no letter", Code.Internal)
     return letter
@@ -52,18 +49,13 @@ const MEANINGS: Record<"write" | "close", Meanings> = {
         notFound: GONE,
         failedPrecondition: "No mail can go: the player has no verified address, or the letter is over 90 days old.",
         unavailable: "The mail did not go, and nothing was kept. Send it again.",
+        alreadyExists: "This submission has its letter already. Reload the page to write in it.",
     },
     close: {notFound: GONE},
 }
 
 export function letterRefusalOf(action: "write" | "close", err: unknown): string {
     return wordsOf(err, MEANINGS[action])
-}
-
-// The latest written or replied to first, as the server lists them.
-export function latestLettersFirst(letters: Letter[]): Letter[] {
-    const last = (letter: Letter) => msOf(threadOf(letter).filter(entry => entry.kind !== "closed").at(-1)?.at)
-    return [...letters].sort((a, b) => last(b) - last(a))
 }
 
 function msOf(at: Timestamp | undefined): number {

@@ -27,10 +27,10 @@ const namesOf = (near: Near[]) => near.map(each => [nameOf(each.other), Math.rou
 const pinOf = (id: string) => ({latitude: byId(id).pin!.latitude, longitude: byId(id).pin!.longitude})
 
 describe("the filters", () => {
-    it("keeps the waiting ones, the approved new flags to open, the ones whose founder replied, or all", () => {
+    it("keeps the waiting ones, the approved new flags to open, the ones whose founder replied to their letter, or all", () => {
         expect(shownOf(submissions, "waiting", new Set()).map(each => each.id)).toEqual(["sub-catalonia", "sub-beach", "sub-bavaria"])
         expect(shownOf(submissions, "toOpen", new Set()).map(each => each.id)).toEqual(["sub-sardinia"])
-        expect(shownOf(submissions, "replies", new Set(["account-gone"])).map(each => each.id)).toEqual(["sub-beach"])
+        expect(shownOf(submissions, "replies", new Set(["sub-catalonia"])).map(each => each.id)).toEqual(["sub-catalonia"])
         expect(shownOf(submissions, "all", new Set())).toHaveLength(6)
     })
 

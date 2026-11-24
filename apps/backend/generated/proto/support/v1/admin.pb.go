@@ -1137,7 +1137,9 @@ type WriteLetterRequest struct {
 	// For a new letter: 1 to 200 characters, the mail's subject.
 	Subject string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
 	// Plain text, up to 5,000 characters. Lines are kept.
-	Text          string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Text string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	// For a new letter: the flag submission it is about (flags.v1.Submission.id).
+	SubmissionId  string `protobuf:"bytes,5,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1200,6 +1202,13 @@ func (x *WriteLetterRequest) GetText() string {
 	return ""
 }
 
+func (x *WriteLetterRequest) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
+}
+
 type WriteLetterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Letter        *Letter                `protobuf:"bytes,1,opt,name=letter,proto3" json:"letter,omitempty"`
@@ -1250,7 +1259,9 @@ type ListLettersRequest struct {
 	AccountId string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	OpenOnly  bool   `protobuf:"varint,2,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
 	// 100 unless asked, 500 at most.
-	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Empty for every submission.
+	SubmissionId  string `protobuf:"bytes,4,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1304,6 +1315,13 @@ func (x *ListLettersRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListLettersRequest) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
 }
 
 type ListLettersResponse struct {
@@ -1452,7 +1470,9 @@ type Letter struct {
 	// Oldest first.
 	Replies []*NoteReply `protobuf:"bytes,6,rep,name=replies,proto3" json:"replies,omitempty"`
 	// Unset if never closed.
-	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	ClosedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	// The flag submission it is about (flags.v1.Submission.id).
+	SubmissionId  string `protobuf:"bytes,8,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1534,6 +1554,13 @@ func (x *Letter) GetClosedAt() *timestamppb.Timestamp {
 		return x.ClosedAt
 	}
 	return nil
+}
+
+func (x *Letter) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
 }
 
 type LetterMail struct {
@@ -1671,26 +1698,28 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x10CloseNoteRequest\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\"L\n" +
 	"\x11CloseNoteResponse\x127\n" +
-	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"~\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\xa3\x01\n" +
 	"\x12WriteLetterRequest\x12\x1b\n" +
 	"\tletter_id\x18\x01 \x01(\tR\bletterId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\"A\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12#\n" +
+	"\rsubmission_id\x18\x05 \x01(\tR\fsubmissionId\"A\n" +
 	"\x13WriteLetterResponse\x12*\n" +
-	"\x06letter\x18\x01 \x01(\v2\x12.support.v1.LetterR\x06letter\"f\n" +
+	"\x06letter\x18\x01 \x01(\v2\x12.support.v1.LetterR\x06letter\"\x8b\x01\n" +
 	"\x12ListLettersRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1b\n" +
 	"\topen_only\x18\x02 \x01(\bR\bopenOnly\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"C\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\x12#\n" +
+	"\rsubmission_id\x18\x04 \x01(\tR\fsubmissionId\"C\n" +
 	"\x13ListLettersResponse\x12,\n" +
 	"\aletters\x18\x01 \x03(\v2\x12.support.v1.LetterR\aletters\"1\n" +
 	"\x12CloseLetterRequest\x12\x1b\n" +
 	"\tletter_id\x18\x01 \x01(\tR\bletterId\"N\n" +
 	"\x13CloseLetterResponse\x127\n" +
-	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\x83\x02\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\xa8\x02\n" +
 	"\x06Letter\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1699,7 +1728,8 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\asubject\x18\x04 \x01(\tR\asubject\x12,\n" +
 	"\x05mails\x18\x05 \x03(\v2\x16.support.v1.LetterMailR\x05mails\x12/\n" +
 	"\areplies\x18\x06 \x03(\v2\x15.support.v1.NoteReplyR\areplies\x127\n" +
-	"\tclosed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"U\n" +
+	"\tclosed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\x12#\n" +
+	"\rsubmission_id\x18\b \x01(\tR\fsubmissionId\"U\n" +
 	"\n" +
 	"LetterMail\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x123\n" +

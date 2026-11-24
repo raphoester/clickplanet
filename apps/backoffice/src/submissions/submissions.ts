@@ -47,11 +47,11 @@ export async function listOf(flags: FlagsAdmin, player: PlayerAdmin, signal: Abo
     }
 }
 
-// The players who replied to a letter and wait for the operator, by account id: the server's open letters, read once a
-// list read.
+// The submissions whose founder replied to their letter and waits for the operator, by submission id: the server's open
+// letters, read once a list read.
 export async function repliedOf(support: SupportAdmin, signal: AbortSignal): Promise<ReadonlySet<string>> {
     const {letters} = await support.listLetters({openOnly: true, limit: 500}, {signal})
-    return new Set(letters.map(letter => letter.accountId).filter(accountId => accountId !== ""))
+    return new Set(letters.map(letter => letter.submissionId))
 }
 
 export type Filter = "waiting" | "toOpen" | "replies" | "all"
@@ -65,7 +65,7 @@ export function toOpen(submission: KeptSubmission): boolean {
     return submission.state === SubmissionState.APPROVED && !submission.change
 }
 
-// `replied` holds the founders whose reply to a letter waits.
+// `replied` holds the submissions whose founder's reply to their letter waits.
 export function shownOf(submissions: KeptSubmission[], filter: Filter, replied: ReadonlySet<string>): KeptSubmission[] {
     switch (filter) {
         case "waiting":
@@ -73,7 +73,7 @@ export function shownOf(submissions: KeptSubmission[], filter: Filter, replied: 
         case "toOpen":
             return submissions.filter(toOpen)
         case "replies":
-            return submissions.filter(submission => replied.has(submission.accountId))
+            return submissions.filter(submission => replied.has(submission.id))
         case "all":
             return submissions
     }

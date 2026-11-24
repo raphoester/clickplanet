@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_letters_handler/letters_query"
 )
@@ -41,6 +42,13 @@ func (h ListLettersHandler) ListLetters(
 			return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAccount)
 		}
 		filter.Account = &id
+	}
+	if submission := req.Msg.GetSubmissionId(); submission != "" {
+		id, err := letters.SubmissionIDOf(submission)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, letters.ErrInvalidSubmission)
+		}
+		filter.Submission = &id
 	}
 	found, err := h.query.Letters(ctx, filter)
 	if err != nil {

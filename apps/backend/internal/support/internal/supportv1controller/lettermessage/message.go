@@ -10,7 +10,10 @@ import (
 
 // Letter is a letter as the operator reads it.
 func Letter(letter letters.Snapshot) *supportv1.Letter {
-	message := &supportv1.Letter{Id: letter.ID.String(), Address: string(letter.To), Subject: letter.Subject}
+	message := &supportv1.Letter{
+		Id: letter.ID.String(), SubmissionId: letter.Submission.String(), Address: string(letter.To),
+		Subject: letter.Subject,
+	}
 	if letter.Account != (notes.AccountID{}) {
 		message.AccountId = letter.Account.String()
 	}
