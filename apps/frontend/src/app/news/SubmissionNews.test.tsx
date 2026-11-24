@@ -26,6 +26,9 @@ describe("SubmissionNews", () => {
 
         view.rerender(<SubmissionNews submission={decided({state: "opened", flag: "r-k3p9x2ma0b"})} onDone={vi.fn()}/>)
         expect(screen.getByRole("status").textContent).toBe("Bavaria is in the game!")
+
+        view.rerender(<SubmissionNews submission={decided({state: "closed", flag: "r-k3p9x2ma0b"})} onDone={vi.fn()}/>)
+        expect(screen.getByRole("status").textContent).toBe("Your flag Bavaria is closed.")
     })
 
     it("is done after a few seconds", () => {

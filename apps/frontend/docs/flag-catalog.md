@@ -135,7 +135,7 @@ Each place that looks up a flag by its code survives a code it does not know.
 The fake lists Brittany sold, as the server does, open for 30 days from the page's load, its picture at its address in
 the bucket (the blank until the file is there). `openFlag("Bavaria", days)` on the console opens a sold flag for that many days (30 by default), with a picture drawn
 in the page from its name (three bands and a disc, 3:2, 2:1 or square, a blob URL, `paintFakeFlag`). `addTime(code,
-days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it; `renameFlag(code,
+days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code, note)` closes it, with the note its founder reads; `renameFlag(code,
 name)` renames it, open or closed. Each is told as the flags stream tells it, and the fake planet hears the closes
 (`FakeBackend.closeFlags`): it answers `closed` for a closed flag held, unless `lockFlags()` locks the flags, and refuses
 a click or a pledge for one. Nothing closes a flag when its time runs out: `closeFlag` does. `openFlag` gives a flag no

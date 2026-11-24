@@ -6,8 +6,10 @@ import {FlagTime, flagRenewal, flagTimeOf} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useShop} from "../shop/shopStore.ts"
+import FlagNote from "./FlagNote.tsx"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import {useFlags} from "./flagsStore.ts"
+import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
 import "../support/Support.css"
 import "./FlagSubmission.css"
 
@@ -15,6 +17,8 @@ export type FoundedFlagsProps = {
     // The newest first.
     submissions: readonly Submission[]
     shop: Shop
+    // The closed flag whose note the place shows above, not repeated in its row.
+    noteShownFor?: string
     onAddTime: (flag: string) => void
 }
 
@@ -43,7 +47,11 @@ function lineOf(time: FlagTime): string | undefined {
 }
 
 // The flags the account founded, each with Change, and while the shop is open its time: Add time, or its renewal.
-export default function FoundedFlags({submissions, shop, onAddTime}: FoundedFlagsProps) {
+function closeNoteOf(submissions: readonly Submission[], flag: string): string | undefined {
+    return submissions.find((submission) => submission.state === "opened" && submission.flag === flag)?.closeNote
+}
+
+export default function FoundedFlags({submissions, shop, noteShownFor, onAddTime}: FoundedFlagsProps) {
     const compose = useFlagForm((form) => form.compose)
     const catalog = useFlags((store) => store.catalog)
     const plans = useShop((store) => store.plans)
@@ -100,12 +108,15 @@ export default function FoundedFlags({submissions, shop, onAddTime}: FoundedFlag
                     ? flagTimeOf(catalog.soldOf(flag), catalog.closedFlag(flag), flagRenewal(renewals, flag, submissions), now)
                     : {kind: "none"}
                 const line = lineOf(time)
+                const closed = catalog.closedFlag(flag)
+                const closeNote = closed && flag !== noteShownFor ? closeNoteOf(submissions, flag) : undefined
                 return <li key={flag} className="panel-box flag-founded">
                     <span className="flag-founded-flag"><CountryFlag code={flag}/></span>
                     <span className="flag-founded-text">
                         <span className="flag-founded-name">{translator().country(flag)}</span>
                         {line && <span className="flag-founded-time">{line}</span>}
                     </span>
+                    {closed && <SubmissionStateChip state="closed"/>}
                     <span className="flag-founded-actions">
                         <button type="button"
                                 className="button button-mini button-secondary"
@@ -115,6 +126,7 @@ export default function FoundedFlags({submissions, shop, onAddTime}: FoundedFlag
                         </button>
                         {actionOf(flag, time)}
                     </span>
+                    {closeNote && <FlagNote text={closeNote}/>}
                 </li>
             })}
         </ul>

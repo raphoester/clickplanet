@@ -12,9 +12,9 @@ import {FlagCatalog} from "../../domain/flags.ts"
 import type {PlanPrice, Renewal} from "../../domain/shop.ts"
 import {translator} from "../../i18n/page.ts"
 import {useShop} from "../shop/shopStore.ts"
-import {useFlags} from "./flagsStore.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
+import {useFlags} from "./flagsStore.ts"
 import FlagSubmissionEntry from "./FlagSubmissionEntry.tsx"
 import FlagSubmissionPlace from "./FlagSubmissionPlace.tsx"
 import {useFlagSubmissions} from "./submissionsStore.ts"
@@ -98,6 +98,7 @@ afterEach(() => {
     useFlagSubmissions.setState({who: "nobody"})
     useShop.setState(useShop.getInitialState(), true)
     useFlags.setState(useFlags.getInitialState(), true)
+    useFlags.setState({catalog: FlagCatalog.BUILT_IN})
     vi.restoreAllMocks()
 })
 
@@ -184,6 +185,45 @@ describe("FlagSubmissionPlace", () => {
         expect(screen.getByRole("dialog", {name: "Change your flag"})).not.toBeNull()
         expect(useFlagForm.getState().draft.flag).toBe("r-k3p9x2ma0b")
         view.unmount()
+    })
+
+    it("says until when the flag the account opened plays, and once closed, the day it closed", async () => {
+        const account = await accountOf(["google"])
+        const picture = {url: "https://media.example/bavaria.png", width: 300, height: 200, stretch: false, focusX: 0.5, focusY: 0.5}
+        const sold = {picture, endsAt: Date.UTC(2026, 11, 24, 12), pin: PIN}
+        const flagsAre = (closed: boolean) => useFlags.setState({
+            catalog: FlagCatalog.BUILT_IN.withFlags([{
+                code: "r-k3p9x2ma0b", name: "Bavaria", closed,
+                sold: closed ? {...sold, closedAt: Date.UTC(2026, 10, 24, 12)} : sold,
+            }]),
+        })
+        flagsAre(false)
+        read([submission({state: "opened", flag: "r-k3p9x2ma0b"})])
+        useFlagForm.getState().show()
+        render(<><FlagSubmissionEntry/><FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/></>)
+        act(() => useFlagSubmissions.setState({who: "player"}))
+
+        expect(screen.getByRole("status").textContent).toBe("Bavaria is in the game until Dec 24, 2026!")
+        expect(document.querySelector(".flag-entry")?.textContent).toBe("BavariaOpen")
+
+        act(() => flagsAre(true))
+        expect(screen.getByRole("status").textContent).toBe("Bavaria closed on Nov 24, 2026.")
+        expect(document.querySelector(".flag-entry")?.textContent).toBe("BavariaClosed")
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChange")
+
+        act(() => read([submission({state: "opened", flag: "r-k3p9x2ma0b", closeNote: "A club's crest."})]))
+        expect(document.querySelector(".flag-status > .flag-status-note")?.textContent).toBe("A club's crest.")
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChange")
+
+        act(() => read([
+            submission({id: "s-2", name: "Swabia"}),
+            submission({state: "opened", flag: "r-k3p9x2ma0b", closeNote: "A club's crest."}),
+        ]))
+        expect(document.querySelector(".flag-status > .flag-status-note")).toBeNull()
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChangeA club's crest.")
+
+        act(() => flagsAre(false))
+        expect(document.querySelector(".flag-status-note")).toBeNull()
     })
 
     it("puts the form aside while the pin is aimed, and brings it back as it was on Escape or with the pin", async () => {

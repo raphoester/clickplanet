@@ -42,7 +42,7 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   list, read at load and by the Flags page; a flag is an emoji, a sold flag's picture, or a plain grey flag for one the
   page does not know.
 - [Flags](docs/flags.md) — the sold flags: one opened by hand (a name, a picture uploaded, an end, a capital, asked
-  first with what it costs), each with its capital, its days left or its comeback, Add days, Rename and Close;
+  first with what it costs), each with its capital, its days left or its comeback, Add days, Rename and Close with a note its founder reads;
   `flags.v1.AdminService`.
 - [Flag submissions](docs/flag-submissions.md) — the flags players submit, under Moderation: an inbox, the picture as
   drawn and on a tile, a photo warning, the capital on a planisphere that zooms out to the world with the other capitals,

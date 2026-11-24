@@ -22,12 +22,13 @@ const BRITTANY_PICTURE: FlagPicture = {
     width: 768, height: 512, stretch: false, focusX: 0.4344, focusY: 0.5151,
 }
 
-// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code)` and `renameFlag(code, name)` on the console, each told
+// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code, note)` and `renameFlag(code, name)` on the console, each told
 // as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
     private readonly sold: ListedFlag[]
     private readonly listeners = new Set<FlagHandlers>()
     private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
+    private readonly closeNotes = new Map<string, string>()
 
     constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
         this.sold = [{code: "xb", name: "Brittany", closed: false, sold: {picture: BRITTANY_PICTURE, endsAt: now() + 30 * DAY_MS, pin: {latitude: 48.1173, longitude: -1.6778}}}]
@@ -94,18 +95,25 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         }
         if (now - (flag.sold.closedAt ?? 0) > COMEBACK_MS) return "too late"
         flag.closed = false
+        this.closeNotes.delete(code)
         flag.sold = {picture: flag.sold.picture, endsAt: now + days * DAY_MS}
         this.tell(flag)
         return "reopened"
     }
 
-    public close(code: string): boolean {
+    // The note its founder reads, as ListMySubmissions answers it.
+    public close(code: string, note: string): boolean {
         const flag = this.sold.find((sold) => sold.code === code)
-        if (flag?.sold === undefined || flag.closed) return false
+        if (flag?.sold === undefined || flag.closed || note.trim() === "") return false
         flag.closed = true
+        this.closeNotes.set(code, note.trim())
         flag.sold = {...flag.sold, closedAt: this.now()}
         this.tell(flag)
         return true
+    }
+
+    public closeNoteOf(code: string): string | undefined {
+        return this.closeNotes.get(code)
     }
 
     // Open or closed: its code, picture and land stay.

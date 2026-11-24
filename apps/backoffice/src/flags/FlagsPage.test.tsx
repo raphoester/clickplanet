@@ -66,6 +66,7 @@ describe("FlagsPage", () => {
         expect(within(savoy).getByText(timeOf(later(-3)))).toBeTruthy()
         expect(within(savoy).getByText(timeOf(later(27)))).toBeTruthy()
         expect((within(savoy).getByRole("button", {name: "Close"}) as HTMLButtonElement).disabled).toBe(true)
+        expect(within(savoy).queryByLabelText(/^Note to its founder/)).toBeNull()
 
         expect(screen.getByText("2 sold flags, 1 open")).toBeTruthy()
         expect(screen.queryByRole("heading", {name: "France"})).toBeNull()
@@ -249,13 +250,22 @@ describe("FlagsPage", () => {
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const bavaria = await card("Bavaria")
 
-        fireEvent.click(within(bavaria).getByRole("button", {name: "Close"}))
-        expect(within(bavaria).getByRole("group", {name: "Close"}).textContent).toContain("Its players must pick another flag")
+        const close = within(bavaria).getByRole("button", {name: "Close"}) as HTMLButtonElement
+        expect(close.disabled).toBe(true)
+        const note = within(bavaria).getByLabelText(/^Note to its founder/) as HTMLTextAreaElement
+        fireEvent.change(note, {target: {value: "x".repeat(501)}})
+        expect(within(bavaria).getByText("A note of 500 characters at most.")).toBeTruthy()
+        expect(close.disabled).toBe(true)
+        fireEvent.change(note, {target: {value: "  A club's crest, not a place.  "}})
+        expect(within(bavaria).getByText("Note to its founder · 28/500")).toBeTruthy()
+
+        fireEvent.click(close)
+        expect(within(bavaria).getByRole("group", {name: "Close"}).textContent).toContain("Its founder reads your note")
         expect(admin.askedFor("closeFlag")).toEqual([])
         fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
 
         expect(await within(bavaria).findByText(`Closed. Time added until ${timeOf(later(30))} opens it again.`)).toBeTruthy()
-        expect(admin.askedFor("closeFlag")).toEqual([{code: "r-k3p9x2ma0b"}])
+        expect(admin.askedFor("closeFlag")).toEqual([{code: "r-k3p9x2ma0b", note: "A club's crest, not a place."}])
         expect(await within(bavaria).findByText("Closed", {selector: ".status"})).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(2)
     })
@@ -266,6 +276,7 @@ describe("FlagsPage", () => {
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const bavaria = await card("Bavaria")
 
+        fireEvent.change(within(bavaria).getByLabelText(/^Note to its founder/), {target: {value: "Broke the rules."}})
         fireEvent.click(within(bavaria).getByRole("button", {name: "Close"}))
         fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
 

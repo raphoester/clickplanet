@@ -44,7 +44,37 @@ func (q PostgresQuery) Mine(ctx context.Context, account submissions.AccountID) 
 	for _, row := range rows {
 		mine = append(mine, q.messages.Submission(row))
 	}
-	return &flagsv1.ListMySubmissionsResponse{Submissions: mine}, nil
+	closures, err := q.closures(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	return &flagsv1.ListMySubmissionsResponse{Submissions: mine, Closures: closures}, nil
+}
+
+// The notes of the flags the account founded: each opened from one of its submissions.
+func (q PostgresQuery) closures(ctx context.Context, account submissions.AccountID) ([]*flagsv1.Closure, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT c.flag, c.note FROM closures c
+		JOIN submissions s ON s.flag = c.flag AND s.state = 'opened'
+		WHERE s.account_id = $1
+		ORDER BY c.flag`, uuid.UUID(account))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the closes of the account's flags: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var closures []*flagsv1.Closure
+	for rows.Next() {
+		closure := &flagsv1.Closure{}
+		if err := rows.Scan(&closure.Flag, &closure.Note); err != nil {
+			return nil, fmt.Errorf("failed to read a close of the account's flags: %w", err)
+		}
+		closures = append(closures, closure)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the closes of the account's flags: %w", err)
+	}
+	return closures, nil
 }
 
 // Kept is every submission waiting, the oldest first, then the ones decided last, the latest first.

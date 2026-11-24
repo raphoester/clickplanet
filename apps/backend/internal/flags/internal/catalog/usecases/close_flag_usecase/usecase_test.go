@@ -1,6 +1,7 @@
 package close_flag_usecase_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ func newFixture(t *testing.T) fixture {
 func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 	f := newFixture(t)
 
-	answered, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	answered, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
 	require.NoError(t, err)
 
 	kept, err := f.store.Flag(t.Context(), "r-0000000001")
@@ -53,10 +54,10 @@ func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 
 func TestAFlagClosedAlreadyIsNotClosedAgain(t *testing.T) {
 	f := newFixture(t)
-	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
 	require.NoError(t, err)
 
-	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001"})
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
 
 	require.ErrorIs(t, err, catalog.ErrClosed)
 	assert.Len(t, f.outbox.Recorded(), 1)
@@ -65,9 +66,34 @@ func TestAFlagClosedAlreadyIsNotClosedAgain(t *testing.T) {
 func TestOnlyAFlagOpenedSinceTheGameShippedCanBeClosed(t *testing.T) {
 	f := newFixture(t)
 
-	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000002"})
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000002", Note: " Broke the rules. "})
 	require.ErrorIs(t, err, catalog.ErrUnknownFlag)
-	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "fr"})
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "fr", Note: " Broke the rules. "})
 	require.ErrorIs(t, err, catalog.ErrInvalidFlagID)
+	assert.Empty(t, f.outbox.Recorded())
+}
+
+func TestAFlagClosedKeepsTheNoteItsFounderReads(t *testing.T) {
+	f := newFixture(t)
+
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
+	require.NoError(t, err)
+
+	kept, err := f.store.Flag(t.Context(), "r-0000000001")
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Note("Broke the rules."), kept.TakeSnapshot().Note)
+}
+
+func TestAFlagIsNotClosedWithNoNote(t *testing.T) {
+	f := newFixture(t)
+
+	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: "  "})
+	require.ErrorIs(t, err, catalog.ErrInvalidNote)
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: strings.Repeat("é", 501)})
+	require.ErrorIs(t, err, catalog.ErrInvalidNote)
+
+	kept, err := f.store.Flag(t.Context(), "r-0000000001")
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Open, kept.TakeSnapshot().State)
 	assert.Empty(t, f.outbox.Recorded())
 }

@@ -2726,3 +2726,13 @@ a.button {
 .sold-rename > .action-refused, .sold-rename > .confirm {
     flex-basis: 100%;
 }
+
+.sold-close {
+    display: grid;
+    gap: 8px;
+    justify-items: start;
+}
+
+.sold-close .field {
+    justify-self: stretch;
+}

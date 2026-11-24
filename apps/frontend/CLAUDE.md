@@ -125,8 +125,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
 - [Flag submissions](docs/flag-submissions.md) — a signed-in player sends its region's flag (a name, a picture, its
   capital: a pin aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
-  submission's status in the same place, a change of a flag the account founded, each decision told once on the news
-  line; the fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
+  submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed
+  and since when, with the operator's note to its founder), a change of a flag the account founded, each decision and a close told once on the news line; the
+  fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
 - [The shop](docs/shop.md) — the founder pays for an approved flag's time on Stripe's page: the plans priced in the
   page's language, the consent before Pay, Add time and the renewals in "Your flags", `?shop=paid` read and dropped and
   the submissions read again until the flag opens; nothing while the shop is off; the fake's `shopOff`, `shopOn`,

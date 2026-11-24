@@ -131,7 +131,7 @@ func TestAPaymentForAFlagAddsItsPeriodToItsEnd(t *testing.T) {
 
 func TestAPaymentWithinThirtyDaysOpensAClosedFlagAgain(t *testing.T) {
 	f := newFixture()
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-40*24*time.Hour)).Closed(now.Add(-10 * 24 * time.Hour))
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-40*24*time.Hour)).Closed("Broke the rules.", now.Add(-10*24*time.Hour))
 	require.NoError(t, err)
 	require.NoError(t, f.flags.Save(t.Context(), closed))
 
@@ -149,7 +149,7 @@ func TestAPaymentWithinThirtyDaysOpensAClosedFlagAgain(t *testing.T) {
 
 func TestAPaymentPastTheThirtyDaysGrantsNothing(t *testing.T) {
 	f := newFixture()
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-90*24*time.Hour)).Closed(now.Add(-30 * 24 * time.Hour))
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-90*24*time.Hour)).Closed("Broke the rules.", now.Add(-30*24*time.Hour))
 	require.NoError(t, err)
 	require.NoError(t, f.flags.Save(t.Context(), closed))
 

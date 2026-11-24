@@ -24,7 +24,8 @@
     background: var(--gold);
 }
 
-.flag-state--rejected {
+.flag-state--rejected,
+.flag-state--closed {
     color: var(--text-muted);
     background: var(--panel-sunk);
 }
@@ -175,6 +176,11 @@
 
 .flag-status-note {
     margin: 0;
+}
+
+.flag-founded .flag-status-note {
+    flex-basis: 100%;
+    margin-bottom: var(--space-1);
 }
 
 .flag-founded-list {

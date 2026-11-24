@@ -1,6 +1,7 @@
 import {ReactNode, useState} from "react"
 import {Shop} from "../../backends/shop.ts"
-import {RejectionReason, Submission, waits} from "../../domain/flagSubmissions.ts"
+import type {FlagCatalog} from "../../domain/flags.ts"
+import {RejectionReason, Shown, shownOf, Submission, waits} from "../../domain/flagSubmissions.ts"
 import {payable} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
@@ -10,6 +11,8 @@ import Modal from "../components/Modal.tsx"
 import {FlagIcon} from "../components/icons.tsx"
 import PlanPicker from "../shop/PlanPicker.tsx"
 import {useShop} from "../shop/shopStore.ts"
+import FlagNote from "./FlagNote.tsx"
+import {useFlags} from "./flagsStore.ts"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import FoundedFlags from "./FoundedFlags.tsx"
 import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
@@ -31,17 +34,27 @@ const REASONS: Record<RejectionReason, Key> = {
     "other": "flagSubmission.rejected.other",
 }
 
-function lineOf(submission: Submission, selling: boolean): ReactNode {
-    switch (submission.state) {
+function dateOf(ms: number): string {
+    return translator().dateTime(ms, {dateStyle: "medium"})
+}
+
+function lineOf(shown: Shown, catalog: FlagCatalog, selling: boolean): ReactNode {
+    const flag = <strong>{shown.name}</strong>
+    const sold = catalog.soldOf(shown.flag)
+    switch (shown.state) {
         case "waiting":
-            return t("flagSubmission.status.waiting", {date: translator().dateTime(submission.submittedAt, {dateStyle: "medium"})})
+            return t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":
-            if (submission.change) return t("flagSubmission.status.changed")
+            if (shown.change) return t("flagSubmission.status.changed")
             return selling ? t("flagSubmission.status.pay") : t("flagSubmission.status.approved")
         case "rejected":
-            return t(REASONS[submission.rejection?.reason ?? "other"])
+            return t(REASONS[shown.rejection?.reason ?? "other"])
         case "opened":
-            return rich("flagSubmission.status.opened", {flag: <strong>{submission.name}</strong>})
+            return sold === undefined
+                ? rich("flagSubmission.status.opened", {flag})
+                : rich("flagSubmission.status.openUntil", {flag, date: dateOf(sold.endsAt)})
+        case "closed":
+            return sold?.closedAt === undefined ? undefined : rich("flagSubmission.status.closed", {flag, date: dateOf(sold.closedAt)})
     }
 }
 
@@ -53,9 +66,11 @@ function againOf({name, pin, change, flag}: Submission): Draft {
 export default function FlagSubmissionStatus({submissions, shop, toCheckout}: FlagSubmissionStatusProps) {
     const compose = useFlagForm((form) => form.compose)
     const close = useFlagForm((form) => form.close)
+    const catalog = useFlags((store) => store.catalog)
     const plans = useShop((store) => store.plans)
     const [addingTo, setAddingTo] = useState<string>()
     const [latest] = submissions
+    const shown = shownOf(latest, catalog)
     const waiting = waits(submissions)
     const selling = plans.length > 0
     const offered = selling && payable(latest)
@@ -93,15 +108,17 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
                         : latest.state === "opened" ? <CountryFlag code={latest.flag}/> : <FlagIcon size={22}/>}
                 </span>
                 <span className="flag-status-name">{latest.name}</span>
-                <SubmissionStateChip state={latest.state}/>
+                <SubmissionStateChip state={shown.state}/>
             </div>
-            <p className="flag-status-line" role="status">{lineOf(latest, selling)}</p>
-            {latest.state === "rejected" && latest.rejection?.note && <blockquote className="support-quoted flag-status-note">
-                <span className="support-quoted-text">{latest.rejection.note}</span>
-            </blockquote>}
+            <p className="flag-status-line" role="status">{lineOf(shown, catalog, selling)}</p>
+            {latest.state === "rejected" && latest.rejection?.note && <FlagNote text={latest.rejection.note}/>}
+            {shown.state === "closed" && latest.closeNote && <FlagNote text={latest.closeNote}/>}
             {offered && <PlanPicker shop={shop} plans={plans} target={{kind: "submission", id: latest.id}} toCheckout={toCheckout}/>}
 
-            <FoundedFlags submissions={submissions} shop={shop} onAddTime={setAddingTo}/>
+            <FoundedFlags submissions={submissions}
+                          shop={shop}
+                          noteShownFor={shown.state === "closed" ? shown.flag : undefined}
+                          onAddTime={setAddingTo}/>
         </div>
     </Modal>
 }

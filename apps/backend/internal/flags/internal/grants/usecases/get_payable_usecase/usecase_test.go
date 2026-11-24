@@ -65,7 +65,7 @@ func TestNobodyPaysForASubmissionThatWaits(t *testing.T) {
 }
 
 func TestTheFounderPaysForItsFlagWhileItMayComeBack(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-40*24*time.Hour)).Closed(now.Add(-29 * 24 * time.Hour))
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-40*24*time.Hour)).Closed("Broke the rules.", now.Add(-29*24*time.Hour))
 	require.NoError(t, err)
 	useCase := seeded(t, submissions.Opened, closed)
 
@@ -76,7 +76,7 @@ func TestTheFounderPaysForItsFlagWhileItMayComeBack(t *testing.T) {
 }
 
 func TestNobodyPaysForAFlagClosedThirtyDaysAgo(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-90*24*time.Hour)).Closed(now.Add(-30 * 24 * time.Hour))
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-90*24*time.Hour)).Closed("Broke the rules.", now.Add(-30*24*time.Hour))
 	require.NoError(t, err)
 	useCase := seeded(t, submissions.Opened, closed)
 
