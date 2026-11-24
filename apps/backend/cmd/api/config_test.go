@@ -390,6 +390,17 @@ func TestTheExampleConfigKeepsTheShopOff(t *testing.T) {
 	require.NoError(t, config.Shop.Validate())
 }
 
+func TestTheProductionShopSellsTheThreePlans(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.True(t, config.Shop.Sells())
+	assert.Equal(t, "https://clickplanet.lol/play", config.Shop.Stripe.ReturnURL)
+	assert.Equal(t, uint32(400), config.Shop.Stripe.Plans.Week.Amount)
+	assert.Equal(t, uint32(1000), config.Shop.Stripe.Plans.Month.Amount)
+	assert.Equal(t, uint32(6000), config.Shop.Stripe.Plans.Year.Amount)
+	require.NoError(t, config.Shop.Validate())
+}
+
 func TestTheShopModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "shop.database")
 }
@@ -502,6 +513,8 @@ func productionConfig(t *testing.T) Config {
 	t.Setenv("SESSION_SECRET", seed)
 	t.Setenv("MEDIA_BUCKET_SECRET", "the-bucket-secret")
 	t.Setenv("MAILROOM_SECRET", "the-mailroom-secret-of-at-least-32-characters")
+	t.Setenv("STRIPE_SECRET_KEY", "rk_live_the-shop")
+	t.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_the-endpoint")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
@@ -657,6 +670,8 @@ func TestTheProductionConfigConnectsClaudeOnTheAPIsDomain(t *testing.T) {
 	}
 	t.Setenv("SESSION_SECRET", seed)
 	t.Setenv("MAILROOM_SECRET", "the-mailroom-secret-of-at-least-32-characters")
+	t.Setenv("STRIPE_SECRET_KEY", "rk_live_the-shop")
+	t.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_the-endpoint")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
