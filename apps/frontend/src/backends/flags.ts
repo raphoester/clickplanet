@@ -21,11 +21,10 @@ export interface FlagStream {
 
 export type SubmittedFlag = {
     name: string
-    // None for a change of name alone.
     uploadId: string
     pin: Pin
-    // A flag the account founded, for its new name or picture.
-    flag?: string
+    // The account's submission that waits, which this one replaces.
+    replaces?: string
 }
 
 export interface FlagSubmitter {
@@ -36,7 +35,7 @@ export interface FlagSubmitter {
     mySubmissions(): Promise<Submission[]>
 }
 
-export type SubmissionRefusal = "no-session" | "guest" | "not-yours" | "waiting" | "invalid" | "off" | "too-many"
+export type SubmissionRefusal = "no-session" | "guest" | "decided" | "waiting" | "invalid" | "off" | "too-many"
 
 // One class and not one per reason: each is said the same way, as one line under the form.
 export class SubmissionRefusedError extends Error {

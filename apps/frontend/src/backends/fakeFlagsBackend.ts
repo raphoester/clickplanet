@@ -68,16 +68,6 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         return {code}
     }
 
-    // A change approved: the flag's new name, and its new picture when one came.
-    public change(code: string, name: string, picture?: FlagPicture): boolean {
-        const flag = this.sold.find((sold) => sold.code === code)
-        if (flag?.sold === undefined) return false
-        flag.name = name
-        if (picture) flag.sold = {...flag.sold, picture}
-        this.tell(flag)
-        return true
-    }
-
     // As the stream would open again after a drop: the page reads what changed while it was closed.
     public reopen(): void {
         this.listeners.forEach(({onOpened}) => onOpened())

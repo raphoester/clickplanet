@@ -9,8 +9,8 @@ export type Draft = {
     name: string
     file?: File
     pinned?: PinnedPlace
-    // A flag the account founded: the draft is its new name or picture.
-    flag?: string
+    // The account's submission that waits: the draft takes its place.
+    replaces?: string
 }
 
 const EMPTY: Draft = {name: ""}

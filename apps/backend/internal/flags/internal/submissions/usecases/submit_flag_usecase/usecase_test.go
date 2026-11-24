@@ -1,6 +1,8 @@
 package submit_flag_usecase_test
 
 import (
+	"maps"
+	"slices"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/submit_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -23,14 +26,23 @@ var (
 type fixture struct {
 	store   *submissions.MemoryStore
 	bucket  *pictures.MemoryBucket
+	gallery pictures.Gallery
 	useCase *submit_flag_usecase.UseCase
 }
 
 func newFixture() fixture {
 	store, bucket := submissions.NewMemoryStore(), pictures.NewMemoryBucket()
 	bucket.Upload(upload, pictures.TestPNG(300, 200))
-	return fixture{store: store, bucket: bucket, useCase: submit_flag_usecase.New(&submissions.Sequence{},
-		cptime.NewFixedClock(now), pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20}), store)}
+	gallery := pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20})
+	return fixture{store: store, bucket: bucket, gallery: gallery, useCase: submit_flag_usecase.New(
+		&submissions.Sequence{}, cptime.NewFixedClock(now), gallery, cpatomic.FakeTransactioner{}, store)}
+}
+
+// waiting is the account's submission that waits, its picture held.
+func (f fixture) waiting(t *testing.T, id submissions.SubmissionID) {
+	t.Helper()
+	f.store.Seed(submissions.TestWaiting(id, ada, now.Add(-time.Hour)))
+	require.NoError(t, f.gallery.Hold(t.Context(), id.PictureKey(), submissions.TestDrawn))
 }
 
 func rennes() submit_flag_usecase.In {
@@ -72,13 +84,43 @@ func TestAGuestSubmitsNothingAndItsUploadIsNotRead(t *testing.T) {
 
 func TestASecondSubmissionWaitsForTheFirstsReview(t *testing.T) {
 	f := newFixture()
-	f.store.Seed(submissions.TestWaiting(submissions.SubmissionID{15: 9}, ada, now.Add(-time.Hour)))
+	f.waiting(t, submissions.SubmissionID{15: 9})
 
 	_, err := f.useCase.Execute(t.Context(), rennes())
 
 	require.ErrorIs(t, err, submissions.ErrWaiting)
-	assert.Empty(t, f.bucket.HeldPictures())
+	assert.Equal(t, []string{submissions.SubmissionID{15: 9}.PictureKey()}, slices.Collect(maps.Keys(f.bucket.HeldPictures())))
 	assert.Len(t, f.store.Kept(), 1)
+}
+
+func TestASubmissionReplacesTheOneThatWaitsWhosePictureGoes(t *testing.T) {
+	f := newFixture()
+	old := submissions.SubmissionID{15: 9}
+	f.waiting(t, old)
+	in := rennes()
+	in.Name, in.Replaces = "Breizh", old.String()
+
+	submitted, err := f.useCase.Execute(t.Context(), in)
+	require.NoError(t, err)
+
+	assert.Equal(t, catalog.Name("Breizh"), submitted.Name)
+	assert.Equal(t, []submissions.Snapshot{submitted}, f.store.Kept(), "the old one is deleted, never reviewed")
+	assert.Equal(t, []string{submitted.ID.PictureKey()}, slices.Collect(maps.Keys(f.bucket.HeldPictures())))
+}
+
+func TestADecidedSubmissionIsNeverReplaced(t *testing.T) {
+	f := newFixture()
+	approved := submissions.TestWaiting(submissions.SubmissionID{15: 9}, ada, now.Add(-time.Hour))
+	approved.State, approved.Held = submissions.Approved, false
+	f.store.Seed(approved)
+	in := rennes()
+	in.Replaces = approved.ID.String()
+
+	_, err := f.useCase.Execute(t.Context(), in)
+
+	require.ErrorIs(t, err, submissions.ErrNotWaiting)
+	assert.Equal(t, []submissions.Snapshot{approved}, f.store.Kept())
+	assert.Empty(t, f.bucket.HeldPictures())
 }
 
 func TestAPictureNoFlagCanWearIsRefused(t *testing.T) {

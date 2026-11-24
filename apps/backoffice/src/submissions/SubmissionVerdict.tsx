@@ -10,15 +10,13 @@ import {reasonLabel, REASONS} from "./submissions.ts"
 type Props = {
     flags: FlagsAdmin
     submission: KeptSubmission
-    // What the flag a change is for is named now.
-    changes: string | undefined
     // Where the operator moved the capital; unset keeps the player's.
     moved: Place | undefined
     onDecided: (decided: KeptSubmission, said: string) => void
 }
 
 // One verdict: Approve, or Reject with the reason its player reads. Each asks first.
-export function SubmissionVerdict({flags, submission, changes, moved, onDecided}: Props) {
+export function SubmissionVerdict({flags, submission, moved, onDecided}: Props) {
     const [reason, setReason] = useState<RejectionReason>()
     const [note, setNote] = useState("")
     const {id, name} = submission
@@ -29,11 +27,11 @@ export function SubmissionVerdict({flags, submission, changes, moved, onDecided}
             <h2>Verdict</h2>
             <ConfirmAction
                 label="Approve"
-                question={<ApproveQuestion name={name} changes={changes} moved={moved}/>}
+                question={<ApproveQuestion name={name} moved={moved}/>}
                 run={() => approve(flags, id, moved)}
                 said={() => "Approved."}
                 refusal={approveRefusalOf}
-                onDone={decided => onDecided(decided, saidOf(changes, decided, moved))}
+                onDone={decided => onDecided(decided, saidOf(moved))}
             />
             <div className="reject">
                 <label className="field">
@@ -74,17 +72,11 @@ export function SubmissionVerdict({flags, submission, changes, moved, onDecided}
     )
 }
 
-function ApproveQuestion({name, changes, moved}: {name: string, changes: string | undefined, moved: Place | undefined}) {
+function ApproveQuestion({name, moved}: {name: string, moved: Place | undefined}) {
     const at = moved === undefined ? "" : `, its capital moved to ${placeWords(moved)}`
-    if (changes === undefined) {
-        return <p>Approve <strong>{name}</strong>{at}? Its picture becomes public, and the flag waits to be opened.</p>
-    }
-    return moved === undefined
-        ? <p>Approve the new name, picture and capital of <strong>{changes}</strong>? Every player sees them at once.</p>
-        : <p>Approve the new name and picture of <strong>{changes}</strong>{at}? Every player sees them at once.</p>
+    return <p>Approve <strong>{name}</strong>{at}? Its picture becomes public, and the flag waits to be opened.</p>
 }
 
-function saidOf(changes: string | undefined, decided: KeptSubmission, moved: Place | undefined): string {
-    const said = changes === undefined ? "Approved." : `Approved: ${changes} is ${decided.name} now.`
-    return moved === undefined ? said : `${said} Its capital is at ${placeWords(moved)}.`
+function saidOf(moved: Place | undefined): string {
+    return moved === undefined ? "Approved." : `Approved. Its capital is at ${placeWords(moved)}.`
 }

@@ -6,16 +6,14 @@ type Props = {
     picture: Picture | undefined
     // What the picture is of, for a screen reader.
     name: string
-    caption?: string
 }
 
 // A flag's picture as the server drew it, at its own size up to the page's width, then as the tiles show it.
-export function FlagFigure({picture, name, caption}: Props) {
+export function FlagFigure({picture, name}: Props) {
     const [broken, setBroken] = useState(false)
 
     return (
         <figure className="submission-figure">
-            {caption !== undefined && <figcaption className="muted">{caption}</figcaption>}
             {picture === undefined && <p className="muted">The picture was deleted.</p>}
             {picture !== undefined && broken && <p className="action-refused">The picture did not load: its link may have run out. Reload the list.</p>}
             {picture !== undefined && !broken && (

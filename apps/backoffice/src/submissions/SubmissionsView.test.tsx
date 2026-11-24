@@ -82,10 +82,9 @@ describe("the submissions inbox", () => {
         expect(screen.getByRole("button", {name: "All (6)"})).toBeTruthy()
         const rows = list().getAllByRole("listitem")
         expect(rows.map(row => row.querySelector(".name")?.textContent)).toEqual(["Catalonia", "Lake Garda", "Free State of Bavaria"])
-        expect(rows[0].textContent).toContain("New flag · by BraveFox42")
+        expect(rows[0].textContent).toContain("by BraveFox42")
         expect(rows[1].textContent).toContain("Many colours")
         expect(rows[1].textContent).toContain("by account…")
-        expect(rows[2].textContent).toContain("Change of Bavaria")
         expect(admin.askedFor("listSubmissions")).toHaveLength(1)
         expect(admin.askedFor("listFlags")).toHaveLength(1)
         expect(admin.askedFor("getPlayers")).toEqual([{accountIds: [ACCOUNT, "account-gone"]}])
@@ -308,27 +307,6 @@ describe("the submissions inbox", () => {
         await waitFor(() => expect(panel.getAllByText("The server refused it: refused")).toHaveLength(2))
         expect(opened()).toBe("sub-catalonia")
         expect(screen.queryByRole("status")).toBeNull()
-    })
-
-    it("shows a change beside the flag it changes, and approves it onto that flag", async () => {
-        const admin = new FakeAdmin()
-        render(<Inbox admin={admin} first="sub-bavaria"/>)
-
-        const open = await detail()
-        expect(open.getByText("Change of Bavaria")).toBeTruthy()
-        expect(open.getByText("Now: Bavaria")).toBeTruthy()
-        expect(open.getByText("Asked: Free State of Bavaria")).toBeTruthy()
-        expect(open.getByRole("img", {name: "The flag of Bavaria"}).getAttribute("src")).toBe("https://media.test/flags/pictures/r-k3p9x2ma0b.png")
-        expect(open.getByRole("img", {name: "The flag of Free State of Bavaria"})).toBeTruthy()
-
-        const panel = await verdict()
-        fireEvent.click(panel.getByRole("button", {name: "Approve"}))
-        expect(panel.getByRole("group", {name: "Approve"}).textContent)
-            .toContain("Approve the new name, picture and capital of Bavaria? Every player sees them at once.")
-        fireEvent.click(panel.getByRole("button", {name: "Yes, approve"}))
-
-        expect((await screen.findByRole("status")).textContent).toBe("Free State of Bavaria: Approved: Bavaria is Free State of Bavaria now.")
-        expect(admin.flags.listed.find(flag => flag.code === "r-k3p9x2ma0b")?.name).toBe("Free State of Bavaria")
     })
 
     it("says what the server answered when another flag took the name", async () => {

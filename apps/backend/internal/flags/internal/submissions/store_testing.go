@@ -94,6 +94,16 @@ func (m *MemoryStore) Save(_ context.Context, submissions ...Submission) error {
 	return nil
 }
 
+func (m *MemoryStore) DeleteWaiting(_ context.Context, id SubmissionID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.rows[id].State != Waiting {
+		return fmt.Errorf("%w: %s", ErrNotWaiting, id)
+	}
+	delete(m.rows, id)
+	return nil
+}
+
 // Sequence draws 00000000-0000-0000-0000-000000000001, then 2, and so on.
 type Sequence struct {
 	mu   sync.Mutex

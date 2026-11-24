@@ -14,10 +14,10 @@ export type SubmissionNewsProps = {
     onDone: () => void
 }
 
-function lineOf({state, change}: Decided): Key {
+function lineOf({state}: Decided): Key {
     switch (state) {
         case "approved":
-            return change ? "news.submission.changed" : "news.submission.approved"
+            return "news.submission.approved"
         case "rejected":
             return "news.submission.rejected"
         case "opened":

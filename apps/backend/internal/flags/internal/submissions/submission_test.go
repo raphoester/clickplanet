@@ -7,10 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -27,18 +24,9 @@ var (
 
 func submitted(t *testing.T, draft submissions.Draft, earlier ...submissions.Submission) submissions.Submission {
 	t.Helper()
-	submission, err := submissions.Submit(second, ada, draft, submissions.TestDrawn, earlier, at)
+	submission, _, err := submissions.Submit(second, ada, draft, submissions.TestDrawn, earlier, at)
 	require.NoError(t, err)
 	return submission
-}
-
-func opened(t *testing.T) submissions.Submission {
-	t.Helper()
-	approved, err := submissions.Restored(submissions.TestWaiting(first, ada, at)).Approved(none, at)
-	require.NoError(t, err)
-	opened, _, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), none, at.Add(time.Hour))
-	require.NoError(t, err)
-	return opened
 }
 
 func TestAGuestFoundsNoFlag(t *testing.T) {
@@ -52,14 +40,14 @@ func TestAGuestFoundsNoFlag(t *testing.T) {
 	assert.Equal(t, ada, account)
 }
 
-func TestADraftIsANameAPinAndForAChangeAFlag(t *testing.T) {
+func TestADraftIsANameAPinAndTheSubmissionItReplaces(t *testing.T) {
 	draft, err := submissions.ParseDraft(" Rennes ", 48.1173, -1.6778, "")
 	require.NoError(t, err)
 	assert.Equal(t, rennes, draft)
 
-	change, err := submissions.ParseDraft("Rennes", 48.1173, -1.6778, "r-0000000001")
+	again, err := submissions.ParseDraft("Rennes", 48.1173, -1.6778, first.String())
 	require.NoError(t, err)
-	assert.Equal(t, catalog.FlagID("r-0000000001"), change.Flag)
+	assert.Equal(t, first, again.Replaces)
 
 	_, err = submissions.ParseDraft("", 0, 0, "")
 	require.ErrorIs(t, err, catalog.ErrInvalidName)
@@ -68,14 +56,14 @@ func TestADraftIsANameAPinAndForAChangeAFlag(t *testing.T) {
 	_, err = submissions.ParseDraft("Rennes", 0, -180.5, "")
 	require.ErrorIs(t, err, catalog.ErrInvalidPin)
 	_, err = submissions.ParseDraft("Rennes", 0, 0, "fr")
-	require.ErrorIs(t, err, catalog.ErrInvalidFlagID, "a flag the game ships with has no founder")
+	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
 }
 
 func TestASubmissionWaitsWithItsPictureHeldInPrivate(t *testing.T) {
 	submission := submitted(t, rennes)
 
 	assert.Equal(t, submissions.Snapshot{
-		ID: second, Account: ada, Kind: submissions.New, Name: "Rennes", Pin: catalog.TestPin,
+		ID: second, Account: ada, Name: "Rennes", Pin: catalog.TestPin,
 		Picture: catalog.TestPicture, OtherColors: 3, Held: true, State: submissions.Waiting, SubmittedAt: at,
 		DecidedAt: at,
 	}, submission.TakeSnapshot())
@@ -84,7 +72,7 @@ func TestASubmissionWaitsWithItsPictureHeldInPrivate(t *testing.T) {
 func TestOneSubmissionOfAnAccountWaitsAtATime(t *testing.T) {
 	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
 
-	_, err := submissions.Submit(second, ada, rennes, submissions.TestDrawn, []submissions.Submission{waiting}, at)
+	_, _, err := submissions.Submit(second, ada, rennes, submissions.TestDrawn, []submissions.Submission{waiting}, at)
 	require.ErrorIs(t, err, submissions.ErrWaiting)
 
 	rejected, err := waiting.Rejected(submissions.Rejection{Reason: submissions.Exists}, at)
@@ -92,18 +80,27 @@ func TestOneSubmissionOfAnAccountWaitsAtATime(t *testing.T) {
 	submitted(t, rennes, rejected)
 }
 
-func TestOnlyTheAccountThatFoundedAFlagSubmitsItsChange(t *testing.T) {
-	change := submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000001"}
+func TestASubmissionReplacesTheOneThatWaitsNeverOneDecided(t *testing.T) {
+	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
+	again := submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Replaces: first}
 
-	_, err := submissions.Submit(second, ada, change, submissions.TestDrawn, nil, at)
-	require.ErrorIs(t, err, submissions.ErrNotFounder)
-	_, err = submissions.Submit(second, ada, submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000002"},
-		submissions.TestDrawn, []submissions.Submission{opened(t)}, at)
-	require.ErrorIs(t, err, submissions.ErrNotFounder, "another flag")
+	submission, replaced, err := submissions.Submit(second, ada, again, submissions.TestDrawn,
+		[]submissions.Submission{waiting}, at)
+	require.NoError(t, err)
+	assert.Equal(t, []submissions.SubmissionID{first}, replaced)
+	assert.Equal(t, submissions.Waiting, submission.TakeSnapshot().State)
+	assert.Equal(t, catalog.Name("Breizh"), submission.TakeSnapshot().Name)
 
-	submission := submitted(t, change, opened(t))
-	assert.Equal(t, submissions.Change, submission.TakeSnapshot().Kind)
-	assert.Equal(t, catalog.FlagID("r-0000000001"), submission.TakeSnapshot().Flag)
+	_, replaced, err = submissions.Submit(second, ada, rennes, submissions.TestDrawn, nil, at)
+	require.NoError(t, err)
+	assert.Empty(t, replaced, "none to replace")
+
+	approved, err := waiting.Approved(none, at)
+	require.NoError(t, err)
+	_, _, err = submissions.Submit(second, ada, again, submissions.TestDrawn, []submissions.Submission{approved}, at)
+	require.ErrorIs(t, err, submissions.ErrNotWaiting, "an approved one never changes")
+	_, _, err = submissions.Submit(second, ada, again, submissions.TestDrawn, nil, at)
+	require.ErrorIs(t, err, submissions.ErrNotWaiting, "another account's, or one gone")
 }
 
 func TestASubmissionIsDecidedOnce(t *testing.T) {
@@ -162,42 +159,16 @@ func TestAnApprovedNewSubmissionOpensItsFlagAtItsPin(t *testing.T) {
 	require.ErrorIs(t, err, submissions.ErrNotApproved, "once")
 }
 
-func TestOnlyAnApprovedNewSubmissionOpensAFlag(t *testing.T) {
+func TestOnlyAnApprovedSubmissionOpensAFlag(t *testing.T) {
 	opening := catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at))
 	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
 	_, _, err := waiting.Open(opening, none, at.Add(time.Hour))
 	require.ErrorIs(t, err, submissions.ErrNotApproved)
 
-	change, err := submitted(t, submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000001"}, opened(t)).
-		Approved(none, at)
-	require.NoError(t, err)
-	_, _, err = change.Open(opening, none, at.Add(time.Hour))
-	require.ErrorIs(t, err, submissions.ErrNotApproved, "a change opens nothing")
-
 	approved, err := waiting.Approved(none, at)
 	require.NoError(t, err)
 	_, _, err = approved.Open(opening, none, at)
 	require.ErrorIs(t, err, catalog.ErrEnded)
-}
-
-func TestAnApprovedChangeRestylesItsFlagAndTellsIt(t *testing.T) {
-	change, err := submitted(t, submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000001"}, opened(t)).
-		Approved(none, at.Add(time.Hour))
-	require.NoError(t, err)
-	flag := catalog.OpenFlag("r-0000000001", "Rennes", at)
-
-	restyled, facts, err := change.Restyle(flag, at.Add(time.Hour))
-	require.NoError(t, err)
-
-	assert.Equal(t, catalog.Name("Breizh"), restyled.TakeSnapshot().Name)
-	assert.Equal(t, flag.TakeSnapshot().DecidedAt, restyled.TakeSnapshot().DecidedAt, "the same flag, open as it was")
-	require.Len(t, facts, 1, "the capital stays where it was")
-	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
-		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(at.Add(time.Hour)),
-	}, facts[0]), "%v", facts[0])
-
-	_, _, err = submissions.Restored(submissions.TestWaiting(first, ada, at)).Restyle(flag, at)
-	require.ErrorIs(t, err, submissions.ErrNotApproved)
 }
 
 func TestARejectedPictureIsDeleted30DaysLater(t *testing.T) {
@@ -221,7 +192,7 @@ func TestASubmissionKeptInAStateItCannotBeInIsRefused(t *testing.T) {
 	for name, edit := range map[string]func(*submissions.Snapshot){
 		"no account":                  func(s *submissions.Snapshot) { s.Account = submissions.AccountID{} },
 		"no state":                    func(s *submissions.Snapshot) { s.State = "lost" },
-		"a change for no flag":        func(s *submissions.Snapshot) { s.Kind = submissions.Change },
+		"a flag before its opening":   func(s *submissions.Snapshot) { s.Flag = "r-0000000001" },
 		"rejected with no reason":     func(s *submissions.Snapshot) { s.State = submissions.Rejected },
 		"a rejection while it waits":  func(s *submissions.Snapshot) { s.Rejection.Reason = submissions.Hateful },
 		"held once approved":          func(s *submissions.Snapshot) { s.State = submissions.Approved },
@@ -247,11 +218,6 @@ func TestTwoFlagsNeverShareAName(t *testing.T) {
 	builtIn.Name = "germany"
 	_, err = submissions.Restored(builtIn).Approved(none, at)
 	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag the game ships with, whatever its case")
-
-	change := submissions.TestWaiting(second, ada, at)
-	change.Kind, change.Flag = submissions.Change, "r-0000000001"
-	_, err = submissions.Restored(change).Approved(taken, at)
-	require.NoError(t, err, "a change keeps its own flag's name")
 
 	approved, err := waiting.Approved(none, at)
 	require.NoError(t, err)

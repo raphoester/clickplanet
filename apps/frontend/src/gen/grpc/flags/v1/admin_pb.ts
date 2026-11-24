@@ -542,14 +542,7 @@ export class KeptSubmission extends Message<KeptSubmission> {
   pin?: Pin;
 
   /**
-   * A new name or picture for a flag already opened, in place of a new flag.
-   *
-   * @generated from field: bool change = 5;
-   */
-  change = false;
-
-  /**
-   * The flag a change is for, or the flag opened from a new one; empty until then.
+   * The flag opened from it; empty until then.
    *
    * @generated from field: string flag = 6;
    */
@@ -607,7 +600,6 @@ export class KeptSubmission extends Message<KeptSubmission> {
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "pin", kind: "message", T: Pin },
-    { no: 5, name: "change", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "state", kind: "enum", T: proto3.getEnumType(SubmissionState) },
     { no: 8, name: "submitted_at", kind: "message", T: Timestamp },
@@ -644,7 +636,7 @@ export class ApproveSubmissionRequest extends Message<ApproveSubmissionRequest> 
   submissionId = "";
 
   /**
-   * The capital where the operator moved it; unset keeps the player's. A change moves its flag's capital too.
+   * The capital where the operator moved it; unset keeps the player's.
    *
    * @generated from field: flags.v1.Pin pin = 2;
    */

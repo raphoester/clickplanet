@@ -968,7 +968,7 @@ const DEMO_SUBMISSIONS: DemoSubmission[] = [
         id: "demo-sub-bavaria", name: "Free State of Bavaria", pin: MUNICH, hoursAgo: 1,
         picture: flagSvgOf(5, 3, `${LOZENGES}<path d="M2.1 .7 h.8 v.8 q0 .6 -.4 .8 q-.4 -.2 -.4 -.8z" fill="#fff" stroke="#0098d4" stroke-width=".06"/>` +
             `<path d="M2.25 .55 l.1 -.2 l.15 .12 l.15 -.12 l.1 .2z" fill="#f5c400"/>`),
-        part: {change: true, flag: BAVARIA, otherColorsPercent: 5},
+        part: {otherColorsPercent: 5},
     },
     {
         id: "demo-sub-sardinia", name: "Sardinia", pin: {latitude: 39.2238, longitude: 9.1217}, hoursAgo: 52, decidedHoursAgo: 30,

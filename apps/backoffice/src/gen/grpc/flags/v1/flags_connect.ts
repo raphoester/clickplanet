@@ -53,11 +53,12 @@ export const FlagService = {
     },
     /**
      * Submits a flag for the operator's review: a place's name, the picture uploaded with CreateSubmissionUpload, and a
-     * pin on the globe. With flag, a new name or picture for a flag the account founded: the flag keeps its own until
-     * the operator approves the change. The picture is drawn again (as AdminService/OpenFlag draws it) and kept private
-     * until its approval. PermissionDenied for a guest, or for a flag another account founded; AlreadyExists while one
-     * of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
-     * flags' pictures are off.
+     * pin on the globe. With replaces, the account's submission that waits: the new one takes its place, and the one it
+     * replaces is deleted with its picture, never reviewed. Once the operator decided a submission, nothing changes it.
+     * The picture is drawn again (as AdminService/OpenFlag draws it) and kept private until its approval.
+     * PermissionDenied for a guest; AlreadyExists while another of the account's submissions waits; FailedPrecondition
+     * for replaces that no longer waits, or while the flags' pictures are off; InvalidArgument for a name, a pin or a
+     * picture.
      *
      * @generated from rpc flags.v1.FlagService.SubmitFlag
      */

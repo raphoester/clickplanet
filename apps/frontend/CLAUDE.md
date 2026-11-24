@@ -126,7 +126,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Flag submissions](docs/flag-submissions.md) — a signed-in player sends its region's flag (a name, a picture, its
   capital: a pin aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
   submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed
-  and since when, with the operator's note to its founder), a change of a flag the account founded, each decision and a close told once on the news line; the
+  and since when, with the operator's note to its founder), a change while it waits and never once decided, each decision and a close told once on the news line; the
   fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.

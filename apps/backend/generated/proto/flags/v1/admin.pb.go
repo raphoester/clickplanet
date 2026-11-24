@@ -625,9 +625,7 @@ type KeptSubmission struct {
 	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Name      string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Pin       *Pin   `protobuf:"bytes,4,opt,name=pin,proto3" json:"pin,omitempty"`
-	// A new name or picture for a flag already opened, in place of a new flag.
-	Change bool `protobuf:"varint,5,opt,name=change,proto3" json:"change,omitempty"`
-	// The flag a change is for, or the flag opened from a new one; empty until then.
+	// The flag opened from it; empty until then.
 	Flag        string                 `protobuf:"bytes,6,opt,name=flag,proto3" json:"flag,omitempty"`
 	State       SubmissionState        `protobuf:"varint,7,opt,name=state,proto3,enum=flags.v1.SubmissionState" json:"state,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
@@ -703,13 +701,6 @@ func (x *KeptSubmission) GetPin() *Pin {
 	return nil
 }
 
-func (x *KeptSubmission) GetChange() bool {
-	if x != nil {
-		return x.Change
-	}
-	return false
-}
-
 func (x *KeptSubmission) GetFlag() string {
 	if x != nil {
 		return x.Flag
@@ -762,7 +753,7 @@ func (x *KeptSubmission) GetOtherColorsPercent() uint32 {
 type ApproveSubmissionRequest struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	SubmissionId string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
-	// The capital where the operator moved it; unset keeps the player's. A change moves its flag's capital too.
+	// The capital where the operator moved it; unset keeps the player's.
 	Pin           *Pin `protobuf:"bytes,2,opt,name=pin,proto3" json:"pin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1086,14 +1077,13 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"\x18\n" +
 	"\x16ListSubmissionsRequest\"U\n" +
 	"\x17ListSubmissionsResponse\x12:\n" +
-	"\vsubmissions\x18\x01 \x03(\v2\x18.flags.v1.KeptSubmissionR\vsubmissions\"\xdd\x03\n" +
+	"\vsubmissions\x18\x01 \x03(\v2\x18.flags.v1.KeptSubmissionR\vsubmissions\"\xd3\x03\n" +
 	"\x0eKeptSubmission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1f\n" +
-	"\x03pin\x18\x04 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x16\n" +
-	"\x06change\x18\x05 \x01(\bR\x06change\x12\x12\n" +
+	"\x03pin\x18\x04 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x12\n" +
 	"\x04flag\x18\x06 \x01(\tR\x04flag\x12/\n" +
 	"\x05state\x18\a \x01(\x0e2\x19.flags.v1.SubmissionStateR\x05state\x12=\n" +
 	"\fsubmitted_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x129\n" +
@@ -1102,7 +1092,7 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\trejection\x18\n" +
 	" \x01(\v2\x13.flags.v1.RejectionR\trejection\x12+\n" +
 	"\apicture\x18\v \x01(\v2\x11.flags.v1.PictureR\apicture\x120\n" +
-	"\x14other_colors_percent\x18\f \x01(\rR\x12otherColorsPercent\"`\n" +
+	"\x14other_colors_percent\x18\f \x01(\rR\x12otherColorsPercentJ\x04\b\x05\x10\x06R\x06change\"`\n" +
 	"\x18ApproveSubmissionRequest\x12#\n" +
 	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12\x1f\n" +
 	"\x03pin\x18\x02 \x01(\v2\r.flags.v1.PinR\x03pin\"U\n" +
