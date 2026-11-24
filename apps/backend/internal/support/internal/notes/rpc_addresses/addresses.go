@@ -2,7 +2,6 @@ package rpc_addresses
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -46,20 +45,4 @@ func (a *Addresses) Address(ctx context.Context, account notes.AccountID) (cpmai
 		return "", fmt.Errorf("%w: the account's: %w", notes.ErrNoReplyAddress, err)
 	}
 	return address, nil
-}
-
-// Each account's address, the accounts that hold none left out.
-func (a *Addresses) Addresses(ctx context.Context, accounts []notes.AccountID) (map[notes.AccountID]cpmail.Address, error) {
-	held := make(map[notes.AccountID]cpmail.Address, len(accounts))
-	for _, account := range accounts {
-		address, err := a.Address(ctx, account)
-		if errors.Is(err, notes.ErrNoReplyAddress) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		held[account] = address
-	}
-	return held, nil
 }
