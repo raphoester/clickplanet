@@ -2,7 +2,7 @@ import * as THREE from "three"
 import {type FootprintFrame, Footprints, NO_FOOTPRINT, unitPositions} from "../../domain/footprints.ts"
 import {joinSpans, spansOf} from "../../domain/spans.ts"
 import {aspectOf, flagCodeOf, SPRITE_WIDTH} from "./atlas.ts"
-import {MAX_FLAG_RADIUS} from "./borderField.ts"
+import {detailOf, MAX_FLAG_RADIUS} from "./borderField.ts"
 import type {Divisions} from "./pointSize.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
 import {addNeed, type FlagNeed} from "./slotRanking.ts"
@@ -109,6 +109,7 @@ export class FootprintField {
                 area: area * footprints.countOf(id) / size,
                 aspect,
                 spriteWidth: SPRITE_WIDTH,
+                detail: detailOf(code),
             })
         })
         return needs
