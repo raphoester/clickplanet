@@ -1128,113 +1128,6 @@ func (x *CloseNoteResponse) GetClosedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type BackfillReplyAddressesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DryRun        bool                   `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BackfillReplyAddressesRequest) Reset() {
-	*x = BackfillReplyAddressesRequest{}
-	mi := &file_support_v1_admin_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BackfillReplyAddressesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BackfillReplyAddressesRequest) ProtoMessage() {}
-
-func (x *BackfillReplyAddressesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BackfillReplyAddressesRequest.ProtoReflect.Descriptor instead.
-func (*BackfillReplyAddressesRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *BackfillReplyAddressesRequest) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-type BackfillReplyAddressesResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Notes given their account's address.
-	Filled uint32 `protobuf:"varint,1,opt,name=filled,proto3" json:"filled,omitempty"`
-	// Notes left with none: their sender is a guest.
-	Guests uint32 `protobuf:"varint,2,opt,name=guests,proto3" json:"guests,omitempty"`
-	// Notes left with none: their sender signed in and holds no verified address.
-	NoAddress     uint32 `protobuf:"varint,3,opt,name=no_address,json=noAddress,proto3" json:"no_address,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BackfillReplyAddressesResponse) Reset() {
-	*x = BackfillReplyAddressesResponse{}
-	mi := &file_support_v1_admin_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BackfillReplyAddressesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BackfillReplyAddressesResponse) ProtoMessage() {}
-
-func (x *BackfillReplyAddressesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_admin_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BackfillReplyAddressesResponse.ProtoReflect.Descriptor instead.
-func (*BackfillReplyAddressesResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_admin_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *BackfillReplyAddressesResponse) GetFilled() uint32 {
-	if x != nil {
-		return x.Filled
-	}
-	return 0
-}
-
-func (x *BackfillReplyAddressesResponse) GetGuests() uint32 {
-	if x != nil {
-		return x.Guests
-	}
-	return 0
-}
-
-func (x *BackfillReplyAddressesResponse) GetNoAddress() uint32 {
-	if x != nil {
-		return x.NoAddress
-	}
-	return 0
-}
-
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
@@ -1318,14 +1211,7 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x10CloseNoteRequest\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\"L\n" +
 	"\x11CloseNoteResponse\x127\n" +
-	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"8\n" +
-	"\x1dBackfillReplyAddressesRequest\x12\x17\n" +
-	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"o\n" +
-	"\x1eBackfillReplyAddressesResponse\x12\x16\n" +
-	"\x06filled\x18\x01 \x01(\rR\x06filled\x12\x16\n" +
-	"\x06guests\x18\x02 \x01(\rR\x06guests\x12\x1d\n" +
-	"\n" +
-	"no_address\x18\x03 \x01(\rR\tnoAddress*R\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
@@ -1333,13 +1219,12 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\rReportOutcome\x12\x1e\n" +
 	"\x1aREPORT_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14REPORT_OUTCOME_ACTED\x10\x01\x12\x1c\n" +
-	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x8d\x04\n" +
+	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x9c\x03\n" +
 	"\fAdminService\x12M\n" +
 	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\"\x03\x90\x02\x01\x12K\n" +
 	"\n" +
 	"AnswerNote\x12\x1d.support.v1.AnswerNoteRequest\x1a\x1e.support.v1.AnswerNoteResponse\x12H\n" +
-	"\tCloseNote\x12\x1c.support.v1.CloseNoteRequest\x1a\x1d.support.v1.CloseNoteResponse\x12o\n" +
-	"\x16BackfillReplyAddresses\x12).support.v1.BackfillReplyAddressesRequest\x1a*.support.v1.BackfillReplyAddressesResponse\x12S\n" +
+	"\tCloseNote\x12\x1c.support.v1.CloseNoteRequest\x1a\x1d.support.v1.CloseNoteResponse\x12S\n" +
 	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\"\x03\x90\x02\x01\x12Q\n" +
 	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
@@ -1360,70 +1245,66 @@ func file_support_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_support_v1_admin_proto_goTypes = []any{
-	(NoteKind)(0),                          // 0: support.v1.NoteKind
-	(ReportOutcome)(0),                     // 1: support.v1.ReportOutcome
-	(*ListNotesRequest)(nil),               // 2: support.v1.ListNotesRequest
-	(*ListNotesResponse)(nil),              // 3: support.v1.ListNotesResponse
-	(*Note)(nil),                           // 4: support.v1.Note
-	(*NoteAnswer)(nil),                     // 5: support.v1.NoteAnswer
-	(*NoteReply)(nil),                      // 6: support.v1.NoteReply
-	(*NoteAttachment)(nil),                 // 7: support.v1.NoteAttachment
-	(*ListReportsRequest)(nil),             // 8: support.v1.ListReportsRequest
-	(*ListReportsResponse)(nil),            // 9: support.v1.ListReportsResponse
-	(*Report)(nil),                         // 10: support.v1.Report
-	(*ReportDecision)(nil),                 // 11: support.v1.ReportDecision
-	(*DecideReportRequest)(nil),            // 12: support.v1.DecideReportRequest
-	(*DecideReportResponse)(nil),           // 13: support.v1.DecideReportResponse
-	(*AnswerNoteRequest)(nil),              // 14: support.v1.AnswerNoteRequest
-	(*AnswerNoteResponse)(nil),             // 15: support.v1.AnswerNoteResponse
-	(*CloseNoteRequest)(nil),               // 16: support.v1.CloseNoteRequest
-	(*CloseNoteResponse)(nil),              // 17: support.v1.CloseNoteResponse
-	(*BackfillReplyAddressesRequest)(nil),  // 18: support.v1.BackfillReplyAddressesRequest
-	(*BackfillReplyAddressesResponse)(nil), // 19: support.v1.BackfillReplyAddressesResponse
-	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
-	(*PageContext)(nil),                    // 21: support.v1.PageContext
-	(ReportReason)(0),                      // 22: support.v1.ReportReason
+	(NoteKind)(0),                 // 0: support.v1.NoteKind
+	(ReportOutcome)(0),            // 1: support.v1.ReportOutcome
+	(*ListNotesRequest)(nil),      // 2: support.v1.ListNotesRequest
+	(*ListNotesResponse)(nil),     // 3: support.v1.ListNotesResponse
+	(*Note)(nil),                  // 4: support.v1.Note
+	(*NoteAnswer)(nil),            // 5: support.v1.NoteAnswer
+	(*NoteReply)(nil),             // 6: support.v1.NoteReply
+	(*NoteAttachment)(nil),        // 7: support.v1.NoteAttachment
+	(*ListReportsRequest)(nil),    // 8: support.v1.ListReportsRequest
+	(*ListReportsResponse)(nil),   // 9: support.v1.ListReportsResponse
+	(*Report)(nil),                // 10: support.v1.Report
+	(*ReportDecision)(nil),        // 11: support.v1.ReportDecision
+	(*DecideReportRequest)(nil),   // 12: support.v1.DecideReportRequest
+	(*DecideReportResponse)(nil),  // 13: support.v1.DecideReportResponse
+	(*AnswerNoteRequest)(nil),     // 14: support.v1.AnswerNoteRequest
+	(*AnswerNoteResponse)(nil),    // 15: support.v1.AnswerNoteResponse
+	(*CloseNoteRequest)(nil),      // 16: support.v1.CloseNoteRequest
+	(*CloseNoteResponse)(nil),     // 17: support.v1.CloseNoteResponse
+	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
+	(*PageContext)(nil),           // 19: support.v1.PageContext
+	(ReportReason)(0),             // 20: support.v1.ReportReason
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
-	20, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
+	18, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
 	0,  // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
 	4,  // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0,  // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	20, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	21, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
+	18, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	19, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
 	7,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
 	5,  // 7: support.v1.Note.answers:type_name -> support.v1.NoteAnswer
 	6,  // 8: support.v1.Note.replies:type_name -> support.v1.NoteReply
-	20, // 9: support.v1.Note.closed_at:type_name -> google.protobuf.Timestamp
-	20, // 10: support.v1.NoteAnswer.sent_at:type_name -> google.protobuf.Timestamp
-	20, // 11: support.v1.NoteReply.received_at:type_name -> google.protobuf.Timestamp
-	20, // 12: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
+	18, // 9: support.v1.Note.closed_at:type_name -> google.protobuf.Timestamp
+	18, // 10: support.v1.NoteAnswer.sent_at:type_name -> google.protobuf.Timestamp
+	18, // 11: support.v1.NoteReply.received_at:type_name -> google.protobuf.Timestamp
+	18, // 12: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
 	10, // 13: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
-	22, // 14: support.v1.Report.reason:type_name -> support.v1.ReportReason
-	20, // 15: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
+	20, // 14: support.v1.Report.reason:type_name -> support.v1.ReportReason
+	18, // 15: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
 	11, // 16: support.v1.Report.decision:type_name -> support.v1.ReportDecision
 	1,  // 17: support.v1.ReportDecision.outcome:type_name -> support.v1.ReportOutcome
-	20, // 18: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
+	18, // 18: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
 	1,  // 19: support.v1.DecideReportRequest.outcome:type_name -> support.v1.ReportOutcome
-	20, // 20: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
-	20, // 21: support.v1.AnswerNoteResponse.sent_at:type_name -> google.protobuf.Timestamp
-	20, // 22: support.v1.CloseNoteResponse.closed_at:type_name -> google.protobuf.Timestamp
+	18, // 20: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
+	18, // 21: support.v1.AnswerNoteResponse.sent_at:type_name -> google.protobuf.Timestamp
+	18, // 22: support.v1.CloseNoteResponse.closed_at:type_name -> google.protobuf.Timestamp
 	2,  // 23: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
 	14, // 24: support.v1.AdminService.AnswerNote:input_type -> support.v1.AnswerNoteRequest
 	16, // 25: support.v1.AdminService.CloseNote:input_type -> support.v1.CloseNoteRequest
-	18, // 26: support.v1.AdminService.BackfillReplyAddresses:input_type -> support.v1.BackfillReplyAddressesRequest
-	8,  // 27: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
-	12, // 28: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
-	3,  // 29: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	15, // 30: support.v1.AdminService.AnswerNote:output_type -> support.v1.AnswerNoteResponse
-	17, // 31: support.v1.AdminService.CloseNote:output_type -> support.v1.CloseNoteResponse
-	19, // 32: support.v1.AdminService.BackfillReplyAddresses:output_type -> support.v1.BackfillReplyAddressesResponse
-	9,  // 33: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
-	13, // 34: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
-	29, // [29:35] is the sub-list for method output_type
-	23, // [23:29] is the sub-list for method input_type
+	8,  // 26: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
+	12, // 27: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
+	3,  // 28: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	15, // 29: support.v1.AdminService.AnswerNote:output_type -> support.v1.AnswerNoteResponse
+	17, // 30: support.v1.AdminService.CloseNote:output_type -> support.v1.CloseNoteResponse
+	9,  // 31: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
+	13, // 32: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
+	28, // [28:33] is the sub-list for method output_type
+	23, // [23:28] is the sub-list for method input_type
 	23, // [23:23] is the sub-list for extension type_name
 	23, // [23:23] is the sub-list for extension extendee
 	0,  // [0:23] is the sub-list for field type_name
@@ -1441,7 +1322,7 @@ func file_support_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_admin_proto_rawDesc), len(file_support_v1_admin_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

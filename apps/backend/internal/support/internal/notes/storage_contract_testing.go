@@ -303,21 +303,6 @@ func (s *StorageContractSuite) TestTheNotesWithASenderBeforeATimeComeOldestFirst
 	s.Equal([]Snapshot{older}, s.snapshots(s.storage.WithSenderBefore(s.T().Context(), contractStart.Add(time.Hour), 1)))
 }
 
-func (s *StorageContractSuite) TestTheUnaddressedNotesAreTheOnesWithASenderAndNoAddressOldestFirst() {
-	later := s.suggestion("later", contractBob, contractStart.Add(time.Minute))
-	later.ReplyAddress = ""
-	s.Require().NoError(s.save(later))
-	earlier := s.suggestion("earlier", contractAda, contractStart)
-	earlier.ReplyAddress = ""
-	s.Require().NoError(s.save(earlier))
-	s.saved("addressed", contractAda, contractStart.Add(2*time.Minute))
-	anonymized := s.suggestion("anonymized", contractAda, contractStart.Add(3*time.Minute))
-	anonymized.ReplyAddress = ""
-	s.anonymized(anonymized)
-
-	s.Equal([]Snapshot{earlier, later}, s.snapshots(s.storage.Unaddressed(s.T().Context())))
-}
-
 func (s *StorageContractSuite) TestANoteWithNoSenderIsNotAmongTheNotesWithOne() {
 	s.anonymized(s.saved("oldest", contractAda, contractStart.Add(-2*time.Hour)))
 	old := s.saved("old", contractBob, contractStart)
