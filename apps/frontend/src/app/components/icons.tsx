@@ -271,3 +271,25 @@ export function SwordsIcon({size = 18}: IconProps) {
         <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
     </svg>
 }
+
+export function FlagIcon({size = 18}: IconProps) {
+    return <svg {...base(size)}>
+        <path d="M5 21V4"/>
+        <path d="M5 4h11l-2.5 4.5L16 13H5"/>
+    </svg>
+}
+
+export function PinIcon({size = 18}: IconProps) {
+    return <svg {...base(size)}>
+        <path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/>
+        <circle cx="12" cy="10" r="2.3"/>
+    </svg>
+}
+
+export function PictureIcon({size = 18}: IconProps) {
+    return <svg {...base(size)}>
+        <rect x="3.5" y="5" width="17" height="14" rx="2"/>
+        <path d="m3.5 16 5-5 4 4 2.5-2.5 5.5 5.5"/>
+        <circle cx="15.5" cy="9.5" r="1.3"/>
+    </svg>
+}

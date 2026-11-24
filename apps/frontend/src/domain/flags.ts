@@ -3,8 +3,12 @@ import {Countries} from "./countries.ts"
 // At most 768 x 512, between square and 2 wide by 1 high; stretch and focus are what flagFit.json says of a built flag.
 export type FlagPicture = {url: string, width: number, height: number, stretch: boolean, focusX: number, focusY: number}
 
-// A flag opened since the build: its picture, and when its time runs out, in milliseconds since the epoch.
-export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number}
+// A point on the globe, in degrees: never a tile, since each board numbers its tiles its own way.
+export type Pin = {latitude: number, longitude: number}
+
+// A flag opened since the build: its picture, when its time runs out, in milliseconds since the epoch, and where it
+// starts in Capital Siege.
+export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number, pin?: Pin}
 
 export type ListedFlag = {code: string, name: string, closed: boolean, sold?: SoldFlag}
 

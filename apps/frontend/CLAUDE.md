@@ -122,6 +122,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   does not know, never a loop; a sold flag's picture drawn under the built atlas in the globe's texture, in the far
   view's slots, and as its URL in the picker, the chat, the share card and the clips; a held flag closed and its window;
   a code it does not know: its code as its name, a grey flag; the fake's `openFlag`, `addTime`, `closeFlag`.
+- [Flag submissions](docs/flag-submissions.md) — a signed-in player sends its region's flag (a name, a picture, a pin
+  aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
+  submission's status in the same place, a change of a flag the account founded, each decision told once on the news
+  line; the fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

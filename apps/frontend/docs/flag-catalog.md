@@ -9,7 +9,9 @@ is `r-` and ten letters or digits (`isOpenedCode`).
 **A flag opened since the build is sold** (step 2 of the regional flags, 2026-11-23): the operator opens it by hand in
 the backoffice, with a picture and an end. The list carries its `sold`: its picture (a PNG at most 768 x 512, between
 square and 2 wide by 1 high, on `https://media.clickplanet.lol/flags/pictures/<sha>.png`, with the `stretch` and `focus`
-that `flagFit.json` gives a built flag), when its time runs out, and when it closed.
+that `flagFit.json` gives a built flag), when its time runs out, when it closed, and its pin (`Sold.pin`, where it starts
+in Capital Siege, latitude and longitude, never a tile), which `SoldFlag.pin` keeps and a change of the flag starts from
+(see [Flag submissions](flag-submissions.md)).
 
 ## The catalog
 
@@ -127,7 +129,10 @@ in the page from its name (three bands and a disc, 3:2, 2:1 or square, a blob UR
 days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it. Each is told as the
 flags stream tells it, and the fake planet hears the closes (`FakeBackend.closeFlags`): it answers `closed` for a closed
 flag held, unless `lockFlags()` locks the flags, and refuses a click or a pledge for one. Nothing closes a flag when its
-time runs out: `closeFlag` does.
+time runs out: `closeFlag` does. `openFlag` gives a flag no pin.
+
+A flag sent from the picker is opened by `openSubmission()`, with the upload's picture and its pin, after
+`approveSubmission()`; `rejectSubmission(reason, note)` rejects it (see [Flag submissions](flag-submissions.md#in-fake-mode)).
 
 To see the whole flow: `openFlag("Bavaria")`, pick Bavaria in the picker (its picture beside its name), take tiles and
 zoom out (its picture on the tiles, then painted over the land), `closeFlag("<code>")` (the window asks for another flag,
@@ -135,4 +140,5 @@ the tiles keep the picture), then `addTime("<code>", 7)` (Bavaria is in the pick
 
 ## Not built yet
 
-A sold flag's name in other languages, a submission and its review, the shop.
+A sold flag's name in other languages, the shop. A submission is built (step 3, see [Flag
+submissions](flag-submissions.md)).

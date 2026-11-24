@@ -6,6 +6,7 @@ import {AllegianceLockedError} from "../backends/backend.ts";
 import SelectWithSearch from "./components/SelectWithSearch.tsx";
 import {useStanding} from "./knockout/standingStore.ts";
 import {useFlags} from "./flags/flagsStore.ts";
+import FlagSubmissionEntry from "./flags/FlagSubmissionEntry.tsx";
 import {stands} from "../domain/standing.ts";
 import {Key} from "../i18n/translator.ts";
 import {t, translator} from "../i18n/page.ts";
@@ -70,6 +71,7 @@ export default function CountryPicker(props: CountryPickerProps) {
                 values={values}
             />
         </div>}
+        <FlagSubmissionEntry/>
     </>
 }
 

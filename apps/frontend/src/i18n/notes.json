@@ -286,5 +286,18 @@
   "level.why.rightAnswers": "Beside the XP just gained on the XP bar: why. A quiz answered right.",
   "level.why.tilesFortified": "Beside the XP just gained on the XP bar: why. A fortify shielded a whole landmass.",
   "world.grew.times": "The world's map moved to a board of about four times as many tiles: each country kept its land, in smaller tiles. {times} is that ratio, 4. Shown big under a globe, after the head \"The world grew\".",
-  "announcement.worldGrew": "A line in the World chat when the world's map moved to a board of about four times as many tiles; {times} is that ratio, 4."
+  "announcement.worldGrew": "A line in the World chat when the world's map moved to a board of about four times as many tiles; {times} is that ratio, 4.",
+  "flagSubmission.add": "A button and a dialog title: the player sends the flag of its region for the game's team to review. \"Flag\" as in the glossary.",
+  "flagSubmission.name": "Label of the field for the name of the place whose flag is sent.",
+  "flagSubmission.place": "Label of the row where the player pins the flag's place on the globe.",
+  "flagSubmission.pinIt": "A button: put a pin on the globe where the flag's place is.",
+  "flagSubmission.movePin": "A short button beside a pin already put: put it somewhere else.",
+  "flagSubmission.coordinates": "A point's latitude and longitude. N, S, E and W are the compass letters: use the ones your language writes in coordinates (French O for W, German O for E). Keep the select branches as they are.",
+  "flagSubmission.state.waiting": "A chip: the flag sent waits for the team's review. One short word.",
+  "flagSubmission.state.approved": "A chip: the team approved the flag sent. One short word.",
+  "flagSubmission.state.rejected": "A chip: the team refused the flag sent. One short word.",
+  "flagSubmission.state.opened": "A chip: the flag is open, players can play for it now. One short word, an adjective.",
+  "flagSubmission.status.approved": "The flag is approved and will be in the game soon.",
+  "flagSubmission.founded": "Label over the list of flags the player brought into the game.",
+  "flagSubmission.change": "A short button: send a new name or picture for this flag."
 }

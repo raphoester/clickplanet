@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {ConnectFlagsBackend, flagChangedOf, listedOf} from "./flagsBackend.ts"
-import {Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Pin, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 const heartbeat = () => new FlagEvent({event: {case: "heartbeat", value: new Heartbeat()}})
 const changed = (code: string, name: string, closed = false) =>
@@ -37,6 +37,16 @@ describe("listedOf", () => {
                 endsAt: 2_000, closedAt: 3_000,
             },
         })
+    })
+
+    it("reads a sold flag's pin, where it starts in Capital Siege", () => {
+        const flag = new Flag({
+            code: "r-k3p9x2ma0b", name: "Bavaria",
+            sold: new Sold({picture: new Picture({url: "x.png", width: 2, height: 1}), pin: new Pin({latitude: 48.1, longitude: 11.6})}),
+        })
+        expect(listedOf(flag).sold?.pin).toEqual({latitude: 48.1, longitude: 11.6})
+        expect(listedOf(new Flag({code: "r-k3p9x2ma0b", name: "Bavaria", sold: new Sold({picture: new Picture({url: "x.png"})})})).sold?.pin)
+            .toBeUndefined()
     })
 
     it("reads a built flag, and an open sold one with no close", () => {

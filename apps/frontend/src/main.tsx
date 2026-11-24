@@ -86,7 +86,10 @@ import {languageInterceptor} from "./backends/language.ts"
 import {speakChosenLanguage} from "./i18n/start.ts"
 import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
 import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
-import {paintFakeFlag} from "./backends/fakeFlagPictures.ts"
+import {FakeFlagSubmissions} from "./backends/fakeFlagSubmissions.ts"
+import {ConnectFlagSubmissions} from "./backends/flagSubmissionsBackend.ts"
+import {paintFakeFlag, pictureOfUpload} from "./backends/fakeFlagPictures.ts"
+import type {RejectionReason} from "./domain/flagSubmissions.ts"
 import {afterFirstRead} from "./app/flags/flagsStore.ts"
 import {isOpenedCode} from "./domain/flags.ts"
 
@@ -212,6 +215,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeClips = new FakeClipsBackend()
     const fakeFlags = new FakeFlagsBackend(paintFakeFlag)
     fakeFlags.listenForClosed((closed) => fake.closeFlags(closed))
+    const fakeSubmissions = new FakeFlagSubmissions(fakeFlags, async () => (await fakeAccount.me()).linked.length > 0, pictureOfUpload)
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -287,6 +291,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     return `no flag ${code}: openFlag(name) answers one`
             }
         },
+        approveSubmission: () => fakeSubmissions.approve(),
+        rejectSubmission: (reason?: RejectionReason, note?: string) => fakeSubmissions.reject(reason, note),
+        openSubmission: (days?: number) => fakeSubmissions.open(days),
+        refuseSubmissions: (refusal?: Parameters<typeof fakeSubmissions.refuse>[0]) => fakeSubmissions.refuse(refusal),
         closeFlag: (code: string) => fakeFlags.close(code)
             ? `${code} is closed: its players pick another flag, its land stays, and addTime(code) brings it back`
             : `no open flag ${code}: openFlag(name) answers one`,
@@ -477,6 +485,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shownNames: new FakeShownNames(fakeNameplates),
         landings: localLandingStore(),
         flags: fakeFlags,
+        flagSubmissions: fakeSubmissions,
     })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config), boards)
@@ -547,5 +556,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shownNames: clips,
         landings: localLandingStore(),
         flags: new ConnectFlagsBackend(newFlagServiceClient(config), newFlagServiceClient(config, true)),
+        flagSubmissions: new ConnectFlagSubmissions(newFlagServiceClient(config), session),
     })
 }
