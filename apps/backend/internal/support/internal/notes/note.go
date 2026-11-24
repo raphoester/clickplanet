@@ -187,4 +187,6 @@ type Storage interface {
 	SentBy(ctx context.Context, account AccountID) ([]Note, error)
 	// The notes sent before the cutoff that still have their sender: oldest first, limit at most.
 	WithSenderBefore(ctx context.Context, cutoff time.Time, limit int) ([]Note, error)
+	// The notes that have their sender and no address to answer at: oldest first.
+	Unaddressed(ctx context.Context) ([]Note, error)
 }

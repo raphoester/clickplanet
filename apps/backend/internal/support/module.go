@@ -37,9 +37,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/mail_post"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/rpc_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/rpc_addresses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/backfill_addresses_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/backfill_addresses_usecase/audit_backfill_addresses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase/log_prune"
@@ -55,6 +58,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/answer_note_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/backfill_reply_addresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_note_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	admin_decide_report_handler "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
@@ -216,6 +220,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AnswerNoteHandler: answer_note_handler.New(audit_answer_note.New(
 			answer_note_usecase.New(noteStore, conversationStore, post, clock), props.Logger)),
 		CloseNoteHandler: close_note_handler.New(close_note_usecase.New(conversationStore, clock)),
+		BackfillReplyAddressesHandler: backfill_reply_addresses_handler.New(audit_backfill_addresses.New(
+			backfill_addresses_usecase.New(noteStore, addresses, rpc_accounts.New(player)), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)
