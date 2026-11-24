@@ -258,8 +258,8 @@ describe("FlagSubmissionPlace", () => {
         render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/>)
 
         expect(screen.getByText("Approved! It opens soon.")).not.toBeNull()
-        expect(screen.queryByRole("button", {name: /^1 week/})).toBeNull()
-        expect(screen.queryByRole("button", {name: "Pay"})).toBeNull()
+        expect(screen.queryByRole("radio")).toBeNull()
+        expect(screen.queryByRole("button", {name: /^Pay/})).toBeNull()
     })
 
     it("offers the plans for an approved new flag, and pays for its submission", async () => {
@@ -273,9 +273,9 @@ describe("FlagSubmissionPlace", () => {
         const user = userEvent.setup()
 
         expect(screen.getByText("Approved! Pick a plan to open it.")).not.toBeNull()
-        await user.click(screen.getByRole("button", {name: /^1 year/}))
+        expect(screen.getByRole("radio", {name: /1 year/}).getAttribute("aria-checked")).toBe("true")
         await user.click(screen.getByRole("checkbox"))
-        await user.click(screen.getByRole("button", {name: "Pay"}))
+        await user.click(screen.getByRole("button", {name: "Pay €60"}))
 
         expect(sells.checkout).toHaveBeenCalledWith({plan: "year", target: {kind: "submission", id: "s-1"}, startsNow: true})
         expect(toCheckout).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_1")
@@ -292,9 +292,9 @@ describe("FlagSubmissionPlace", () => {
 
         expect(screen.getByText(`Ends on ${dateOf(ENDS_AT)}`)).not.toBeNull()
         await user.click(screen.getByRole("button", {name: "Add time"}))
-        await user.click(screen.getByRole("button", {name: /^1 week/}))
+        await user.click(screen.getByRole("radio", {name: /1 week/}))
         await user.click(screen.getByRole("checkbox"))
-        await user.click(screen.getByRole("button", {name: "Pay"}))
+        await user.click(screen.getByRole("button", {name: "Pay €4"}))
 
         expect(sells.checkout).toHaveBeenCalledWith({plan: "week", target: {kind: "flag", flag: FLAG}, startsNow: true})
     })

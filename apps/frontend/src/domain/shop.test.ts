@@ -1,7 +1,17 @@
 import {describe, expect, it} from "vitest"
-import type {SoldFlag} from "./flags.ts"
+import {FlagCatalog, type SoldFlag} from "./flags.ts"
 import type {Submission} from "./flagSubmissions.ts"
-import {awaitsPayment, canAddTime, COMEBACK_MS, flagRenewal, flagTimeOf, payable, Renewal} from "./shop.ts"
+import {
+    awaitsPayment, bestValueOf, canAddTime, COMEBACK_MS, flagRenewal, flagTimeOf, offerOf, payable, pickedOf, PlanPrice,
+    Renewal, savingOf, perDayOf,
+} from "./shop.ts"
+
+const PLANS: PlanPrice[] = [
+    {plan: "week", amount: 400, currency: "eur", renews: false},
+    {plan: "month", amount: 1000, currency: "eur", renews: true},
+    {plan: "year", amount: 6000, currency: "eur", renews: true},
+]
+const [WEEK, MONTH, YEAR] = PLANS
 
 const NOW = 1_000_000_000_000
 const PICTURE = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
@@ -58,5 +68,67 @@ describe("flagTimeOf", () => {
         expect(flagTimeOf(sold(), false, undefined, NOW)).toEqual({kind: "open", endsAt: NOW + 5})
         expect(flagTimeOf(sold({closedAt: NOW - 1}), true, undefined, NOW)).toEqual({kind: "closed", closedAt: NOW - 1})
         expect(flagTimeOf(sold({closedAt: NOW - COMEBACK_MS}), true, undefined, NOW)).toEqual({kind: "none"})
+    })
+})
+
+describe("the plans side by side", () => {
+    it("spreads each plan over a day, rounded up", () => {
+        expect(PLANS.map(perDayOf)).toEqual([58, 33, 17])
+        expect(perDayOf({plan: "week", amount: 700, currency: "eur", renews: false})).toBe(100)
+    })
+
+    it("says what each plan saves by the day against the dearest, rounded down", () => {
+        expect(PLANS.map((price) => savingOf(price, PLANS))).toEqual([0, 42, 71])
+        expect([MONTH, YEAR].map((price) => savingOf(price, [MONTH, YEAR]))).toEqual([0, 50])
+    })
+
+    it("names the best value only when there is a choice", () => {
+        expect(bestValueOf(PLANS)).toBe("year")
+        expect(bestValueOf([WEEK, MONTH])).toBe("month")
+        expect(bestValueOf([WEEK])).toBeUndefined()
+    })
+
+    it("shows the player's pick while it is on sale, else the best value", () => {
+        expect(pickedOf(PLANS, undefined)).toBe(YEAR)
+        expect(pickedOf(PLANS, "week")).toBe(WEEK)
+        expect(pickedOf([WEEK, MONTH], "year")).toBe(MONTH)
+        expect(pickedOf([], "week")).toBeUndefined()
+    })
+})
+
+describe("offerOf", () => {
+    const FLAG = "r-k3p9x2ma0b"
+    const catalog = (changes: Partial<SoldFlag> = {}, closed = false) =>
+        FlagCatalog.BUILT_IN.withFlags([{code: FLAG, name: "Bavaria", closed, sold: sold(changes)}])
+    const opened = submission({id: "s-0", state: "opened", flag: FLAG})
+
+    it("sells the opening of an approved flag first", () => {
+        expect(offerOf([submission({id: "s-2", state: "waiting"}), submission(), opened], catalog(), [], NOW))
+            .toEqual({kind: "open", submission: submission()})
+    })
+
+    it("waits for a flag in review", () => {
+        const waiting = submission({state: "waiting"})
+        expect(offerOf([waiting, opened], catalog(), [], NOW)).toEqual({kind: "waiting", submission: waiting})
+    })
+
+    it("sells time for a founded flag, open, closed less than 30 days ago, or whose renewal stops", () => {
+        expect(offerOf([opened], catalog(), [], NOW))
+            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "open", endsAt: NOW + 5}})
+        expect(offerOf([opened], catalog({closedAt: NOW - 1}, true), [], NOW))
+            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "closed", closedAt: NOW - 1}})
+        expect(offerOf([opened], catalog(), [renewal({state: "stopping"})], NOW))
+            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "stopping", renewal: renewal({state: "stopping"})}})
+    })
+
+    it("sells no second plan while a renewal runs", () => {
+        expect(offerOf([opened], catalog(), [renewal()], NOW))
+            .toEqual({kind: "renewing", flag: FLAG, time: {kind: "renews", renewal: renewal()}})
+    })
+
+    it("sells a new flag to an account with none to pay for", () => {
+        expect(offerOf([], catalog(), [], NOW)).toEqual({kind: "new"})
+        expect(offerOf([submission({state: "rejected"})], catalog(), [], NOW)).toEqual({kind: "new"})
+        expect(offerOf([opened], catalog({closedAt: NOW - COMEBACK_MS}, true), [], NOW)).toEqual({kind: "new"})
     })
 })

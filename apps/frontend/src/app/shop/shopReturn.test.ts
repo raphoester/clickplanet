@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {Submission} from "../../domain/flagSubmissions.ts"
 import {useFlagForm} from "../flags/flagFormStore.ts"
 import {useFlagSubmissions} from "../flags/submissionsStore.ts"
+import {useScreen} from "../hud/screenStore.ts"
 import {newestNews, useNews} from "../news/newsStore.ts"
 import {PAID_READ_EVERY_MS, PAID_READ_FOR_MS, returnFromShop} from "./shopReturn.ts"
 
@@ -21,15 +22,18 @@ afterEach(() => {
     useFlagSubmissions.setState(useFlagSubmissions.getInitialState(), true)
     useFlagForm.setState(useFlagForm.getInitialState(), true)
     useNews.setState(useNews.getInitialState(), true)
+    useScreen.setState(useScreen.getInitialState(), true)
 })
 
 describe("returnFromShop", () => {
-    it("says a payment, closes the flag's place, and reads the submissions every 3 seconds until the flag opens", () => {
+    it("says a payment, closes the flag's place and the shop, and reads the submissions every 3 seconds until the flag opens", () => {
         useFlagForm.getState().show()
+        useScreen.getState().setShopOpen(true)
         const stop = returnFromShop("paid")
 
         expect(newestNews(useNews.getState())).toMatchObject({kind: "shop", back: "paid"})
         expect(useFlagForm.getState().shown).toBe(false)
+        expect(useScreen.getState().shopOpen).toBe(false)
 
         vi.advanceTimersByTime(PAID_READ_EVERY_MS * 2)
         expect(refresh).toHaveBeenCalledTimes(2)

@@ -622,7 +622,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
-        {ready && <ShopModal/>}
+        {ready && <ShopModal shop={backends.shop} toCheckout={backends.toCheckout}/>}
         {ready && <FlagSubmissionPlace account={backends.account}
                                         submitter={backends.flagSubmissions}
                                         shop={backends.shop}

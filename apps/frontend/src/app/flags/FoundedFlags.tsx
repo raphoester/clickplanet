@@ -4,6 +4,7 @@ import {foundedFlags, Submission} from "../../domain/flagSubmissions.ts"
 import {FlagTime, flagRenewal, flagTimeOf} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
+import {flagTimeLine} from "../shop/flagTime.ts"
 import {useShop} from "../shop/shopStore.ts"
 import FlagNote from "./FlagNote.tsx"
 import {useFlags} from "./flagsStore.ts"
@@ -18,25 +19,6 @@ export type FoundedFlagsProps = {
     // The closed flag whose note the place shows above, not repeated in its row.
     noteShownFor?: string
     onAddTime: (flag: string) => void
-}
-
-function dateOf(at: number): string {
-    return translator().dateTime(at, {dateStyle: "medium"})
-}
-
-function lineOf(time: FlagTime): string | undefined {
-    switch (time.kind) {
-        case "renews":
-            return t("shop.renewsOn", {date: dateOf(time.renewal.periodEndsAt)})
-        case "stopping":
-            return t("shop.endsOn", {date: dateOf(time.renewal.periodEndsAt)})
-        case "open":
-            return t("shop.endsOn", {date: dateOf(time.endsAt)})
-        case "closed":
-            return t("shop.closedOn", {date: dateOf(time.closedAt)})
-        case "none":
-            return undefined
-    }
 }
 
 // The flags the account founded, and while the shop is open each one's time: Add time, or its renewal. None changes
@@ -99,7 +81,7 @@ export default function FoundedFlags({submissions, shop, noteShownFor, onAddTime
                 const time: FlagTime = selling
                     ? flagTimeOf(catalog.soldOf(flag), catalog.closedFlag(flag), flagRenewal(renewals, flag, submissions), now)
                     : {kind: "none"}
-                const line = lineOf(time)
+                const line = flagTimeLine(time)
                 const closed = catalog.closedFlag(flag)
                 const closeNote = closed && flag !== noteShownFor ? closeNoteOf(submissions, flag) : undefined
                 return <li key={flag} className="panel-box flag-founded">

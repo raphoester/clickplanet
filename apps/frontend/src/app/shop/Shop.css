@@ -1,43 +1,264 @@
-.shop-picker {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+/* Wide enough for the plans side by side. */
+.modal-content.shop-modal {
+    max-width: 560px;
 }
 
-.shop-plans {
+.shop-product {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: 3px;
+    text-align: left;
+}
+
+.shop-product-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.shop-product-picture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 64px;
+    height: 56px;
+    font-size: 48px;
+}
+
+.shop-product-picture img {
+    max-width: 100%;
+    max-height: 100%;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-xs);
+    box-shadow: var(--drop-xs);
+}
+
+/* The product with no flag of the player's yet: a gold coin. */
+.shop-coin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 56px;
+    height: 56px;
+    color: var(--gold-ink);
+    background: var(--gold);
+    border: var(--outline) solid var(--ink);
+    border-radius: 50%;
+    box-shadow: var(--drop-s), inset -3px -4px 0 var(--gold-shade), inset 3px 3px 0 color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+.shop-product-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.shop-product-name {
+    margin: 0;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    font-weight: normal;
+    line-height: 1.05;
+    color: var(--text);
+    text-shadow: var(--text-drop);
+    overflow-wrap: anywhere;
+}
+
+.shop-product-line {
+    font-size: var(--text-m);
+    color: var(--text-soft);
+}
+
+.shop-perks {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
-}
-
-.shop-plan {
-    width: 100%;
-    justify-content: space-between;
-}
-
-.shop-plan--picked {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 56px;
-    padding: 0 var(--space-3);
     font-size: var(--text-m);
-    cursor: default;
-}
-
-.shop-plan-name {
-    font-weight: 700;
     color: var(--text);
 }
 
-.shop-plan-price {
-    color: var(--text-soft);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+.shop-perks li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.shop-perks svg {
+    flex-shrink: 0;
+    box-sizing: content-box;
+    padding: 2px;
+    color: var(--gold-ink);
+    background: var(--gold);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+}
+
+/* The plans side by side; the room above them is the best value's ribbon. */
+.shop-plans {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+}
+
+.shop-plan {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: var(--space-4) var(--space-1) var(--space-3);
+    color: var(--text);
+    background: var(--panel-raised);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    box-shadow: var(--drop-s);
+    font-family: var(--font-text);
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, filter 0.12s ease;
+}
+
+.shop-plan:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.shop-plan:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: none;
+}
+
+.shop-plan:disabled {
+    cursor: default;
+}
+
+.shop-plan--picked {
+    background: color-mix(in srgb, var(--secondary) 30%, var(--panel-raised));
+    box-shadow: var(--drop-m), inset 0 0 0 2px var(--secondary-light);
+    transform: translateY(-3px);
+}
+
+.shop-plan-ribbon {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    padding: 3px var(--space-2) 2px;
+    color: var(--gold-ink);
+    background: var(--gold);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--drop-xs), inset 0 -2px 0 var(--gold-shade);
+    font-weight: 700;
+    font-size: var(--text-xs);
+    line-height: 1.15;
     white-space: nowrap;
+}
+
+.shop-plan-name {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1.1;
+    color: var(--text-soft);
+    text-shadow: var(--text-drop);
+}
+
+.shop-plan-amount {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 2px;
+    padding-top: 4px;
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    line-height: 1;
+    color: var(--text);
+    text-shadow: var(--text-outline);
+    white-space: nowrap;
+}
+
+.shop-currency {
+    font-family: var(--font-text);
+    font-weight: 700;
+}
+
+.shop-plan-amount .shop-currency {
+    font-size: 0.55em;
+    line-height: 1;
+}
+
+.shop-money {
+    white-space: nowrap;
+}
+
+.shop-plan-cadence {
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* At the bottom of each card, so the prices by the day line up across the plans. */
+.shop-plan-deal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    width: 100%;
+    margin-top: auto;
+    padding-top: var(--space-2);
+}
+
+.shop-plan-saving {
+    padding: 1px 6px;
+    color: var(--gold-ink);
+    background: var(--gold);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    font-weight: 700;
+    font-size: var(--text-s);
+    line-height: 1.2;
+}
+
+.shop-plan-daily {
+    font-size: var(--text-xs);
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.shop-plan-radio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 24px;
+    height: 24px;
+    margin-top: var(--space-2);
+    color: var(--text);
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+}
+
+.shop-plan--picked .shop-plan-radio {
+    background: var(--secondary);
+}
+
+.shop-offer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 .shop-consent {
@@ -58,9 +279,97 @@
     cursor: pointer;
 }
 
+.shop-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.shop-pay {
+    flex: 1 1 auto;
+}
+
+.shop-go {
+    width: 100%;
+}
+
+/* A new flag's way to the globe; gold up to where it is. */
+.shop-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shop-step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.shop-step + .shop-step::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    right: calc(50% + 15px);
+    width: calc(100% + var(--space-2) - 30px);
+    height: 4px;
+    background: var(--panel-sunk);
+    border-radius: var(--radius-pill);
+}
+
+.shop-step--done + .shop-step::before {
+    background: var(--gold);
+}
+
+.shop-step-coin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted);
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+.shop-step--now,
+.shop-step--done {
+    color: var(--text);
+}
+
+.shop-step--now .shop-step-coin,
+.shop-step--done .shop-step-coin {
+    color: var(--gold-ink);
+    background: var(--gold);
+    box-shadow: inset -2px -2px 0 var(--gold-shade);
+}
+
+.shop-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    margin: 0;
+    font-size: var(--text-s);
+    color: var(--text-muted);
+}
+
 .shop-legal {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: var(--space-1) var(--space-4);
     margin: 0;
     font-size: var(--text-s);
@@ -77,67 +386,27 @@
     color: var(--text);
 }
 
-.shop-actions {
-    display: flex;
-    gap: var(--space-2);
+@media (max-width: 480px) {
+    .modal-content.shop-modal {
+        padding: var(--space-4);
+    }
+
+    .shop-product-name {
+        font-size: var(--display-m);
+    }
+
+    .shop-plan-amount {
+        font-size: var(--display-l);
+    }
 }
 
-.shop-pay {
-    flex: 1 1 auto;
-}
-
-/* The shop's modal: one card per product, each with its prices and the one button that takes the order. */
-.shop-products {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.shop-product {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-3);
-}
-
-.shop-product-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.shop-product-icon {
-    display: flex;
-    flex-shrink: 0;
-    color: var(--gold);
-}
-
-.shop-product-name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    font-weight: normal;
-    line-height: 1.1;
-    color: var(--text);
-    text-shadow: var(--text-drop);
-}
-
-.shop-product-prices {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.shop-product-price {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-2);
+@media (prefers-reduced-motion: reduce) {
+    .shop-plan,
+    .shop-plan--picked,
+    .shop-plan:active:not(:disabled) {
+        transform: none;
+        transition: none;
+    }
 }
 
 /* The status bar's door to the shop, on a phone. */

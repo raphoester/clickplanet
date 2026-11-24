@@ -3,6 +3,7 @@ import {awaitsPayment} from "../../domain/shop.ts"
 import type {ShopReturn} from "../../domain/shopReturn.ts"
 import {useFlagForm} from "../flags/flagFormStore.ts"
 import {useFlagSubmissions} from "../flags/submissionsStore.ts"
+import {useScreen} from "../hud/screenStore.ts"
 import {useNews} from "../news/newsStore.ts"
 
 export const PAID_READ_EVERY_MS = 3_000
@@ -13,6 +14,7 @@ export const PAID_READ_FOR_MS = 120_000
 // opening as any other.
 export function returnFromShop(back: ShopReturn, now: () => number = Date.now): () => void {
     useFlagForm.getState().close()
+    useScreen.getState().setShopOpen(false)
     useNews.getState().tellShop(back)
     if (back !== "paid") return () => {}
 

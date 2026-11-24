@@ -9,7 +9,7 @@ import {Key} from "../../i18n/translator.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {FlagIcon} from "../components/icons.tsx"
-import PlanPicker from "../shop/PlanPicker.tsx"
+import PlanOffer from "../shop/PlanOffer.tsx"
 import {useShop} from "../shop/shopStore.ts"
 import FlagNote from "./FlagNote.tsx"
 import {useFlags} from "./flagsStore.ts"
@@ -85,13 +85,13 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
             : <button type="button" className={`button ${footerButton} support-wide`} onClick={() => compose()}>{t("flagSubmission.new")}</button>
 
     if (addingTo !== undefined && selling) {
-        return <Modal title={t("flagSubmission.yours")} footer={footer} onClose={close}>
+        return <Modal title={t("flagSubmission.yours")} footer={footer} onClose={close} className="shop-modal">
             <div className="flag-status">
                 <div className="panel-box flag-status-card">
                     <span className="flag-status-picture"><CountryFlag code={addingTo}/></span>
                     <span className="flag-status-name">{translator().country(addingTo)}</span>
                 </div>
-                <PlanPicker shop={shop}
+                <PlanOffer shop={shop}
                             plans={plans}
                             target={{kind: "flag", flag: addingTo}}
                             toCheckout={toCheckout}
@@ -100,7 +100,7 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
         </Modal>
     }
 
-    return <Modal title={t("flagSubmission.yours")} footer={footer} onClose={close}>
+    return <Modal title={t("flagSubmission.yours")} footer={footer} onClose={close} className={offered ? "shop-modal" : undefined}>
         <div className="flag-status">
             <div className="panel-box flag-status-card">
                 <span className="flag-status-picture">
@@ -114,7 +114,7 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
             <p className="flag-status-line" role="status">{lineOf(shown, catalog, selling)}</p>
             {latest.state === "rejected" && latest.rejection?.note && <FlagNote text={latest.rejection.note}/>}
             {shown.state === "closed" && latest.closeNote && <FlagNote text={latest.closeNote}/>}
-            {offered && <PlanPicker shop={shop} plans={plans} target={{kind: "submission", id: latest.id}} toCheckout={toCheckout}/>}
+            {offered && <PlanOffer shop={shop} plans={plans} target={{kind: "submission", id: latest.id}} toCheckout={toCheckout}/>}
 
             <FoundedFlags submissions={submissions}
                           shop={shop}

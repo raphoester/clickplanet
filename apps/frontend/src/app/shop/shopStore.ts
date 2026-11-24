@@ -1,11 +1,14 @@
 import {useEffect} from "react"
 import {create} from "zustand"
 import {Shop} from "../../backends/shop.ts"
-import type {PlanPrice, Renewal} from "../../domain/shop.ts"
+import type {Plan, PlanPrice, Renewal} from "../../domain/shop.ts"
 
 type ShopStore = {
     // None while the shop is off, or until a read: then no plan and no pay button shows.
     plans: readonly PlanPrice[]
+    // The plan the player picked last, in the shop or in the flag's place; none shows the best value.
+    chosen?: Plan
+    choose: (plan: Plan) => void
     // The account's renewals; none for a guest.
     renewals: readonly Renewal[]
     // None forgets them. A signed-in account's renewals are read too.
@@ -29,6 +32,7 @@ export const useShop = create<ShopStore>()((set) => {
 
     return {
         plans: [],
+        choose: (chosen) => set({chosen}),
         renewals: [],
         serve: (next, linked = false) => {
             shop = next
