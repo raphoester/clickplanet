@@ -7,11 +7,19 @@ export const EVICTION_MARGIN = 1.2
 // Texels per pixel of land on screen: a frame can be far larger than its land, as Chile's.
 const SHARES = [16, 8, 4, 2, 1, 0.5, 0.25]
 
+// Blur grows with the stretch of a cell: the least blur over all the land gives a flag texels as its detail to the 2/3.
+const DETAIL_POWER = 2 / 3
+
 export type FlagNeed = {
     need: number
     area: number
     aspect: number
     spriteWidth: number
+    detail: number
+}
+
+function worthOf(flag: FlagNeed): number {
+    return flag.area * flag.detail ** DETAIL_POWER
 }
 
 // A flag needed on several grounds: as wide as its widest need, with all its land.
@@ -53,7 +61,7 @@ export function rankSlots(needs: ReadonlyMap<string, FlagNeed>, held: ReadonlyMa
     const larger = fitting > 0 ? SHARES[fitting - 1] : share
     const targets = new Map(inView.map((candidate) => [candidate.code, share]))
     let spare = room - inView.reduce((units, candidate) => units + unitsAt(candidate, share), 0)
-    for (const candidate of [...inView].sort((a, b) => b.flag.area - a.flag.area || a.code.localeCompare(b.code))) {
+    for (const candidate of [...inView].sort((a, b) => worthOf(b.flag) - worthOf(a.flag) || a.code.localeCompare(b.code))) {
         const extra = unitsAt(candidate, larger) - unitsAt(candidate, share)
         if (extra <= 0 || extra > spare) continue
         targets.set(candidate.code, larger)
@@ -66,12 +74,12 @@ export function rankSlots(needs: ReadonlyMap<string, FlagNeed>, held: ReadonlyMa
         const target = levelAtShare(candidate, targets.get(code)!)
         const current = held.get(code)
         if (current === undefined) {
-            if (target <= least) ranked.push({code, level: target, least, priority: flag.area})
+            if (target <= least) ranked.push({code, level: target, least, priority: worthOf(flag)})
             continue
         }
         const grows = target < current && flag.need > flagWidthAt(current, flag.aspect) * EVICTION_MARGIN
         const level = grows || Math.abs(target - current) > 1 ? Math.min(target, least) : Math.max(current, budget.largest)
-        ranked.push({code, level, least, priority: flag.area * EVICTION_MARGIN})
+        ranked.push({code, level, least, priority: worthOf(flag) * EVICTION_MARGIN})
     }
 
     ranked.sort((a, b) => b.priority - a.priority || a.code.localeCompare(b.code))
@@ -89,7 +97,7 @@ export function rankSlots(needs: ReadonlyMap<string, FlagNeed>, held: ReadonlyMa
 
 function levelAtShare({flag, ideal}: Candidate, texels: number): number {
     let capped = ideal
-    while (capped < LEVELS - 1 && cellArea(capped) > flag.area * texels) capped++
+    while (capped < LEVELS - 1 && cellArea(capped) > worthOf(flag) * texels) capped++
     return capped
 }
 

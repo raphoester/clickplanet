@@ -117,7 +117,7 @@ export class BorderField {
             const area = areas[landmass]
             const centre = {x: this.rows[at], y: this.rows[at + 1], z: this.rows[at + 2]}
             const need = area > 0 ? flagNeedOf(centre, this.rows[at + 3], this.rows[at + 7], aspect, view) : 0
-            addNeed(needs, holder, {need, area, aspect, spriteWidth: this.rows[at + 10]})
+            addNeed(needs, holder, {need, area, aspect, spriteWidth: this.rows[at + 10], detail: detailOf(holder)})
         }
         return needs
     }
@@ -226,7 +226,7 @@ export const MAX_FLAG_RADIUS = 0.42
 
 const MAX_STRETCH = 2.6
 
-type FlagFit = {stretch: boolean, focus: number[]}
+type FlagFit = {stretch: boolean, focus: number[], detail?: number}
 const fits: Record<string, FlagFit> = flagFit
 
 const FOCUS_BIAS = 2
@@ -235,6 +235,11 @@ const FOCUS_BIAS = 2
 function fitOf(code: string): FlagFit | undefined {
     const picture = pictureOf(code)
     return picture ? {stretch: picture.stretch, focus: [picture.focusX, picture.focusY]} : fits[code]
+}
+
+// A sold flag's picture is not measured: it counts as the median flag.
+export function detailOf(code: string): number {
+    return fitOf(code)?.detail ?? 1
 }
 
 function focusOf(code: string, axis: 0 | 1): number {

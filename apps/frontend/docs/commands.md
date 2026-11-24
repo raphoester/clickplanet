@@ -18,7 +18,7 @@ npm run map:measure -- earth-2 # A board's geometry as docs/boards.md records it
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines -- earth-1 # Trace a board's outlines onto its lattice, every board with none named (see country-outlines.md)
 npm run terrain -- earth-2 # Each lattice point's kind of land or sea, from the board; earth-1 with none named (see terrain.md)
-npm run flagFit    # Work out which flags stretch, and where each one is cropped
+npm run flagFit    # Work out which flags stretch, where each one is cropped, and how much detail it has
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
 npm run clip -- --replay replay.json --findings findings.json  # What the replay holds for the editor, as data (clips.v1.Findings), and no clip
 npm run clip -- --replay replay.json --story '{"front":3,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr"],"headline":"FRANCE VS TURKEY"}'  # One clip of a story of the findings, as the job's choose prints it

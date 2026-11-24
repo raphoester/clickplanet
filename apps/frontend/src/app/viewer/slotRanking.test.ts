@@ -3,7 +3,7 @@ import {type FlagNeed, joinedNeeds, rankSlots, SlotLayout} from "./slotRanking.t
 
 const BUDGET = {roots: 1, largest: 1}
 
-const flag = (need: number, area = 1e6): FlagNeed => ({need, area, aspect: 1.5, spriteWidth: 100})
+const flag = (need: number, area = 1e6, detail = 1): FlagNeed => ({need, area, aspect: 1.5, spriteWidth: 100, detail})
 
 const needs = (entries: Record<string, FlagNeed>) => new Map(Object.entries(entries))
 
@@ -34,6 +34,12 @@ describe("rankSlots", () => {
 
         expect(ranked.map(({code}) => code)).toEqual(["ru", "kz", "ua"])
         expect(levels(ranked)).toEqual({ru: 1, kz: 2, ua: 3})
+    })
+
+    it("pays a flag of fine detail more texels for its land than a flag of bands", () => {
+        const ranked = rankSlots(needs({ru: flag(2000, 600_000), sa: flag(400, 30_000, 2), pl: flag(400, 30_000, 0.35)}), new Map(), BUDGET)
+
+        expect(levels(ranked)).toEqual({ru: 1, sa: 3, pl: 4})
     })
 
     it("keeps a flag's cell while it needs neither clearly more nor far less", () => {

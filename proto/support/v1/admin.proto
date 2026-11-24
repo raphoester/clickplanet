@@ -25,6 +25,12 @@ service AdminService {
   // kept.
   rpc CloseNote(CloseNoteRequest) returns (CloseNoteResponse);
 
+  // Gives each note that still has its sender and no address to answer at the verified address its account holds now:
+  // the notes sent before addresses were kept become answerable. Notes from guests, and from signed-in accounts with no
+  // verified address, stay with none; a note that has an address, or no sender, is not touched. dry_run changes
+  // nothing and says what a run would do. A second run fills nothing new.
+  rpc BackfillReplyAddresses(BackfillReplyAddressesRequest) returns (BackfillReplyAddressesResponse);
+
   // Players' reports of other players, newest first, both accounts named as the game shows them now, with any
   // decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
   // RemoveMessage take.
@@ -169,4 +175,17 @@ message CloseNoteRequest {
 
 message CloseNoteResponse {
   google.protobuf.Timestamp closed_at = 1;
+}
+
+message BackfillReplyAddressesRequest {
+  bool dry_run = 1;
+}
+
+message BackfillReplyAddressesResponse {
+  // Notes given their account's address.
+  uint32 filled = 1;
+  // Notes left with none: their sender is a guest.
+  uint32 guests = 2;
+  // Notes left with none: their sender signed in and holds no verified address.
+  uint32 no_address = 3;
 }
