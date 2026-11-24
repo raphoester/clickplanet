@@ -1933,8 +1933,8 @@ server deletes each upload it reads, and each rejected picture 30 days after its
 The founder of an approved flag pays on Stripe's own page, under **Stripe Managed Payments** (Stripe, through Link, is
 the merchant of record): see the backend's [The shop](../../apps/backend/docs/shop.md). **The shop is off** until
 `backend.yaml` names a key and a webhook secret: no plan shows, `/stripe/webhook` is not served, and the operator's
-`flags_open_submitted_flag` still opens a flag sold by hand. Every step below is the owner's, in Stripe's Dashboard
-(the account is live-only: no sandbox yet). Nothing in the repo writes to Stripe but the shop itself, once on.
+`flags_open_submitted_flag` still opens a flag sold by hand. Production's `backend.yaml` names them since 2026-11-24.
+The steps below are in Stripe's Dashboard, live mode. Nothing in the repo writes to Stripe but the shop itself, once on.
 
 1. **The business profile** describes the game (Settings, Business, Public details): it still describes coaching. Then
    **activate Managed Payments** (Settings, Managed Payments): accept its terms and pass Stripe's eligibility review.
@@ -1947,7 +1947,8 @@ the merchant of record): see the backend's [The shop](../../apps/backend/docs/sh
    | Regional flag, 1 month | `txcd_10201004` (Video Games, streamed, subscription) | 10.00 EUR, recurring monthly |
    | Regional flag, 1 year | `txcd_10201004` | 60.00 EUR, recurring yearly |
 
-   Keep each price's id (`price_…`).
+   Keep each price's id (`price_…`). The live ones were made 2026-11-24 through the Stripe API, with the product's
+   `metadata.plan` (`week`, `month`, `year`): their ids are in `backend.yaml`.
 3. **The terms on Stripe's page** (Settings, Checkout and Payment Links, Public details): terms of service
    `https://clickplanet.lol/sale`, privacy policy `https://clickplanet.lol/privacy`.
 4. **A restricted key** (Developers, API keys, Create restricted key), named `clickplanet-shop`: Checkout Sessions
@@ -1969,7 +1970,8 @@ the merchant of record): see the backend's [The shop](../../apps/backend/docs/sh
    gh secret set STRIPE_WEBHOOK_SECRET --repo raphoester/clickplanet
    ```
 
-7. **Then `backend.yaml`**, in the deploy that turns the shop on (an `env://` that names no secret refuses the boot):
+7. **Then `backend.yaml`**, in the deploy that turns the shop on, merged only once both secrets are set (an `env://`
+   that names no secret refuses the boot):
 
    ```yaml
    shop:

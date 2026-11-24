@@ -8,8 +8,8 @@ charges the VAT, sends the receipts, and handles refunds and disputes. The shop 
 
 **Off by default.** With no Stripe key or no webhook secret (`shop.stripe`), `ListPlans` answers none, the page shows no
 pay button, every call that would reach Stripe is `FailedPrecondition`, and Stripe's webhook endpoint is not served. The
-operator's `OpenSubmittedFlag` stays, for flags sold by hand. Production is off until the owner's Stripe setup is done
-([deploy/vps/README.md](../../../deploy/vps/README.md), "The shop").
+operator's `OpenSubmittedFlag` stays, for flags sold by hand. Production sells: `deploy/vps/backend.yaml` names both
+secrets and the live prices ([deploy/vps/README.md](../../../deploy/vps/README.md), "The shop").
 
 ## A module of its own
 

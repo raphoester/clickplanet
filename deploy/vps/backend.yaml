@@ -380,10 +380,9 @@ flags:
   #   anthropic:
   #     apiKey: env://ANTHROPIC_API_KEY
 
-# Time for a regional flag, paid on Stripe's page under Managed Payments. Off until the owner's Stripe setup is done
-# (deploy/vps/README.md, "The shop"): with no key or no webhook secret, no plan is on sale and /stripe/webhook is not
-# served. Then: secretKey env://STRIPE_SECRET_KEY, webhookSecret env://STRIPE_WEBHOOK_SECRET, returnURL
-# https://clickplanet.lol/play, and each plan's price.
+# Time for a regional flag, paid on Stripe's page under Managed Payments (deploy/vps/README.md, "The shop"). Both
+# secrets must be GitHub secrets: an env:// that names none refuses the boot. The prices are the live ones, and each
+# amount is its price's own.
 shop:
   database:
     host: postgres
@@ -398,6 +397,14 @@ shop:
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
+  stripe:
+    secretKey: env://STRIPE_SECRET_KEY
+    webhookSecret: env://STRIPE_WEBHOOK_SECRET
+    returnURL: https://clickplanet.lol/play
+    plans:
+      week: {priceId: price_1UfNUYLHEylmuTbaiJs2fSwB, amount: 400, currency: eur}
+      month: {priceId: price_1UfNUZLHEylmuTbaf3Z0QASO, amount: 1000, currency: eur}
+      year: {priceId: price_1UfNUaLHEylmuTba8MZfjsvG, amount: 6000, currency: eur}
 
 support:
   database:
