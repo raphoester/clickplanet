@@ -69,6 +69,39 @@ Measured on 2026-11-23 against the live map's opening of `earth-2` (clips run 45
 Each one is put right by running its revert again ([Production's rows](#productions-rows)): the live map then shows
 what the history shows, "LaS…" included, as if the reverted player never played.
 
+## A revert gives back the shields its caller struck
+
+**A shield the reverted player struck goes back to the flag it stood for** (2026-11-24). Before, a revert gave back
+each tile's owner and no shield: a player who struck two of a tile's three shields left it with one after the revert,
+and a tile it struck bare and took went back with none.
+
+The ledger writes the shields each event leaves on a tile: a strike, a placement and a fortify say how many stand after
+it. `ledger.Undoing` reads them on the map with the caller's events (`brokenShields`), for each tile the caller struck:
+
+- **The shields the ledger last wrote on the tile**, and **the ones it would hold had the caller never played**. A
+  strike of the caller takes one from the first alone. A shield another player placed, or struck, on the flag the
+  caller struck, changes both.
+- **A take by the caller keeps them**: without it the flag never lost the tile. So does a take back by that flag: without
+  the caller it was never taken.
+- **A take by another flag ends them**: that take stands with or without the caller, and a take leaves no shield.
+- **A strike on the paint of a player reverted before is none**, as the erasure reads it.
+- **A switch of board splits both** over the new tiles as the switch split the shields (`clicks.ShareOf`, 3, 3, 2, 2).
+  A reset ends them.
+
+Each tile then goes back by one `clicks.Restoration`:
+
+- **A tile the caller took** goes back to the flag with the shields it struck (`Shields`), as before when the live map
+  still shows the caller's paint. The shields on the paint go.
+- **A tile whose flag stayed** gets its shields back (`Was` to `Shields`) only when the live map shows the shields the
+  ledger last wrote (`Was`): a compare-and-set, so a revert run again gives no shield twice, and a shield placed or
+  struck since the read keeps the tile as it is until the next run.
+- **It only gives back**: shields the caller placed itself stay.
+- **`shields`** in the answer counts the shields `held` gives back. Each tile is an ordinary `TileUpdate` with its
+  shields, on every stream.
+
+**A shield cleared without a strike does not come back**: a knock-out or a cut-off by the caller clears a flag's land,
+shields and all, and the revert gives the land back with the shields it struck alone.
+
 ## The readers
 
 | read | who reads it | before 2026-11-23 | now |
@@ -158,6 +191,10 @@ regenerated `planet/v1/admin` bindings for `RevertPlayer`'s description, which t
 **The erasure before the head** (2026-11-23): one backend deploy, no migration and no wire change. The first call of
 either rewind after the boot reads the season once.
 
+**The shields** (2026-11-24): one backend deploy, no migration. `RevertPlayerResponse.shields` is a new field: the
+frontend regenerated its `planet/v1/admin` bindings, and the backoffice too, whose Revert tool shows it in the dry
+run.
+
 ## Production's rows
 
 Done on 2026-11-23, 14:54 to 15:27 UTC, through the connector, 25 accounts, each first dry, the owner's OK on the
@@ -200,3 +237,9 @@ row read twice; read again after a revert and for a position behind; a reset and
 memory's `ReplayThrough`, `rewind_test.go` (a rewind from an erasure), and `replay_usecase` and `recent_history_query`
 (a drawing forgotten before the head and painted over in the window opens on what was under it; a revert reads what it
 forgot before the head again).
+
+The shields: `ledger/undoing_test.go` (a tile struck and kept, struck bare and taken, the shields others placed and
+struck since, a take by another flag, a take back by the flag struck, a live map that does not show what the ledger
+wrote, a bomb's strike, a strike on a forgotten paint, a switch of board), `revert_player_usecase`'s (a dry run, the
+run, and a run again that gives none twice), `inmemory_tile_storage`'s `restore_test.go` (the shields set under the
+lock, told to the streams, tallied, flushed, and none twice).

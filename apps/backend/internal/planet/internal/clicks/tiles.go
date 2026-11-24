@@ -71,8 +71,15 @@ type TileShields struct {
 	Shields int
 }
 
+// The live map must show From, and Was too when the owner stays, so no struck shield goes back twice.
 type Restoration struct {
-	Tile uint32
-	From string
-	To   string
+	Tile    uint32
+	From    string
+	To      string
+	Was     int
+	Shields int
+}
+
+func (r Restoration) ShieldsBack() int {
+	return r.Shields - r.Was
 }

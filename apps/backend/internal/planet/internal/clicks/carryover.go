@@ -103,8 +103,15 @@ func (c Carryover) Share(child uint32, shields int) int {
 	for rank < len(siblings) && siblings[rank] != child {
 		rank++
 	}
-	share := shields / len(siblings)
-	if rank < shields%len(siblings) {
+	return ShareOf(shields, rank, len(siblings))
+}
+
+func ShareOf(shields, rank, siblings int) int {
+	if siblings == 0 || shields <= 0 {
+		return 0
+	}
+	share := shields / siblings
+	if rank < shields%siblings {
 		share++
 	}
 	return share

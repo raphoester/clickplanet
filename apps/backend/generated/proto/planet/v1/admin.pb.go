@@ -1211,6 +1211,7 @@ type RevertPlayerResponse struct {
 	Touched       uint32                 `protobuf:"varint,2,opt,name=touched,proto3" json:"touched,omitempty"`
 	Held          uint32                 `protobuf:"varint,3,opt,name=held,proto3" json:"held,omitempty"`
 	Restored      uint32                 `protobuf:"varint,4,opt,name=restored,proto3" json:"restored,omitempty"`
+	Shields       uint32                 `protobuf:"varint,6,opt,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1276,6 +1277,13 @@ func (x *RevertPlayerResponse) GetHeld() uint32 {
 func (x *RevertPlayerResponse) GetRestored() uint32 {
 	if x != nil {
 		return x.Restored
+	}
+	return 0
+}
+
+func (x *RevertPlayerResponse) GetShields() uint32 {
+	if x != nil {
+		return x.Shields
 	}
 	return 0
 }
@@ -1612,14 +1620,15 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x03 \x01(\tR\taccountId\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\x95\x01\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xaf\x01\n" +
 	"\x14RevertPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x05 \x01(\tR\taccountId\x12\x18\n" +
 	"\atouched\x18\x02 \x01(\rR\atouched\x12\x12\n" +
 	"\x04held\x18\x03 \x01(\rR\x04held\x12\x1a\n" +
-	"\brestored\x18\x04 \x01(\rR\brestored\"\x11\n" +
+	"\brestored\x18\x04 \x01(\rR\brestored\x12\x18\n" +
+	"\ashields\x18\x06 \x01(\rR\ashields\"\x11\n" +
 	"\x0fGetRulesRequest\"T\n" +
 	"\x10GetRulesResponse\x12&\n" +
 	"\x04sets\x18\x01 \x03(\v2\x12.planet.v1.RuleSetR\x04sets\x12\x18\n" +
