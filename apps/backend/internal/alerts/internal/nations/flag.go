@@ -19,12 +19,7 @@ func FlagOf(code string) (Flag, bool) {
 	return Flag(code), true
 }
 
-var invented = map[Flag]string{"xb": "Brittany"}
-
 func (f Flag) Name() string {
-	if name, found := invented[f]; found {
-		return name
-	}
 	region, err := language.ParseRegion(string(f))
 	if err != nil {
 		return strings.ToUpper(string(f))
@@ -37,9 +32,6 @@ func (f Flag) Name() string {
 
 // Discord draws the two regional indicator letters of an ISO code as its flag.
 func (f Flag) Emoji() string {
-	if _, found := invented[f]; found {
-		return "🏴"
-	}
 	var emoji strings.Builder
 	for _, letter := range strings.ToUpper(string(f)) {
 		emoji.WriteRune('🇦' + (letter - 'A'))

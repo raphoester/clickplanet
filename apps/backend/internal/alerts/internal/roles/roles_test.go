@@ -34,7 +34,7 @@ func TestARoleIsMadeOnceInItsColorAndFoundAfter(t *testing.T) {
 
 func TestEveryFlagHasABrightColorOfItsOwn(t *testing.T) {
 	seen := map[discord.Color]nations.Flag{}
-	for _, flag := range []nations.Flag{"fr", "de", "gb", "us", "ie", "it", "es", "br", "jp", "xb"} {
+	for _, flag := range []nations.Flag{"fr", "de", "gb", "us", "ie", "it", "es", "br", "jp", "pl"} {
 		color := roles.ColorOf(flag)
 		r, g, b := int(color>>16)&0xff, int(color>>8)&0xff, int(color)&0xff
 

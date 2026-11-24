@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerNoteRequest, AnswerNoteResponse, BackfillReplyAddressesRequest, BackfillReplyAddressesResponse, CloseNoteRequest, CloseNoteResponse, DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
+import { AnswerNoteRequest, AnswerNoteResponse, CloseNoteRequest, CloseNoteResponse, DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -53,20 +53,6 @@ export const AdminService = {
       name: "CloseNote",
       I: CloseNoteRequest,
       O: CloseNoteResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gives each note that still has its sender and no address to answer at the verified address its account holds now:
-     * the notes sent before addresses were kept become answerable. Notes from guests, and from signed-in accounts with no
-     * verified address, stay with none; a note that has an address, or no sender, is not touched. dry_run changes
-     * nothing and says what a run would do. A second run fills nothing new.
-     *
-     * @generated from rpc support.v1.AdminService.BackfillReplyAddresses
-     */
-    backfillReplyAddresses: {
-      name: "BackfillReplyAddresses",
-      I: BackfillReplyAddressesRequest,
-      O: BackfillReplyAddressesResponse,
       kind: MethodKind.Unary,
     },
     /**

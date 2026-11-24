@@ -1,19 +1,20 @@
 import {listedFlag} from "./flags.ts"
 
-// The game's country ids are ISO 3166 codes in lower case, a few of its own that no standard names, and r- and ten
-// letters or digits for a flag opened since, which the server's list names. The server refuses any other id.
+// The game's country ids are ISO 3166 codes in lower case, a few of its own that no standard names, and the ids of the
+// flags sold, which the server's list names: r- and ten letters or digits, or the code of one that left the build
+// (Brittany, xb). The server refuses any other id.
 const OWN: Record<string, string> = {
     "gb-eng": "England",
     "gb-sct": "Scotland",
     "gb-wls": "Wales",
-    "xb": "Brittany",
 }
 
 const NAMES = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
 
-const ISO = /^[a-z]{2}$/
+// ISO's x codes are for private use: Intl names XA and XB as tests, and the game's xk as Kosovo.
+const ISO = /^([a-wyz][a-z]|xk)$/
 
-// Of the game's own ids, the ones Unicode draws a flag for: England, Scotland and Wales, and not Brittany.
+// Of the game's own ids, the ones Unicode draws a flag for.
 const SUBDIVISIONS = new Set(["gb-eng", "gb-sct", "gb-wls"])
 
 const REGIONAL_A = 0x1f1e6
@@ -41,7 +42,7 @@ export function countryLabel(id: string): string {
 // draws two letters instead, so a flag always goes beside its country's name.
 export function flagOf(id: string): string {
     if (SUBDIVISIONS.has(id)) return String.fromCodePoint(BLACK_FLAG, ...codesOf(id.replace("-", ""), TAG), CANCEL_TAG)
-    if (id in OWN || !ISO.test(id) || NAMES.of(id.toUpperCase()) === undefined) return ""
+    if (!ISO.test(id) || NAMES.of(id.toUpperCase()) === undefined) return ""
     return String.fromCodePoint(...codesOf(id, REGIONAL_A - "a".charCodeAt(0)))
 }
 
@@ -50,13 +51,13 @@ export function flagPictureOf(id: string): string | undefined {
     return listedFlag(countryIdOf(id))?.picture
 }
 
-// A flag with no emoji and no picture but Brittany's, one opened since the list does not show or one this page does
-// not know, is drawn as a plain grey flag.
+// A flag with no emoji and no picture, one sold that the list does not show or one this page does not know, is drawn
+// as a plain grey flag.
 export function blankFlag(id: string): boolean {
-    return id !== "" && !(id in OWN) && flagOf(id) === "" && flagPictureOf(id) === undefined
+    return id !== "" && flagOf(id) === "" && flagPictureOf(id) === undefined
 }
 
-// Whether FlagMark draws something: an emoji, a sold flag's picture or a plain grey flag; not Brittany, nor no id.
+// Whether FlagMark draws something: an emoji, a sold flag's picture or a plain grey flag; nothing for no id.
 export function flagged(id: string): boolean {
     return flagOf(id) !== "" || flagPictureOf(id) !== undefined || blankFlag(id)
 }

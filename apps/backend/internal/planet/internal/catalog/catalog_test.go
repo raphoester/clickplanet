@@ -35,7 +35,7 @@ func answersOf(t *testing.T, flags catalog.Catalog, flag string) answers {
 func TestAFlagTheGameShipsWithIsPlayable(t *testing.T) {
 	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
 
-	for _, flag := range []string{"fr", "xb", "gb-eng"} {
+	for _, flag := range []string{"fr", "xk", "gb-eng"} {
 		assert.Equal(t, answers{playable: true, known: true}, answersOf(t, flags, flag), flag)
 	}
 }

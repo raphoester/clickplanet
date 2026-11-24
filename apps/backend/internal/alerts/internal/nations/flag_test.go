@@ -14,7 +14,7 @@ func TestAFlagWithARoleIsAFlagTheGameShipsWith(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, nations.Flag("ie"), flag)
 
-	for _, code := range []string{"", "IE", "zz", "ireland", "r-k3p9x2ma0b"} {
+	for _, code := range []string{"", "IE", "zz", "ireland", "r-k3p9x2ma0b", "xb"} {
 		_, ok := nations.FlagOf(code)
 		assert.False(t, ok, code)
 	}
@@ -27,7 +27,6 @@ func TestAFlagIsNamedInEnglish(t *testing.T) {
 		"us": "United States",
 		"pw": "Palau",
 		"xk": "Kosovo",
-		"xb": "Brittany",
 	} {
 		assert.Equal(t, name, code.Name(), code)
 	}
@@ -36,5 +35,4 @@ func TestAFlagIsNamedInEnglish(t *testing.T) {
 func TestAFlagIsDrawnByItsTwoLetters(t *testing.T) {
 	assert.Equal(t, "🇮🇪", nations.Flag("ie").Emoji())
 	assert.Equal(t, "🇵🇼", nations.Flag("pw").Emoji())
-	assert.Equal(t, "🏴", nations.Flag("xb").Emoji())
 }

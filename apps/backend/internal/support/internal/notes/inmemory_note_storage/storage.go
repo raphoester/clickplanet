@@ -99,18 +99,6 @@ func (s *Storage) WithSenderBefore(_ context.Context, cutoff time.Time, limit in
 	return restored(old[:min(len(old), limit)])
 }
 
-func (s *Storage) Unaddressed(_ context.Context) ([]notes.Note, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.err != nil {
-		return nil, s.err
-	}
-	return restored(s.oldestFirst(func(kept notes.Snapshot) bool {
-		return kept.Account != notes.AccountID{} && kept.ReplyAddress == ""
-	}))
-}
-
 func (s *Storage) oldestFirst(wanted func(notes.Snapshot) bool) []notes.Snapshot {
 	var found []notes.Snapshot
 	for _, kept := range s.kept {

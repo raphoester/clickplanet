@@ -10,7 +10,7 @@ describe("Countries", () => {
     it("names a country in plain words", () => {
         expect(ENGLISH_TRANSLATOR.country("fr")).toBe("France")
         expect(ENGLISH_TRANSLATOR.country("gb-eng")).toBe("England")
-        expect(ENGLISH_TRANSLATOR.country("xb")).toBe("Brittany")
+        expect(ENGLISH_TRANSLATOR.country("xk")).toBe("Kosovo")
     })
 
     it("carries no emoji in any name", () => {

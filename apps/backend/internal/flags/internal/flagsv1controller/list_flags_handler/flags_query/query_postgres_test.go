@@ -30,7 +30,7 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 	require.NoError(t, err)
 
 	builtIn := cpflags.BuiltIn()
-	require.Len(t, list.GetFlags(), len(builtIn)+2)
+	require.Len(t, list.GetFlags(), len(builtIn)+3)
 	for i, flag := range builtIn {
 		assert.True(t, proto.Equal(&flagsv1.Flag{Code: flag.Code, Name: flag.Name}, list.GetFlags()[i]), "%v", list.GetFlags()[i])
 	}
@@ -41,7 +41,10 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 	assert.Equal(t, "https://media.test/"+catalog.TestPicture.Key(), opened[0].GetSold().GetPicture().GetUrl())
 	assert.Equal(t, uint32(300), opened[0].GetSold().GetPicture().GetWidth())
 	assert.Equal(t, openedAt.Add(30*24*time.Hour), opened[0].GetSold().GetEndsAt().AsTime())
-	assert.Equal(t, [2]string{"r-0000000001", "Rennes"}, [2]string{opened[1].GetCode(), opened[1].GetName()})
-	assert.True(t, opened[1].GetClosed(), "a closed flag stays in the list")
-	assert.Equal(t, openedAt.Add(time.Hour), opened[1].GetSold().GetClosedAt().AsTime())
+	assert.Equal(t, [2]string{"xb", "Brittany"}, [2]string{opened[1].GetCode(), opened[1].GetName()},
+		"sold since it left the build")
+	assert.NotNil(t, opened[1].GetSold().GetPicture())
+	assert.Equal(t, [2]string{"r-0000000001", "Rennes"}, [2]string{opened[2].GetCode(), opened[2].GetName()})
+	assert.True(t, opened[2].GetClosed(), "a closed flag stays in the list")
+	assert.Equal(t, openedAt.Add(time.Hour), opened[2].GetSold().GetClosedAt().AsTime())
 }

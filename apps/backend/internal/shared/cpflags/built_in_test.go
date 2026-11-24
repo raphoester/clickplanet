@@ -13,10 +13,10 @@ import (
 func TestTheGameShipsWithThePagesFlagsInItsOrder(t *testing.T) {
 	flags := cpflags.BuiltIn()
 
-	require.Len(t, flags, 239)
+	require.Len(t, flags, 238)
 	assert.Equal(t, cpflags.BuiltInFlag{Code: "af", Name: "Afghanistan"}, flags[0])
 	assert.Contains(t, flags, cpflags.BuiltInFlag{Code: "gb-eng", Name: "England"})
-	assert.Contains(t, flags, cpflags.BuiltInFlag{Code: "xb", Name: "Brittany"})
+	assert.False(t, cpflags.IsBuiltIn("xb"), "Brittany left the build: it is sold")
 }
 
 func TestNoFlagTheGameShipsWithLooksLikeOneOpenedSince(t *testing.T) {

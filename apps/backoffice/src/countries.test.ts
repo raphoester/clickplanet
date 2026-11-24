@@ -9,12 +9,17 @@ describe("countryName", () => {
 
     it("names the game's own ids, which no standard names", () => {
         expect(countryName("gb-sct")).toBe("Scotland")
-        expect(countryName("xb")).toBe("Brittany")
+        expect(countryName("xk")).toBe("Kosovo")
     })
 
     it("names nothing it does not know", () => {
         expect(countryName("france")).toBeUndefined()
         expect(countryName("")).toBeUndefined()
+    })
+
+    it("takes no name Intl gives a private-use code as a test, as it does Brittany's", () => {
+        expect(countryName("xb")).toBeUndefined()
+        expect(countryName("xa")).toBeUndefined()
     })
 })
 

@@ -190,7 +190,8 @@ and says what is in it. Read the doc before you change its area.
   each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
   (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename), the close at the end date and
   the comeback within 30 days; a closed flag's players changing at once, its land kept, its room read-only, a battle's
-  lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page.
+  lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
+  Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
   with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the

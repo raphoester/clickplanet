@@ -51,7 +51,7 @@ describe("a line", () => {
     it("falls back to English for a line its file lacks", () => {
         const fr = speaking("fr", {})
 
-        expect(fr.t("country.xb")).toBe("Brittany")
+        expect(fr.t("country.gb-sct")).toBe("Scotland")
     })
 
     it("refuses a line that does not read", () => {
@@ -77,7 +77,7 @@ describe("a country's name", () => {
     })
 
     it("is the game's own line for a flag ISO has no code for, or one CLDR names as two places", () => {
-        expect(names("en", ["xb", "gb-sct", "cd", "cg", "sx"])).toEqual(["Brittany", "Scotland", "DR Congo", "Congo", "Sint Maarten"])
+        expect(names("en", ["gb-sct", "cd", "cg", "sx"])).toEqual(["Scotland", "DR Congo", "Congo", "Sint Maarten"])
     })
 })
 

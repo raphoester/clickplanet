@@ -20,13 +20,13 @@ var (
 	closedAt = openedAt.Add(time.Hour)
 )
 
-func TestAFlagIDIsRAndTenLettersOrDigits(t *testing.T) {
-	for _, valid := range []string{"r-k3p9x2ma0b", "r-0000000001"} {
+func TestAFlagIDIsRAndTenLettersOrDigitsOrTheCodeOfAFlagThatLeftTheBuild(t *testing.T) {
+	for _, valid := range []string{"r-k3p9x2ma0b", "r-0000000001", "xb"} {
 		id, err := catalog.ParseFlagID(valid)
 		require.NoError(t, err, valid)
 		assert.Equal(t, valid, id.String())
 	}
-	for _, invalid := range []string{"", "fr", "gb-eng", "xb", "r-", "r-K3P9X2MA0B", "r-k3p9x2ma0", "r-k3p9x2ma0bc", "Rennes"} {
+	for _, invalid := range []string{"", "fr", "gb-eng", "r-", "r-K3P9X2MA0B", "r-k3p9x2ma0", "r-k3p9x2ma0bc", "Rennes"} {
 		_, err := catalog.ParseFlagID(invalid)
 		require.ErrorIs(t, err, catalog.ErrInvalidFlagID, invalid)
 	}

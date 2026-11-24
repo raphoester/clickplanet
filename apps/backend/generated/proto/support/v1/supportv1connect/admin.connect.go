@@ -39,9 +39,6 @@ const (
 	AdminServiceAnswerNoteProcedure = "/support.v1.AdminService/AnswerNote"
 	// AdminServiceCloseNoteProcedure is the fully-qualified name of the AdminService's CloseNote RPC.
 	AdminServiceCloseNoteProcedure = "/support.v1.AdminService/CloseNote"
-	// AdminServiceBackfillReplyAddressesProcedure is the fully-qualified name of the AdminService's
-	// BackfillReplyAddresses RPC.
-	AdminServiceBackfillReplyAddressesProcedure = "/support.v1.AdminService/BackfillReplyAddresses"
 	// AdminServiceListReportsProcedure is the fully-qualified name of the AdminService's ListReports
 	// RPC.
 	AdminServiceListReportsProcedure = "/support.v1.AdminService/ListReports"
@@ -65,11 +62,6 @@ type AdminServiceClient interface {
 	// Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
 	// kept.
 	CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error)
-	// Gives each note that still has its sender and no address to answer at the verified address its account holds now:
-	// the notes sent before addresses were kept become answerable. Notes from guests, and from signed-in accounts with no
-	// verified address, stay with none; a note that has an address, or no sender, is not touched. dry_run changes
-	// nothing and says what a run would do. A second run fills nothing new.
-	BackfillReplyAddresses(context.Context, *connect.Request[v1.BackfillReplyAddressesRequest]) (*connect.Response[v1.BackfillReplyAddressesResponse], error)
 	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
 	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
 	// RemoveMessage take.
@@ -108,12 +100,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("CloseNote")),
 			connect.WithClientOptions(opts...),
 		),
-		backfillReplyAddresses: connect.NewClient[v1.BackfillReplyAddressesRequest, v1.BackfillReplyAddressesResponse](
-			httpClient,
-			baseURL+AdminServiceBackfillReplyAddressesProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("BackfillReplyAddresses")),
-			connect.WithClientOptions(opts...),
-		),
 		listReports: connect.NewClient[v1.ListReportsRequest, v1.ListReportsResponse](
 			httpClient,
 			baseURL+AdminServiceListReportsProcedure,
@@ -132,12 +118,11 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listNotes              *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
-	answerNote             *connect.Client[v1.AnswerNoteRequest, v1.AnswerNoteResponse]
-	closeNote              *connect.Client[v1.CloseNoteRequest, v1.CloseNoteResponse]
-	backfillReplyAddresses *connect.Client[v1.BackfillReplyAddressesRequest, v1.BackfillReplyAddressesResponse]
-	listReports            *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
-	decideReport           *connect.Client[v1.DecideReportRequest, v1.DecideReportResponse]
+	listNotes    *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
+	answerNote   *connect.Client[v1.AnswerNoteRequest, v1.AnswerNoteResponse]
+	closeNote    *connect.Client[v1.CloseNoteRequest, v1.CloseNoteResponse]
+	listReports  *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
+	decideReport *connect.Client[v1.DecideReportRequest, v1.DecideReportResponse]
 }
 
 // ListNotes calls support.v1.AdminService.ListNotes.
@@ -153,11 +138,6 @@ func (c *adminServiceClient) AnswerNote(ctx context.Context, req *connect.Reques
 // CloseNote calls support.v1.AdminService.CloseNote.
 func (c *adminServiceClient) CloseNote(ctx context.Context, req *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error) {
 	return c.closeNote.CallUnary(ctx, req)
-}
-
-// BackfillReplyAddresses calls support.v1.AdminService.BackfillReplyAddresses.
-func (c *adminServiceClient) BackfillReplyAddresses(ctx context.Context, req *connect.Request[v1.BackfillReplyAddressesRequest]) (*connect.Response[v1.BackfillReplyAddressesResponse], error) {
-	return c.backfillReplyAddresses.CallUnary(ctx, req)
 }
 
 // ListReports calls support.v1.AdminService.ListReports.
@@ -185,11 +165,6 @@ type AdminServiceHandler interface {
 	// Closes a note with no answer: it waits for nothing until the player writes again. NotFound for a note no longer
 	// kept.
 	CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error)
-	// Gives each note that still has its sender and no address to answer at the verified address its account holds now:
-	// the notes sent before addresses were kept become answerable. Notes from guests, and from signed-in accounts with no
-	// verified address, stay with none; a note that has an address, or no sender, is not touched. dry_run changes
-	// nothing and says what a run would do. A second run fills nothing new.
-	BackfillReplyAddresses(context.Context, *connect.Request[v1.BackfillReplyAddressesRequest]) (*connect.Response[v1.BackfillReplyAddressesResponse], error)
 	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
 	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
 	// RemoveMessage take.
@@ -224,12 +199,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("CloseNote")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceBackfillReplyAddressesHandler := connect.NewUnaryHandler(
-		AdminServiceBackfillReplyAddressesProcedure,
-		svc.BackfillReplyAddresses,
-		connect.WithSchema(adminServiceMethods.ByName("BackfillReplyAddresses")),
-		connect.WithHandlerOptions(opts...),
-	)
 	adminServiceListReportsHandler := connect.NewUnaryHandler(
 		AdminServiceListReportsProcedure,
 		svc.ListReports,
@@ -251,8 +220,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceAnswerNoteHandler.ServeHTTP(w, r)
 		case AdminServiceCloseNoteProcedure:
 			adminServiceCloseNoteHandler.ServeHTTP(w, r)
-		case AdminServiceBackfillReplyAddressesProcedure:
-			adminServiceBackfillReplyAddressesHandler.ServeHTTP(w, r)
 		case AdminServiceListReportsProcedure:
 			adminServiceListReportsHandler.ServeHTTP(w, r)
 		case AdminServiceDecideReportProcedure:
@@ -276,10 +243,6 @@ func (UnimplementedAdminServiceHandler) AnswerNote(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) CloseNote(context.Context, *connect.Request[v1.CloseNoteRequest]) (*connect.Response[v1.CloseNoteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.CloseNote is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) BackfillReplyAddresses(context.Context, *connect.Request[v1.BackfillReplyAddressesRequest]) (*connect.Response[v1.BackfillReplyAddressesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.BackfillReplyAddresses is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error) {

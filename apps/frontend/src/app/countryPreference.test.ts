@@ -32,12 +32,13 @@ describe("parseStoredCountry", () => {
         }
     })
 
-    it("rejects a country code we cannot render", () => {
-        expect(parseStoredCountry(JSON.stringify({code: "zz", name: "Atlantis"}))).toBeUndefined()
+    it("rejects a code that is no flag's", () => {
+        expect(parseStoredCountry(JSON.stringify({code: "atlantis", name: "Atlantis"}))).toBeUndefined()
     })
 
-    it("keeps a flag opened since the build, which the page knows only once it reads the list", () => {
+    it("keeps a flag sold, which the page knows only once it reads the list", () => {
         expect(parseStoredCountry(JSON.stringify({code: "r-k3p9x2ma0b"}))).toEqual({code: "r-k3p9x2ma0b"})
+        expect(parseStoredCountry(JSON.stringify({code: "xb", name: "Brittany"}))).toEqual({code: "xb"})
     })
 })
 
@@ -60,7 +61,7 @@ describe("resolveCountry", () => {
     })
 
     it("always resolves to a country the renderer can draw", () => {
-        const inputs = [null, undefined, "", "{}", "garbage", '{"code":"zz"}', JSON.stringify(JAPAN)]
+        const inputs = [null, undefined, "", "{}", "garbage", '{"code":"zzz"}', JSON.stringify(JAPAN)]
         const zones = [undefined, "Mars/Olympus_Mons", "Asia/Tokyo", "Europe/Paris"]
 
         for (const stored of inputs) {
