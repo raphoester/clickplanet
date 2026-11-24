@@ -228,21 +228,32 @@ screen, some 45 flags in view, Saudi Arabia was drawn from its sprite, its scrip
 shot). Measured on that view in fake mode, it now has a 512×256 cell for 385 px on screen; Germany, Poland and
 Romania, plain bands, go back to the atlas, and the blur over the land, weighted by detail, is a fifth less. A floor,
 the smallest cell for every flag that needs one, was tried too: the flags with a few pixels of land took cells, the
-share fell, and Saudi Arabia was stretched 1.6 times again. A flag keeps its cell unless it needs clearly more (`EVICTION_MARGIN`,
-1.2 times its width) or two sizes less, so a tile war or a small move of the camera redraws nothing. A flag out of
-view keeps its cell while there is room and is dropped first. When the texture is still full, the flags with the
-most land win and the rest drop a size. `SlotLayout` keeps a flag's cell while its size holds, and places the others
-largest first; when the free cells are too broken up for one, it drops a size.
+share fell, and Saudi Arabia was stretched 1.6 times again.
+
+**Who gets a cell is ranked as if no flag held one.** A held cell then changes as little as it can: a flag keeps a
+cell one size smaller than it would get unless it needs clearly more (`EVICTION_MARGIN`, 1.2 times its width), and one
+size larger only with room to spare once every flag ranked has its cell. A flag out of view, or with too little land in
+it for a cell of its own, keeps its cell while there is room and is dropped first. When the texture is still full, the
+flags with the most land win and the rest drop a size. `SlotLayout` keeps a flag's cell while its size holds, and
+places the others largest first; when the free cells are too broken up for one, it drops a size. Until 2026-11-24 a
+flag kept a cell one size larger than it needed whatever the room: the cells of the last view filled the texture, and
+a flag in the middle of the screen stayed on the atlas (Mexico over Great Britain, the owner's shot). On the live map
+over Europe on a retina laptop, 7 to 9 of the 20 to 25 flags worth a cell had one; now 12 to 15 do, as a ranking with
+nothing held gives.
 
 *When*: when the camera settles (`Settling`): once each time it comes to rest somewhere new, sampled every 250 ms, and
 every quarter radian while it turns slowly, as in the idle spin. Never while it moves fast, and never per frame. A
 recount ranks the flags again for the view they were last ranked for, never for a camera in motion. Nothing is ranked
 where no flag is painted: zoomed in past the handover, or with the painted flags off.
 
-*Drawn one at a time, off the frame*: the most land first, a flag's SVG is fetched once a session, its size set on
+*Drawn one at a time, off the frame*: the flags still on the atlas first, then those moving to another size (they show
+their old cell meanwhile), each in the order of its worth. A flag's SVG is fetched once a session, its size set on
 the text (parsing the largest flags, 100 to 400 KB, as a document held the page), rasterised into a canvas the cell's
-size in an idle moment, and turned into an `ImageBitmap`, which finishes the raster off the frame. The next frame sends
-that cell alone (`copyTextureToTexture`) and the GPU rebuilds the mip levels; no frame does more than one. Measured
+size in an idle moment, and turned into an `ImageBitmap`, which finishes the raster off the frame. The bitmap wakes the
+frame loop, which otherwise sleeps 200 ms between ticks; the next frame sends that cell alone (`copyTextureToTexture`)
+and the GPU rebuilds the mip levels; no frame does more than one. A draw that throws leaves that flag on the atlas for
+the session, and the next flag is drawn. On the live map, every flag ranked was sharp within a second of the camera
+stopping, half a second after a drag. Measured
 on a retina desktop with the CPU slowed 4 times, no camera stop made a frame longer than before (17 ms); sending the
 canvas itself, its raster ran inside the frame, up to 100 ms. Until a flag is drawn it stays on the atlas, and a flag
 moved to a new cell shows its old one until the new one is sent or another flag is drawn over it. A flag whose SVG fails stays on the atlas and is not

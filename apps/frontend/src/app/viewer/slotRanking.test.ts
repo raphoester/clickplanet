@@ -51,6 +51,13 @@ describe("rankSlots", () => {
         expect(levels(rankSlots(needs({fr: flag(300)}), new Map([["fr", 2]]), BUDGET))).toEqual({fr: 4})
     })
 
+    it("keeps a cell a size larger than a flag needs only with room to spare: no flag in view loses its cell to it", () => {
+        const held = new Map([["a", 1], ["b", 2], ["c", 2]])
+
+        expect(levels(rankSlots(needs({a: flag(700), b: flag(400), c: flag(400), d: flag(400)}), held, BUDGET)))
+            .toEqual({a: 1, b: 2, c: 3, d: 3})
+    })
+
     it("keeps a flag out of view in its cell while there is room, and drops it first", () => {
         const held = new Map([["br", 1]])
 

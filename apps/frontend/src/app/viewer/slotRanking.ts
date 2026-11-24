@@ -38,20 +38,63 @@ export type Ranked = {code: string, level: number, least: number}
 
 type Candidate = {code: string, flag: FlagNeed, ideal: number, least: number}
 
+type Claim = Ranked & {priority: number, larger?: number}
+
+// Who gets a cell is ranked as if none were held: a held size is kept only where it costs no flag its cell.
 export function rankSlots(needs: ReadonlyMap<string, FlagNeed>, held: ReadonlyMap<string, number>, budget: SlotBudget): Ranked[] {
     const room = budget.roots * unitsOf(0)
     const inView: Candidate[] = []
-    const kept: (Ranked & {priority: number})[] = []
     for (const [code, flag] of needs) {
         const useful = (level: number) => flagWidthAt(level, flag.aspect) >= flag.spriteWidth * ATLAS_MARGIN
         let least = LEVELS - 1
         while (least > 0 && !useful(least)) least--
         if (flag.need >= flag.spriteWidth * ATLAS_MARGIN) inView.push({code, flag, ideal: levelFor(flag.need, flag.aspect, budget.largest), least})
     }
-    for (const [code, level] of held) {
-        if (!inView.some((candidate) => candidate.code === code)) kept.push({code, level, least: level, priority: 0})
-    }
 
+    const targets = targetLevels(inView, room)
+    const claims: Claim[] = []
+    for (const candidate of inView) {
+        const {code, flag, least} = candidate
+        const target = targets.get(code)!
+        if (target > least) continue
+        const current = held.get(code)
+        const claim: Claim = {code, level: target, least, priority: worthOf(flag) * (current === undefined ? 1 : EVICTION_MARGIN)}
+        if (current !== undefined) {
+            const grows = flag.need > flagWidthAt(current, flag.aspect) * EVICTION_MARGIN
+            if (current === target + 1 && !grows) claim.level = current
+            if (current === target - 1) claim.larger = current
+        }
+        claims.push(claim)
+    }
+    claims.sort((a, b) => b.priority - a.priority || a.code.localeCompare(b.code))
+
+    let left = room
+    const placed = new Map<string, Ranked>()
+    for (const {code, level, least} of claims) {
+        let at = level
+        while (at < least && unitsOf(at) > left) at++
+        if (unitsOf(at) > left) continue
+        left -= unitsOf(at)
+        placed.set(code, {code, level: at, least})
+    }
+    for (const {code, level, larger} of claims) {
+        const kept = placed.get(code)
+        if (larger === undefined || kept?.level !== level) continue
+        const extra = unitsOf(larger) - unitsOf(level)
+        if (extra > left) continue
+        left -= extra
+        kept.level = larger
+    }
+    // A flag out of view, or with too little land in it for a cell of its own, keeps its cell while there is room.
+    for (const [code, level] of [...held].sort(([a], [b]) => a.localeCompare(b))) {
+        if (placed.has(code) || unitsOf(level) > left) continue
+        left -= unitsOf(level)
+        placed.set(code, {code, level, least: level})
+    }
+    return [...placed.values()]
+}
+
+function targetLevels(inView: readonly Candidate[], room: number): Map<string, number> {
     const unitsAt = (candidate: Candidate, texels: number) => {
         const level = levelAtShare(candidate, texels)
         return level > candidate.least ? 0 : unitsOf(level)
@@ -59,40 +102,15 @@ export function rankSlots(needs: ReadonlyMap<string, FlagNeed>, held: ReadonlyMa
     const fitting = SHARES.findIndex((texels) => inView.reduce((units, candidate) => units + unitsAt(candidate, texels), 0) <= room)
     const share = fitting < 0 ? SHARES[SHARES.length - 1] : SHARES[fitting]
     const larger = fitting > 0 ? SHARES[fitting - 1] : share
-    const targets = new Map(inView.map((candidate) => [candidate.code, share]))
+    const shares = new Map(inView.map((candidate) => [candidate.code, share]))
     let spare = room - inView.reduce((units, candidate) => units + unitsAt(candidate, share), 0)
     for (const candidate of [...inView].sort((a, b) => worthOf(b.flag) - worthOf(a.flag) || a.code.localeCompare(b.code))) {
         const extra = unitsAt(candidate, larger) - unitsAt(candidate, share)
         if (extra <= 0 || extra > spare) continue
-        targets.set(candidate.code, larger)
+        shares.set(candidate.code, larger)
         spare -= extra
     }
-
-    const ranked: (Ranked & {priority: number})[] = [...kept]
-    for (const candidate of inView) {
-        const {code, flag, least} = candidate
-        const target = levelAtShare(candidate, targets.get(code)!)
-        const current = held.get(code)
-        if (current === undefined) {
-            if (target <= least) ranked.push({code, level: target, least, priority: worthOf(flag)})
-            continue
-        }
-        const grows = target < current && flag.need > flagWidthAt(current, flag.aspect) * EVICTION_MARGIN
-        const level = grows || Math.abs(target - current) > 1 ? Math.min(target, least) : Math.max(current, budget.largest)
-        ranked.push({code, level, least, priority: worthOf(flag) * EVICTION_MARGIN})
-    }
-
-    ranked.sort((a, b) => b.priority - a.priority || a.code.localeCompare(b.code))
-    let left = room
-    const placed: Ranked[] = []
-    for (const {code, level, least} of ranked) {
-        let at = level
-        while (at < least && unitsOf(at) > left) at++
-        if (unitsOf(at) > left) continue
-        left -= unitsOf(at)
-        placed.push({code, level: at, least})
-    }
-    return placed
+    return new Map(inView.map((candidate) => [candidate.code, levelAtShare(candidate, shares.get(candidate.code)!)]))
 }
 
 function levelAtShare({flag, ideal}: Candidate, texels: number): number {
