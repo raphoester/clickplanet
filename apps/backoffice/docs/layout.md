@@ -37,7 +37,7 @@ src/
   support/          Ideas and bugs: NotesView (the inbox), NoteList, NoteDetail (and LineHead, a line's who and
                     when), AnswerPanel, Attachments, actions.ts (an answer and a close), notes.ts (a note's
                     conversation and where it stands), labels.ts (names, outcomes, device lines, sizes); the letters
-                    the operator writes first: LettersPanel (one player's letters, one more mail, a close, a new one)
+                    the operator writes first: LetterPanel (a submission's one letter: a first mail, one more, a close)
                     over letters.ts (a letter's thread, whether a reply waits, the calls and their refusals)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts; said.ts (what a message said,

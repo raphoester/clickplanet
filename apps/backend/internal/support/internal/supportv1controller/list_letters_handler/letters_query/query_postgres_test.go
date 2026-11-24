@@ -22,7 +22,7 @@ var (
 	bob = notes.AccountID{15: 2}
 )
 
-func TestTheLettersAreReadTheLatestFirstForOneAccountOrTheOnesThePlayerRepliedTo(t *testing.T) {
+func TestTheLettersAreReadTheLatestFirstForOneAccountOneSubmissionOrTheOnesThePlayerRepliedTo(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "support", migrations.FS)
 	store := postgres_letter_store.New(db)
 	replied := letters.TestWritten(letters.LetterID{15: 1}, ada, at)
@@ -53,6 +53,11 @@ func TestTheLettersAreReadTheLatestFirstForOneAccountOrTheOnesThePlayerRepliedTo
 	all, err = query.Letters(t.Context(), letters_query.Filter{Account: &bob, Limit: 100})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"03"}, ids())
+
+	all, err = query.Letters(t.Context(), letters_query.Filter{Submission: &quiet.Submission, Limit: 100})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"02"}, ids(), "a founder's other submission has its own letter")
+	assert.Equal(t, quiet.Submission.String(), all.GetLetters()[0].GetSubmissionId())
 
 	all, err = query.Letters(t.Context(), letters_query.Filter{OpenOnly: true, Limit: 100})
 	require.NoError(t, err)

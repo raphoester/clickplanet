@@ -940,6 +940,13 @@ export class WriteLetterRequest extends Message<WriteLetterRequest> {
    */
   text = "";
 
+  /**
+   * For a new letter: the flag submission it is about (flags.v1.Submission.id).
+   *
+   * @generated from field: string submission_id = 5;
+   */
+  submissionId = "";
+
   constructor(data?: PartialMessage<WriteLetterRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -952,6 +959,7 @@ export class WriteLetterRequest extends Message<WriteLetterRequest> {
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "subject", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WriteLetterRequest {
@@ -1031,6 +1039,13 @@ export class ListLettersRequest extends Message<ListLettersRequest> {
    */
   limit = 0;
 
+  /**
+   * Empty for every submission.
+   *
+   * @generated from field: string submission_id = 4;
+   */
+  submissionId = "";
+
   constructor(data?: PartialMessage<ListLettersRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1042,6 +1057,7 @@ export class ListLettersRequest extends Message<ListLettersRequest> {
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "open_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListLettersRequest {
@@ -1223,6 +1239,13 @@ export class Letter extends Message<Letter> {
    */
   closedAt?: Timestamp;
 
+  /**
+   * The flag submission it is about (flags.v1.Submission.id).
+   *
+   * @generated from field: string submission_id = 8;
+   */
+  submissionId = "";
+
   constructor(data?: PartialMessage<Letter>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1238,6 +1261,7 @@ export class Letter extends Message<Letter> {
     { no: 5, name: "mails", kind: "message", T: LetterMail, repeated: true },
     { no: 6, name: "replies", kind: "message", T: NoteReply, repeated: true },
     { no: 7, name: "closed_at", kind: "message", T: Timestamp },
+    { no: 8, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Letter {

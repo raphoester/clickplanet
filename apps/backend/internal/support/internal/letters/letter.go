@@ -18,10 +18,12 @@ import (
 )
 
 var (
-	ErrInvalidLetter  = errors.New("the letter is invalid")
-	ErrInvalidSubject = errors.New("a letter's subject is 1 to 200 characters, none of them a control character")
-	ErrUnknownLetter  = errors.New("no letter kept under this id")
-	ErrNotALetter     = errors.New("the address names no letter")
+	ErrInvalidLetter     = errors.New("the letter is invalid")
+	ErrInvalidSubject    = errors.New("a letter's subject is 1 to 200 characters, none of them a control character")
+	ErrInvalidSubmission = errors.New("a letter is about a flag submission, named by its id")
+	ErrWrittenAlready    = errors.New("the submission has its letter already")
+	ErrUnknownLetter     = errors.New("no letter kept under this id")
+	ErrNotALetter        = errors.New("the address names no letter")
 )
 
 const maxSubjectLength = 200
@@ -40,6 +42,21 @@ func LetterIDOf(value string) (LetterID, error) {
 }
 
 func (id LetterID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// SubmissionID is the flag submission a letter is about: flags.v1.Submission.id.
+type SubmissionID uuid.UUID
+
+func SubmissionIDOf(value string) (SubmissionID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return SubmissionID{}, fmt.Errorf("%w: %q", ErrInvalidSubmission, value)
+	}
+	return SubmissionID(id), nil
+}
+
+func (id SubmissionID) String() string {
 	return uuid.UUID(id).String()
 }
 
@@ -86,9 +103,11 @@ type Mail struct {
 	Thread []cpmail.MessageID
 }
 
-// Letter is what the operator writes to a player first, the operator's further mails and the player's replies.
+// Letter is what the operator writes to a player first about a flag they submitted, the operator's further mails and
+// the player's replies.
 type Letter struct {
 	id      LetterID
+	about   SubmissionID
 	account notes.AccountID
 	to      cpmail.Address
 	subject string
@@ -98,15 +117,26 @@ type Letter struct {
 	closed  time.Time
 }
 
-// Draft is a letter about to be written, to an account at its address, under a subject: kept once its first mail goes.
+// Draft is a letter about to be written, about a submission, to an account at its address, under a subject: kept once
+// its first mail goes.
 type Draft struct {
 	id      LetterID
+	about   SubmissionID
 	account notes.AccountID
 	to      cpmail.Address
 	subject string
 }
 
-func NewDraft(id LetterID, account notes.AccountID, to cpmail.Address, subject string) (Draft, error) {
+// A submission has one letter at most: earlier is the letters kept about it, and one among them is ErrWrittenAlready.
+func NewDraft(
+	id LetterID, about SubmissionID, account notes.AccountID, to cpmail.Address, subject string, earlier []Letter,
+) (Draft, error) {
+	if about == (SubmissionID{}) {
+		return Draft{}, fmt.Errorf("%w: none", ErrInvalidSubmission)
+	}
+	if slices.ContainsFunc(earlier, func(letter Letter) bool { return letter.about == about }) {
+		return Draft{}, fmt.Errorf("%w: %s", ErrWrittenAlready, about)
+	}
 	cleaned, err := subjectOf(subject)
 	if err != nil {
 		return Draft{}, err
@@ -114,17 +144,18 @@ func NewDraft(id LetterID, account notes.AccountID, to cpmail.Address, subject s
 	if to == "" {
 		return Draft{}, notes.ErrNoReplyAddress
 	}
-	return Draft{id: id, account: account, to: to, subject: cleaned}, nil
+	return Draft{id: id, about: about, account: account, to: to, subject: cleaned}, nil
 }
 
 func (d Draft) Mail(text string) (Mail, error) {
-	return Letter{id: d.id, account: d.account, to: d.to, subject: d.subject}.Mail(text)
+	return Letter{id: d.id, about: d.about, account: d.account, to: d.to, subject: d.subject}.Mail(text)
 }
 
 // Sent is the letter its first mail made.
 func (d Draft) Sent(text string, mail cpmail.MessageID, at time.Time) (Letter, error) {
 	return Snapshot{
-		ID: d.id, Account: d.account, To: d.to, Subject: d.subject, Sent: []Sent{{Text: text, Mail: mail, At: at}},
+		ID: d.id, Submission: d.about, Account: d.account, To: d.to, Subject: d.subject,
+		Sent: []Sent{{Text: text, Mail: mail, At: at}},
 	}.Restore()
 }
 
@@ -207,14 +238,15 @@ func (l Letter) Thread() []cpmail.MessageID {
 
 func (l Letter) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: l.id, Account: l.account, To: l.to, Subject: l.subject, Sent: slices.Clone(l.sent),
+		ID: l.id, Submission: l.about, Account: l.account, To: l.to, Subject: l.subject, Sent: slices.Clone(l.sent),
 		Replies: slices.Clone(l.replies), ClosedAt: l.closed,
 	}
 }
 
 // The state of a Letter, for a store. It holds no rule: Restore does.
 type Snapshot struct {
-	ID LetterID
+	ID         LetterID
+	Submission SubmissionID
 	// Zero once anonymized.
 	Account notes.AccountID
 	// Empty once anonymized.
@@ -230,6 +262,9 @@ type Snapshot struct {
 func (s Snapshot) Restore() (Letter, error) {
 	if s.ID == (LetterID{}) {
 		return Letter{}, fmt.Errorf("%w: no id", ErrInvalidLetter)
+	}
+	if s.Submission == (SubmissionID{}) {
+		return Letter{}, fmt.Errorf("%w: no submission", ErrInvalidLetter)
 	}
 	if (s.Account == notes.AccountID{}) != (s.To == "") {
 		return Letter{}, fmt.Errorf("%w: an address with no account, or an account with no address", ErrInvalidLetter)
@@ -268,7 +303,8 @@ func (s Snapshot) Restore() (Letter, error) {
 		})
 	}
 	return Letter{
-		id: s.ID, account: s.Account, to: s.To, subject: subject, sent: sent, replies: replies, closed: s.ClosedAt,
+		id: s.ID, about: s.Submission, account: s.Account, to: s.To, subject: subject, sent: sent, replies: replies,
+		closed: s.ClosedAt,
 	}, nil
 }
 
@@ -296,7 +332,10 @@ type Storage interface {
 	Letter(ctx context.Context, id LetterID) (Letter, error)
 	// Every letter to the account.
 	To(ctx context.Context, account notes.AccountID) ([]Letter, error)
+	// The letter about the submission, if one is kept.
+	About(ctx context.Context, submission SubmissionID) ([]Letter, error)
 	// The letters first written before the time that still name their player.
 	WrittenBefore(ctx context.Context, at time.Time) ([]Letter, error)
+	// ErrWrittenAlready for a letter about a submission another letter is about.
 	Save(ctx context.Context, letters ...Letter) error
 }

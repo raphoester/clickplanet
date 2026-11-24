@@ -227,7 +227,7 @@ import {
     WriteLetterRequest,
     WriteLetterResponse,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {latestLettersFirst, waitsOf} from "./support/letters.ts"
+import {threadOf, waitsOf} from "./support/letters.ts"
 import {
     GetRulesRequest as MissionsGetRulesRequest,
     GetRulesResponse as MissionsGetRulesResponse,
@@ -810,7 +810,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return answer
     }
 
-    // A new letter to the account's verified address, or one more mail in a letter, refused as the server refuses it.
+    // The letter about a submission, to the account's verified address, or one more mail in a letter, refused as the server
+    // refuses it.
     writeLetter(request: PartialMessage<WriteLetterRequest>): Promise<WriteLetterResponse> {
         const text = (request.text ?? "").trim()
         const sentAt = Timestamp.fromDate(this.now())
@@ -824,12 +825,17 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             if (kept === undefined) return refused("no such letter", Code.NotFound)
             letter = new Letter({...kept, mails: [...kept.mails, new LetterMail({text, sentAt})]})
         } else {
+            const submissionId = request.submissionId ?? ""
+            if (submissionId === "") return refused("a letter is about a flag submission", Code.InvalidArgument)
+            if (this.letters.some(each => each.submissionId === submissionId)) {
+                return refused("the submission has its letter already", Code.AlreadyExists)
+            }
             const address = this.addresses.get(request.accountId ?? "")
             if (address === undefined) return refused("the account has no verified address", Code.FailedPrecondition)
             const subject = (request.subject ?? "").trim()
             if (subject === "" || [...subject].length > 200) return refused("a subject of 1 to 200 characters", Code.InvalidArgument)
             letter = new Letter({
-                id: `letter-${this.letters.length + 1}`, accountId: request.accountId, address, subject,
+                id: `letter-${this.letters.length + 1}`, submissionId, accountId: request.accountId, address, subject,
                 mails: [new LetterMail({text, sentAt})],
             })
         }
@@ -840,7 +846,9 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     listLetters(request: PartialMessage<ListLettersRequest>): Promise<ListLettersResponse> {
         const letters = latestLettersFirst(this.letters.filter(letter =>
-            ((request.accountId ?? "") === "" || letter.accountId === request.accountId) && (request.openOnly !== true || waitsOf(letter))))
+            ((request.accountId ?? "") === "" || letter.accountId === request.accountId) &&
+            ((request.submissionId ?? "") === "" || letter.submissionId === request.submissionId) &&
+            (request.openOnly !== true || waitsOf(letter))))
         return this.answer("listLetters", request, new ListLettersResponse({letters: letters.slice(0, Math.min(request.limit || 100, 500))}))
     }
 
@@ -937,6 +945,12 @@ export function nameRefusalOf(name: string, others: readonly Flag[]): string | u
 // since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it; and the submissions, the
 // waiting ones oldest first, then the decided ones latest first. Each change is kept as the server keeps it, at the
 // time of the call, and refused as the server refuses it.
+// The latest written or replied to first, as the server lists them.
+function latestLettersFirst(letters: Letter[]): Letter[] {
+    const last = (letter: Letter) => threadOf(letter).filter(entry => entry.kind !== "closed").at(-1)?.at?.toDate().getTime() ?? 0
+    return [...letters].sort((a, b) => last(b) - last(a))
+}
+
 export class FakeFlags implements FlagsAdmin {
     listed = [
         ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
