@@ -1027,6 +1027,13 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   board = "";
 
+  /**
+   * The capitals the arena gave the flags with no ground of their own (England, a flag sold), each from the flag's pin.
+   *
+   * @generated from field: repeated planet.v1.Seat seats = 10;
+   */
+  seats: Seat[] = [];
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1043,6 +1050,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 7, name: "knocked_out", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 8, name: "infected", kind: "message", T: InfectedTile, repeated: true },
     { no: 9, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "seats", kind: "message", T: Seat, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -1059,6 +1067,49 @@ export class GetMapResponse extends Message<GetMapResponse> {
 
   static equals(a: GetMapResponse | PlainMessage<GetMapResponse> | undefined, b: GetMapResponse | PlainMessage<GetMapResponse> | undefined): boolean {
     return proto3.util.equals(GetMapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Seat
+ */
+export class Seat extends Message<Seat> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  constructor(data?: PartialMessage<Seat>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Seat";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Seat {
+    return new Seat().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Seat {
+    return new Seat().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Seat {
+    return new Seat().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Seat | PlainMessage<Seat> | undefined, b: Seat | PlainMessage<Seat> | undefined): boolean {
+    return proto3.util.equals(Seat, a, b);
   }
 }
 

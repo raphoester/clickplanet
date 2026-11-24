@@ -1507,6 +1507,7 @@ export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships 
     return {
         range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res),
         knockedOut: res.knockedOut, infected: new Map(res.infected.map(({tileId, virusId}) => [tileId, virusId])),
+        seats: new Map(res.seats.map(({tileId, flag}) => [tileId, flag])),
     }
 }
 

@@ -146,12 +146,12 @@ func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, err
 }
 
 // Restyle puts an approved change on its flag: the flag wears the name, the picture and the capital approved.
-func (s Submission) Restyle(flag catalog.Flag, at time.Time) (catalog.Flag, proto.Message, error) {
+func (s Submission) Restyle(flag catalog.Flag, at time.Time) (catalog.Flag, []proto.Message, error) {
 	if s.kind != Change || s.state != Approved {
 		return flag, nil, fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotApproved)
 	}
-	restyled, fact := flag.Restyled(s.name, s.picture, s.pin, at)
-	return restyled, fact, nil
+	restyled, facts := flag.Restyled(s.name, s.picture, s.pin, at)
+	return restyled, facts, nil
 }
 
 // Open opens the flag of an approved new submission, at its pin, with its name and picture, unless a flag took its

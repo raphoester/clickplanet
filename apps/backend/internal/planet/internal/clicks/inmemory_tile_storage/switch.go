@@ -124,6 +124,11 @@ func (c carriedRows) LoadOutFlags(_ context.Context, _ clicks.MapID, visit func(
 	return nil
 }
 
+// Only an arena's map seats a flag.
+func (carriedRows) LoadSeats(context.Context, clicks.MapID, func(clicks.Capital)) error {
+	return nil
+}
+
 // Every live virus ends.
 func (carriedRows) LoadViruses(context.Context, clicks.MapID, func(clicks.VirusSnapshot)) error {
 	return nil

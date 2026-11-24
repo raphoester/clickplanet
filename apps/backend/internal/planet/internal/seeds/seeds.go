@@ -3,7 +3,9 @@
 package seeds
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
@@ -18,9 +20,10 @@ type Pattern interface {
 	Seed(ground Ground) arenas.Seed
 }
 
-// Ground is what the map gives a pattern to seed from.
+// Ground is what a pattern seeds from: the board, and the flags with no ground on it that stand on a pin.
 type Ground struct {
-	Capitals *clicks.Capitals
+	Board  *clicks.Ground
+	Pinned []clicks.Pinned
 }
 
 var Part = cprules.PartOf[*planetv1.Rules, Pattern]{
@@ -36,13 +39,28 @@ var Part = cprules.PartOf[*planetv1.Rules, Pattern]{
 	},
 }
 
+// Pins are the flags a player may play now that have no ground and stand on a pin.
+type Pins interface {
+	Pinned(ctx context.Context) ([]clicks.Pinned, error)
+}
+
+func NewCatalog(pins Pins) Catalog {
+	return Catalog{pins: pins}
+}
+
 // Catalog seeds an arena's map with the pattern its set names, on the board the arena plays.
-type Catalog struct{}
+type Catalog struct {
+	pins Pins
+}
 
 var _ arenas.Seeds = Catalog{}
 
-func (Catalog) SeedOf(set cprules.Set[*planetv1.Rules], ground *clicks.Ground) arenas.Seed {
-	return Part.Of(set).Seed(Ground{Capitals: ground.Capitals()})
+func (c Catalog) SeedOf(ctx context.Context, set cprules.Set[*planetv1.Rules], board *clicks.Ground) (arenas.Seed, error) {
+	pinned, err := c.pins.Pinned(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the flags that stand on a pin: %w", err)
+	}
+	return Part.Of(set).Seed(Ground{Board: board, Pinned: pinned}), nil
 }
 
 // A set that names no pattern, and default holds none: no set can play.
@@ -62,3 +80,5 @@ func (unknown) Seed(Ground) arenas.Seed { return blank{} }
 type blank struct{}
 
 func (blank) Tiles() []clicks.StartTile { return nil }
+
+func (blank) Seats() []clicks.Capital { return nil }

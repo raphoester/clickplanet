@@ -100,14 +100,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, err
 		if err != nil {
 			return fmt.Errorf("failed to read the flag changed: %w", err)
 		}
-		restyled, fact, err := approved.Restyle(flag, now)
+		restyled, facts, err := approved.Restyle(flag, now)
 		if err != nil {
 			return err //nolint:wrapcheck // the rule names it.
 		}
 		if err := u.flags.Save(ctx, restyled); err != nil {
 			return fmt.Errorf("failed to keep the flag changed: %w", err)
 		}
-		if err := u.outbox.Record(ctx, fact); err != nil {
+		if err := u.outbox.Record(ctx, facts...); err != nil {
 			return fmt.Errorf("failed to record that the flag changed: %w", err)
 		}
 		return nil

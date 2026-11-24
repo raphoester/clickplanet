@@ -17,7 +17,7 @@ func tenShields() int { return 10 }
 func (s *testSuite) arenaWithFrance(persistence *inmemory_tile_storage.MemoryPersistence) *inmemory_tile_storage.Storage {
 	ctx := context.Background()
 	storage := s.withCapitals(persistence)
-	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), capitalsWith(0), opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), capitalsWith(0), nil, opens(true))
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, island[1], "fr"))
 	s.Require().NoError(storage.Set(ctx, 5, "fr"))
@@ -107,7 +107,7 @@ func (s *testSuite) TestACapitalLeftBlankStillFallsToTheNextTake() {
 func (s *testSuite) TestATakeKnocksNobodyOutWhileTheKnockOutDoesNotPlay() {
 	ctx := context.Background()
 	storage := s.withCapitalRules(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), clicks.CapitalRules{})
-	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), capitalsWith(0), opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), capitalsWith(0), nil, opens(true))
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, 5, "fr"))
 

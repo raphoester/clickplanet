@@ -192,7 +192,7 @@ func (s *testSuite) TestASwitchIsRefusedOntoTheBoardItPlaysAndWhileAnArenaPlays(
 	_, err = world.storage.Carried(clicks.WorldStage, world.carry)
 	s.Require().ErrorIs(err, clicks.ErrPlaysAlready)
 
-	_, err = world.storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	_, err = world.storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	_, _, err = world.storage.Switch(ctx, clicks.World.On(newBoard), world.carry, carrying(true, &kept), func(clicks.Carried) {})
 	s.Require().ErrorIs(err, clicks.ErrNotInPlay)

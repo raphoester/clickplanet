@@ -186,14 +186,15 @@ func TestAnApprovedChangeRestylesItsFlagAndTellsIt(t *testing.T) {
 	require.NoError(t, err)
 	flag := catalog.OpenFlag("r-0000000001", "Rennes", at)
 
-	restyled, fact, err := change.Restyle(flag, at.Add(time.Hour))
+	restyled, facts, err := change.Restyle(flag, at.Add(time.Hour))
 	require.NoError(t, err)
 
 	assert.Equal(t, catalog.Name("Breizh"), restyled.TakeSnapshot().Name)
 	assert.Equal(t, flag.TakeSnapshot().DecidedAt, restyled.TakeSnapshot().DecidedAt, "the same flag, open as it was")
+	require.Len(t, facts, 1, "the capital stays where it was")
 	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
 		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(at.Add(time.Hour)),
-	}, fact), "%v", fact)
+	}, facts[0]), "%v", facts[0])
 
 	_, _, err = submissions.Restored(submissions.TestWaiting(first, ada, at)).Restyle(flag, at)
 	require.ErrorIs(t, err, submissions.ErrNotApproved)

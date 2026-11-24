@@ -165,21 +165,24 @@ names none (see [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-
 ## Seeds
 
 **An arena's fresh map starts from a seed its rule set names** (`seed`, a `oneof` of patterns; the owner, 2026-11-10).
-The arena defines the contract and knows no pattern (`arenas.Seed`: `Tiles() []clicks.StartTile`; `arenas.Seeds`:
-`SeedOf(cprules.Set) Seed`). The patterns are in `internal/planet/internal/seeds/`: `seeds.Part` reads the set's
-pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the capitals), lays it.
+The arena defines the contract and knows no pattern (`arenas.Seed`: `Tiles() []clicks.StartTile` and `Seats()
+[]clicks.Capital`, the capitals it gives flags with no ground; `arenas.Seeds`: `SeedOf(ctx, cprules.Set, ground)`). The
+patterns are in `internal/planet/internal/seeds/`: `seeds.Part` reads the set's pattern, and `seeds.Catalog`, built
+with the flags on a pin (planet's catalog, read as the arena opens), lays it on the board (`seeds.Ground`: the board and
+the flags on a pin). A failed read of the pins refuses nothing: the open is asked again.
 
 - **`capitals {shields}`** (`seeds.Capitals`): each capital, held by its country, with `shields` shields (0 to 255,
   past `charges.shield.perTile`). `default` holds `shields` 100. The capitals are the map's (`clicks.Capitals`, from
   `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital city, picked by the map generator (see
-  [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for; a region flag
-  (England, Scotland, Wales) or a sold one has no ground, so no capital. No ledger event and no holder: no player took them.
-  A one-tile province held whole settles locked to its holder, as at boot.
+  [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for. **A flag with no
+  ground of its own** (England, Scotland, Wales, a sold flag) **gets a seat**, the land tile nearest its pin, with the
+  same shields, kept with the map and played as its capital (see [The seats](capitals.md#the-seats)). No ledger event
+  and no holder: no player took them. A one-tile province held whole settles locked to its holder, as at boot.
 - **A new pattern** is a message in `Seed`'s `oneof`, a type in `seeds` and one case in `seeds.Part`. The arena does not
   change. A set that holds the pattern default holds is overlaid value by value; a set that holds another plays its own
   alone (`cpproto.Overlay`, pinned in its tests).
-- The seed is written **in one transaction with the arena kept** (`open_arena_usecase`'s keep), then memory is filled
-  from it as the boot does. Before 2026-11-10 the arena's rows waited for the next flush: a crash in between would have
+- The seed is written **in one transaction with the arena kept** (`open_arena_usecase`'s keep), its seats with it
+  (`Storage.Blank`'s `seats`, `planet.seats`), then memory is filled from it as the boot does. Before 2026-11-10 the arena's rows waited for the next flush: a crash in between would have
   booted an arena with no start.
 
 ## The rules a fresh map is played with

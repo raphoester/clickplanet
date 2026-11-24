@@ -94,7 +94,7 @@ func (s *testSuite) TestAnArenaPlaysWithNoMineAndTheWorldsComeBackWithItsMap() {
 	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.mined(storage, "fr", 5)
 
-	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	s.Empty(s.minesOf(storage, "fr"), "the arena's map holds none")
 

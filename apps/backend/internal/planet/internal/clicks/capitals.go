@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// Capital is the tile a country starts an arena on.
+// Capital is the tile a country starts an arena on, or the seat a flag with no ground got from its pin.
 type Capital struct {
 	Country string
 	Tile    uint32
@@ -43,6 +43,17 @@ func (c *Capitals) Flags(flag func(country string) bool) *Capitals {
 	}
 
 	return NewCapitals(kept)
+}
+
+func (c *Capitals) With(seats []Capital) *Capitals {
+	if len(seats) == 0 {
+		return c
+	}
+	tiles := maps.Clone(c.tiles)
+	for _, seat := range seats {
+		tiles[seat.Country] = seat.Tile
+	}
+	return NewCapitals(tiles)
 }
 
 func (c *Capitals) Is(tile uint32) bool {

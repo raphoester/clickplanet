@@ -13,7 +13,8 @@ import (
 type Tiles interface {
 	Stage() clicks.Stage
 	Blank(
-		ctx context.Context, arena clicks.Stage, start []clicks.StartTile, keep func(ctx context.Context, on clicks.Stage) (bool, error),
+		ctx context.Context, arena clicks.Stage, start []clicks.StartTile, seats []clicks.Capital,
+		keep func(ctx context.Context, on clicks.Stage) (bool, error),
 	) (bool, error)
 }
 
@@ -75,7 +76,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 
 	var opening arenas.Opening
 	arena := command.Arena.Map().On(setup.Board)
-	opened, err := u.tiles.Blank(ctx, arena, setup.Seed.Tiles(), func(ctx context.Context, on clicks.Stage) (bool, error) {
+	opened, err := u.tiles.Blank(ctx, arena, setup.Seed.Tiles(), setup.Seed.Seats(), func(ctx context.Context, on clicks.Stage) (bool, error) {
 		arena, err := u.kept.Find(ctx, command.Arena)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.

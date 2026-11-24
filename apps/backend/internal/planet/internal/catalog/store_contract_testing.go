@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 // StoreContractSuite is what every Store keeps.
@@ -64,4 +66,24 @@ func (s *StoreContractSuite) TestAChangeIsHandedWhatWasKept() {
 		return heard
 	})
 	s.Equal(HeardSnapshot{State: Closed, DecidedAt: closedAt}, handed)
+}
+
+var rennes = clicks.Pin{Latitude: 48.1173, Longitude: -1.6778}
+
+func (s *StoreContractSuite) TestAFlagKeepsItsPinWithItsState() {
+	s.change("r-0000000000", func(heard Heard) Heard { return heard.Opened(openedAt).Moved(rennes, openedAt) })
+
+	s.Equal(HeardSnapshot{State: Open, DecidedAt: openedAt, Pin: rennes, PinnedAt: openedAt}, s.heard("r-0000000000"))
+}
+
+func (s *StoreContractSuite) TestAllIsEveryFlagHeardWithItsPin() {
+	s.change("r-0000000000", func(heard Heard) Heard { return heard.Opened(openedAt).Moved(rennes, openedAt) })
+	s.change("r-1111111111", func(heard Heard) Heard { return heard.Closed(closedAt) })
+
+	all, err := s.store.All(s.T().Context())
+
+	s.Require().NoError(err)
+	s.Require().Len(all, 2)
+	s.Equal(HeardSnapshot{State: Open, DecidedAt: openedAt, Pin: rennes, PinnedAt: openedAt}, all["r-0000000000"].TakeSnapshot())
+	s.Equal(HeardSnapshot{State: Closed, DecidedAt: closedAt}, all["r-1111111111"].TakeSnapshot(), "no pin heard, none kept")
 }

@@ -116,7 +116,7 @@ func (s *testSuite) TestAnArenaPlaysWithNoVirusAndTheWorldsComeBackWithItsMap() 
 	s.infected(storage)
 	before := storage.Viruses()
 
-	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	s.Empty(storage.Viruses(), "the arena's map holds none")
 	s.Len(persistence.StoredVirusesOn(clicks.World), 1, "the world's is kept aside")

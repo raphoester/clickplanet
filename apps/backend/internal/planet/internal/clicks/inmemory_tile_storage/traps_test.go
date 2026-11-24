@@ -96,7 +96,7 @@ func (s *testSuite) TestAnArenaPlaysWithNoTrapAndTheWorldsComeBackWithItsMap() {
 	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.trapped(storage, "fr", 5)
 
-	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	s.Empty(s.trapsOf(storage, "fr"), "the arena's map holds none")
 

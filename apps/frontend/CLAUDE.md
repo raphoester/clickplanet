@@ -76,7 +76,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   `GetChargeRules`.
 - [The capitals](docs/capitals.md) — three rule knobs: each capital still standing marked with a crown, no shield on a
   capital, a knock-out cleared in one event, and the out window that asks for a flag still in; the land a cut-off
-  clears, in one event.
+  clears, in one event; the seats a map read names, crowned as capitals.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,
   painted on that page only, kept in its storage, read by the board and the front, and taken back with no click.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.
