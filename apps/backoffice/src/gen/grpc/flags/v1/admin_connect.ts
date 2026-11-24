@@ -99,7 +99,8 @@ export const AdminService = {
     },
     /**
      * Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-     * submitted, its picture as the server drew it, and the verdict.
+     * submitted, its picture as the server drew it, and the verdict. While the shop sells, a submission waits for
+     * review only once its time is paid.
      *
      * @generated from rpc flags.v1.AdminService.ListSubmissions
      */
@@ -111,8 +112,8 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
-     * to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
+     * Approves a submission, at its capital or where the operator moved it: its picture is made public. One paid for
+     * while it waited opens at once with the time paid; another waits to be paid for, or opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
      * FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
      * pictures are off; InvalidArgument for a capital off the globe.
      *
@@ -126,7 +127,7 @@ export const AdminService = {
     },
     /**
      * Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-     * later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
+     * later. What was paid for it is refunded. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
      * reason, or OTHER with no note.
      *
      * @generated from rpc flags.v1.AdminService.RejectSubmission

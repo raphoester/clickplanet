@@ -4,9 +4,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {FlagSubmitter, SubmissionRefusedError, SubmittedFlag} from "../../backends/flags.ts"
+import {Shop, ShopRefusedError} from "../../backends/shop.ts"
 import {UploadOptions} from "../../backends/support.ts"
 import {Submission} from "../../domain/flagSubmissions.ts"
+import type {PlanPrice} from "../../domain/shop.ts"
 import {useScreen} from "../hud/screenStore.ts"
+import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
 import {useFlagSubmissions} from "./submissionsStore.ts"
@@ -14,7 +17,7 @@ import {useFlagSubmissions} from "./submissionsStore.ts"
 const PIN = {latitude: 48.137, longitude: 11.575}
 
 const waiting = (sent: SubmittedFlag): Submission => ({
-    id: "s-2", name: sent.name, pin: sent.pin, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1,
+    id: "s-2", name: sent.name, pin: sent.pin, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false,
 })
 
 // An upload the test lands by hand, step by step.
@@ -27,6 +30,19 @@ function bucket() {
     const submitter: FlagSubmitter = {uploadPicture, submitFlag, mySubmissions: vi.fn(async () => [])}
     return {submitter, uploads, uploadPicture, submitFlag}
 }
+
+const PLANS: PlanPrice[] = [
+    {plan: "week", amount: 400, currency: "eur", renews: false},
+    {plan: "month", amount: 1000, currency: "eur", renews: true},
+    {plan: "year", amount: 6000, currency: "eur", renews: true},
+]
+
+const shopOf = (checkout: Shop["checkout"] = vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1")): Shop => ({
+    plans: vi.fn(async () => PLANS),
+    checkout,
+    myRenewals: vi.fn(async () => []),
+    stopRenewal: vi.fn(),
+})
 
 const png = (name = "bavaria.png") => new File(["png"], name, {type: "image/png"})
 const sendButton = () => screen.getByRole("button", {name: /^(Send|Uploading|Sending)/}) as HTMLButtonElement
@@ -45,13 +61,14 @@ afterEach(() => {
     useFlagForm.setState(useFlagForm.getInitialState(), true)
     useFlagSubmissions.getState().serve(undefined)
     useScreen.setState({sheet: undefined})
+    useShop.setState(useShop.getInitialState(), true)
 })
 
 describe("FlagSubmissionForm", () => {
     it("uploads the picture with a bar, then sends the name, the upload and the pin, under StrictMode", async () => {
         const {submitter, uploads, submitFlag} = bucket()
         useFlagForm.getState().compose({name: "  Bavaria ", file: png(), pinned: {pin: PIN, place: "Upper Bavaria"}})
-        render(<StrictMode><FlagSubmissionForm submitter={submitter}/></StrictMode>)
+        render(<StrictMode><FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/></StrictMode>)
         const user = userEvent.setup()
 
         await user.click(sendButton())
@@ -70,7 +87,7 @@ describe("FlagSubmissionForm", () => {
     it("waits for a name, a picture and a pin, and counts the name", async () => {
         const {submitter} = bucket()
         useFlagForm.getState().compose()
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
         const user = userEvent.setup({applyAccept: false})
 
         expect(sendButton().disabled).toBe(true)
@@ -87,7 +104,7 @@ describe("FlagSubmissionForm", () => {
     it("refuses a picture that is not a PNG, a JPEG or a WebP, and keeps none", async () => {
         const {submitter} = bucket()
         useFlagForm.getState().compose({name: "Bavaria"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
         const user = userEvent.setup({applyAccept: false})
 
         await user.upload(fileInput(), new File(["gif"], "wave.gif", {type: "image/gif"}))
@@ -100,7 +117,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter} = bucket()
         useScreen.setState({sheet: "board"})
         useFlagForm.getState().compose({name: "Bavaria"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Put the capital on the globe"}))
 
@@ -113,7 +130,7 @@ describe("FlagSubmissionForm", () => {
         submitFlag.mockRejectedValue(new SubmissionRefusedError("waiting"))
         const file = png()
         useFlagForm.getState().compose({name: "Bavaria", file, pinned: {pin: PIN}})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         await user.click(sendButton())
@@ -129,7 +146,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter, uploads, submitFlag} = bucket()
         vi.spyOn(console, "error").mockImplementation(() => {})
         useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].fail())
@@ -141,7 +158,7 @@ describe("FlagSubmissionForm", () => {
     it("sends a change of the submission that waits with a picture picked again", async () => {
         const {submitter, uploads, uploadPicture, submitFlag} = bucket()
         useFlagForm.getState().compose({name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"})
-        const view = render(<FlagSubmissionForm submitter={submitter}/>)
+        const view = render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         expect(screen.getByRole("dialog", {name: "Change your flag"})).not.toBeNull()
@@ -151,7 +168,7 @@ describe("FlagSubmissionForm", () => {
 
         view.unmount()
         useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
         await user.click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
 
@@ -163,7 +180,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter, uploads, submitFlag} = bucket()
         submitFlag.mockRejectedValueOnce(new SubmissionRefusedError("decided"))
         useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
@@ -174,11 +191,72 @@ describe("FlagSubmissionForm", () => {
     it("calls the upload off when it closes", async () => {
         const {submitter, uploads} = bucket()
         useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
-        const view = render(<FlagSubmissionForm submitter={submitter}/>)
+        const view = render(<FlagSubmissionForm submitter={submitter} shop={shopOf()} toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(sendButton())
         view.unmount()
 
         expect(uploads[0].options?.signal?.aborted).toBe(true)
+    })
+
+    describe("while the shop sells", () => {
+        const payButton = (name: RegExp | string) => screen.getByRole("button", {name}) as HTMLButtonElement
+
+        it("ends with the plans and the consent, and pays for the flag as it sends it", async () => {
+            const {submitter, uploads, submitFlag} = bucket()
+            const checkout = vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1")
+            const toCheckout = vi.fn()
+            useShop.setState({plans: PLANS})
+            useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
+            render(<FlagSubmissionForm submitter={submitter} shop={shopOf(checkout)} toCheckout={toCheckout}/>)
+            const user = userEvent.setup()
+
+            expect(screen.getByRole("radio", {name: /1 year/}).getAttribute("aria-checked")).toBe("true")
+            expect(payButton("Pay €60").disabled).toBe(true)
+            await user.click(screen.getByRole("checkbox", {name: "I want my flag to start as soon as it's approved. I know I can't cancel once it starts."}))
+            await user.click(payButton("Pay €60"))
+            await act(async () => uploads[0].land("u-1"))
+
+            expect(submitFlag).toHaveBeenCalledOnce()
+            expect(checkout).toHaveBeenCalledWith({plan: "year", target: {kind: "submission", id: "s-2"}, startsNow: true})
+            expect(toCheckout).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_1")
+            expect(useFlagSubmissions.getState().submissions.map(({id}) => id)).toEqual(["s-2"])
+        })
+
+        it("pays for the plan picked in the shop", async () => {
+            const {submitter, uploads} = bucket()
+            const checkout = vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1")
+            useShop.setState({plans: PLANS, chosen: "month"})
+            useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
+            render(<FlagSubmissionForm submitter={submitter} shop={shopOf(checkout)} toCheckout={vi.fn()}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("checkbox"))
+            await user.click(payButton("Pay €10"))
+            await act(async () => uploads[0].land("u-1"))
+
+            expect(checkout).toHaveBeenCalledWith({plan: "month", target: {kind: "submission", id: "s-2"}, startsNow: true})
+        })
+
+        it("keeps the flag sent when its payment page does not open, and says why in the place", async () => {
+            const {submitter, uploads} = bucket()
+            const toCheckout = vi.fn()
+            useShop.setState({plans: PLANS})
+            useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
+            render(<FlagSubmissionForm submitter={submitter}
+                                       shop={shopOf(vi.fn(async (): Promise<string> => {
+                                           throw new ShopRefusedError("unavailable")
+                                       }))}
+                                       toCheckout={toCheckout}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("checkbox"))
+            await user.click(payButton("Pay €60"))
+            await act(async () => uploads[0].land("u-1"))
+
+            expect(toCheckout).not.toHaveBeenCalled()
+            expect(useFlagSubmissions.getState().submissions.map(({id}) => id)).toEqual(["s-2"])
+            expect(useFlagForm.getState()).toMatchObject({composing: false, payFailure: "unavailable"})
+        })
     })
 })

@@ -97,6 +97,10 @@ export class Translator {
         return options ? this.numberFormat(options).format(n) : this.numbers.format(n)
     }
 
+    numberParts(n: number, options: Intl.NumberFormatOptions): Intl.NumberFormatPart[] {
+        return this.numberFormat(options).formatToParts(n)
+    }
+
     dateTime(at: number | Date, options: Intl.DateTimeFormatOptions): string {
         return this.dateTimeFormat(options).format(at)
     }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import Sheet from "./Sheet.tsx"
 import TabBar from "./TabBar.tsx"
 import StatusBar, {STATUS_BOTTOM} from "./StatusBar.tsx"
@@ -9,6 +9,7 @@ import {useScreen} from "./screenStore.ts"
 import {useChat} from "../chat/chatStore.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useCountry} from "../countryStore.ts"
+import {useShop} from "../shop/shopStore.ts"
 
 afterEach(() => {
     cleanup()
@@ -16,6 +17,7 @@ afterEach(() => {
     vi.restoreAllMocks()
     useScreen.setState(useScreen.getInitialState(), true)
     useChat.setState(useChat.getInitialState(), true)
+    useShop.setState(useShop.getInitialState(), true)
 })
 
 describe("TabBar", () => {
@@ -111,6 +113,15 @@ describe("StatusBar", () => {
     it("says when the country has no rank yet", () => {
         render(<StatusBar rank={null}/>)
         expect(screen.getByRole("button", {name: "France, no rank yet. Leaderboard"})).toBeDefined()
+    })
+
+    it("opens the shop while it sells, and shows no door to it while it is off", () => {
+        render(<StatusBar rank={3}/>)
+        expect(screen.queryByRole("button", {name: "Shop"})).toBeNull()
+
+        act(() => useShop.setState({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]}))
+        fireEvent.click(screen.getByRole("button", {name: "Shop"}))
+        expect(useScreen.getState().shopOpen).toBe(true)
     })
 
     it("tells the moments at the top where it ends", () => {

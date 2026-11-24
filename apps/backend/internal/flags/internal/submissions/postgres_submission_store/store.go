@@ -27,12 +27,18 @@ var _ submissions.Store = (*Store)(nil)
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, '')`
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid
+
+// Time held for a submission and neither released nor taken back.
+const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
+		AND NOT EXISTS (SELECT 1 FROM time_grants g WHERE g.id = h.grant_id)
+		AND NOT EXISTS (SELECT 1 FROM time_takebacks t WHERE t.grant_id = h.grant_id))`
 
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
 func (s *Store) Submission(ctx context.Context, id submissions.SubmissionID) (submissions.Submission, error) {
-	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+from+` WHERE s.id = $1`, uuid.UUID(id))
+	// Locked to the end of the transaction a change reads it in: a payment and the operator never open it twice.
+	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+from+` WHERE s.id = $1 FOR UPDATE OF s`, uuid.UUID(id))
 	submission, err := submissionOf(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return submissions.Submission{}, fmt.Errorf("%s: %w", id, submissions.ErrUnknownSubmission)
@@ -81,7 +87,8 @@ func submissionOf(scan func(dest ...any) error) (submissions.Submission, error) 
 	var others uint32
 	if err := scan(&id, &account, &flag, &name, &kept.Pin.Latitude, &kept.Pin.Longitude,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
-		&others, &kept.Held, &state, &kept.SubmittedAt, &kept.DecidedAt, &reason, &kept.Rejection.Note); err != nil {
+		&others, &kept.Held, &state, &kept.SubmittedAt, &kept.DecidedAt, &reason, &kept.Rejection.Note,
+		&kept.Paid); err != nil {
 		return submissions.Submission{}, fmt.Errorf("failed to read a submission: %w", err)
 	}
 	kept.ID, kept.Name, kept.State = submissions.SubmissionID(id), catalog.Name(name), submissions.State(state)

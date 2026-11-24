@@ -59,12 +59,14 @@ The features still held in `PlayScreen` move to stores the same way.
 
 ## The news line
 
-**The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify, attack, welcome and
+**The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify, attack, welcome,
 decision on a flag the player submitted (`submission`, told by `useFlagSubmissionsFeed`, see [Flag
-submissions](flag-submissions.md)), in
+submissions](flag-submissions.md)) and way back from Stripe's page (`shop`, told by `returnFromShop`, see [The
+shop](shop.md#back-from-stripe)), in
 the order they were told (`told`, one counter for the three), and `newestNews` is the one shown; once it is done, the
 one before it shows again. The globe tells the bombs and the fortifies, and `useUnderAttack` the attack. `News`
-(`news/News.tsx`) shows the newest as `BombNews`, `FortifyNews`, `UnderAttack`, `WelcomeNews` or `SubmissionNews`, the mission's progress when
+(`news/News.tsx`) shows the newest as `BombNews`, `FortifyNews`, `UnderAttack`, `WelcomeNews`, `SubmissionNews` or
+`ShopNews`, the mission's progress when
 there is none (see [Missions](missions.md)), and, after the wave of this browser's first fortify, `FortifyCard`.
 
 ## A store that reads by itself

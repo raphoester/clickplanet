@@ -42,8 +42,13 @@ func ParseDays(days uint32) (Days, error) {
 	return Days(days), nil
 }
 
-func (d Days) duration() time.Duration {
-	return time.Duration(d) * 24 * time.Hour
+func (d Days) After(t time.Time) time.Time {
+	return t.Add(time.Duration(d) * 24 * time.Hour)
+}
+
+// Span is time added to a flag: days by hand, or a paid period.
+type Span interface {
+	After(t time.Time) time.Time
 }
 
 // Flag is a flag opened since the game shipped. It is closed, never deleted: history still names it.
@@ -80,19 +85,48 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 	return Flag{id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt}, nil
 }
 
-func (f Flag) TimeAdded(days Days, now time.Time) (Flag, error) {
+func (f Flag) TimeAdded(span Span, now time.Time) (Flag, error) {
+	added, _, err := f.Extended(span, now)
+	return added, err
+}
+
+// Extended is the flag with the span added, and how much later it ends: an open flag a span after its end, one closed
+// less than 30 days ago open again from now.
+func (f Flag) Extended(span Span, now time.Time) (Flag, time.Duration, error) {
+	if err := f.Payable(now); err != nil {
+		return f, 0, err
+	}
 	switch f.state {
 	case Open:
-		f.endsAt = f.endsAt.Add(days.duration())
-		return f, nil
+		end := span.After(f.endsAt)
+		added := end.Sub(f.endsAt)
+		f.endsAt = end
+		return f, added, nil
 	case Closed:
-		if now.Sub(f.decidedAt) >= comeback {
-			return f, fmt.Errorf("%s closed %s: %w", f.id, f.decidedAt.Format(time.RFC3339), ErrTooLate)
-		}
-		f.state, f.decidedAt, f.endsAt, f.note = Open, now, now.Add(days.duration()), ""
-		return f, nil
+		f.state, f.decidedAt, f.endsAt, f.note = Open, now, span.After(now), ""
+		return f, f.endsAt.Sub(now), nil
 	}
-	return f, fmt.Errorf("the flag %s is %q, which is no state", f.id, f.state)
+	return f, 0, fmt.Errorf("the flag %s is %q, which is no state", f.id, f.state)
+}
+
+// Payable is nil while time added would keep the flag or bring it back: open, or closed less than 30 days ago.
+func (f Flag) Payable(now time.Time) error {
+	if f.state == Closed && now.Sub(f.decidedAt) >= comeback {
+		return fmt.Errorf("%s closed %s: %w", f.id, f.decidedAt.Format(time.RFC3339), ErrTooLate)
+	}
+	return nil
+}
+
+// Shortened ends the flag that much sooner, and closes it now when that end is past. A closed flag stays as it is.
+func (f Flag) Shortened(by time.Duration, now time.Time) Flag {
+	if f.state != Open {
+		return f
+	}
+	f.endsAt = f.endsAt.Add(-by)
+	if !f.endsAt.After(now) {
+		f.state, f.decidedAt = Closed, now
+	}
+	return f
 }
 
 func (f Flag) Closed(note Note, at time.Time) (Flag, error) {

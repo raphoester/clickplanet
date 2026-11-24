@@ -4,8 +4,9 @@
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
 itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. Step 3 (2026-11-24) lets a
-signed-in player submit a flag, and the operator approve or reject it ([Submissions](#submissions)). The first real one
-opens when the owner says so.
+signed-in player submit a flag, and the operator approve or reject it ([Submissions](#submissions)). Step 4
+(2026-11-24) lets its founder pay: the shop tells each payment's time, and the first opens the flag
+([Paid time](#paid-time)). The first real one opens when the owner says so.
 
 ## The catalog
 
@@ -39,7 +40,8 @@ opens when the owner says so.
 ## What it tells
 
 `flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name,
-renamed_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+renamed_at}`, and of a submission's verdict `SubmissionApproved{submission_id, approved_at}` and
+`SubmissionRejected{submission_id, rejected_at}` ([Paid time](#paid-time)), through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
 The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
 operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
 opening, comeback and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
@@ -174,8 +176,10 @@ at its end keeps it closed).
 ## Submissions
 
 **A signed-in player submits a flag, and the operator reviews it** (`internal/flags/internal/submissions`, its own
-package and store: a submission has a life of its own, from its submission to its verdict). Review first, pay after: a
-rejected flag never costs money, so a rejection never needs a refund. The review rule is "the flag a place is known by".
+package and store: a submission has a life of its own, from its submission to its verdict). **Pay first, review after**
+(the owner, 2026-11-24: a buyer who waits a day to pay may change their mind): while the shop sells, the founder pays as
+it sends its flag, the time waits for the review, an approval opens the flag with it, and a rejection is refunded by
+the shop ([Paid time](#paid-time)). The review rule is "the flag a place is known by".
 
 - **Who submits**: an account signed in with Google, Discord or an emailed code (`submissions.FounderOf`, the token's
   `linked`), never a guest, whose account is deleted after 90 days away: a flag needs a founder that lasts.
@@ -187,7 +191,8 @@ rejected flag never costs money, so a rejection never needs a refund. The review
   that waits: in one transaction the old row is deleted (`Store.DeleteWaiting`, which refuses one no longer waiting)
   and the new one kept, then the old picture dropped from the private bucket. It waits at the back of the queue, and
   the operator's approval of the old id is `NotFound`: the operator never approves a picture it did not see. A
-  replacement of one decided, or of none, is `ErrNotWaiting` (`FailedPrecondition`). Until that day a founder could
+  replacement of one decided, or of none, is `ErrNotWaiting` (`FailedPrecondition`); **of one paid for, `ErrPaid`**
+  (`FailedPrecondition`): its time is held for it. Until that day a founder could
   send a new name or picture for a flag it founded, reviewed again; `20261124145305_no_changes` deleted those rows
   (an approved one was on its flag already; a waiting or rejected one's picture stays private in the bucket) and the
   `kind` column.
@@ -234,25 +239,72 @@ On `flags.v1.AdminService`, the backoffice's inbox and Claude's tools (`flags_li
 flag in production unless the owner says so.**
 
 - **`ListSubmissions`**: every one waiting, the oldest first, then the 500 decided last, the latest first, each with its
-  account, its picture (the private link, or the public one once approved) and its share of other colours.
+  account, its picture (the private link, or the public one once approved) and its share of other colours. **While the
+  shop sells, only the waiting ones paid for** (`flags.paidReview`, which `main` sets from `shop.Config.Sells`;
+  `submissions_query.PaidWaiting`): one whose Stripe page was closed unpaid, or refunded, waits unseen until it is paid.
 - **`ApproveSubmission(submission_id, pin)`** (`approve_submission_usecase`): with `pin`, the capital where the operator
   moved it on the backoffice's map (`Submission.Moved`, a waiting submission alone; unset keeps the player's, never a
   move to 0, 0). Then the picture held is read, checked against the
   hash the submission keeps (`ErrNotThePicture`), and written public at `flags/pictures/<sha256>.png`, as a flag sold by
-  hand; then the approval is kept and the private copy deleted. **It waits to be paid for**: nothing opens.
+  hand; then the approval is kept with `SubmissionApproved` in one transaction, and the private copy deleted. **One paid
+  for opens when the approval is heard**, with the time held; another waits to be paid for.
   `ErrUnknownSubmission` (`NotFound`) for one its player replaced, `ErrDecided` (`FailedPrecondition`) for one decided
   already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: the operator rejects those
   as `exists`.
 - **`RejectSubmission(submission_id, rejection)`** (`reject_submission_usecase`): a reason from a short list
   (`not_a_place`, `exists`, `unreadable` at a tile's size, `hateful`, `other`) and a note of 500 characters at most,
-  which `other` needs. The EU's rules for online platforms ask for this statement of reasons. **The picture never
+  which `other` needs. The EU's rules for online platforms ask for this statement of reasons. The rejection is kept with
+  `SubmissionRejected` in one transaction: **the shop refunds what was paid for it**. **The picture never
   becomes public, and is deleted 30 days later** (`delete_rejected_pictures_usecase`, every hour: the file first, then
   `picture_held` false, so a row that says so holds none).
-- **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): until payments exist (step 4), the
-  operator opens an approved submission by hand, as a pilot sold by hand. A name another flag took since the approval is
+- **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): the operator opens an approved
+  submission by hand, for a flag sold by hand; a founder who pays opens it through the shop ([Paid time](#paid-time)). A name another flag took since the approval is
   `ErrNameTaken`. The flag takes the submission's name,
   picture and pin (`Submission.Open`), and the submission is `opened` with the flag's code, in one transaction with
   `FlagOpened`. `ErrNotApproved` (`FailedPrecondition`) for any other submission.
+
+## Paid time
+
+**The shop tells each payment, and the flags module grants its time once** (`internal/flags/internal/grants`, its own
+package and store: a payment's time has a life of its own, from its grant to a refund). The shop is downstream: it
+asks and commands in the flags' words, and the flags module hears no module (see [The shop](shop.md)).
+
+- **`flags.v1.InternalService/GetPayable(account_id, target)`** (`get_payable_usecase`), before the shop makes a
+  checkout: a submission (`TimeTarget.submission_id`) its founder alone pays for, while it waits or once approved with
+  no time paid, or once opened (`Submission.PayableBy`; `ErrPaidAlready` for time paid already, `ErrNotPayable` for a
+  rejected one); a flag (`TimeTarget.flag`) the account whose submission opened it
+  (`submissions.FoundedBy`), while it is open or closed less than 30 days ago (`Flag.Payable`). `NotFound`,
+  `PermissionDenied`, `FailedPrecondition`.
+- **`flags.v1.GrantTime{grant_id, target, period, paid_at}`**, a command (`grant_time_handler`, group `handler` of
+  `commands:flags.v1.GrantTime`), granted by `grant_time_usecase` in one transaction:
+  - a **submission that waits holds the time** (`Grant.ToSubmission`, `flags.time_held`): nothing opens, and the
+    submission reads `paid` (`ListMySubmissions`, `Submission.Paid`, read from the grants, never saved with it);
+  - an **approved submission** opens its flag (`Submission.Open`, as `OpenSubmittedFlag`) until now plus the period,
+    and `FlagOpened` is recorded;
+  - an **opened submission**, or a **flag**, ends a period later (`Flag.Extended`): from its end while it is open, a
+    renewal too; from now if it closed less than 30 days ago, and then `FlagOpened` is recorded, as `AddTime` does.
+  - The period (`grants.Period`) is a week, or a calendar month or year (`AddDate`), as Stripe bills a plan.
+- **Once per payment**: `flags.time_grants` keeps each grant by its id (`stripe:` and the payment's), its flag and how
+  much later the flag ended for it (`added`), under an advisory lock on the id. A grant told again grants nothing.
+- **`flags.v1.TakeBackTime{grant_id}`** (`take_back_time_usecase`): a refund in full or a dispute lost. The flag ends
+  `added` sooner (`Flag.Shortened`), and closes now when that end is past, told as `FlagClosed` (never at the past end,
+  which could be before its opening: planet keeps the fact with the latest time). A closed flag stays as it is. Kept in
+  `flags.time_takebacks`: told twice, it takes back once; told before its grant (two streams, no order between them),
+  the grant comes to nothing.
+- **The time held opens the flag at its approval** (`release_held_time_usecase`, on `SubmissionApproved`, group
+  `flags-release-held`): each payment held, the first paid first, is granted from now (`Grant.Released`): the first
+  opens the flag, the next ones end it a period later, then `FlagOpened`. So the time starts at the approval, never at
+  the payment. Told again, the grants released are held no more, and nothing opens twice. A refund before the review
+  takes the held time back with nothing to shorten.
+- **A payment the rules refuse** (a submission rejected, a flag closed 30 days ago or more, a name another flag
+  took since the approval) is logged as an error, "a payment granted no time: refund it", and not tried again: the
+  shop checked it before the checkout, so only a race leaves one, and the operator refunds it.
+- **The submission's read is locked** (`FOR UPDATE OF s`) in the transaction that changes it: a payment and the
+  operator's `OpenSubmittedFlag` never open one flag twice.
+
+`paid_test.go` sends the shop's commands through Redis: the first month opens the approved submission's flag for an
+open page, a renewal told twice adds one month, and refunds take each month back, the first closing the flag; a month
+paid while the flag waits opens it at its approval, two days later, for a month from then.
 
 ## The pictures
 

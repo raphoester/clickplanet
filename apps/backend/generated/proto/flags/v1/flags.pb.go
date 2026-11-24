@@ -957,7 +957,9 @@ type Submission struct {
 	// Only for a rejected one.
 	Rejection *Rejection `protobuf:"bytes,9,opt,name=rejection,proto3" json:"rejection,omitempty"`
 	// Public from its approval; unset before, and for a rejected one.
-	Picture       *Picture `protobuf:"bytes,10,opt,name=picture,proto3" json:"picture,omitempty"`
+	Picture *Picture `protobuf:"bytes,10,opt,name=picture,proto3" json:"picture,omitempty"`
+	// Its time is paid and held: it starts when the flag opens, at its approval. A paid submission is not changed.
+	Paid          bool `protobuf:"varint,11,opt,name=paid,proto3" json:"paid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1053,6 +1055,13 @@ func (x *Submission) GetPicture() *Picture {
 		return x.Picture
 	}
 	return nil
+}
+
+func (x *Submission) GetPaid() bool {
+	if x != nil {
+		return x.Paid
+	}
+	return false
 }
 
 // Why the operator refused a submission: the player reads it, as the EU's rules for online platforms ask.
@@ -1248,7 +1257,7 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\bclosures\x18\x02 \x03(\v2\x11.flags.v1.ClosureR\bclosures\"1\n" +
 	"\aClosure\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
-	"\x04note\x18\x02 \x01(\tR\x04note\"\xfe\x02\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\"\x92\x03\n" +
 	"\n" +
 	"Submission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -1261,7 +1270,8 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"decided_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x121\n" +
 	"\trejection\x18\t \x01(\v2\x13.flags.v1.RejectionR\trejection\x12+\n" +
 	"\apicture\x18\n" +
-	" \x01(\v2\x11.flags.v1.PictureR\apictureJ\x04\b\x04\x10\x05R\x06change\"R\n" +
+	" \x01(\v2\x11.flags.v1.PictureR\apicture\x12\x12\n" +
+	"\x04paid\x18\v \x01(\bR\x04paidJ\x04\b\x04\x10\x05R\x06change\"R\n" +
 	"\tRejection\x121\n" +
 	"\x06reason\x18\x01 \x01(\x0e2\x19.flags.v1.RejectionReasonR\x06reason\x12\x12\n" +
 	"\x04note\x18\x02 \x01(\tR\x04note\"\x95\x01\n" +

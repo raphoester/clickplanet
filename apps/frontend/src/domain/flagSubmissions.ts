@@ -20,6 +20,8 @@ export type Submission = {
     picture?: FlagPicture
     // An opened one's, while the operator's close of its flag holds: why, in the operator's words.
     closeNote?: string
+    // Its time is paid and held until its flag opens, at its approval; a paid one is not changed.
+    paid: boolean
 }
 
 // The server's: flags.v1.SubmitFlagRequest and CreateSubmissionUploadRequest.

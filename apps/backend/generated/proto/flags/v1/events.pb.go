@@ -208,6 +208,112 @@ func (x *FlagRenamed) GetRenamedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// The operator approved a submission. One paid for while it waited opens its flag now, with the time paid.
+type SubmissionApproved struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SubmissionId  string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
+	ApprovedAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=approved_at,json=approvedAt,proto3" json:"approved_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionApproved) Reset() {
+	*x = SubmissionApproved{}
+	mi := &file_flags_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionApproved) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionApproved) ProtoMessage() {}
+
+func (x *SubmissionApproved) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionApproved.ProtoReflect.Descriptor instead.
+func (*SubmissionApproved) Descriptor() ([]byte, []int) {
+	return file_flags_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SubmissionApproved) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
+}
+
+func (x *SubmissionApproved) GetApprovedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ApprovedAt
+	}
+	return nil
+}
+
+// The operator rejected a submission. The shop refunds what was paid for it.
+type SubmissionRejected struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SubmissionId  string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
+	RejectedAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=rejected_at,json=rejectedAt,proto3" json:"rejected_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmissionRejected) Reset() {
+	*x = SubmissionRejected{}
+	mi := &file_flags_v1_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmissionRejected) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmissionRejected) ProtoMessage() {}
+
+func (x *SubmissionRejected) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmissionRejected.ProtoReflect.Descriptor instead.
+func (*SubmissionRejected) Descriptor() ([]byte, []int) {
+	return file_flags_v1_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SubmissionRejected) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
+}
+
+func (x *SubmissionRejected) GetRejectedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RejectedAt
+	}
+	return nil
+}
+
 var File_flags_v1_events_proto protoreflect.FileDescriptor
 
 const file_flags_v1_events_proto_rawDesc = "" +
@@ -227,7 +333,15 @@ const file_flags_v1_events_proto_rawDesc = "" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
 	"\n" +
-	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAtB\xac\x01\n" +
+	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAt\"v\n" +
+	"\x12SubmissionApproved\x12#\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12;\n" +
+	"\vapproved_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"approvedAt\"v\n" +
+	"\x12SubmissionRejected\x12#\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12;\n" +
+	"\vrejected_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"rejectedAtB\xac\x01\n" +
 	"\fcom.flags.v1B\vEventsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
 var (
@@ -242,24 +356,28 @@ func file_flags_v1_events_proto_rawDescGZIP() []byte {
 	return file_flags_v1_events_proto_rawDescData
 }
 
-var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_flags_v1_events_proto_goTypes = []any{
 	(*FlagOpened)(nil),            // 0: flags.v1.FlagOpened
 	(*FlagClosed)(nil),            // 1: flags.v1.FlagClosed
 	(*FlagRenamed)(nil),           // 2: flags.v1.FlagRenamed
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
-	(*Pin)(nil),                   // 4: flags.v1.Pin
+	(*SubmissionApproved)(nil),    // 3: flags.v1.SubmissionApproved
+	(*SubmissionRejected)(nil),    // 4: flags.v1.SubmissionRejected
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*Pin)(nil),                   // 6: flags.v1.Pin
 }
 var file_flags_v1_events_proto_depIdxs = []int32{
-	3, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
-	4, // 1: flags.v1.FlagOpened.pin:type_name -> flags.v1.Pin
-	3, // 2: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
-	3, // 3: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
+	6, // 1: flags.v1.FlagOpened.pin:type_name -> flags.v1.Pin
+	5, // 2: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
+	5, // 3: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
+	5, // 4: flags.v1.SubmissionApproved.approved_at:type_name -> google.protobuf.Timestamp
+	5, // 5: flags.v1.SubmissionRejected.rejected_at:type_name -> google.protobuf.Timestamp
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_events_proto_init() }
@@ -274,7 +392,7 @@ func file_flags_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_events_proto_rawDesc), len(file_flags_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

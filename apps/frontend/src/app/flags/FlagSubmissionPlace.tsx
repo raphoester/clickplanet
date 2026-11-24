@@ -1,5 +1,6 @@
 import {useEffect} from "react"
 import {FlagSubmitter} from "../../backends/flags.ts"
+import {Shop} from "../../backends/shop.ts"
 import {t} from "../../i18n/page.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInButtons from "../account/SignInButtons.tsx"
@@ -7,6 +8,7 @@ import {useAccount} from "../account/useAccount.ts"
 import Modal from "../components/Modal.tsx"
 import {CrownIcon} from "../components/icons.tsx"
 import {useEscape} from "../components/useDialog.ts"
+import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
 import FlagSubmissionStatus from "./FlagSubmissionStatus.tsx"
@@ -17,11 +19,14 @@ import "./FlagSubmission.css"
 export type FlagSubmissionPlaceProps = {
     account: AccountStore
     submitter: FlagSubmitter
+    shop: Shop
+    // Stripe's page.
+    toCheckout: (url: string) => void
 }
 
 // The flag form's place: the status of the latest submission, or the form, or a guest's sign-in. Mounted with the
 // game, so what was typed stays while the form is put aside to aim the pin.
-export default function FlagSubmissionPlace({account: store, submitter}: FlagSubmissionPlaceProps) {
+export default function FlagSubmissionPlace({account: store, submitter, shop, toCheckout}: FlagSubmissionPlaceProps) {
     const shown = useFlagForm((form) => form.shown)
     const composing = useFlagForm((form) => form.composing)
     const aiming = useFlagForm((form) => form.aiming)
@@ -31,7 +36,9 @@ export default function FlagSubmissionPlace({account: store, submitter}: FlagSub
     const account = useAccount(store)
 
     useEffect(() => {
-        if (shown) useFlagSubmissions.getState().refresh()
+        if (!shown) return
+        useFlagSubmissions.getState().refresh()
+        useShop.getState().refresh()
     }, [shown])
 
     if (!shown) return null
@@ -47,13 +54,15 @@ export default function FlagSubmissionPlace({account: store, submitter}: FlagSub
         </Modal>
     }
 
-    if (composing || (read && submissions.length === 0)) return <FlagSubmissionForm submitter={submitter}/>
+    if (composing || (read && submissions.length === 0)) {
+        return <FlagSubmissionForm submitter={submitter} shop={shop} toCheckout={toCheckout}/>
+    }
     if (!read) {
         return <Modal title={t("flagSubmission.yours")} onClose={close}>
             <p className="flag-status-line" role="status">{t("common.loading")}</p>
         </Modal>
     }
-    return <FlagSubmissionStatus submissions={submissions}/>
+    return <FlagSubmissionStatus submissions={submissions} shop={shop} toCheckout={toCheckout}/>
 }
 
 // The form put aside: a tap on the globe puts the pin, Escape or Cancel brings the form back as it was.

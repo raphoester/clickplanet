@@ -13,6 +13,7 @@ import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
 import {useSoundSettings} from "./sound/soundSettingsStore.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useScreen} from "./hud/screenStore.ts"
+import {useShop} from "./shop/shopStore.ts"
 import {SMALL_FRAME} from "./compact.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
@@ -61,6 +62,7 @@ afterEach(() => {
     useDisplaySettings.setState(DEFAULT_DISPLAY_SETTINGS)
     useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
     useScreen.setState(useScreen.getInitialState(), true)
+    useShop.setState(useShop.getInitialState(), true)
     useRace.setState({race: undefined, heard: undefined})
     vi.useRealTimers()
 })
@@ -787,6 +789,19 @@ describe("Menu", () => {
             }
             return {...view, backend, player, progression, navigate, user, openSettings}
         }
+
+        it("puts the shop above You on the rail while it sells, and opens its modal", async () => {
+            const {user} = withAccount(["google"], {linked: ["google"]}, "ana")
+            const you = await screen.findByRole("button", {name: "You"})
+            expect(screen.queryByRole("button", {name: "Shop"})).toBeNull()
+
+            act(() => useShop.setState({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]}))
+            const shop = screen.getByRole("button", {name: "Shop"})
+            expect(shop.compareDocumentPosition(you) & Node.DOCUMENT_POSITION_FOLLOWING, "the shop sits above You").toBeTruthy()
+
+            await user.click(shop)
+            expect(useScreen.getState().shopOpen).toBe(true)
+        })
 
         it("puts the account at the foot of the rail, out of the places", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana")

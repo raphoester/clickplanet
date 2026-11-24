@@ -47,6 +47,8 @@ func (h SubmitFlagHandler) SubmitFlag(
 		return nil, connect.NewError(connect.CodeAlreadyExists, submissions.ErrWaiting)
 	case errors.Is(err, submissions.ErrNotWaiting):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrNotWaiting)
+	case errors.Is(err, submissions.ErrPaid):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrPaid)
 	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrInvalidPin),
 		errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, pictures.ErrUnknownUpload),
 		errors.Is(err, pictures.ErrTooLarge), errors.Is(err, pictures.ErrNotAPicture),

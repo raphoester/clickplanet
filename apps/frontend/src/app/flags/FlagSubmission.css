@@ -208,13 +208,31 @@
     font-size: 26px;
 }
 
-.flag-founded-name {
-    flex: 1 1 auto;
+.flag-founded-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 96px;
     min-width: 0;
+}
+
+.flag-founded-name {
     overflow: hidden;
     font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.flag-founded-time {
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+.flag-founded-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-left: auto;
 }
 
 .flag-sign-in {

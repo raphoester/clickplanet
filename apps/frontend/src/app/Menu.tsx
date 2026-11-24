@@ -13,7 +13,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import {useEdge} from "./components/useEdge.ts";
 import HomeLogo from "./components/HomeLogo.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon} from "./components/icons.tsx";
+import {HideIcon, LockIcon, SettingsIcon, ShareIcon, ShopIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -34,6 +34,7 @@ import {ListenForClicks} from "./clicks/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import {MenuTab, useScreen} from "./hud/screenStore.ts"
+import {useShop} from "./shop/shopStore.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {t, translator} from "../i18n/page.ts"
 import "./Menu.css"
@@ -82,6 +83,8 @@ export default function Menu(props: MenuProps) {
     const small = useSmallFrame()
     const open = chosen ?? !small
     const [profileOpen, setProfileOpen] = useState(false)
+    const selling = useShop((store) => store.plans.length > 0)
+    const setShopOpen = useScreen((screen) => screen.setShopOpen)
     const picker = usePicker()
     const [shell, setShell] = useState<HTMLElement | null>(null)
     useEdge(shell, MENU_RIGHT, "right")
@@ -137,6 +140,13 @@ export default function Menu(props: MenuProps) {
                     {p.dot && <VideoDot/>}
                 </button>)}
             </div>
+            {selling && <button type="button"
+                                className="menu-rail-item menu-rail-shop"
+                                aria-haspopup="dialog"
+                                onClick={() => setShopOpen(true)}>
+                <ShopIcon/>
+                <span className="menu-rail-label">{t("menu.shop")}</span>
+            </button>}
             {account.kind === "ready" && <button type="button"
                                                  className="menu-rail-item menu-rail-you"
                                                  aria-haspopup="dialog"

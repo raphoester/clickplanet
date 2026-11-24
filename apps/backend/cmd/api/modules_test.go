@@ -187,6 +187,17 @@ func TestTheModulesThatPlayHearOrReadTheQuizzesSpeakTheirLanguage(t *testing.T) 
 	}
 }
 
+// The shop is downstream of the flags: it asks the flags module whether time may be bought, and tells it each
+// payment's time as a command in the flags' words. No module hears or asks the shop.
+func TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheShops(t *testing.T) {
+	edges := moduleEdges(t)
+
+	assert.ElementsMatch(t, []string{"flags"}, edges["shop"])
+	for module, upstream := range edges {
+		assert.NotContains(t, upstream, "shop", module)
+	}
+}
+
 // The flags module hears no module and calls none: planet keeps a catalog fed by its facts, and the others read the
 // flags the game ships with and the shape of a code opened since (cpflags).
 func TestTheFlagsSpeakNoModulesLanguageAndTheModulesThatCheckAFlagSpeakTheirs(t *testing.T) {

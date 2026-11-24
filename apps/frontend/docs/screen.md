@@ -42,14 +42,14 @@ nothing closes. Checked with Playwright's devices on their sides (iPhone SE, 14 
 
 | Zone | Phone | Desktop |
 |---|---|---|
-| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays); sideways, two pills | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), the shop's bag while it sells (opens the shop's modal), `SeasonChip` at its end (`BattleChip` while a battle plays); sideways, two pills, the bag in the left one | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`, and the player's level and its bar across the dock under them) above the tab bar, the chat's peek above it | the dock at the bottom centre, the same |
-| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet`; sideways, a rail on the left and each sheet a drawer beside it | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet`; sideways, a rail on the left and each sheet a drawer beside it | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, then Shop while it sells, which opens the shop's modal, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
-  (`menuTab`), the popovers (`popovers`: the desktop's season, battle and
+  (`menuTab`), the shop's modal (`shopOpen`, see [The shop](shop.md#the-shops-modal)), the popovers (`popovers`: the desktop's season, battle and
   "Your clicks", and on both forms the tray of every bonus, which All opens over the dock; see
   [Charges](charges.md#the-inventory)), and the player's last open or fold of the desktop menu's panel and of the chat (`menuOpen`,
   `chatOpen`, unset until the player chooses). The tab bar, the status bar, the chips, the dock, the menu and the chat

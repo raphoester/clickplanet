@@ -63,7 +63,7 @@ describe("the design tokens", () => {
         expect(found).toEqual([])
     })
 
-    for (const page of ["index.html", "privacy.html", "terms.html"]) {
+    for (const page of ["index.html", "privacy.html", "terms.html", "sale.html", "refunds.html"]) {
         it(`are the only place ${page} names a color or a font`, () => {
             const html = read(`${APP}${page}`)
 

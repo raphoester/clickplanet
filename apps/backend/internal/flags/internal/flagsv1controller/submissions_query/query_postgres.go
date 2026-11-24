@@ -17,19 +17,35 @@ import (
 // The decided submissions the operator reads, the latest first: the waiting ones are all read.
 const decidedRead = 500
 
-func NewPostgresQuery(db cppg.Conn, messages submissionmessage.Messages) PostgresQuery {
-	return PostgresQuery{db: db, messages: messages}
+// Review is which waiting submissions the operator reads.
+type Review string
+
+const (
+	// Every one, while the shop sells nothing.
+	EveryWaiting Review = "every"
+	// Only the ones whose time is paid: the shop sells, and a flag is paid for before its review.
+	PaidWaiting Review = "paid"
+)
+
+func NewPostgresQuery(db cppg.Conn, messages submissionmessage.Messages, review Review) PostgresQuery {
+	return PostgresQuery{db: db, messages: messages, review: review}
 }
 
 type PostgresQuery struct {
 	db       cppg.Conn
 	messages submissionmessage.Messages
+	review   Review
 }
 
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, '')`
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid
+
+// Time held for a submission and neither released nor taken back.
+const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
+		AND NOT EXISTS (SELECT 1 FROM time_grants g WHERE g.id = h.grant_id)
+		AND NOT EXISTS (SELECT 1 FROM time_takebacks t WHERE t.grant_id = h.grant_id))`
 
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
@@ -77,13 +93,14 @@ func (q PostgresQuery) closures(ctx context.Context, account submissions.Account
 	return closures, nil
 }
 
-// Kept is every submission waiting, the oldest first, then the ones decided last, the latest first.
+// Kept is every submission waiting, or only the paid ones, the oldest first, then the ones decided last, the latest
+// first.
 func (q PostgresQuery) Kept(ctx context.Context) (*flagsv1.ListSubmissionsResponse, error) {
 	rows, err := q.read(ctx, `
-		(SELECT `+columns+from+` WHERE s.state = 'waiting' ORDER BY s.submitted_at, s.id)
+		(SELECT `+columns+from+` WHERE s.state = 'waiting' AND ($2 OR `+paid+`) ORDER BY s.submitted_at, s.id)
 		UNION ALL
 		(SELECT `+columns+from+` WHERE s.state <> 'waiting' ORDER BY s.decided_at DESC, s.id LIMIT $1)`,
-		decidedRead)
+		decidedRead, q.review == EveryWaiting)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +133,7 @@ func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]s
 		var others uint32
 		if err := rows.Scan(&id, &account, &flag, &name, &row.Pin.Latitude, &row.Pin.Longitude,
 			&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY, &others,
-			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note); err != nil {
+			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note, &row.Paid); err != nil {
 			return nil, fmt.Errorf("failed to read a submission: %w", err)
 		}
 		row.ID, row.Flag, row.Name, row.State = submissions.SubmissionID(id), catalog.FlagID(flag), catalog.Name(name),

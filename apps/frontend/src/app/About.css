@@ -42,8 +42,9 @@
 
 .about-legal {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: var(--space-4);
+    gap: var(--space-1) var(--space-4);
     margin: 20px 0 0;
     font-family: var(--font-text);
     font-weight: 500;

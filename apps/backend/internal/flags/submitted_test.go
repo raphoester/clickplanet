@@ -48,7 +48,8 @@ func TestASubmittedFlagChangedWhileItWaitsOpensForEveryPlayer(t *testing.T) {
 	bucket := pictures.NewMemoryBucket()
 	gallery := pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20})
 	submit := submit_flag_usecase.New(&submissions.Sequence{}, clock, gallery, db, submitted)
-	approve := approve_submission_usecase.New(clock, gallery, submitted, flags)
+	approve := approve_submission_usecase.New(clock, gallery, db,
+		approve_submission_usecase.Stores{Submissions: submitted, Flags: flags}, cpoutbox.New(db))
 	founder := "00000000-0000-0000-0000-000000000001"
 
 	bucket.Upload(pictures.UploadID{1}, pictures.TestPNG(300, 200))

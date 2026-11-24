@@ -128,6 +128,12 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed
   and since when, with the operator's note to its founder), a change while it waits and never once decided, each decision and a close told once on the news line; the
   fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
+- [The shop](docs/shop.md) — the shop's modal (one card per product, today the region's flag), opened from the
+  status bar's bag on a phone and the rail's Shop on the desktop, neither while the shop is off; the founder pays for
+  its flag's time on Stripe's page as it sends it, held until the approval: the plans priced in the
+  page's language, the consent before Pay, Add time and the renewals in "Your flags", `?shop=paid` read and dropped and
+  the submissions read again until the flag opens; nothing while the shop is off; the fake's `shopOff`, `shopOn`,
+  `refuseCheckouts`; the terms of sale and refunds pages.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

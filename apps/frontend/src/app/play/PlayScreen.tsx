@@ -124,6 +124,11 @@ import {FlagLister, FlagStream, FlagSubmitter} from "../../backends/flags.ts";
 import {useFlagsFeed} from "../flags/flagsStore.ts";
 import {useFlagSubmissionsFeed} from "../flags/submissionsStore.ts";
 import FlagSubmissionPlace from "../flags/FlagSubmissionPlace.tsx";
+import {Shop} from "../../backends/shop.ts";
+import {useShopFeed} from "../shop/shopStore.ts";
+import ShopModal from "../shop/ShopModal.tsx";
+import {useShopReturn} from "../shop/shopReturn.ts";
+import type {ShopReturn} from "../../domain/shopReturn.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
@@ -212,11 +217,17 @@ export type Backends = {
     flags: FlagLister & FlagStream
     // The flags the player submits for the operator's review.
     flagSubmissions: FlagSubmitter
+    // Time for a regional flag, paid on Stripe's page.
+    shop: Shop
+    // Goes to Stripe's page.
+    toCheckout: (url: string) => void
 }
 
 export type PlayScreenProps = {
     linkedShot?: Shot
     showFront?: boolean
+    // Back from Stripe's page.
+    shopReturn?: ShopReturn
     backends: Backends
 }
 
@@ -284,6 +295,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     useFlagsFeed(backends.flags)
     useFlagSubmissionsFeed(backends.flagSubmissions,
         account.kind !== 'ready' ? "nobody" : linked ? "player" : account.offered.length > 0 ? "guest" : "nobody")
+    useShopFeed(backends.shop, linked)
+    useShopReturn(props.shopReturn)
     useHeldFlagClosings(backends.allegiance, allegiance?.countryId)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
@@ -609,7 +622,11 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
-        {ready && <FlagSubmissionPlace account={backends.account} submitter={backends.flagSubmissions}/>}
+        {ready && <ShopModal shop={backends.shop} toCheckout={backends.toCheckout}/>}
+        {ready && <FlagSubmissionPlace account={backends.account}
+                                        submitter={backends.flagSubmissions}
+                                        shop={backends.shop}
+                                        toCheckout={backends.toCheckout}/>}
 
         <HolderCardPlace holders={backends.tileHolders}
                          players={backends.playerInfo}

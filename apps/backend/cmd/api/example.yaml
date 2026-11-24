@@ -392,6 +392,26 @@ flags:
   pictures:
     enabled: false
 
+# Time for a regional flag, paid on Stripe's own page (Managed Payments, Stripe the seller). Off with no secretKey or
+# no webhookSecret: no plan is on sale, and Stripe's webhook endpoint is not served.
+shop:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: shop
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: localhost:6379
+    password: ""
+  stripe:
+    secretKey: ""
+    webhookSecret: ""
+
 support:
   database:
     host: localhost

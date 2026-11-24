@@ -1,6 +1,7 @@
 package submissions_query_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/postgres_submission_store"
@@ -43,7 +46,7 @@ func TestTheOperatorReadsTheWaitingOldestFirstThenTheDecidedLatestFirst(t *testi
 	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
 	store := postgres_submission_store.New(db)
 	query := submissions_query.NewPostgresQuery(db,
-		submissionmessage.New(flagmessage.New("https://media.test"), links{}))
+		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.EveryWaiting)
 
 	late := submissions.TestWaiting(submissions.SubmissionID{15: 1}, ada, at.Add(2*time.Hour))
 	early := submissions.TestWaiting(submissions.SubmissionID{15: 2}, bob, at)
@@ -72,7 +75,7 @@ func TestAFounderReadsWhyTheOperatorClosedItsFlagsAndNoOtherFlag(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
 	store, flags := postgres_submission_store.New(db), postgres_flag_store.New(db)
 	query := submissions_query.NewPostgresQuery(db,
-		submissionmessage.New(flagmessage.New("https://media.test"), links{}))
+		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.EveryWaiting)
 
 	founded := func(flag catalog.FlagID, name catalog.Name, account submissions.AccountID, id byte, note catalog.Note) {
 		t.Helper()
@@ -96,4 +99,44 @@ func TestAFounderReadsWhyTheOperatorClosedItsFlagsAndNoOtherFlag(t *testing.T) {
 	require.Len(t, mine.GetClosures(), 1, "not a flag open, nor one another account founded")
 	assert.Equal(t, "r-0000000001", mine.GetClosures()[0].GetFlag())
 	assert.Equal(t, "Broke the rules.", mine.GetClosures()[0].GetNote())
+}
+
+func TestWhileTheShopSellsTheOperatorReadsOnlyTheFlagsPaidFor(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
+	store, paidTime := postgres_submission_store.New(db), postgres_grant_store.New(db)
+	query := submissions_query.NewPostgresQuery(db,
+		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.PaidWaiting)
+
+	for i := byte(1); i <= 3; i++ {
+		row := submissions.TestWaiting(submissions.SubmissionID{15: i}, ada, at.Add(time.Duration(i)*time.Hour))
+		require.NoError(t, store.Save(t.Context(), submissions.Restored(row)))
+	}
+	hold := func(id grants.GrantID, submission byte, takenBack bool) {
+		t.Helper()
+		held := grants.Snapshot{
+			ID: id, Held: true, Submission: submissions.SubmissionID{15: submission}, Period: grants.Month, HeldAt: at,
+			TakenBack: takenBack, TakenBackAt: at,
+		}
+		grant, err := held.Restore()
+		require.NoError(t, err)
+		require.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error { return paidTime.Save(ctx, grant) }))
+	}
+	hold("stripe:in_1", 1, false)
+	hold("stripe:in_2", 2, true)
+
+	kept, err := query.Kept(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"01"}, ids(kept.GetSubmissions()), "the one refunded and the one never paid wait unseen")
+
+	mine, err := query.Mine(t.Context(), ada)
+	require.NoError(t, err)
+	paid := map[string]bool{}
+	for _, submission := range mine.GetSubmissions() {
+		paid[submission.GetId()[34:]] = submission.GetPaid()
+	}
+	assert.Equal(t, map[string]bool{"01": true, "02": false, "03": false}, paid)
+
+	submission, err := store.Submission(t.Context(), submissions.SubmissionID{15: 1})
+	require.NoError(t, err)
+	assert.True(t, submission.TakeSnapshot().Paid)
 }

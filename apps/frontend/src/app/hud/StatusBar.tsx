@@ -1,8 +1,10 @@
 import {ReactNode, useState} from "react"
 import CountryFlag from "../components/CountryFlag.tsx"
 import HomeLogo from "../components/HomeLogo.tsx"
+import {ShopIcon} from "../components/icons.tsx"
 import {useEdge} from "../components/useEdge.ts"
 import {useCountry} from "../countryStore.ts"
+import {useShop} from "../shop/shopStore.ts"
 import {useScreen} from "./screenStore.ts"
 import {t, translator} from "../../i18n/page.ts"
 import "./StatusBar.css"
@@ -20,6 +22,8 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
     useEdge(bar, STATUS_BOTTOM, "bottom")
     const boardOpen = useScreen((screen) => screen.sheet === "board")
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const selling = useShop((store) => store.plans.length > 0)
+    const setShopOpen = useScreen((screen) => screen.setShopOpen)
 
     const name = translator().country(country.code)
 
@@ -37,6 +41,13 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
                 <span className="status-bar-name">{name}</span>
                 <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
             </button>
+            {selling && <button type="button"
+                                className="icon-button status-bar-shop"
+                                aria-label={t("menu.shop")}
+                                aria-haspopup="dialog"
+                                onClick={() => setShopOpen(true)}>
+                <ShopIcon/>
+            </button>}
         </div>
 
         {trailing}

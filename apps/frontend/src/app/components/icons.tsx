@@ -169,6 +169,13 @@ export function UserIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function ShopIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M5 8h14l-1.2 11.2a1.6 1.6 0 0 1-1.6 1.4H7.8a1.6 1.6 0 0 1-1.6-1.4z"/>
+        <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5"/>
+    </svg>
+}
+
 export function UsersIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <circle cx="9" cy="8.5" r="3.5"/>

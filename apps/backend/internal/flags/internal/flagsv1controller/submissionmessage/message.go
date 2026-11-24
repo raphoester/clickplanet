@@ -32,7 +32,7 @@ func (m Messages) Submission(submission submissions.Snapshot) *flagsv1.Submissio
 		Id: submission.ID.String(), Name: submission.Name.String(), Pin: flagmessage.Pin(submission.Pin),
 		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
-		Rejection: rejection(submission),
+		Rejection: rejection(submission), Paid: submission.Paid,
 	}
 	if public(submission.State) {
 		message.Picture = m.flags.Picture(submission.Picture)

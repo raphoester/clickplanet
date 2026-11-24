@@ -8,6 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -22,15 +23,22 @@ type Flags interface {
 
 const timeout = 30 * time.Second
 
-func New(clock cptime.Clock, gallery Gallery, store submissions.Store, flags Flags) *UseCase {
-	return &UseCase{clock: clock, gallery: gallery, store: store, flags: flags}
+// Stores is what an approval reads and changes: the submission, and the flags whose names it may not take.
+type Stores struct {
+	Submissions submissions.Store
+	Flags       Flags
+}
+
+func New(clock cptime.Clock, gallery Gallery, db cpatomic.Transactioner, stores Stores, outbox cpatomic.Outbox) *UseCase {
+	return &UseCase{clock: clock, gallery: gallery, db: db, stores: stores, outbox: outbox}
 }
 
 type UseCase struct {
 	clock   cptime.Clock
 	gallery Gallery
-	store   submissions.Store
-	flags   Flags
+	db      cpatomic.Transactioner
+	stores  Stores
+	outbox  cpatomic.Outbox
 }
 
 type In struct {
@@ -49,7 +57,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, err
 	if err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
-	waiting, err := u.store.Submission(ctx, id)
+	waiting, err := u.stores.Submissions.Submission(ctx, id)
 	if err != nil {
 		return submissions.Snapshot{}, fmt.Errorf("failed to read the submission: %w", err)
 	}
@@ -62,7 +70,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, err
 			return submissions.Snapshot{}, err //nolint:wrapcheck // the rule names it.
 		}
 	}
-	flags, err := u.flags.Flags(ctx)
+	flags, err := u.stores.Flags.Flags(ctx)
 	if err != nil {
 		return submissions.Snapshot{}, fmt.Errorf("failed to read the flags' names: %w", err)
 	}
@@ -78,8 +86,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, err
 	if err := u.gallery.Release(ctx, id.PictureKey(), picture); err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the gallery names it.
 	}
-	if err := u.store.Save(ctx, approved); err != nil {
-		return submissions.Snapshot{}, fmt.Errorf("failed to keep the approval of %s: %w", id, err)
+	if err := u.db.InTx(ctx, func(ctx context.Context) error {
+		if err := u.stores.Submissions.Save(ctx, approved); err != nil {
+			return fmt.Errorf("failed to keep the approval of %s: %w", id, err)
+		}
+		if err := u.outbox.Record(ctx, approved.Facts()...); err != nil {
+			return fmt.Errorf("failed to record the approval of %s: %w", id, err)
+		}
+		return nil
+	}); err != nil {
+		return submissions.Snapshot{}, err //nolint:wrapcheck // the transaction named it.
 	}
 	// The picture is public: the private copy is no longer read.
 	_ = u.gallery.Drop(ctx, id.PictureKey())

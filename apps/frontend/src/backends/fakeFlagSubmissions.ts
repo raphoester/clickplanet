@@ -1,6 +1,6 @@
 import type {FlagPicture} from "../domain/flags.ts"
 import {flagNameOf, isValidFlagName, pictureFileRefusal, RejectionReason, Submission} from "../domain/flagSubmissions.ts"
-import {FakeFlagsBackend} from "./fakeFlagsBackend.ts"
+import {FakeFlagsBackend, NameRefusal} from "./fakeFlagsBackend.ts"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {UploadOptions} from "./support.ts"
 
@@ -10,7 +10,8 @@ const UPLOAD_STEPS = 8
 // The server's drawing of an upload, as a sold flag's picture.
 export type UploadPainter = (upload: Blob) => Promise<FlagPicture>
 
-type Kept = {submission: Submission, upload?: Blob}
+// paidDays: the time paid while it waited, held until its approval opens it.
+type Kept = {submission: Submission, upload?: Blob, paidDays?: number}
 
 // The flags module's submissions in memory, and the operator's verdicts from the console: approveSubmission(),
 // rejectSubmission(reason, note), openSubmission(). After each verdict the flags stream opens again, so the page reads
@@ -56,7 +57,9 @@ export class FakeFlagSubmissions implements FlagSubmitter {
             throw new SubmissionRefusedError("invalid")
         }
         const waiting = this.waiting()
-        if (replaces !== undefined && waiting?.submission.id !== replaces) throw new SubmissionRefusedError("decided")
+        if (replaces !== undefined && (waiting?.submission.id !== replaces || waiting.paidDays !== undefined)) {
+            throw new SubmissionRefusedError("decided")
+        }
         if (replaces === undefined && waiting !== undefined) throw new SubmissionRefusedError("waiting")
 
         const at = this.now()
@@ -68,6 +71,7 @@ export class FakeFlagSubmissions implements FlagSubmitter {
             state: "waiting",
             submittedAt: at,
             decidedAt: at,
+            paid: false,
         }
         this.uploads.delete(uploadId)
         if (waiting !== undefined) this.kept.splice(this.kept.indexOf(waiting), 1)
@@ -78,10 +82,19 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     public async mySubmissions(): Promise<Submission[]> {
         await this.wait(this.delayMs / 4)
         if (!await this.linked()) return []
-        return this.submissions().map((submission) => {
+        return this.kept.map(({submission, paidDays}) => {
+            const paid = paidDays !== undefined && (submission.state === "waiting" || submission.state === "approved")
             const closeNote = submission.state === "opened" ? this.flags.closeNoteOf(submission.flag) : undefined
-            return closeNote === undefined ? {...submission} : {...submission, closeNote}
+            return closeNote === undefined ? {...submission, paid} : {...submission, paid, closeNote}
         })
+    }
+
+    // As the shop's payment for a flag that waits: its time is held until the approval.
+    public hold(id: string, days: number): boolean {
+        const kept = this.kept.find(({submission}) => submission.id === id)
+        if (!kept || kept.submission.state !== "waiting" || kept.paidDays !== undefined) return false
+        kept.paidDays = days
+        return true
     }
 
     public async approve(): Promise<string> {
@@ -90,30 +103,43 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         const picture = kept.upload && await this.paint(kept.upload)
         this.decide(kept, {state: "approved", picture})
         this.flags.reopen()
-        return `${kept.submission.name} is approved: openSubmission() opens it, as a payment would`
+        if (kept.paidDays === undefined) return `${kept.submission.name} is approved: openSubmission() opens it, as a payment would`
+        const {name} = kept.submission
+        const opened = await this.openApproved(kept.submission.id, kept.paidDays)
+        if ("refused" in opened) return `${name} is approved and paid, but cannot open: ${opened.refused}`
+        return `${name} is approved and opens with its paid time, as ${opened.code}`
     }
 
     public reject(reason: RejectionReason = "other", note = ""): string {
         const kept = this.waiting()
         if (!kept) return "no submission waits: send one from the flag picker"
+        const refunded = kept.paidDays !== undefined
+        kept.paidDays = undefined
         this.decide(kept, {state: "rejected", rejection: {reason, note}})
         this.flags.reopen()
-        return `${kept.submission.name} is rejected: ${reason}`
+        return `${kept.submission.name} is rejected: ${reason}${refunded ? ", and its payment refunded" : ""}`
     }
 
     public async open(days = 30): Promise<string> {
         const kept = this.kept.find(({submission}) => submission.state === "approved")
         if (!kept) return "no flag is approved: approveSubmission() approves the one that waits"
-        const {name, pin, picture} = kept.submission
-        const opened = await this.flags.open(name, days, {picture, pin})
+        const {name} = kept.submission
+        const opened = await this.openApproved(kept.submission.id, days)
         if ("refused" in opened) return `${name} cannot open: ${opened.refused}`
-        this.decide(kept, {state: "opened", flag: opened.code})
-        this.flags.reopen()
         return `${name} is open as ${opened.code} for ${days} days`
     }
 
-    private submissions(): Submission[] {
-        return this.kept.map(({submission}) => submission)
+    // An approved flag opened, as its first payment would open it.
+    public async openApproved(id: string, days: number): Promise<{code: string} | {refused: NameRefusal | "not approved"}> {
+        const kept = this.kept.find(({submission}) => submission.id === id)
+        if (!kept || kept.submission.state !== "approved") return {refused: "not approved"}
+        const {name, pin, picture} = kept.submission
+        const opened = await this.flags.open(name, days, {picture, pin})
+        if ("refused" in opened) return opened
+        kept.paidDays = undefined
+        this.decide(kept, {state: "opened", flag: opened.code})
+        this.flags.reopen()
+        return opened
     }
 
     private waiting(): Kept | undefined {

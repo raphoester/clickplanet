@@ -21,6 +21,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/restate_flags_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/commands/grant_time_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/commands/take_back_time_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
@@ -31,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_submission_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/get_payable_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler/flags_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_my_submissions_handler"
@@ -43,6 +46,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/postgres_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/get_payable_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/grant_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/release_held_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/take_back_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
@@ -56,6 +64,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/reject_submission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/submit_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/uuid_submission_ids"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/approved_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -144,6 +153,38 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	gallery := pictures.NewGallery(bucket, rules)
 	submitted := postgres_submission_store.New(db)
+	opening := catalog.NewOpening(random_flag_ids.Provider{}, clock)
+
+	// The shop's payments: the time each bought, granted once, and taken back after a refund.
+	paidTime := postgres_grant_store.New(db)
+	granted, err := cpredis.Handle(ctx, redis, log_subscriber.New(grant_time_handler.New(grant_time_usecase.New(
+		opening, clock, db, grant_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Flags: store},
+		cpoutbox.New(db),
+	), props.Logger), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to handle flags.v1.GrantTime: %w", err)
+	}
+	takenBack, err := cpredis.Handle(ctx, redis, log_subscriber.New(take_back_time_handler.New(
+		take_back_time_usecase.New(clock, db, paidTime, store, cpoutbox.New(db)), props.Logger,
+	), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to handle flags.v1.TakeBackTime: %w", err)
+	}
+	// A flag paid for before its review opens when its approval is heard.
+	released, err := cpredis.Subscribe(ctx, redis, "flags-release-held",
+		log_subscriber.New(approved_subscriber.New(release_held_time_usecase.New(
+			opening, clock, db, release_held_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Flags: store},
+			cpoutbox.New(db),
+		), props.Logger), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to flags.v1.SubmissionApproved: %w", err)
+	}
 	uploads := create_upload_usecase.New(uuid_upload_ids.Provider{}, rules, bucket)
 	uploadLimiter := cpratelimit.New("flags-upload-limiter", config.SubmissionUploads, clock)
 	props.Runners.Add(uploadLimiter)
@@ -154,12 +195,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger),
 		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
 			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed,
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, granted, takenBack, released,
 			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
 	reviews := submissionmessage.New(messages, bucket)
-	submittedQuery := submissions_query.NewPostgresQuery(db, reviews)
+	review := submissions_query.EveryWaiting
+	if config.PaidReview {
+		review = submissions_query.PaidWaiting
+	}
+	submittedQuery := submissions_query.NewPostgresQuery(db, reviews, review)
 	if err := props.RPC.Mount(
 		func(options ...connect.HandlerOption) (string, http.Handler) {
 			return flagsv1connect.NewFlagServiceHandler(flagsv1controller.FlagService{
@@ -181,7 +226,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.FlagService: %w", err)
 	}
-	opening := catalog.NewOpening(random_flag_ids.Provider{}, clock)
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return flagsv1connect.NewInternalServiceHandler(flagsv1controller.InternalService{
+			GetPayableHandler: get_payable_handler.New(get_payable_usecase.New(clock, submitted, store)),
+		}, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount flags.v1.InternalService: %w", err)
+	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return flagsv1connect.NewAdminServiceHandler(flagsv1controller.AdminService{
 			ListFlagsHandler:        list,
@@ -194,10 +245,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			RenameFlagHandler:      rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			ListSubmissionsHandler: list_submissions_handler.New(submittedQuery),
 			ApproveSubmissionHandler: approve_submission_handler.New(
-				approve_submission_usecase.New(clock, gallery, submitted, store), reviews,
+				approve_submission_usecase.New(clock, gallery, db,
+					approve_submission_usecase.Stores{Submissions: submitted, Flags: store}, cpoutbox.New(db)), reviews,
 			),
 			RejectSubmissionHandler: reject_submission_handler.New(
-				reject_submission_usecase.New(clock, submitted), reviews,
+				reject_submission_usecase.New(clock, db, submitted, cpoutbox.New(db)), reviews,
 			),
 			OpenSubmittedFlagHandler: open_submitted_flag_handler.New(open_submitted_flag_usecase.New(
 				opening, db, submitted, store, cpoutbox.New(db),
@@ -221,6 +273,9 @@ type Config struct {
 	Pictures PicturesConfig
 	// The pictures of flags an account and an address may upload in a day, for a submission.
 	SubmissionUploads cpratelimit.Config
+	// While the shop sells, a submission reaches the operator's review once its time is paid. main sets it from the
+	// shop's config.
+	PaidReview bool
 }
 
 // In the support module's bucket: uploaded under flags/uploads/, private, and drawn again under flags/pictures/, which
