@@ -138,5 +138,6 @@ wipe, an arena, a deleted account, a knock-out; the switch's trap lost. `postgre
 deleted, a wipe, a forgotten holder, the carry. `traps`' gate, `Snare` (a guest's two banks, a signed-in player's one,
 the floor, the event), `lay_trap_usecase`; `notices`' board (a trap laid to its flag alone, a trap sprung to every stream
 and `yours` to the taker's); `throttle_click`'s answer read again; `spread_click`'s and `enclose_click`'s sprung traps;
-`lay_trap_handler`'s codes, `traps_query`, the sink and `GetChargeRules`. The bonuses' rules pin that `default` weighs
+`lay_trap_handler`'s codes, `traps_query`, the sink and `GetChargeRules`; `click_handler`'s and `get_budget_handler`'s
+debt read below 0, a refused click's detail too. The bonuses' rules pin that `default` weighs
 the trap 0 and gives 1 or 2.

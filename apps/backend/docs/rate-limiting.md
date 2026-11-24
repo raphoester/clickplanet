@@ -61,9 +61,11 @@ The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if pr
 **A trap sprung drains the taker's bank below 0, down to minus one bank** (`Limiter.Drain`, see [The trap](trap.md)):
 the account's own bucket and, for a guest, its network's guest bucket; never the network's. A bank in debt refuses
 every take (`tokens < n`) and refills from its debt at its own pace, so −10 in a guest's 5 s a click is 55 s of nothing.
-Each reading says the debt as it is: `ClickBudget.tokens` is negative, and the client replays the refill from it. The
-click that sprang a trap reads the bank again after its takes (`throttle_click`), so its answer shows the debt; a
-refill charge (`Fill`) pays the whole debt. A restart forgets every debt, as it fills every bank.
+Each reading says the debt as it is: `ClickBudget.tokens` is negative, and the client replays the refill from it.
+**`clickbudget.Encode` puts no floor on it.** It kept one at 0 from before the trap until 2026-11-24: every answer
+read 0 in debt, so the page showed an empty bank that refilled as usual while the server refused its clicks for
+minutes. The click that sprang a trap reads the bank again after its takes (`throttle_click`), so its answer shows the
+debt; a refill charge (`Fill`) pays the whole debt. A restart forgets every debt, as it fills every bank.
 
 ## A big country refills slower (`clicks.Toll`)
 
