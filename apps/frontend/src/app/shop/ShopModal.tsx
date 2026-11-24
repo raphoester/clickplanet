@@ -90,6 +90,7 @@ export default function ShopModal({shop, toCheckout}: ShopModalProps) {
     const submissions = useFlagSubmissions((store) => store.submissions)
     const catalog = useFlags((store) => store.catalog)
     const showFlagPlace = useFlagForm((form) => form.show)
+    const composeFlag = useFlagForm((form) => form.compose)
 
     useEffect(() => {
         if (!open) return
@@ -104,9 +105,19 @@ export default function ShopModal({shop, toCheckout}: ShopModalProps) {
         close()
         showFlagPlace()
     }
+    const toNewFlag = () => {
+        close()
+        composeFlag()
+    }
     const offer = offerOf(submissions, catalog, renewals, Date.now())
     const head = headOf(offer)
     const picked = pickedOf(plans, chosen)
+    const founded = picked !== undefined && (offer.kind === "addTime" || offer.kind === "renewing")
+    const footer = founded
+        ? <button type="button" className="button button-secondary shop-go" aria-haspopup="dialog" onClick={toNewFlag}>
+            {t("flagSubmission.new")}
+        </button>
+        : undefined
 
     const body = (): ReactNode => {
         if (picked === undefined) return undefined
@@ -147,7 +158,7 @@ export default function ShopModal({shop, toCheckout}: ShopModalProps) {
         }
     }
 
-    return <Modal title={t("menu.shop")} onClose={close} className="shop-modal">
+    return <Modal title={t("menu.shop")} footer={footer} onClose={close} className="shop-modal">
         <section className="shop-product" aria-label={t("shop.flag.name")}>
             <header className="shop-product-head">
                 <span className="shop-product-picture">{head.picture}</span>

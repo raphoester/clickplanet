@@ -57,6 +57,9 @@ function openShop(sells: Shop = shop(), toCheckout = vi.fn()) {
 }
 
 const plan = (name: RegExp) => screen.getByRole("radio", {name})
+const newFlag = () => screen.queryByRole("button", {name: "New flag"})
+
+const renewing = (): Renewal => ({id: "r-1", plan: "month", target: {kind: "flag", flag: FLAG}, state: "renewing", periodEndsAt: ENDS_AT})
 
 describe("ShopModal", () => {
     it("shows nothing until the shop is opened", () => {
@@ -145,13 +148,38 @@ describe("ShopModal", () => {
 
     it("sells no second plan while a flag's renewal runs", () => {
         opened()
-        const renews: Renewal = {id: "r-1", plan: "month", target: {kind: "flag", flag: FLAG}, state: "renewing", periodEndsAt: ENDS_AT}
-        useShop.setState({renewals: [renews]})
+        useShop.setState({renewals: [renewing()]})
         openShop()
 
         expect(screen.queryByRole("radio")).toBeNull()
         expect(screen.queryByRole("button", {name: /^Pay/})).toBeNull()
         expect(screen.getByRole("button", {name: "Your flag"})).not.toBeNull()
+    })
+
+    it.each([
+        ["adds time to", () => {}],
+        ["renews", () => useShop.setState({renewals: [renewing()]})],
+    ])("opens the form for a new flag while the founder %s its flag", async (_, given) => {
+        opened()
+        given()
+        const user = openShop()
+
+        await user.click(newFlag()!)
+        expect(useScreen.getState().shopOpen).toBe(false)
+        expect(useFlagForm.getState()).toMatchObject({shown: true, composing: true, draft: {name: ""}})
+    })
+
+    it.each([
+        ["no flag", () => {}],
+        ["a flag sent and not paid", () => useFlagSubmissions.setState({submissions: [submission({state: "waiting"})], read: true})],
+        ["a flag paid in review", () => useFlagSubmissions.setState({submissions: [submission({state: "waiting", paid: true})], read: true})],
+        ["a flag approved and not paid", () => useFlagSubmissions.setState({submissions: [submission()], read: true})],
+    ])("offers no new flag for %s", (_, given) => {
+        given()
+        openShop()
+
+        expect(screen.getByRole("dialog", {name: "Shop"})).not.toBeNull()
+        expect(newFlag()).toBeNull()
     })
 
     it("closes on its close button", async () => {
