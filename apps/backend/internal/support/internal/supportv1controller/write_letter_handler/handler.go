@@ -30,16 +30,18 @@ func (h WriteLetterHandler) WriteLetter(
 	req *connect.Request[supportv1.WriteLetterRequest],
 ) (*connect.Response[supportv1.WriteLetterResponse], error) {
 	letter, err := h.useCase.Execute(ctx, write_letter_usecase.In{
-		Letter: req.Msg.GetLetterId(), Account: req.Msg.GetAccountId(), Subject: req.Msg.GetSubject(),
-		Text: req.Msg.GetText(),
+		Letter: req.Msg.GetLetterId(), Submission: req.Msg.GetSubmissionId(), Account: req.Msg.GetAccountId(),
+		Subject: req.Msg.GetSubject(), Text: req.Msg.GetText(),
 	})
 	switch {
 	case errors.Is(err, letters.ErrUnknownLetter):
 		return nil, connect.NewError(connect.CodeNotFound, letters.ErrUnknownLetter)
+	case errors.Is(err, letters.ErrWrittenAlready):
+		return nil, connect.NewError(connect.CodeAlreadyExists, letters.ErrWrittenAlready)
 	case errors.Is(err, notes.ErrNoReplyAddress):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, notes.ErrNoReplyAddress)
-	case errors.Is(err, notes.ErrInvalidAccount), errors.Is(err, letters.ErrInvalidSubject),
-		errors.Is(err, notes.ErrInvalidText):
+	case errors.Is(err, notes.ErrInvalidAccount), errors.Is(err, letters.ErrInvalidSubmission),
+		errors.Is(err, letters.ErrInvalidSubject), errors.Is(err, notes.ErrInvalidText):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, notes.ErrNotSent):
 		return nil, connect.NewError(connect.CodeUnavailable, notes.ErrNotSent)

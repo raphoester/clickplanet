@@ -101,6 +101,31 @@ func (s *StorageContractSuite) TestToIsTheAccountsLettersTheFirstWrittenFirst() 
 	s.Equal([]Snapshot{first, later}, snapshotsOf(to))
 }
 
+func (s *StorageContractSuite) TestAboutIsTheLetterAboutTheSubmission() {
+	catalonia := TestWritten(LetterID{15: 1}, ada, writtenAt)
+	s.kept(catalonia, TestWritten(LetterID{15: 2}, ada, writtenAt))
+
+	about, err := s.storage.About(s.T().Context(), catalonia.Submission)
+	s.Require().NoError(err)
+	s.Equal([]Snapshot{catalonia}, snapshotsOf(about))
+	none, err := s.storage.About(s.T().Context(), SubmissionID{15: 9})
+	s.Require().NoError(err)
+	s.Empty(none)
+}
+
+func (s *StorageContractSuite) TestASecondLetterAboutASubmissionIsRefused() {
+	first := TestWritten(LetterID{15: 1}, ada, writtenAt)
+	s.kept(first)
+	second := TestWritten(LetterID{15: 2}, ada, writtenAt.Add(time.Hour))
+	second.Submission = first.Submission
+
+	err := s.storage.Save(s.T().Context(), Restored(second))
+	s.Require().ErrorIs(err, ErrWrittenAlready)
+	about, err := s.storage.About(s.T().Context(), first.Submission)
+	s.Require().NoError(err)
+	s.Equal([]Snapshot{first}, snapshotsOf(about))
+}
+
 func (s *StorageContractSuite) TestWrittenBeforeIsTheLettersThatStillNameTheirPlayer() {
 	old := TestWritten(LetterID{15: 1}, ada, writtenAt)
 	anonymized := TestWritten(LetterID{15: 2}, notes.AccountID{}, writtenAt)

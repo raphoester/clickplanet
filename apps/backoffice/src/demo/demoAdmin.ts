@@ -396,7 +396,8 @@ export class DemoAdmin extends FakeAdmin {
             .map(each => [each.accountId, addressOfAccount(each.accountId)]))
         const tyrol = this.flags.submissions.find(each => each.id === "demo-sub-tyrol")?.accountId ?? ""
         this.letters = [new Letter({
-            id: "demo-letter-1", accountId: tyrol, address: addressOfAccount(tyrol), subject: "Your flag Tyrol",
+            id: "demo-letter-1", submissionId: "demo-sub-tyrol", accountId: tyrol, address: addressOfAccount(tyrol),
+            subject: "Your flag Tyrol",
             mails: [new LetterMail({
                 text: "Hi! Tyrol was a sold flag already, closed in October. Do you mean the Austrian state alone, or the whole region with South Tyrol and Trentino?",
                 sentAt: at(NOW - 3 * HOUR),

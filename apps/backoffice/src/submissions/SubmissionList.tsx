@@ -7,7 +7,7 @@ type Props = {
     submissions: KeptSubmission[]
     flags: Flag[]
     names: Map<string, string> | undefined
-    // The founders whose reply to a letter waits.
+    // The submissions whose founder's reply to their letter waits.
     replied: ReadonlySet<string>
     opened: string
     onOpen: (submissionId: string) => void
@@ -33,7 +33,7 @@ export function SubmissionList({submissions, flags, names, replied, opened, onOp
                             <span className="row-head">
                                 <span className="name">{submission.name}</span>
                                 {looksLikePhoto(submission) && <span className="badge badge-report">Many colours</span>}
-                                {replied.has(submission.accountId) && <span className="badge badge-replied">Replied</span>}
+                                {replied.has(submission.id) && <span className="badge badge-replied">Replied</span>}
                                 <span className="row-end"><Ago at={submission.submittedAt}/></span>
                             </span>
                             <span className="row-sub muted">

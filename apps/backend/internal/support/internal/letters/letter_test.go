@@ -18,6 +18,7 @@ var (
 	at    = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 	ada   = notes.AccountID{15: 1}
 	id    = letters.LetterID{15: 1}
+	about = letters.SubmissionID{15: 1}
 	inbox = notes.NewInbox("support@clickplanet.lol")
 )
 
@@ -39,7 +40,7 @@ func TestALettersAddressIsUnderTheInboxAndNeverANotes(t *testing.T) {
 }
 
 func TestTheFirstMailGoesUnderItsSubjectAndTheNextInReplyToIt(t *testing.T) {
-	draft, err := letters.NewDraft(id, ada, "ada@example.com", "  Your flag Catalonia ")
+	draft, err := letters.NewDraft(id, about, ada, "ada@example.com", "  Your flag Catalonia ", nil)
 	require.NoError(t, err)
 
 	first, err := draft.Mail("Which city is its capital?")
@@ -63,16 +64,31 @@ func TestTheFirstMailGoesUnderItsSubjectAndTheNextInReplyToIt(t *testing.T) {
 
 func TestALettersSubjectAndTextFollowTheirRules(t *testing.T) {
 	for _, subject := range []string{"", "  ", strings.Repeat("a", 201), "a\nb"} {
-		_, err := letters.NewDraft(id, ada, "ada@example.com", subject)
+		_, err := letters.NewDraft(id, about, ada, "ada@example.com", subject, nil)
 		require.ErrorIs(t, err, letters.ErrInvalidSubject, "%q", subject)
 	}
-	_, err := letters.NewDraft(id, ada, "", "Your flag")
+	_, err := letters.NewDraft(id, about, ada, "", "Your flag", nil)
 	require.ErrorIs(t, err, notes.ErrNoReplyAddress, "an account with no address gets no letter")
+	_, err = letters.NewDraft(id, letters.SubmissionID{}, ada, "ada@example.com", "Your flag", nil)
+	require.ErrorIs(t, err, letters.ErrInvalidSubmission, "a letter is about a submission")
 
-	draft, err := letters.NewDraft(id, ada, "ada@example.com", "Your flag")
+	draft, err := letters.NewDraft(id, about, ada, "ada@example.com", "Your flag", nil)
 	require.NoError(t, err)
 	_, err = draft.Mail(strings.Repeat("a", 5001))
 	require.ErrorIs(t, err, notes.ErrInvalidText)
+}
+
+func TestASubmissionHasOneLetterAtMost(t *testing.T) {
+	catalonia := letters.Restored(letters.TestWritten(id, ada, at))
+	other := letters.Restored(letters.TestWritten(letters.LetterID{15: 2}, ada, at))
+
+	_, err := letters.NewDraft(letters.LetterID{15: 3}, catalonia.TakeSnapshot().Submission, ada, "ada@example.com",
+		"Your flag Catalonia", []letters.Letter{other, catalonia})
+	require.ErrorIs(t, err, letters.ErrWrittenAlready)
+
+	_, err = letters.NewDraft(letters.LetterID{15: 3}, letters.SubmissionID{15: 3}, ada, "ada@example.com",
+		"Your flag Tyrol", []letters.Letter{other, catalonia})
+	require.NoError(t, err, "another submission of the same founder has its own")
 }
 
 func TestAReplyIsKeptOnce(t *testing.T) {
@@ -107,6 +123,7 @@ func TestALetterKeptWithNoMailOrHalfAnonymizedIsRefused(t *testing.T) {
 		"an account, no address": func(s *letters.Snapshot) { s.To = "" },
 		"an address, no account": func(s *letters.Snapshot) { s.Account = notes.AccountID{} },
 		"no id":                  func(s *letters.Snapshot) { s.ID = letters.LetterID{} },
+		"no submission":          func(s *letters.Snapshot) { s.Submission = letters.SubmissionID{} },
 		"no subject":             func(s *letters.Snapshot) { s.Subject = "" },
 	} {
 		snapshot := letters.TestWritten(id, ada, at)

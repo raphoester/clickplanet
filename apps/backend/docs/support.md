@@ -45,13 +45,15 @@ internal/support/internal/
     usecases/discard_unsent_usecase/    reads the files no note named in time, deletes them from the bucket, frees their
                                         room — Uploads, Bucket
   letters/                          Letter (Mail, Sent, Replied, Closed, Anonymized, Thread, TakeSnapshot), Draft (NewDraft,
-                                    Mail, Sent), Snapshot (Restore), Mail, Sent, LetterID, AddressOf and LetterOf (a letter's
-                                    address under the inbox); the Storage and IDProvider ports, the StorageContractSuite
+                                    Mail, Sent), Snapshot (Restore), Mail, Sent, LetterID, SubmissionID, AddressOf and
+                                    LetterOf (a letter's address under the inbox); the Storage and IDProvider ports, the
+                                    StorageContractSuite
     postgres_letter_store/          Storage, over support.letters, letter_mails, letter_replies and letter_closings
     letter_post/                    a letter's mail: from support.email, Reply-To the letter's own address, threaded
     uuid_letter_ids/                IDProvider: a random UUID per letter
-    usecases/write_letter_usecase/  a new letter to the account's address (AddressBook), or one more mail in a letter:
-                                    mailed, then kept — IDProvider, AddressBook, Storage, Post, Clock
+    usecases/write_letter_usecase/  the letter about a submission, to the account's address (AddressBook), or one
+                                    more mail in a letter: mailed, then kept — IDProvider, AddressBook, Storage, Post,
+                                    Clock
       audit_write_letter/           logs every letter at Warn
     usecases/close_letter_usecase/  reads the letter, closes it, saves — Storage
     usecases/receive_letter_reply_usecase/  the letter the recipient names, the mail read, the reply kept without
@@ -256,10 +258,19 @@ flags players submit: asking more, explaining a verdict). It is a **letter**, a 
 imports `notes` and `conversations`, never the other way), not a kind of note: a note is what a player sent, and its
 account is its sender, where a letter's is the player written to.
 
-- **`AdminService/WriteLetter(letter_id, account_id, subject, text)`** (`write_letter_usecase`): with no `letter_id`, a
-  new letter: the account's verified address (`notes.AddressBook`, player's `GetEmail`; none is
-  `ErrNoReplyAddress`, `FailedPrecondition`), a subject of 1 to 200 characters (`ErrInvalidSubject`), the text by the
-  rule of an answer (`notes.AnswerTextOf`). With one, one more mail in that letter, under "Re: " its subject, in its
+- **A letter is about one flag submission, and a submission has one letter at most** (2026-11-24): one conversation
+  per submission, so a founder of Bavaria and Tyrol has two, and a reply about one is never read as the other's. The
+  letter keeps the submission's id (`letters.SubmissionID`, `flags.v1.Submission.id`), its own type here: support
+  imports nothing of the flags module, and does not check that the submission exists. **`NewDraft` decides the
+  rule**: the use case hands it the letters kept about the submission (`Storage.About`), and one among them refuses
+  the new one (`ErrWrittenAlready`, `AlreadyExists`). The unique index `letters_submission` holds it too: two first
+  mails sent at the same moment both go, and the second is not kept (the store reads the index's refusal as
+  `ErrWrittenAlready`). Accepted: one operator writes.
+- **`AdminService/WriteLetter(letter_id, submission_id, account_id, subject, text)`** (`write_letter_usecase`): with
+  no `letter_id`, the letter about the submission (none is `ErrInvalidSubmission`, `InvalidArgument`): the account's
+  verified address (`notes.AddressBook`, player's `GetEmail`; none is `ErrNoReplyAddress`, `FailedPrecondition`), a
+  subject of 1 to 200 characters (`ErrInvalidSubject`; the backoffice sets "Your flag <name>"), the text by the rule
+  of an answer (`notes.AnswerTextOf`). With one, one more mail in that letter, under "Re: " its subject, in its
   thread. **Mailed, then kept**, as an answer: a mail that did not go keeps nothing (`Unavailable`), one that went and
   could not be kept would go twice if sent again. `audit_write_letter` logs each at Warn, with the app that called.
 - **The mail** (`letter_post`): from `support.email`, **Reply-To the letter's own address**,
@@ -269,16 +280,19 @@ account is its sender, where a letter's is the player written to.
   first (`receive_letter_reply_usecase`: `letters.LetterOf` is `ErrNotALetter` before it reads anything for a note's
   address), then the notes. The reply is kept without what it quotes (`Inbox.Unquoted`), once per Message-ID. A letter
   not kept or anonymized is stray: the Worker forwards the mail to the operator.
-- **`AdminService/ListLetters(account_id, open_only, limit)`** (`letters_query`): the latest written or replied to
-  first, 100 unless asked, 500 at most, with their mails and replies; `account_id` for one player's. **`open_only`**:
+- **`AdminService/ListLetters(account_id, submission_id, open_only, limit)`** (`letters_query`): the latest written or
+  replied to first, 100 unless asked, 500 at most, with their mails and replies, each with its `submission_id`;
+  `account_id` for one player's, `submission_id` for the one about a submission. **`open_only`**:
   a reply after the last mail, and no close after it. **`CloseLetter(letter_id)`**: the letter waits for nothing until
   the player writes again.
-- **Kept in four tables, one shape each** (migration `20261124103252_letters`): `letters` (`account_id` null and
-  `address` empty once anonymized, `subject`, `written_at`, its first mail's), `letter_mails`, `letter_replies` (with
-  `sender`, empty once anonymized) and `letter_closings`, each keyed by the letter and the mail.
+- **Kept in four tables, one shape each** (migration `20261124103252_letters`): `letters` (`submission_id`, unique;
+  `account_id` null and `address` empty once anonymized, `subject`, `written_at`, its first mail's), `letter_mails`,
+  `letter_replies` (with `sender`, empty once anonymized) and `letter_closings`, each keyed by the letter and the mail.
+  Migration `20261124125235_letter_submissions` added `submission_id` and deleted the letters written before it, on
+  their first day, which named no submission. A reply to one comes in stray, and the Worker forwards it.
 - **Anonymized as notes are**: `player.v1.PlayerForgotten` (`support-letters-forgotten`) and the prune, past
   `support.retention` from the first mail (`prune_letters_usecase`, in the prune's runner), blank the account, the
-  address and each reply's sender. What was written stays.
+  address and each reply's sender. What was written stays, and so does the submission it is about.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 

@@ -255,8 +255,8 @@ and says what is in it. Read the doc before you change its area.
   clips module's snapshots.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; the address
   a note is answered at, the operator's answers by email and the player's replies (a note's conversation); a letter
-  the operator writes to a player first, and its replies; each report told to the chat's judge (`PlayerReported`) and
-  closed by its command (`DecideReport`).
+  the operator writes to a player first, one per flag submission, and its replies; each report told to the chat's
+  judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
   as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; the pings
   when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season

@@ -29,9 +29,11 @@ export function localized(message: string, now: Date = new Date()): string {
         .replace(STAMP, stamp => timeOf(new Date(stamp)))
 }
 
-// What not_found, failed_precondition, unimplemented and unavailable mean depend on the action refused, so each says its
-// own.
-export type Meanings = {notFound?: string, failedPrecondition?: string, unimplemented?: string, unavailable?: string}
+// What not_found, already_exists, failed_precondition, unimplemented and unavailable mean depend on the action refused,
+// so each says its own.
+export type Meanings = {
+    notFound?: string, alreadyExists?: string, failedPrecondition?: string, unimplemented?: string, unavailable?: string,
+}
 
 // A refused action in the operator's words.
 export function wordsOf(err: unknown, meanings: Meanings = {}): string {
@@ -40,6 +42,9 @@ export function wordsOf(err: unknown, meanings: Meanings = {}): string {
     switch (error.code) {
         case Code.NotFound:
             if (meanings.notFound !== undefined) return meanings.notFound
+            break
+        case Code.AlreadyExists:
+            if (meanings.alreadyExists !== undefined) return meanings.alreadyExists
             break
         case Code.FailedPrecondition:
             if (meanings.failedPrecondition !== undefined) return meanings.failedPrecondition

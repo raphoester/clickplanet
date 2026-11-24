@@ -70,6 +70,12 @@ func (m *MemoryStorage) To(_ context.Context, account notes.AccountID) ([]Letter
 	return restored(m.sorted(func(row Snapshot) bool { return row.Account == account && account != notes.AccountID{} }))
 }
 
+func (m *MemoryStorage) About(_ context.Context, submission SubmissionID) ([]Letter, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return restored(m.sorted(func(row Snapshot) bool { return row.Submission == submission }))
+}
+
 func (m *MemoryStorage) WrittenBefore(_ context.Context, at time.Time) ([]Letter, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -95,6 +101,14 @@ func (m *MemoryStorage) Save(_ context.Context, saved ...Letter) error {
 	defer m.mu.Unlock()
 	for _, letter := range saved {
 		row := letter.TakeSnapshot()
+		for id, kept := range m.rows {
+			if id != row.ID && kept.Submission == row.Submission {
+				return fmt.Errorf("%w: %s", ErrWrittenAlready, row.Submission)
+			}
+		}
+	}
+	for _, letter := range saved {
+		row := letter.TakeSnapshot()
 		m.rows[row.ID] = row
 	}
 	return nil
@@ -113,10 +127,10 @@ func (s *SequentialIDs) NewID() (LetterID, error) {
 	return LetterID{15: s.next}, nil
 }
 
-// TestWritten is a letter to the account, its first mail sent at a time.
+// TestWritten is a letter to the account, its first mail sent at a time, about the submission of the same id.
 func TestWritten(id LetterID, account notes.AccountID, at time.Time) Snapshot {
 	return Snapshot{
-		ID: id, Account: account, To: "ada@example.com", Subject: "Your flag Catalonia",
+		ID: id, Submission: SubmissionID(id), Account: account, To: "ada@example.com", Subject: "Your flag Catalonia",
 		Sent: []Sent{{Text: "Which city is its capital?", Mail: "l1@clickplanet.lol", At: at}},
 	}
 }

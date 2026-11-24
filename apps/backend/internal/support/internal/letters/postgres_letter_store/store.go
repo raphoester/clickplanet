@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpmail"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -27,7 +28,12 @@ type Store struct {
 
 var _ letters.Storage = (*Store)(nil)
 
-const columns = `l.id, l.account_id, l.address, l.subject,
+const (
+	uniqueViolation        = "23505"
+	oneLetterPerSubmission = "letters_submission"
+)
+
+const columns = `l.id, l.submission_id, l.account_id, l.address, l.subject,
 	COALESCE((
 		SELECT json_agg(json_build_object('mail', message_id, 'text', text, 'at', sent_at) ORDER BY sent_at, message_id)
 		FROM letter_mails WHERE letter_id = l.id
@@ -51,6 +57,10 @@ func (s *Store) Letter(ctx context.Context, id letters.LetterID) (letters.Letter
 func (s *Store) To(ctx context.Context, account notes.AccountID) ([]letters.Letter, error) {
 	return s.read(ctx, `SELECT `+columns+` FROM letters l WHERE l.account_id = $1 ORDER BY l.written_at, l.id`,
 		uuid.UUID(account))
+}
+
+func (s *Store) About(ctx context.Context, submission letters.SubmissionID) ([]letters.Letter, error) {
+	return s.read(ctx, `SELECT `+columns+` FROM letters l WHERE l.submission_id = $1`, uuid.UUID(submission))
 }
 
 func (s *Store) WrittenBefore(ctx context.Context, at time.Time) ([]letters.Letter, error) {
@@ -88,17 +98,17 @@ type mail struct {
 
 func letterOf(scan func(dest ...any) error) (letters.Letter, error) {
 	var (
-		id            uuid.UUID
+		id, about     uuid.UUID
 		account       uuid.NullUUID
 		address       string
 		kept          letters.Snapshot
 		written, said []byte
 		closed        sql.NullTime
 	)
-	if err := scan(&id, &account, &address, &kept.Subject, &written, &said, &closed); err != nil {
+	if err := scan(&id, &about, &account, &address, &kept.Subject, &written, &said, &closed); err != nil {
 		return letters.Letter{}, fmt.Errorf("failed to read a letter: %w", err)
 	}
-	kept.ID, kept.To = letters.LetterID(id), cpmail.Address(address)
+	kept.ID, kept.Submission, kept.To = letters.LetterID(id), letters.SubmissionID(about), cpmail.Address(address)
 	if account.Valid {
 		kept.Account = notes.AccountID(account.UUID)
 	}
@@ -147,10 +157,15 @@ func write(ctx context.Context, tx cppg.Querier, kept letters.Snapshot) error {
 	if kept.Account != (notes.AccountID{}) {
 		account = uuid.NullUUID{UUID: uuid.UUID(kept.Account), Valid: true}
 	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO letters (id, account_id, address, subject, written_at) VALUES ($1, $2, $3, $4, $5)
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO letters (id, submission_id, account_id, address, subject, written_at) VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (id) DO UPDATE SET account_id = EXCLUDED.account_id, address = EXCLUDED.address
-	`, id, account, string(kept.To), kept.Subject, kept.Sent[0].At.UTC()); err != nil {
+	`, id, uuid.UUID(kept.Submission), account, string(kept.To), kept.Subject, kept.Sent[0].At.UTC())
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == oneLetterPerSubmission {
+		return fmt.Errorf("%w: %s", letters.ErrWrittenAlready, kept.Submission)
+	}
+	if err != nil {
 		return fmt.Errorf("failed to upsert the letter %s: %w", kept.ID, err)
 	}
 	for _, sent := range kept.Sent {
