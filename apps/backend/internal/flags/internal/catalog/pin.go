@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 )
 
 var (
@@ -29,4 +31,8 @@ func (p Pin) check() error {
 		return fmt.Errorf("%w: %v, %v", ErrInvalidPin, p.Latitude, p.Longitude)
 	}
 	return nil
+}
+
+func (p Pin) message() *flagsv1.Pin {
+	return &flagsv1.Pin{Latitude: p.Latitude, Longitude: p.Longitude}
 }

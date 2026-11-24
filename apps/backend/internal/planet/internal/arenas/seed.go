@@ -12,15 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-// Seed is how an arena's fresh map starts: the tiles it holds before any take. The arena knows no pattern; each pattern
-// is a Seed.
+// Seed is how an arena's fresh map starts: the tiles it holds before any take, and the seats it gives the flags with no
+// ground, which its map plays as capitals. The arena knows no pattern; each pattern is a Seed.
 type Seed interface {
 	Tiles() []clicks.StartTile
+	Seats() []clicks.Capital
 }
 
 // Seeds is the seed a rule set names, laid on a board's ground.
 type Seeds interface {
-	SeedOf(set cprules.Set[*planetv1.Rules], ground *clicks.Ground) Seed
+	SeedOf(ctx context.Context, set cprules.Set[*planetv1.Rules], ground *clicks.Ground) (Seed, error)
 }
 
 // Grounds are the boards an arena may play: those this process carries and planet keeps a row of.
@@ -73,7 +74,11 @@ func (s Setups) Setup(ctx context.Context, name cprules.SetName, world clicks.Bo
 	if err != nil {
 		return Setup{}, fmt.Errorf("failed to read the board of rule set %q: %w", name, err)
 	}
-	return Setup{Freeze: rules.Freeze, Board: board, Seed: s.seeds.SeedOf(set, ground)}, nil
+	seed, err := s.seeds.SeedOf(ctx, set, ground)
+	if err != nil {
+		return Setup{}, fmt.Errorf("failed to seed rule set %q: %w", name, err)
+	}
+	return Setup{Freeze: rules.Freeze, Board: board, Seed: seed}, nil
 }
 
 func (s Setups) board(named clicks.BoardName, world clicks.BoardID) (clicks.BoardID, *clicks.Ground, error) {

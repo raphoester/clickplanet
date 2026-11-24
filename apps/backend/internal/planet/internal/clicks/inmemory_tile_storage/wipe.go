@@ -36,7 +36,7 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 	return true, nil
 }
 
-// A blank board, no landmass or province held, no province locked, no flag out, nothing to recount.
+// A blank board, no landmass or province held, no province locked, no flag out, no seat, nothing to recount.
 func (s *Storage) emptyLocked() {
 	s.groundLocked(s.played.Ground())
 }
@@ -52,6 +52,7 @@ func (s *Storage) groundLocked(ground *clicks.Ground) {
 	s.landmasses = newLandmasses(borders)
 	s.provinces = newProvinces(table)
 	s.out = newOutFlags()
+	s.seats = nil
 	s.viruses = newVirusBook()
 	s.mines = newMineBook()
 	s.traps = newTrapBook()

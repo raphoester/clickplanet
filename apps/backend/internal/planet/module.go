@@ -184,6 +184,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_moved_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_opened_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
@@ -318,7 +319,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			inPlay := arenas.NewInPlay(clock)
 			inPlay.Resume(playing)
 			reach := clicks.NewReach(cprules.Reader(inForce, clicks.ReachPart), played, played, tilesStorage)
-			setups := arenas.NewSetups(ruleSets, seeds.Catalog{}, grounds)
+			flagCatalog := catalog.NewCatalog(postgres_catalog_store.New(db), func() bool { return bool(lock()) })
+			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(flagCatalog), grounds)
 
 			grantStore := postgres_grant_store.New(db)
 			board := notices.New()
@@ -354,7 +356,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			refusing := log_refusals.New(refusalBook, props.Logger)
 
-			flagCatalog := catalog.NewCatalog(postgres_catalog_store.New(db), func() bool { return bool(lock()) })
 			flagsOpened, err := cpredis.Subscribe(ctx, streams, "planet-flags-opened",
 				log_subscriber.New(flag_opened_subscriber.New(flagCatalog), props.Logger))
 			if err != nil {
@@ -368,12 +369,19 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
 			}
+			// Where the flag starts the next arena: one open now keeps its seat.
+			flagsMoved, err := cpredis.Subscribe(ctx, streams, "planet-flags-moved",
+				log_subscriber.New(flag_moved_subscriber.New(flagCatalog), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagMoved: %w", err)
+			}
 
 			told := facts.NewLog(clock)
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed, flagsMoved,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 

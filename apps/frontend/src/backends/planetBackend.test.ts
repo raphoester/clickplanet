@@ -46,6 +46,7 @@ import {
     LandmassHoldings,
     ProvinceHoldings,
     MapVersion as MapVersionMessage,
+    Seat,
     GetTileHolderResponse,
     ProvinceFortification as ProvinceFortificationMessage,
     LandmassHolder as LandmassHolderMessage,
@@ -327,6 +328,21 @@ describe("PlanetBackend.getOwnerships", () => {
         await backend.getOwnerships([{start: 1, end: 2}], ({knockedOut}) => seen.push(knockedOut))
 
         expect(seen).toEqual([["de", "it"]])
+        backend.close()
+    })
+
+    it("says the seats the arena gave the flags with no ground", async () => {
+        const getMap = getMapMock(async () => new GetMapResponse({
+            startTileId: 1, codes: ["", "gb-eng"], tiles: tileBytes([1, 0]),
+            seats: [new Seat({flag: "gb-eng", tileId: 1})],
+            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: ReadonlyMap<number, string>[] = []
+        await backend.getOwnerships([{start: 1, end: 2}], ({seats}) => seen.push(seats))
+
+        expect(seen).toEqual([new Map([[1, "gb-eng"]])])
         backend.close()
     })
 

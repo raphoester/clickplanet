@@ -1332,7 +1332,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                     if (tile >= range.start && tile <= range.end && this.tileBindings.get(tile) === flag) infected.set(tile, virus)
                 }
             }
-            callback({range, version: this.version(), bindings, shields, knockedOut: [], infected})
+            callback({range, version: this.version(), bindings, shields, knockedOut: [], infected, seats: new Map()})
         }
     }
 }

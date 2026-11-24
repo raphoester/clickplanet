@@ -1,0 +1,17 @@
+{
+  "gb-eng": {
+    "place": "London",
+    "latitude": 51.501941,
+    "longitude": -0.118668
+  },
+  "gb-sct": {
+    "place": "Edinburgh",
+    "latitude": 55.948328,
+    "longitude": -3.219091
+  },
+  "gb-wls": {
+    "place": "Cardiff",
+    "latitude": 51.499995,
+    "longitude": -3.225008
+  }
+}

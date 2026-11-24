@@ -27,11 +27,25 @@ func GroundOfProvinces(name BoardName, borders *Borders, capitals *Capitals, pro
 
 // LinkedGround is GroundWith, its tiles touching as the edges say, each both ways.
 func LinkedGround(borders *Borders, capitals *Capitals, edges []Edge) *Ground {
+	return groundOf("test-board", borders, capitals, ProvincesOfLandmasses(borders), bothWays(edges))
+}
+
+// PlacedGround is LinkedGround, each tile at its point on the globe.
+func PlacedGround(borders *Borders, capitals *Capitals, points []Pin, edges []Edge) *Ground {
+	positions := make([]float32, 0, 3*len(points))
+	for _, point := range points {
+		at := point.Point()
+		positions = append(positions, float32(at.X), float32(at.Y), float32(at.Z))
+	}
+	return groundAt("test-board", borders, capitals, ProvincesOfLandmasses(borders), positions, bothWays(edges))
+}
+
+func bothWays(edges []Edge) []Edge {
 	both := make([]Edge, 0, 2*len(edges))
 	for _, edge := range edges {
 		both = append(both, edge, Edge{From: edge.To, To: edge.From})
 	}
-	return groundOf("test-board", borders, capitals, ProvincesOfLandmasses(borders), both)
+	return both
 }
 
 func groundOf(name BoardName, borders *Borders, capitals *Capitals, provinces *Provinces, edges []Edge) *Ground {
@@ -39,6 +53,10 @@ func groundOf(name BoardName, borders *Borders, capitals *Capitals, provinces *P
 	for i := 0; i < len(positions); i += 3 {
 		positions[i] = 1
 	}
+	return groundAt(name, borders, capitals, provinces, positions, edges)
+}
+
+func groundAt(name BoardName, borders *Borders, capitals *Capitals, provinces *Provinces, positions []float32, edges []Edge) *Ground {
 	geography, err := NewGeography(positions, edges)
 	if err != nil {
 		panic(err)

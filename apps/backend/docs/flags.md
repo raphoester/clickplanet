@@ -31,16 +31,23 @@ signed-in player submit a flag, and the operator approve or reject it ([Submissi
   the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
-  carries it. The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
+  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)).
+- **The regions the game ships with have pins too**: England, Scotland and Wales, in `generated/flags/pins.json`,
+  embedded beside `countries.json` (`cpflags.Pins`). `make flag-pins` (`cmd/flagpins`) writes it from Natural Earth at
+  the map's tag (`v5.1.2`), as the map's capitals are chosen: for each flag `xx-yyy`, the populated place inside the map
+  subunit `YYY` of country `XX` that is its country's main capital, else another capital, else the biggest: London,
+  Edinburgh, Cardiff. Never edited by hand. The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
   Corsica Ajaccio's pin and Brittany Rennes', by name, and stops on any other flag, so none is left with no pin.
 
 ## What it tells
 
-`flags.v1.FlagOpened{flag, name, opened_at}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name, renamed_at}`,
-through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+`flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}`, `FlagRenamed{flag, name,
+renamed_at}` and `FlagMoved{flag, pin, moved_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
 The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`. It
 tells the operator's rename, and a founder's change approved, which may bring a new picture too: the pages read the
-flag from the table as it is now.
+flag from the table as it is now. **`FlagMoved` tells planet a capital moved**: a founder's change approved whose
+capital differs from the flag's (`Flag.Restyled`, after `FlagRenamed`, in one transaction; `20261124125257_moved_flags`).
+`FlagOpened` carries the capital as it is now, at each opening, comeback and restatement.
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
 (`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
@@ -53,13 +60,19 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 ## Planet keeps a catalog, the others check a code's shape
 
 **Planet alone keeps what it heard**, in its own schema (`planet.heard_flags`: `flag`, `state` as `heard_flag_state`,
-`decided_at`), because it plays the flags: whether one is open is a rule of the click.
+`decided_at`, and the pin: `pin_latitude`, `pin_longitude`, `pinned_at`, all null until a fact names one), because it
+plays the flags: whether one is open is a rule of the click, and where it starts a siege a rule of the arena.
+
+- **Of one flag's pin, the latest fact that named one holds** (`Heard.Moved`): `FlagOpened`'s at its `opened_at`,
+  `FlagMoved`'s at its `moved_at`. A pin told again at the time of the one kept replaces it, so the restatement at each
+  boot puts a wrong pin right, and gave the flags opened before pins their first one (Brittany, Corsica) at the deploy.
+  A flag never heard keeps no pin. A `FlagOpened` from a build before pins names none and keeps the pin as it is.
 
 - **`catalog.Catalog`** (`internal/planet/internal/catalog`) answers two questions. `Playable`: a flag the game ships
   with, or one heard open. `Known`: the same, or one heard closed. A flag the game ships with is never read from
   postgres, so today's clicks cost nothing more.
-- **`flag_opened_subscriber` and `flag_closed_subscriber`** hear the facts (`planet-flags-opened`,
-  `planet-flags-closed`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
+- **`flag_opened_subscriber`, `flag_closed_subscriber` and `flag_moved_subscriber`** hear the facts
+  (`planet-flags-opened`, `planet-flags-closed`, `planet-flags-moved`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
   changes it.
 - **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
 - **Not an RPC to the flags module**: a click for a flag opened since is one read of planet's own postgres, not a call

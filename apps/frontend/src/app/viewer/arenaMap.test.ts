@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {capitalsOf} from "./capitals.ts"
+import {capitalsOf, withSeats} from "./capitals.ts"
 import {bridgesOf} from "./bridges.ts"
 
 describe("capitalsOf", () => {
@@ -16,6 +16,15 @@ describe("capitalsOf", () => {
     it("refuses a capital off the map", () => {
         expect(() => capitalsOf({tiles: 30, capitals: {fr: 31}}, 30)).toThrow(/fr/)
         expect(() => capitalsOf({tiles: 30, capitals: {fr: 0}}, 30)).toThrow(/fr/)
+    })
+})
+
+describe("withSeats", () => {
+    it("plays each seat as a capital beside the board's", () => {
+        const board = new Map([[10, "fr"]])
+
+        expect(withSeats(board, new Map([[12, "gb-eng"]]))).toEqual(new Map([[10, "fr"], [12, "gb-eng"]]))
+        expect(withSeats(board, new Map())).toBe(board)
     })
 })
 

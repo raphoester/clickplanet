@@ -20,10 +20,12 @@ type tagged struct{ set string }
 
 func (tagged) Tiles() []clicks.StartTile { return nil }
 
+func (tagged) Seats() []clicks.Capital { return nil }
+
 type namedSeeds struct{}
 
-func (namedSeeds) SeedOf(set cprules.Set[*planetv1.Rules], _ *clicks.Ground) arenas.Seed {
-	return tagged{set: string(set.TakeSnapshot().Name)}
+func (namedSeeds) SeedOf(_ context.Context, set cprules.Set[*planetv1.Rules], _ *clicks.Ground) (arenas.Seed, error) {
+	return tagged{set: string(set.TakeSnapshot().Name)}, nil
 }
 
 type failingSets struct{}

@@ -29,6 +29,23 @@ func (m *MemoryStore) Heard(_ context.Context, flag string) (Heard, error) {
 	return m.rows[flag].Restore()
 }
 
+func (m *MemoryStore) All(context.Context) (map[string]Heard, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failing != nil {
+		return nil, m.failing
+	}
+	all := make(map[string]Heard, len(m.rows))
+	for flag, row := range m.rows {
+		heard, err := row.Restore()
+		if err != nil {
+			return nil, err
+		}
+		all[flag] = heard
+	}
+	return all, nil
+}
+
 func (m *MemoryStore) Change(_ context.Context, flag string, change func(Heard) Heard) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

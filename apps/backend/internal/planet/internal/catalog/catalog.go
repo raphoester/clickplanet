@@ -3,14 +3,19 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
 type Store interface {
 	// Heard is the flag as the latest fact told it, and never heard for a flag no fact named.
 	Heard(ctx context.Context, flag string) (Heard, error)
+	// All is every flag a fact named, by flag.
+	All(ctx context.Context) (map[string]Heard, error)
 	// Change runs under a lock on the flag, and keeps what it answers when that differs from what it was handed.
 	Change(ctx context.Context, flag string, change func(Heard) Heard) error
 }
@@ -70,6 +75,33 @@ func (c Catalog) Open(ctx context.Context, flag string, at time.Time) error {
 
 func (c Catalog) Close(ctx context.Context, flag string, at time.Time) error {
 	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Closed(at) })
+}
+
+// Move keeps the flag's pin: where it starts an arena, as a country starts on its capital.
+func (c Catalog) Move(ctx context.Context, flag string, pin clicks.Pin, at time.Time) error {
+	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Moved(pin, at) })
+}
+
+// Pinned are the flags a player may play now that have no ground and stand on a pin: the regions the game ships with,
+// and the flags heard open, by code. A flag closed under a lock is not one: a flag sits at an arena's start.
+func (c Catalog) Pinned(ctx context.Context) ([]clicks.Pinned, error) {
+	var pinned []clicks.Pinned
+	for _, flag := range cpflags.Pins() {
+		pinned = append(pinned, clicks.Pinned{Flag: flag.Code, Pin: clicks.Pin{Latitude: flag.Latitude, Longitude: flag.Longitude}})
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+	heard, err := c.store.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the flags heard: %w", err)
+	}
+	for _, flag := range slices.Sorted(maps.Keys(heard)) {
+		if pin, ok := heard[flag].seated(); ok {
+			pinned = append(pinned, clicks.Pinned{Flag: flag, Pin: pin})
+		}
+	}
+	return pinned, nil
 }
 
 func (c Catalog) change(ctx context.Context, flag string, change func(Heard) Heard) error {

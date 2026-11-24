@@ -72,7 +72,7 @@ func newHarness(t *testing.T) harness {
 	inPlay := arenas.NewInPlay(clock)
 	setups := arenas.NewSetups(cprules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named(boardSet, func(r *planetv1.Rules) {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Board: new(string(eras.Fixture.Name))}
-	})), seeds.Catalog{}, grounds)
+	})), seeds.NewCatalog(seeds.FixedPins{}), grounds)
 	return harness{
 		tiles: tiles, played: played, stored: stored, kept: kept, eras: keptEras, inPlay: inPlay, clock: clock,
 		opening: open_arena_usecase.New(tiles, setups, kept, keptEras, inPlay, clock),

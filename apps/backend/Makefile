@@ -1,4 +1,4 @@
-.PHONY: proto map quiz flags moderation test lint lint-ci tidy check-format check-quiz check-flags check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz flags flag-pins moderation test lint lint-ci tidy check-format check-quiz check-flags check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -50,6 +50,10 @@ check-flags:
 		echo "$(FLAGS_ASSET_DIR)/countries.json is not $(FLAGS_FILE). Run 'make flags'." >&2; \
 		exit 1; \
 	}
+
+# The capitals of the flags of a region (England, Scotland, Wales), from Natural Earth as the map's capitals are.
+flag-pins:
+	@go run ./cmd/flagpins -out $(FLAGS_ASSET_DIR)/pins.json
 
 MODERATION_DOC := ../../docs/moderation.md
 MODERATION_ASSET_DIR := generated/moderation
