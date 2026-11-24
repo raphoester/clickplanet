@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -85,6 +86,7 @@ type Storage struct {
 	landmasses *landmasses
 	provinces  *provinces
 	out        *outFlags
+	seats      []clicks.Capital
 	viruses    *virusBook
 	mines      *mineBook
 	traps      *trapBook
@@ -290,6 +292,7 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 	batch.Version = s.version
 	batch.Board = s.stage.Board
 	batch.KnockedOut = s.out.flags()
+	batch.Seats = slices.Clone(s.seats)
 	batch.Infected = s.viruses.infectedIn(start, end)
 
 	return batch, nil

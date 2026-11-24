@@ -29,7 +29,7 @@ func TestEveryFlagIsToldAgainAsItIsNow(t *testing.T) {
 	require.NoError(t, restate_flags_usecase.New(cpatomic.FakeTransactioner{}, store, outbox).Execute(t.Context()))
 
 	want := []proto.Message{
-		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(openedAt)},
+		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(openedAt), Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778}},
 		&flagsv1.FlagClosed{Flag: "r-0000000002", ClosedAt: timestamppb.New(closedAt)},
 	}
 	recorded := outbox.Recorded()

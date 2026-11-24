@@ -68,7 +68,7 @@ func (s *testSuite) TestAnOpenWritesTheStartInKeepsTransaction() {
 	ctx := context.Background()
 	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}, {ID: 9, Owner: "de", Shields: 100}}
 
-	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return true, nil })
+	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, nil, func(context.Context) (bool, error) { return true, nil })
 
 	s.Require().NoError(err)
 	s.True(opened)
@@ -84,12 +84,12 @@ func (s *testSuite) TestAnOpenKeepRefusesWritesNoStart() {
 	ctx := context.Background()
 	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}}
 
-	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return false, nil })
+	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, nil, func(context.Context) (bool, error) { return false, nil })
 	s.Require().NoError(err)
 	s.False(opened)
 
 	down := errors.New("the arena could not be kept")
-	_, err = s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return false, down })
+	_, err = s.store.Open(ctx, battle.On(clicks.TestBoard), start, nil, func(context.Context) (bool, error) { return false, down })
 	s.Require().ErrorIs(err, down)
 
 	s.Empty(s.loadOn(battle))
@@ -103,7 +103,7 @@ func (s *testSuite) TestEveryRowAWriteKeepsNamesTheBoardOfItsStage() {
 	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{
 		virusOf("0192f5a0-7c00-7000-8000-000000000001", 1),
 	}))
-	_, err := s.store.Open(ctx, battle.On(clicks.TestBoard), owned("de", 2), func(context.Context) (bool, error) { return true, nil })
+	_, err := s.store.Open(ctx, battle.On(clicks.TestBoard), owned("de", 2), nil, func(context.Context) (bool, error) { return true, nil })
 	s.Require().NoError(err)
 
 	boards, err := s.store.Boards(ctx, clicks.World)

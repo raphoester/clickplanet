@@ -48,7 +48,7 @@ func TestAnApprovedSubmissionOpensItsFlagForEveryPlayerAtItsPin(t *testing.T) {
 	assert.Equal(t, catalog.FlagID("r-0000000001"), store.Kept()[0].Flag)
 	require.Len(t, outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(&flagsv1.FlagOpened{
-		Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now),
+		Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now), Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778},
 	}, outbox.Recorded()[0]), "%v", outbox.Recorded()[0])
 }
 

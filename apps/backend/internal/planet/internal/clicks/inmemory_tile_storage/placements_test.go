@@ -80,7 +80,7 @@ func (s *testSuite) TestAWipeConfirmsTheShieldsPlacedBeforeIt() {
 func (s *testSuite) TestAPutBackConfirmsTheShieldsPlacedOnTheArena() {
 	ctx := context.Background()
 	storage, _, placed := s.placing()
-	blanked, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	blanked, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	s.Require().True(blanked)
 	s.Require().NoError(storage.Set(ctx, 3, "fr"))

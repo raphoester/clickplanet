@@ -18,7 +18,7 @@ func (s *testSuite) TestTheWorldsMapKeptAsideIsReadWhileAnArenaPlays() {
 	storage, _ := s.worldBeforeABattle(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 	world, err := storage.StateBatchDense(1, math.MaxUint32)
 	s.Require().NoError(err)
-	_, err = storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
+	_, err = storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, nil, opens(true))
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, 12, "it"))
 

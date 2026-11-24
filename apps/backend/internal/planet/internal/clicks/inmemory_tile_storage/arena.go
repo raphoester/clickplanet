@@ -11,10 +11,12 @@ import (
 var errWorldIsNoArena = errors.New("the world's map is no arena's")
 
 // Blank plays the blank map of an arena on board once keep says to: what changed is saved to the map in play first,
-// which stays as it is, and the arena's map holds only its start, stored in keep's transaction. keep is told the arena's
-// stage. The map starts a new epoch and every stream is cut, and every rule reads board's ground from then on.
+// which stays as it is, and the arena's map holds only its start and its seats, stored in keep's transaction. keep is told
+// the arena's stage. The map starts a new epoch and every stream is cut, and every rule reads board's ground from then
+// on, with the seats as capitals.
 func (s *Storage) Blank(
-	ctx context.Context, arena clicks.Stage, start []clicks.StartTile, keep func(ctx context.Context, on clicks.Stage) (bool, error),
+	ctx context.Context, arena clicks.Stage, start []clicks.StartTile, seats []clicks.Capital,
+	keep func(ctx context.Context, on clicks.Stage) (bool, error),
 ) (bool, error) {
 	if arena.Map == clicks.World {
 		return false, errWorldIsNoArena
@@ -40,7 +42,7 @@ func (s *Storage) Blank(
 	for _, seed := range start {
 		tiles = append(tiles, Tile{ID: seed.Tile, Owner: seed.Country, Shields: seed.Shields})
 	}
-	blanked, err := s.persistence.Open(ctx, arena, tiles, func(ctx context.Context) (bool, error) { return keep(ctx, arena) })
+	blanked, err := s.persistence.Open(ctx, arena, tiles, seats, func(ctx context.Context) (bool, error) { return keep(ctx, arena) })
 	if err != nil || !blanked {
 		return false, err //nolint:wrapcheck // keep and the store name it.
 	}

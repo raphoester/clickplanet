@@ -157,7 +157,7 @@ func TestASwitchIsRefusedWhereItCannotGo(t *testing.T) {
 
 func TestASwitchIsRefusedWhileAnArenaPlays(t *testing.T) {
 	w := newWorld(t)
-	_, err := w.tiles.Blank(t.Context(), clicks.MapID("battle").On(eras.Earth1.ID), nil,
+	_, err := w.tiles.Blank(t.Context(), clicks.MapID("battle").On(eras.Earth1.ID), nil, nil,
 		func(context.Context, clicks.Stage) (bool, error) { return true, nil })
 	require.NoError(t, err)
 

@@ -3,10 +3,11 @@ syntax = "proto3";
 package flags.v1;
 
 import "google/protobuf/timestamp.proto";
+import "flags/v1/flags.proto";
 
 // What the flags module tells the other modules, over Redis Streams, from its outbox: in the transaction that opens,
-// closes or renames a flag, and FlagOpened and FlagClosed again for every flag at each boot. Of one flag, the fact with
-// the latest time is the one that holds.
+// closes, renames or moves a flag, and FlagOpened and FlagClosed again for every flag at each boot. Of one flag, the fact
+// with the latest time is the one that holds.
 
 // Players may play for the flag from opened_at.
 message FlagOpened {
@@ -14,6 +15,8 @@ message FlagOpened {
   // In English.
   string name = 2;
   google.protobuf.Timestamp opened_at = 3;
+  // The flag's capital, as it is now.
+  Pin pin = 4;
 }
 
 // No player may play for the flag from closed_at. It stays in the catalog: history still names it.
@@ -29,4 +32,11 @@ message FlagRenamed {
   // In English.
   string name = 2;
   google.protobuf.Timestamp renamed_at = 3;
+}
+
+// The flag's capital from moved_at: its founder's change approved, with a capital the operator or the founder moved.
+message FlagMoved {
+  string flag = 1;
+  Pin pin = 2;
+  google.protobuf.Timestamp moved_at = 3;
 }

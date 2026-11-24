@@ -60,7 +60,7 @@ func TestAFlagOpenedIsKeptWithItsPictureAndToldAndItsUploadGoes(t *testing.T) {
 	assert.Equal(t, opened, kept.TakeSnapshot())
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(
-		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now)},
+		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now), Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778}},
 		f.outbox.Recorded()[0],
 	), "%v", f.outbox.Recorded()[0])
 }

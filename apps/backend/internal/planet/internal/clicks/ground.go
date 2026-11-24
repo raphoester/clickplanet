@@ -58,7 +58,8 @@ type Grounds interface {
 // Played is the ground of the board the map in play plays. The tile map swaps it with its stage, under the lock a write
 // and its record hold, so every rule reads the board its map plays: the world's, or an arena's of its own (arena.board).
 type Played struct {
-	ground atomic.Pointer[Ground]
+	ground   atomic.Pointer[Ground]
+	capitals atomic.Pointer[Capitals]
 }
 
 func NewPlayed() *Played {
@@ -68,6 +69,16 @@ func NewPlayed() *Played {
 // Play makes ground the one in play.
 func (p *Played) Play(ground *Ground) {
 	p.ground.Store(ground)
+	if ground == nil {
+		p.capitals.Store(nil)
+		return
+	}
+	p.capitals.Store(ground.capitals)
+}
+
+// Seat plays the seats the map in play gave its flags with no ground as capitals, beside the board's.
+func (p *Played) Seat(seats []Capital) {
+	p.capitals.Store(p.in().capitals.With(seats))
 }
 
 // Ground is the ground in play: nil before the tile map loads.
@@ -117,7 +128,13 @@ func (p *Played) Landmasses() int { return p.in().borders.Landmasses() }
 
 func (p *Played) Across(tile uint32) []uint32 { return p.in().bridges.Across(tile) }
 
-func (p *Played) Capitals() *Capitals { return p.in().capitals }
+func (p *Played) Capitals() *Capitals {
+	capitals := p.capitals.Load()
+	if capitals == nil {
+		panic(ErrNoGround)
+	}
+	return capitals
+}
 
 func (p *Played) Provinces() *Provinces { return p.in().provinces }
 

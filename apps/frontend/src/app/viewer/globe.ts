@@ -20,7 +20,7 @@ import type {PinnedPlace} from "../flags/flagFormStore.ts";
 import {pinAt} from "../../domain/flagSubmissions.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
-import {Capitals, loadCapitals} from "./capitals.ts";
+import {Capitals, loadCapitals, withSeats} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
 import {
@@ -1163,6 +1163,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let capitalsFile: Promise<Capitals> | undefined
     let bridgesFile: Promise<Bridges> | undefined
     let arcs: BridgeArcs | undefined
+    // The board's capitals, read from its file, and the capitals in play: those and the arena's seats.
+    let boardCapitals: Capitals | undefined
     let capitals: Capitals | undefined
     let capitalMarks: CapitalMarks | undefined
     let reach: Front | undefined
@@ -1224,8 +1226,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const playCapitals = (read: Capitals) => {
-        capitals = read
-        capitalMarks = new CapitalMarks(read, (tile) => ownership.ownerOf(tile))
+        boardCapitals = read
+        seatCapitals()
+    }
+
+    const seatCapitals = () => {
+        if (!boardCapitals) return
+        if (capitalMarks) markCapitals(capitalMarks.drop())
+        capitals = withSeats(boardCapitals, tiles.seats)
+        capitalMarks = new CapitalMarks(capitals, (tile) => ownership.ownerOf(tile))
         markCapitals(capitalMarks.follow())
         publishStanding()
     }
@@ -1233,6 +1242,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const leaveCapitals = () => {
         if (capitalMarks) markCapitals(capitalMarks.drop())
         capitalMarks = undefined
+        boardCapitals = undefined
         capitals = undefined
         publishStanding()
     }
@@ -2100,7 +2110,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const takeBatch = (batch: Ownerships) => {
         const changes = noChanges()
+        const seats = tiles.seats
         tiles.read(batch, changes)
+        if (tiles.seats !== seats) seatCapitals()
         applyChanges(changes.owners, false)
         showShields(changes.shields)
         markInfections(changes.infections)

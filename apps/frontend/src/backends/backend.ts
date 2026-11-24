@@ -27,6 +27,8 @@ export type Ownerships = {
     shields: Map<number, number>
     // The flags knocked out on the map read.
     knockedOut: readonly string[]
+    // The capitals the arena gave the flags with no ground: each seat's tile, and its flag.
+    seats: ReadonlyMap<number, string>
     // The virus that infects each tile of the range a live one infects.
     infected: Map<number, string>
 }

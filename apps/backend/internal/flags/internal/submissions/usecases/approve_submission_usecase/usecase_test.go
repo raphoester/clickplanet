@@ -143,4 +143,8 @@ func TestAChangeApprovedMovesItsFlagsCapital(t *testing.T) {
 	flag, err := f.flags.Flag(t.Context(), "r-0000000001")
 	require.NoError(t, err)
 	assert.Equal(t, catalog.Pin{Latitude: 47.996, Longitude: -4.102}, flag.TakeSnapshot().Pin)
+	require.Len(t, f.outbox.Recorded(), 2, "renamed, and moved for the next Capital Siege")
+	assert.True(t, proto.Equal(&flagsv1.FlagMoved{
+		Flag: "r-0000000001", Pin: &flagsv1.Pin{Latitude: 47.996, Longitude: -4.102}, MovedAt: timestamppb.New(now),
+	}, f.outbox.Recorded()[1]), "%v", f.outbox.Recorded()[1])
 }

@@ -10,6 +10,11 @@ map too.
 - **What it reads then.** The board's `capitals-<hash>.json`, once, the first time either rule plays (`capitals.ts`;
   URL in the board's `urls.capitals`, `boardsAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is
   refused.
+- **The seats.** An arena's map gives each flag with no ground of its own (England, Scotland, Wales, a sold flag) a
+  seat, played as its capital (the backend's [The seats](../../backend/docs/capitals.md#the-seats)). Every map read says
+  them (`Ownerships.seats`, from `GetMapResponse.seats`); `MapTiles` keeps the map's, a new `Map` each time a read adds
+  one, forgotten with a new start. The globe's capitals are the board's file and the seats together (`withSeats`), built
+  again when a read brings a seat: the crown, the fixed shields, the mine's gate and the standing read them all.
 - **The capitals still standing** (`domain/capitalMarks.ts`), while either rule plays. A capital is marked while its own
   country holds it:
   - a gold crown on the top of the tile, over its flag and its shield badge, as a crest on a shield (the owner,
@@ -49,7 +54,8 @@ map too.
   and the flags out (`Standing`, `domain/standing.ts`) on each rule change, read and knock-out, and `undefined` while it
   does not play; it goes into `useStanding` (`app/knockout/standingStore.ts`). `stands(standing, flag)` is the server's
   rule: while the knock-out does not play every flag, while it does a flag with a capital not out. A region flag
-  (England, Scotland, Wales) has no capital, nor has a sold flag.
+  (England, Scotland, Wales) or a sold flag stands on its seat; one with no seat (opened while the arena plays) has no
+  capital, and on the world's map none has one.
 - **The out window** (`app/knockout/OutModal.tsx`, in `PlayScreen`; its pick and confirm are `PickAnotherWindow`, which
   the window of a closed flag shares, with no close: see [The list of flags](flag-catalog.md#a-held-flag-closed)): while the knock-out plays and the flag played
   (held, or a newcomer's choice) does not stand, "France is out" (or "England has no capital"), "Pick a flag that is

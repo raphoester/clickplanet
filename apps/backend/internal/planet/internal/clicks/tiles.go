@@ -61,6 +61,8 @@ type DenseBatch struct {
 
 	// The flags knocked out.
 	KnockedOut []string
+	// The capitals the map gave its flags with no ground.
+	Seats []Capital
 
 	// The tiles of the range a live virus infects.
 	Infected []InfectedTile

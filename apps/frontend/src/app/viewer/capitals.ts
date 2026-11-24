@@ -13,6 +13,11 @@ export function capitalsOf(json: unknown, tiles: number): Capitals {
     return capitals
 }
 
+// The board's capitals, and the seats the arena gave the flags with no ground.
+export function withSeats(capitals: Capitals, seats: ReadonlyMap<number, string>): Capitals {
+    return seats.size === 0 ? capitals : new Map([...capitals, ...seats])
+}
+
 export async function loadCapitals(url: string, tiles: number, signal?: AbortSignal): Promise<Capitals> {
     const response = await fetch(url, {signal})
     if (!response.ok) throw new Error(`${url} answered ${response.status}`)

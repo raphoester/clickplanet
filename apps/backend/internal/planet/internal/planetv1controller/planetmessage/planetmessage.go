@@ -173,7 +173,16 @@ func Map(batch clicks.DenseBatch) *planetv1.GetMapResponse {
 		Version:     Version(batch.Version),
 		KnockedOut:  batch.KnockedOut,
 		Infected:    infectedOf(batch.Infected),
+		Seats:       seatsOf(batch.Seats),
 	}
+}
+
+func seatsOf(capitals []clicks.Capital) []*planetv1.Seat {
+	seats := make([]*planetv1.Seat, len(capitals))
+	for i, seat := range capitals {
+		seats[i] = &planetv1.Seat{Flag: seat.Country, TileId: seat.Tile}
+	}
+	return seats
 }
 
 func infectedOf(tiles []clicks.InfectedTile) []*planetv1.InfectedTile {

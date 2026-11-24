@@ -27,6 +27,7 @@ type memoryMap struct {
 	holders   map[uint32]cpsession.AccountID
 	provinces map[string]map[clicks.ProvinceID]string
 	out       map[string]clicks.OutFlag
+	seats     []clicks.Capital
 	viruses   []clicks.VirusSnapshot
 	mines     map[uint32]clicks.MineSnapshot
 	traps     map[uint32]clicks.TrapSnapshot
@@ -190,7 +191,7 @@ func (m *MemoryPersistence) Boards(_ context.Context, played clicks.MapID) ([]cl
 	}
 	kept := m.mapLocked(played)
 	if len(kept.rows) == 0 && len(kept.provinces) == 0 && len(kept.mines) == 0 && len(kept.traps) == 0 &&
-		len(kept.viruses) == 0 {
+		len(kept.viruses) == 0 && len(kept.seats) == 0 {
 		return nil, nil
 	}
 	return []clicks.BoardID{kept.board}, nil
@@ -291,6 +292,27 @@ func (m *MemoryPersistence) LoadOutFlags(_ context.Context, played clicks.MapID,
 	return nil
 }
 
+func (m *MemoryPersistence) LoadSeats(_ context.Context, played clicks.MapID, visit func(seat clicks.Capital)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	for _, seat := range m.mapLocked(played).seats {
+		visit(seat)
+	}
+	return nil
+}
+
+// StoredSeatsOn is a map's seats.
+func (m *MemoryPersistence) StoredSeatsOn(played clicks.MapID) []clicks.Capital {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return slices.Clone(m.mapLocked(played).seats)
+}
+
 // StoredOutFlagsOn is a map's flags out, by flag.
 func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]clicks.OutFlag {
 	m.mu.Lock()
@@ -382,7 +404,7 @@ func (m *MemoryPersistence) Carry(
 }
 
 func (m *MemoryPersistence) Open(
-	ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error),
+	ctx context.Context, played clicks.Stage, tiles []Tile, seats []clicks.Capital, keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -399,6 +421,7 @@ func (m *MemoryPersistence) Open(
 		opened.rows[tile.ID] = tile.Owner
 		opened.shields[tile.ID] = tile.Shields
 	}
+	opened.seats = slices.Clone(seats)
 	return true, nil
 }
 

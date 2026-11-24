@@ -10,7 +10,7 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`, `flags`,
-  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`,
+  `flag-pins`, `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`,
   `cmd/clips`, `cmd/teasers` and `cmd/translations`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
@@ -66,7 +66,8 @@ and says what is in it. Read the doc before you change its area.
   bridges and not the waters.
 - [The capitals' rules](docs/capitals.md) — three knobs: no shield on a capital, the knock-out (a capital taken clears
   its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in), and the cut-off (land
-  a take cuts from its capital, over the flag's tiles and bridges, cleared in one event).
+  a take cuts from its capital, over the flag's tiles and bridges, cleared in one event); the seats an arena gives the
+  flags with no ground (England, Scotland, Wales, sold flags) from their pins, played as capitals.
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on
@@ -193,7 +194,8 @@ and says what is in it. Read the doc before you change its area.
   the comeback within 30 days; an early close's note, which the founder alone reads; a closed flag's players changing at once, its land kept, its room read-only, a battle's
   lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
   Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move; each
-  sold flag's pin (a point, never a tile); a signed-in player's submission (one waiting at a time, its picture held in
+  sold flag's pin (a point, never a tile), told to planet (`FlagOpened.pin`, `FlagMoved`), and the regions' pins
+  (`make flag-pins`); a signed-in player's submission (one waiting at a time, its picture held in
   private), the operator's approval (public, a change on its flag at once) or rejection with a reason (the picture
   deleted 30 days later), and the opening of an approved one by hand.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
