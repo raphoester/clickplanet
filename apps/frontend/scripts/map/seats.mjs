@@ -130,7 +130,7 @@ export function seatsOf(board) {
 }
 
 /** Flags of a region inside a country's ground: they share it and have no seat. */
-export const REGIONS = new Set(["gb-eng", "gb-sct", "gb-wls", "xb"])
+export const REGIONS = new Set(["gb-eng", "gb-sct", "gb-wls"])
 
 /**
  * Gives each seat its vertex, in place.

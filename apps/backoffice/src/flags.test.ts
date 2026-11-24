@@ -72,7 +72,6 @@ describe("a flag opened since the build", () => {
         expect(flagOf("fr")).toBe("\u{1F1EB}\u{1F1F7}")
         expect(blankFlag("fr")).toBe(false)
         expect(blankFlag("gb-sct")).toBe(false)
-        expect(blankFlag("xb")).toBe(false)
         expect(blankFlag("")).toBe(false)
     })
 })

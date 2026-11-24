@@ -12,14 +12,21 @@ const COMEBACK_MS = 30 * DAY_MS
 // A flag's picture, as the server would have drawn it from an upload.
 export type FlagPainter = (name: string) => Promise<FlagPicture>
 
+// As the server lists Brittany since it left the build: sold, under the code it shipped with.
+const BRITTANY_PICTURE: FlagPicture = {
+    url: "https://media.clickplanet.lol/flags/pictures/ed47508c67e67af2c0711725441736fbe62b614fb9b9c587a05efc51023c3eb6.png",
+    width: 768, height: 512, stretch: false, focusX: 0.4344, focusY: 0.5151,
+}
+
 // `openFlag("Bavaria")`, `addTime(code, days)` and `closeFlag(code)` on the console, each told as the flags module's
 // stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
-    private readonly sold: ListedFlag[] = []
+    private readonly sold: ListedFlag[]
     private readonly listeners = new Set<FlagHandlers>()
     private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
 
     constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
+        this.sold = [{code: "xb", name: "Brittany", closed: false, sold: {picture: BRITTANY_PICTURE, endsAt: now() + 30 * DAY_MS}}]
     }
 
     public async listFlags(): Promise<ListedFlag[]> {

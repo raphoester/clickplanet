@@ -7,14 +7,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpflags"
 )
 
-var ErrInvalidFlagID = errors.New("not the id of a flag opened since the game shipped")
+var ErrInvalidFlagID = errors.New("not the id of a flag sold")
 
 const (
 	FlagIDPrefix = "r-"
 	FlagIDLength = 10
 )
 
-// FlagID names a flag opened since the game shipped, for good: never its name, which a review may change.
+// FlagID names a flag sold, for good: drawn at random, or the code a flag kept when it left the build (Brittany's xb).
 type FlagID string
 
 func ParseFlagID(s string) (FlagID, error) {

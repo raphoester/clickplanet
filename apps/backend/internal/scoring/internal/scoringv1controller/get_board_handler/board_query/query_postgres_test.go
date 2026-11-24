@@ -196,7 +196,7 @@ func (s *testSuite) TestOnlyTheBookAskedCounts() {
 func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	s.player(1, "fr", 3)
 
-	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero, Country: "zz"})
+	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero, Country: "zzz"})
 
 	s.Require().ErrorIs(err, board_query.ErrUnknownCountry)
 }
@@ -215,7 +215,7 @@ func (s *testSuite) TestABoardIsTheTopOfTheStandings() {
 }
 
 func (s *testSuite) TestABoardOfACountryThatIsNotOneIsRefused() {
-	_, _, err := s.query().Live(s.T().Context(), board_query.View{Book: seasonZero, Country: "zz"})
+	_, _, err := s.query().Live(s.T().Context(), board_query.View{Book: seasonZero, Country: "zzz"})
 
 	s.Require().ErrorIs(err, board_query.ErrUnknownCountry)
 }

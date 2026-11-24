@@ -8,11 +8,17 @@ const SAVOY: ListedFlag = {code: "r-0a1b2c3d4e", name: "Savoy", closed: true}
 describe("isOpenedCode", () => {
     it("is r- and ten letters or digits", () => {
         expect(isOpenedCode("r-k3p9x2ma0b")).toBe(true)
-        expect(isOpenedCode("fr")).toBe(false)
-        expect(isOpenedCode("gb-eng")).toBe(false)
         expect(isOpenedCode("r-K3P9X2MA0B")).toBe(false)
         expect(isOpenedCode("r-k3p9x2ma0")).toBe(false)
         expect(isOpenedCode("r-k3p9x2ma0bb")).toBe(false)
+    })
+
+    it("is a flag's code the build does not ship, as Brittany's since it is sold", () => {
+        expect(isOpenedCode("xb")).toBe(true)
+        expect(isOpenedCode("fr")).toBe(false)
+        expect(isOpenedCode("gb-eng")).toBe(false)
+        expect(isOpenedCode("Rennes")).toBe(false)
+        expect(isOpenedCode("")).toBe(false)
     })
 })
 

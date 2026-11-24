@@ -2,19 +2,17 @@ package cpflags
 
 import "regexp"
 
-// A flag the game ships with is an ISO code or gb- and three letters: r- and one letter is neither.
-var openedCode = regexp.MustCompile(`^r-[a-z0-9]{10}$`)
+// Two letters or gb- and three, as the build's, or r- and ten drawn for a flag opened since.
+var flagCode = regexp.MustCompile(`^([a-z]{2}(-[a-z]{3})?|r-[a-z0-9]{10})$`)
 
-// IsOpenedCode is whether a code has the shape of a flag opened since the game shipped. Only planet's catalog knows
-// whether one is open.
+// IsOpenedCode is a flag's code the build does not ship: one opened since, or one sold since it left the build (xb).
 func IsOpenedCode(code string) bool {
-	return openedCode.MatchString(code)
+	return flagCode.MatchString(code) && !IsBuiltIn(code)
 }
 
-// Codes checks a flag code by its shape alone: one the game ships with, or the shape of one opened since. A module
-// that only shows or filters by a flag needs no more; planet, which plays it, keeps a catalog.
+// Codes checks a code by its shape alone; planet, which plays the flags, keeps a catalog.
 type Codes struct{}
 
 func (Codes) CheckCountry(code string) bool {
-	return IsBuiltIn(code) || IsOpenedCode(code)
+	return flagCode.MatchString(code)
 }

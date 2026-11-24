@@ -165,7 +165,7 @@ func TestARequestThatIsNotOneIsInvalidArgumentAndFollowsNothing(t *testing.T) {
 		many[i] = string(rune('a' + i))
 	}
 	for _, req := range []*scoringv1.ListenForEventsRequest{
-		{BookId: "season-0", CountryId: "zz"},
+		{BookId: "season-0", CountryId: "zzz"},
 		{BookId: string(make([]byte, 65))},
 		{BookId: "season-0", RoundIds: []string{""}},
 		{BookId: "season-0", RoundIds: many},

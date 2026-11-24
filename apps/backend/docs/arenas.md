@@ -173,7 +173,7 @@ pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the
   past `charges.shield.perTile`). `default` holds `shields` 100. The capitals are the map's (`clicks.Capitals`, from
   `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital city, picked by the map generator (see
   [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for; a region flag
-  (England, Scotland, Wales, Brittany) has no ground, so no capital. No ledger event and no holder: no player took them.
+  (England, Scotland, Wales) or a sold one has no ground, so no capital. No ledger event and no holder: no player took them.
   A one-tile province held whole settles locked to its holder, as at boot.
 - **A new pattern** is a message in `Seed`'s `oneof`, a type in `seeds` and one case in `seeds.Part`. The arena does not
   change. A set that holds the pattern default holds is overlaid value by value; a set that holds another plays its own

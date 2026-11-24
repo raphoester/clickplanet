@@ -3,8 +3,8 @@
 **Three knobs of a rule set play on the capitals** (`capitals`, `clicks.CapitalsPart`; knobs of their own since
 2026-11-10, the cut-off since 2026-11-19). All are off in `default`. Capital Siege plays all three on its fresh map, which starts with each capital (see
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
-(`clicks.Capitals`): each country's tile nearest its capital city. A region flag (England, Scotland, Wales, Brittany)
-has no capital.
+(`clicks.Capitals`): each country's tile nearest its capital city. A region flag (England, Scotland, Wales)
+has no capital, nor has a sold flag.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
 (`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
