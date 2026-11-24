@@ -13,6 +13,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/conversations/usecases/receive_reply_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/letters/usecases/receive_letter_reply_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/mailroomcontroller/receive_reply_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
@@ -32,14 +34,32 @@ func (s *stubUseCase) Execute(_ context.Context, in receive_reply_usecase.In) (n
 	return notes.NoteID{}, s.err
 }
 
+type stubLetters struct {
+	err        error
+	recipients []string
+}
+
+func (s *stubLetters) Execute(_ context.Context, in receive_letter_reply_usecase.In) (letters.LetterID, error) {
+	s.recipients = append(s.recipients, in.Recipient)
+	if s.err != nil {
+		return letters.LetterID{}, s.err
+	}
+	return letters.LetterID{}, fmt.Errorf("wrapped: %w", letters.ErrNotALetter)
+}
+
 func post(t *testing.T, useCase *stubUseCase, authorization string, body string) int {
+	t.Helper()
+	return postTo(t, useCase, &stubLetters{}, authorization, body)
+}
+
+func postTo(t *testing.T, useCase *stubUseCase, kept *stubLetters, authorization string, body string) int {
 	t.Helper()
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, receive_reply_handler.Path, strings.NewReader(body))
 	req.Header.Set("Authorization", authorization)
 	req.Header.Set(receive_reply_handler.RecipientHeader, "support+1@clickplanet.lol")
 	res := httptest.NewRecorder()
-	receive_reply_handler.New(useCase, "the-secret", 64).ServeHTTP(res, req)
+	receive_reply_handler.New(useCase, kept, "the-secret", 64).ServeHTTP(res, req)
 	return res.Code
 }
 
@@ -73,4 +93,18 @@ func TestAMailKeptAlreadyIsDoneWithAStrayOneGoesToTheOperatorAndOneNotKeptIsTrie
 	}
 
 	assert.Equal(t, http.StatusInternalServerError, post(t, &stubUseCase{err: assert.AnError}, "Bearer the-secret", "Hi"))
+}
+
+func TestAReplyToALetterIsTheLettersAndNoNoteIsAsked(t *testing.T) {
+	asked := &stubUseCase{}
+	kept := &stubLetters{err: fmt.Errorf("wrapped: %w", conversations.ErrReceivedAlready)}
+
+	assert.Equal(t, http.StatusAccepted, postTo(t, asked, kept, "Bearer the-secret", "Hi"))
+	assert.Equal(t, []string{"support+1@clickplanet.lol"}, kept.recipients)
+	assert.Empty(t, asked.recipients)
+
+	for _, stray := range receive_letter_reply_usecase.Stray {
+		assert.Equal(t, http.StatusOK,
+			postTo(t, &stubUseCase{}, &stubLetters{err: fmt.Errorf("wrapped: %w", stray)}, "Bearer the-secret", "Hi"))
+	}
 }
