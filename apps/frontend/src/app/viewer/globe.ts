@@ -519,7 +519,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         frames.wake()
     }
 
-    const slots = new FlagSlots(invalidate)
+    const slots = new FlagSlots(invalidate, () => frames.wake())
     // A sold flag's picture reached the atlas: the tiles, the grounds it leads and the slots take it.
     const atlas = new FlagAtlas(invalidate, (code, number) => {
         field.showFlag(number)

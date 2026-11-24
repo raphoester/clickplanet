@@ -27,7 +27,8 @@ export class FlagSlots {
     private drawn: Drawn | undefined
     private busy = false
 
-    constructor(private readonly onChange: () => void) {
+    // onDrawn wakes the frame loop: a sleeping loop ticks only every 200 ms, and it sends one flag a tick.
+    constructor(private readonly onChange: () => void, private readonly onDrawn: () => void) {
         const frames = new THREE.DataTexture(this.frameData, FLAG_NUMBERS, 1, THREE.RGBAFormat, THREE.FloatType)
         frames.needsUpdate = true
         this.frames = {value: frames}
@@ -92,7 +93,9 @@ export class FlagSlots {
 
     private prepare() {
         if (this.busy) return
-        const next = this.wanted.find(({code, cell}) => !sameCell(this.shown.get(code), cell) && !failed.has(code))
+        const waiting = this.wanted.filter(({code, cell}) => !sameCell(this.shown.get(code), cell) && !failed.has(code))
+        // A flag on the atlas first: one that moves to another size shows its old cell meanwhile.
+        const next = waiting.find(({code}) => !this.shown.has(code)) ?? waiting[0]
         if (next === undefined) {
             this.canvas = undefined
             return
@@ -101,11 +104,17 @@ export class FlagSlots {
         void this.rasterise(next).then((drawn) => {
             if (drawn !== undefined) {
                 this.drawn = drawn
+                this.onDrawn()
                 return
             }
             this.busy = false
             this.prepare()
         })
+    }
+
+    private drop(placed: Placed) {
+        this.layout?.forget(placed.code)
+        this.wanted = this.wanted.filter((other) => other !== placed)
     }
 
     private wants({code, cell}: Placed): boolean {
@@ -116,14 +125,22 @@ export class FlagSlots {
         const image = await imageOf(placed.code)
         const aspect = aspectOf(placed.code)
         if (image === undefined || aspect === undefined) {
-            this.layout?.forget(placed.code)
-            this.wanted = this.wanted.filter((other) => other !== placed)
+            this.drop(placed)
             return undefined
         }
         await idle()
         if (!this.wants(placed)) return undefined
-        this.canvas = drawFlag(this.canvas, image, placed.cell, aspect)
-        const bitmap = await createImageBitmap(this.canvas)
+        let bitmap: ImageBitmap
+        // A draw that throws would leave the slots busy, and no flag after it would ever be drawn.
+        try {
+            this.canvas = drawFlag(this.canvas, image, placed.cell, aspect)
+            bitmap = await createImageBitmap(this.canvas)
+        } catch (e) {
+            console.warn(`the flag of ${placed.code} stays on the atlas`, e)
+            failed.add(placed.code)
+            this.drop(placed)
+            return undefined
+        }
         if (!this.wants(placed)) {
             bitmap.close()
             return undefined
