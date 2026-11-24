@@ -7,7 +7,7 @@ import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useCall} from "../useCall.ts"
 import {SubmissionDetail} from "./SubmissionDetail.tsx"
 import {SubmissionList} from "./SubmissionList.tsx"
-import {Filter, Ground, loadGround, Listed, listOf, nextOf, shownOf, waiting} from "./submissions.ts"
+import {Filter, Ground, loadGround, Listed, listOf, nextOf, repliedOf, shownOf, waiting} from "./submissions.ts"
 
 type Props = {
     // The submission open, by its id, or "" for none.
@@ -27,12 +27,15 @@ type Changed = {on: Listed | undefined, submissions: Map<string, KeptSubmission>
 const FILTERS: {filter: Filter, label: string}[] = [
     {filter: "waiting", label: "Waiting"},
     {filter: "toOpen", label: "To open"},
+    {filter: "replies", label: "Replies"},
     {filter: "all", label: "All"},
 ]
 
+const NO_REPLIES: ReadonlySet<string> = new Set()
+
 // An inbox: the flags players submitted on the left, the one open on the right. A verdict opens the next waiting one.
 export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: readBoard = loadGround}: Props) {
-    const {flags, player, planet} = clients
+    const {flags, player, planet, support} = clients
     const list = useCallback((signal: AbortSignal) => listOf(flags, player, signal), [flags, player])
     const [read, again] = useCall(list)
     // The lists as last read stay while they are read again.
@@ -46,6 +49,12 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
         [planet, readBoard],
     )
     const [ground] = useCall(readGround)
+    const readReplied = useCallback((signal: AbortSignal) => repliedOf(support, signal), [support])
+    const [repliedCall, readRepliedAgain] = useCall(readReplied)
+    const [keptReplied, setKeptReplied] = useState<ReadonlySet<string>>(NO_REPLIES)
+    useEffect(() => {
+        if (repliedCall.state === "done") setKeptReplied(repliedCall.value)
+    }, [repliedCall])
     const [filter, setFilter] = useState<Filter>("waiting")
     const [changed, setChanged] = useState<Changed>({on: undefined, submissions: new Map()})
     const [last, setLast] = useState<Done>()
@@ -56,9 +65,10 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
     }
 
     const submissions = listed.submissions.map(each => changed.on === listed ? changed.submissions.get(each.id) ?? each : each)
-    const shown = shownOf(submissions, filter)
+    const replied = repliedCall.state === "done" ? repliedCall.value : keptReplied
+    const shown = shownOf(submissions, filter, replied)
     const submission = submissions.find(each => each.id === opened)
-    const count = (each: Filter) => shownOf(submissions, each).length
+    const count = (each: Filter) => shownOf(submissions, each, replied).length
 
     const decided = (done: KeptSubmission, said: string) => {
         const before = submissions.filter(waiting)
@@ -82,6 +92,7 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
     const reload = () => {
         setLast(undefined)
         again()
+        readRepliedAgain()
     }
 
     return (
@@ -106,9 +117,19 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
                 </div>
                 {read.state === "failed" && <FailureNotice failure={read} onRetry={again}/>}
                 {listed.names === undefined && <p className="muted">The founders' names could not be read.</p>}
+                {repliedCall.state === "failed" && <p className="muted">The letters' replies could not be read.</p>}
                 {shown.length === 0
                     ? <p className="muted">{emptyOf(filter)}</p>
-                    : <SubmissionList submissions={shown} flags={listed.flags} names={listed.names} opened={opened} onOpen={pick}/>}
+                    : (
+                        <SubmissionList
+                            submissions={shown}
+                            flags={listed.flags}
+                            names={listed.names}
+                            replied={replied}
+                            opened={opened}
+                            onOpen={pick}
+                        />
+                    )}
             </section>
             <div className="inbox-detail">
                 {last !== undefined && (
@@ -127,6 +148,7 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
                         onOpen={pick}
                         onDecided={decided}
                         onOpened={openedFlag}
+                        onLettersChanged={readRepliedAgain}
                     />
                 )}
                 {submission === undefined && opened !== "" && <p className="muted">This submission is not kept any more.</p>}
@@ -142,6 +164,8 @@ function emptyOf(filter: Filter): string {
             return "No submission waits. All done."
         case "toOpen":
             return "No approved flag waits to be opened."
+        case "replies":
+            return "No player's reply waits."
         case "all":
             return "No submission kept."
     }

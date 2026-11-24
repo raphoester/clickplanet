@@ -12,13 +12,15 @@ it is where the flag starts in Capital Siege.
 - **The same pattern as the reports** (see [Acting on a report](reports.md)): the list on the left and the submission
   open on the right from 1280px, one or the other below. The submission open is in the address bar
   (`#/submissions/<id>`), so a link or a reload opens it.
-- **The page reads four things once**: `ListSubmissions` (every waiting one, the oldest first, then the 500 decided
-  last), `ListFlags` (the catalog, to compare with), `player.v1.AdminService/GetPlayers` (the founders' names) and
-  `planet.v1.AdminService/GetTerritories` (the board the world plays, for the map). Reload and an open read the first
-  three again. It filters on the page: **Waiting** (the default), **To open** (approved new flags, which wait to be paid for) and
-  **All**, each with its count.
-- **A row** is the picture small, the name, "Many colours" for a likely photo, how long ago, "New flag" or "Change of
-  Bavaria", the founder, and the verdict once there is one.
+- **The page reads five things once**: `ListSubmissions` (every waiting one, the oldest first, then the 500 decided
+  last), `ListFlags` (the catalog, to compare with), `player.v1.AdminService/GetPlayers` (the founders' names),
+  `support.v1.AdminService/ListLetters` with `open_only` (the letters a player replied to, 500 at most) and
+  `planet.v1.AdminService/GetTerritories` (the board the world plays, for the map). Reload reads all but the board
+  again; an open reads the first three. It filters on the page: **Waiting** (the default), **To open** (approved new
+  flags, which wait to be paid for), **Replies** (any submission whose founder replied to a letter) and **All**, each
+  with its count.
+- **A row** is the picture small, the name, "Many colours" for a likely photo, **"Replied" when its founder's reply to a
+  letter waits**, how long ago, "New flag" or "Change of Bavaria", the founder, and the verdict once there is one.
 - **After a verdict the next waiting one opens** (the one below, or the first one left), and a green line says what
   was done. A submission picked by hand clears the line.
 
@@ -101,6 +103,27 @@ On a waiting submission alone; a decided one's map only reads.
   server refused it: the flag r-… is named Tyrol"): one decided already, a name another flag took since, the flags'
   pictures off; `invalid_argument` is quoted too (a capital off the globe).
 
+## Writing to the player
+
+`LettersPanel` (in `src/support/`, over `letters.ts`), "Write to SilentEagle29", on every submission whose founder is
+an account. **A letter is a mail the operator writes first**, from support@clickplanet.lol, to the account's verified
+address; the player's replies come back to it (`support.v1.AdminService`: `WriteLetter`, `ListLetters`, `CloseLetter`;
+the backend's [Writing to a player first](../../backend/docs/support.md#writing-to-a-player-first)).
+
+- **The founder's letters** (`ListLetters` with its account id), the latest written or replied to first, each a thread:
+  its subject, its address, then its mails ("ClickPlanet"), the player's replies and its last close, by time, as a
+  note's conversation (see [Answering a note](notes.md)). A reply waiting for the operator is marked **Replied**.
+- **Write again**, in a letter: one more mail in its thread. **Close**, on a letter with a reply that waits: it waits
+  for nothing until the player writes again.
+- **New letter**: a subject, "Your flag Catalonia" at first (1 to 200 characters), and the text. **Send asks first and
+  names the address** when a letter to the player gave it ("Send this to ada@example.com?"), or else "the player's
+  verified address"; then it says where it went ("Sent to ada@example.com.").
+- **How the operator sees a reply**: the row's **Replied** mark, and the **Replies** filter, from `ListLetters`'s
+  `open_only` (a reply after the last mail, no close after it), read with the list and again after each send or close.
+- **What the server refuses**: `failed_precondition` is no verified address, or a letter past 90 days; `unavailable`
+  is a mail that did not go, and nothing was kept: send again; `invalid_argument` is quoted; `not_found` a letter no
+  longer kept. The text typed stays.
+
 ## Opening an approved new flag
 
 `OpenSubmittedPanel`, on an approved new flag alone (state Approved, not a change). The flag waits to be paid for. Then
@@ -118,12 +141,14 @@ an approved one's is on `https://media.clickplanet.lol`, also there (see [Deploy
 ## In the demo and the tests
 
 `npm run demo` holds seven made-up submissions, each picture drawn in the page (SVG): Catalonia (waiting, fine), Tyrol
-(waiting, a name the closed sold flag Tyrol has, its capital beside it), Lake Garda (waiting, a photo, 41% of other
-colours), Free State of Bavaria (waiting, a change
+(waiting, a name the closed sold flag Tyrol has, its capital beside it, and a letter its founder replied to), Lake Garda
+(waiting, a photo, 41% of other colours, a founder with no verified address), Free State of Bavaria (waiting, a change
 of Bavaria), Sardinia (approved, to open), Brittany (rejected: Has a flag already) and Cornwall (opened). The map is
 drawn on `earth-2`, the board the world plays. `FakeAdmin.flags` (`FakeFlags`) keeps six of the same kind for the
 tests, and answers the four calls with the server's refusals: `not_found` for an unknown id, `invalid_argument` for a
 capital off the globe, `failed_precondition` for one decided already, a name another flag has, or not an approved new
 flag, `invalid_argument` for no reason, Other with no note, a note past 500 characters, or an end gone by. An approval
-keeps the moved capital on the submission, and on its flag for a change. The tests draw the map on a patch of `earth-1`
+keeps the moved capital on the submission, and on its flag for a change. `FakeAdmin` answers the letters as the server
+does: a verified address for BraveFox42 alone (`addresses`), `failed_precondition` for none, `invalid_argument` for a
+subject or a text out of bounds, `not_found` for an unknown letter. The tests draw the map on a patch of `earth-1`
 (jsdom draws no canvas: they read the marks, the names and the caption).

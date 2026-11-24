@@ -10,13 +10,14 @@ import {globeLinkOf, kmWords, Place, placeWords} from "../flags/pin.ts"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
 import {Flag, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
+import {LettersPanel} from "../support/LettersPanel.tsx"
 import {Call} from "../useCall.ts"
 import {CapitalMap, Mark} from "./CapitalMap.tsx"
 import {FlagFigure} from "./FlagFigure.tsx"
 import {OpenSubmittedPanel} from "./OpenSubmittedPanel.tsx"
 import {SubmissionVerdict} from "./SubmissionVerdict.tsx"
 import {
-    Around, aroundOf, Ground, kindOf, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
+    Around, aroundOf, founderOf, Ground, kindOf, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
     waiting,
 } from "./submissions.ts"
 
@@ -33,12 +34,15 @@ type Props = {
     onOpen: (submissionId: string) => void
     onDecided: (decided: KeptSubmission, said: string) => void
     onOpened: (flag: Flag) => void
+    onLettersChanged: () => void
 }
 
 // One submission, read top down as it is judged: the picture, the name, who sent it, its capital on a map and the
 // capitals near it, the flags of the same name; then the verdict, or the open of an approved new flag. A waiting one's
 // capital moves on the map before the verdict.
-export function SubmissionDetail({submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onOpened}: Props) {
+export function SubmissionDetail({
+    submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onOpened, onLettersChanged,
+}: Props) {
     const changed = submission.change ? flags.find(flag => flag.code === submission.flag) : undefined
     const {pin, rejection} = submission
     const [moved, setMoved] = useState<Place>()
@@ -152,6 +156,15 @@ export function SubmissionDetail({submission, submissions, flags, names, ground,
                         {same.map(other => <li key={keyOf(other)}><OtherLine other={other} onOpen={onOpen}/></li>)}
                     </ul>
                 </section>
+            )}
+            {submission.accountId !== "" && (
+                <LettersPanel
+                    support={clients.support}
+                    accountId={submission.accountId}
+                    name={founderOf(submission.accountId, names)}
+                    subject={`Your flag ${submission.name}`}
+                    onChanged={onLettersChanged}
+                />
             )}
             {waiting(submission) && (
                 <SubmissionVerdict
