@@ -256,3 +256,49 @@ export class SubmissionRejected extends Message<SubmissionRejected> {
   }
 }
 
+/**
+ * A payment the rules refused bought no time: a submission rejected or replaced, a name another flag took since, a
+ * flag closed 30 days ago or more. The shop refunds it.
+ *
+ * @generated from message flags.v1.TimeRefused
+ */
+export class TimeRefused extends Message<TimeRefused> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp refused_at = 2;
+   */
+  refusedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<TimeRefused>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.TimeRefused";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "refused_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TimeRefused {
+    return new TimeRefused().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TimeRefused {
+    return new TimeRefused().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TimeRefused {
+    return new TimeRefused().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TimeRefused | PlainMessage<TimeRefused> | undefined, b: TimeRefused | PlainMessage<TimeRefused> | undefined): boolean {
+    return proto3.util.equals(TimeRefused, a, b);
+  }
+}
+

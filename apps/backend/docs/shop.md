@@ -26,11 +26,18 @@ hears or asks it (`TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheSho
   make a cycle, and the flags module, which planet, chat, scoring, player and alerts hear, stays upstream of all.
 
 - **A rejected flag is refunded** (`refund_rejected_usecase`, on the flags' `SubmissionRejected`, group
-  `shop-refund-rejected`): its renewals that may still charge are cancelled now (`DELETE /v1/subscriptions/{id}`; one
+  `shop-refund-rejected`), the rejection being often the judge's while its buyer is on Stripe's page: first each page
+  opened for it less than a day ago is closed (`POST /v1/checkout/sessions/{id}/expire`; Stripe refuses one paid or
+  expired already with an `invalid_request_error`, which is no error), so the buyer cannot pay; then its renewals that
+  may still charge are cancelled now (`DELETE /v1/subscriptions/{id}`; one
   cancelled already answers `resource_missing`, which is no error), then every payment for it still kept is refunded in
   full (`POST /v1/refunds`, idempotency key `refund-<intent>`; `charge_already_refunded` is no error). Stripe's
   `charge.refunded` then takes the time back as any refund does. A Stripe call that fails fails the event, which comes
   again, up to the dead letters, with "failed to refund a rejected flag" in the log: then the operator refunds by hand.
+
+- **A payment the flags refuse is refunded** (`refund_refused_usecase`, on the flags' `TimeRefused`, group
+  `shop-refund-refused`): the payment of its grant (`payments.PaymentOfGrant`), refunded in full unless it was taken
+  back already. Such is a payment that lands after the rejection, its page closed a moment too late.
 
 The flags' side is in [The flags module](flags.md#paid-time).
 
@@ -52,11 +59,14 @@ The flags' side is in [The flags module](flags.md#paid-time).
 - **`renewals`**: `Renewal`, a Stripe subscription as Stripe told it last (`renewing`, `stopping`, `ended`, the end of
   the period paid). `Heard` keeps the latest word by the event's time. `StoppedBy` stops it for its buyer alone.
   `NoneRenewing`: no second plan for a target while a renewal runs (one stopping charges no more).
+- **`checkouts`**: each Checkout Session the shop opened (`shop.checkouts`: the session, its target, when), kept by
+  `CreateCheckout` so a rejection closes the pages still open (`Checkout.Expirable`: Stripe closes a page itself after
+  a day).
 - **`notices`**: what one Stripe event tells, in the shop's words (`Paid`, `TakenBack`, `Renewal`, `Ignored`), the
   `Reader` port, and the `Inbox` of event ids acted on (`shop.stripe_events`).
 - **`stripe_gateway`**: Stripe's API with stripe-go (`github.com/stripe/stripe-go/v87`, API version `2026-10-28.endive`),
-  dumb: the session, the stop, an invoice's intent, a refund, a cancel, and the `Reader` of the webhook. `Off` answers
-  `plans.ErrOff`.
+  dumb: the session (its id and its page), its expiry, the stop, an invoice's intent, a refund, a cancel, and the
+  `Reader` of the webhook. `Off` answers `plans.ErrOff`.
 
 ## The page's calls
 

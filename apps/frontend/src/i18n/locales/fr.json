@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "Il est difficile à lire à la taille d'une case.",
   "flagSubmission.rejected.hateful": "Il est haineux.",
   "flagSubmission.rejected.other": "Il n'a pas été approuvé.",
+  "flagSubmission.appeal": "Tu penses qu'on s'est trompés ? Demande à une personne de regarder à nouveau.",
   "flagSubmission.picture.type": "{file} n'est pas une image PNG, JPEG ou WebP.",
   "flagSubmission.picture.size": "{file} dépasse {size}.",
   "flagSubmission.picture.narrow": "Cette image est trop étroite.",

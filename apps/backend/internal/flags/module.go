@@ -51,6 +51,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/grant_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/release_held_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/take_back_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/claude_flag_judge"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/postgres_judgement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/review_verdicts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/usecases/judge_submissions_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
@@ -67,6 +72,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/approved_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -190,13 +196,32 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(uploadLimiter)
 
 	// Not a closer: closers run before the runners stop, and the relay uses the pool.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+	runners := []cpbootstrap.Runner{
 		expire_flags_usecase.NewRunner(expiryInterval, expire_flags_usecase.New(clock, db, store, cpoutbox.New(db)),
 			props.Logger),
 		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
 			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
 		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, granted, takenBack, released,
-			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
+			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger)),
+	}
+	approve := approve_submission_usecase.New(clock, gallery, db,
+		approve_submission_usecase.Stores{Submissions: submitted, Flags: store}, cpoutbox.New(db))
+	reject := reject_submission_usecase.New(clock, db, submitted, cpoutbox.New(db))
+	if config.Judge.keyed() {
+		judge, err := judgeOf(config.Judge)
+		if err != nil {
+			_ = redis.Close()
+			_ = db.Close()
+			return err
+		}
+		runners = append(runners, judge_submissions_usecase.NewRunner(judgeEvery, judge_submissions_usecase.New(
+			clock, postgres_judgement_store.New(db),
+			judgements.Cases{Submissions: submitted, Pictures: gallery, Flags: store}, judge,
+			review_verdicts.New(approve, reject),
+		), props.Logger))
+	}
+	// Not a closer: closers run before the runners stop, and the relay uses the pool.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, runners...))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
 	reviews := submissionmessage.New(messages, bucket)
@@ -240,17 +265,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			OpenFlagHandler: open_flag_handler.New(open_flag_usecase.New(
 				opening, gallery, db, store, cpoutbox.New(db),
 			), messages),
-			AddTimeHandler:         add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			CloseFlagHandler:       close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			RenameFlagHandler:      rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			ListSubmissionsHandler: list_submissions_handler.New(submittedQuery),
-			ApproveSubmissionHandler: approve_submission_handler.New(
-				approve_submission_usecase.New(clock, gallery, db,
-					approve_submission_usecase.Stores{Submissions: submitted, Flags: store}, cpoutbox.New(db)), reviews,
-			),
-			RejectSubmissionHandler: reject_submission_handler.New(
-				reject_submission_usecase.New(clock, db, submitted, cpoutbox.New(db)), reviews,
-			),
+			AddTimeHandler:           add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			CloseFlagHandler:         close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			RenameFlagHandler:        rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			ListSubmissionsHandler:   list_submissions_handler.New(submittedQuery),
+			ApproveSubmissionHandler: approve_submission_handler.New(approve, reviews),
+			RejectSubmissionHandler:  reject_submission_handler.New(reject, reviews),
 			OpenSubmittedFlagHandler: open_submitted_flag_handler.New(open_submitted_flag_usecase.New(
 				opening, db, submitted, store, cpoutbox.New(db),
 			), messages),
@@ -260,8 +280,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Logger.Info("flags built", slog.String("schema", config.Database.Schema),
-		slog.Bool("pictures", config.Pictures.Enabled))
+		slog.Bool("pictures", config.Pictures.Enabled), slog.Bool("judge", config.Judge.keyed()))
 	return nil
+}
+
+// The judge of the flags sent, on a client of Anthropic's API built here.
+func judgeOf(config JudgeConfig) (*claude_flag_judge.Judge, error) {
+	client, err := cpanthropic.NewClient(config.Anthropic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the flag judge's client of Anthropic's API: %w", err)
+	}
+	return claude_flag_judge.New(client, config.Model), nil
 }
 
 type Config struct {
@@ -276,7 +305,24 @@ type Config struct {
 	// While the shop sells, a submission reaches the operator's review once its time is paid. main sets it from the
 	// shop's config.
 	PaidReview bool
+	// A Claude model that reviews each flag as it is sent. With no key, the operator reviews every one.
+	Judge JudgeConfig
 }
+
+type JudgeConfig struct {
+	// ANTHROPIC_API_KEY.
+	Anthropic cpanthropic.Config
+	// Unset is claude_flag_judge.DefaultModel, Claude Haiku 5.5.
+	Model string
+}
+
+// Unkeyed, no flag is judged: the operator reviews every one.
+func (c JudgeConfig) keyed() bool {
+	return c.Anthropic.APIKey != ""
+}
+
+// How often the judge looks for flags sent: a buyer is on Stripe's page meanwhile.
+const judgeEvery = 3 * time.Second
 
 // In the support module's bucket: uploaded under flags/uploads/, private, and drawn again under flags/pictures/, which
 // Cloudflare serves on the public domain.

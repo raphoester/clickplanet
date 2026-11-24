@@ -8,9 +8,7 @@ import (
 	"time"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
@@ -56,10 +54,8 @@ func (h Handler) Handle(ctx context.Context, command *flagsv1.GrantTime) error {
 		h.logger.Info("time paid for granted", attributes...)
 		return nil
 	// Paid for, and no try again grants it: the operator refunds it.
-	case errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, submissions.ErrNotApproved),
-		errors.Is(err, catalog.ErrUnknownFlag), errors.Is(err, catalog.ErrTooLate), errors.Is(err, catalog.ErrNameTaken),
-		errors.Is(err, catalog.ErrEnded), errors.Is(err, grants.ErrNotTheFlag):
-		h.logger.Error("a payment granted no time: refund it", append(attributes, slog.Any("error", err))...)
+	case errors.Is(err, grants.ErrRefused):
+		h.logger.Warn("a payment granted no time: the shop refunds it", append(attributes, slog.Any("error", err))...)
 		return nil
 	default:
 		return err //nolint:wrapcheck // the use case named it.

@@ -8,6 +8,40 @@ import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { Flag, Picture, Pin, Rejection, SubmissionState } from "./flags_pb.js";
 
 /**
+ * @generated from enum flags.v1.JudgementVerdict
+ */
+export enum JudgementVerdict {
+  /**
+   * @generated from enum value: JUDGEMENT_VERDICT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: JUDGEMENT_VERDICT_APPROVE = 1;
+   */
+  APPROVE = 1,
+
+  /**
+   * @generated from enum value: JUDGEMENT_VERDICT_REJECT = 2;
+   */
+  REJECT = 2,
+
+  /**
+   * Left to the operator.
+   *
+   * @generated from enum value: JUDGEMENT_VERDICT_UNSURE = 3;
+   */
+  UNSURE = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(JudgementVerdict)
+proto3.util.setEnumType(JudgementVerdict, "flags.v1.JudgementVerdict", [
+  { no: 0, name: "JUDGEMENT_VERDICT_UNSPECIFIED" },
+  { no: 1, name: "JUDGEMENT_VERDICT_APPROVE" },
+  { no: 2, name: "JUDGEMENT_VERDICT_REJECT" },
+  { no: 3, name: "JUDGEMENT_VERDICT_UNSURE" },
+]);
+
+/**
  * @generated from message flags.v1.CreateFlagUploadRequest
  */
 export class CreateFlagUploadRequest extends Message<CreateFlagUploadRequest> {
@@ -588,6 +622,13 @@ export class KeptSubmission extends Message<KeptSubmission> {
    */
   otherColorsPercent = 0;
 
+  /**
+   * What the judge, a Claude model, ruled on it as it waited; unset for one it never judged.
+   *
+   * @generated from field: flags.v1.Judgement judgement = 13;
+   */
+  judgement?: Judgement;
+
   constructor(data?: PartialMessage<KeptSubmission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -607,6 +648,7 @@ export class KeptSubmission extends Message<KeptSubmission> {
     { no: 10, name: "rejection", kind: "message", T: Rejection },
     { no: 11, name: "picture", kind: "message", T: Picture },
     { no: 12, name: "other_colors_percent", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "judgement", kind: "message", T: Judgement },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptSubmission {
@@ -623,6 +665,57 @@ export class KeptSubmission extends Message<KeptSubmission> {
 
   static equals(a: KeptSubmission | PlainMessage<KeptSubmission> | undefined, b: KeptSubmission | PlainMessage<KeptSubmission> | undefined): boolean {
     return proto3.util.equals(KeptSubmission, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.Judgement
+ */
+export class Judgement extends Message<Judgement> {
+  /**
+   * @generated from field: flags.v1.JudgementVerdict verdict = 1;
+   */
+  verdict = JudgementVerdict.UNSPECIFIED;
+
+  /**
+   * What decided it, in the judge's words, for the operator.
+   *
+   * @generated from field: string why = 2;
+   */
+  why = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp judged_at = 3;
+   */
+  judgedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Judgement>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Judgement";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verdict", kind: "enum", T: proto3.getEnumType(JudgementVerdict) },
+    { no: 2, name: "why", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "judged_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Judgement {
+    return new Judgement().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Judgement {
+    return new Judgement().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Judgement {
+    return new Judgement().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Judgement | PlainMessage<Judgement> | undefined, b: Judgement | PlainMessage<Judgement> | undefined): boolean {
+    return proto3.util.equals(Judgement, a, b);
   }
 }
 

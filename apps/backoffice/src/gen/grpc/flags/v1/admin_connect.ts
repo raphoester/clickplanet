@@ -99,8 +99,8 @@ export const AdminService = {
     },
     /**
      * Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-     * submitted, its picture as the server drew it, and the verdict. While the shop sells, a submission waits for
-     * review only once its time is paid.
+     * submitted, its picture as the server drew it, the verdict, and what the judge ruled. While the shop sells, a
+     * submission waits for review only once its time is paid.
      *
      * @generated from rpc flags.v1.AdminService.ListSubmissions
      */

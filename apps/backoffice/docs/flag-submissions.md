@@ -86,6 +86,13 @@ On a waiting submission alone; a decided one's map only reads.
   measured from there.
 - **Approve sends it** (`ApproveSubmissionRequest.pin`; unset keeps the player's).
 
+## What Claude ruled
+
+**The flags module's judge, a Claude model, reviews each flag as it is sent** (see the backend's
+[The flags module](../../backend/docs/flags.md#the-judge)): it approves or rejects the clear ones itself, and leaves the
+others waiting here. Each submission it judged has a **Claude** line on its card: "Approved", "Rejected", or "Unsure,
+left to you", then what decided it, in its words. A flag it approved or rejected shows in the decided list as any other.
+
 ## The verdict
 
 `SubmissionVerdict`, on a waiting one alone. Each action asks first (see [Every action](actions.md)).

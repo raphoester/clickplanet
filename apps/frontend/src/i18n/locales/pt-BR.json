@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "Está difícil de ler no tamanho de uma casa.",
   "flagSubmission.rejected.hateful": "Tem conteúdo de ódio.",
   "flagSubmission.rejected.other": "Não foi aprovada.",
+  "flagSubmission.appeal": "Acha que erramos? Peça para uma pessoa olhar de novo.",
   "flagSubmission.picture.type": "{file} não é uma imagem PNG, JPEG ou WebP.",
   "flagSubmission.picture.size": "{file} tem mais de {size}.",
   "flagSubmission.picture.narrow": "Esta imagem é estreita demais.",

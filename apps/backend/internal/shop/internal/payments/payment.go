@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -42,9 +43,20 @@ func (id PaymentID) String() string {
 	return string(id)
 }
 
+const grantPrefix = "stripe:"
+
 // GrantID is the payment's name to the flags module, which grants a payment once.
 func (id PaymentID) GrantID() string {
-	return "stripe:" + string(id)
+	return grantPrefix + string(id)
+}
+
+// PaymentOfGrant is the payment a grant of the flags module names.
+func PaymentOfGrant(grant string) (PaymentID, error) {
+	id, ok := strings.CutPrefix(grant, grantPrefix)
+	if !ok {
+		return "", fmt.Errorf("%w: the grant %q", ErrInvalidPayment, grant)
+	}
+	return ParsePaymentID(id)
 }
 
 func ParseIntentID(s string) (IntentID, error) {

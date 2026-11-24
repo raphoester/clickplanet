@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "Bir kare boyutunda okunması zor.",
   "flagSubmission.rejected.hateful": "Nefret dolu.",
   "flagSubmission.rejected.other": "Onaylanmadı.",
+  "flagSubmission.appeal": "Bizim hata yaptığımızı mı düşünüyorsun? Bir insandan tekrar bakmasını iste.",
   "flagSubmission.picture.type": "{file} bir PNG, JPEG ya da WebP resmi değil.",
   "flagSubmission.picture.size": "{file} {size} değerinden büyük.",
   "flagSubmission.picture.narrow": "Bu resim çok dar.",

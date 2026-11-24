@@ -1,8 +1,10 @@
 import {describe, expect, it} from "vitest"
 import {FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
+import {JudgementVerdict} from "../gen/grpc/flags/v1/admin_pb.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {
-    aroundOf, foldName, founderOf, looksLikePhoto, Near, nearOf, nextOf, Other, PHOTO_FROM_PERCENT, sameNameOf, shownOf,
+    aroundOf, foldName, founderOf, judgementLabel, looksLikePhoto, Near, nearOf, nextOf, Other, PHOTO_FROM_PERCENT,
+    sameNameOf, shownOf,
 } from "./submissions.ts"
 
 const {listed, submissions} = new FakeAdmin().flags
@@ -109,5 +111,13 @@ describe("a submission in words", () => {
         expect(founderOf("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", names)).toBe("BraveFox42")
         expect(founderOf("9a1c0d2e-0000-4000-8000-000000000001", names)).toBe("9a1c0d2e…")
         expect(founderOf("9a1c0d2e-0000-4000-8000-000000000001", undefined)).toBe("9a1c0d2e…")
+    })
+})
+
+describe("judgementLabel", () => {
+    it("says what the judge ruled, and that an unsure one is the operator's", () => {
+        expect(judgementLabel(JudgementVerdict.APPROVE)).toBe("Approved")
+        expect(judgementLabel(JudgementVerdict.REJECT)).toBe("Rejected")
+        expect(judgementLabel(JudgementVerdict.UNSURE)).toBe("Unsure, left to you")
     })
 })

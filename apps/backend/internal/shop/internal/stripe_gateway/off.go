@@ -3,6 +3,7 @@ package stripe_gateway
 import (
 	"context"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/plans"
@@ -12,8 +13,12 @@ import (
 // Off is Stripe with no key in the config: every call is plans.ErrOff.
 type Off struct{}
 
-func (Off) Checkout(context.Context, orders.Order, plans.Price) (string, error) {
-	return "", plans.ErrOff
+func (Off) Checkout(context.Context, orders.Order, plans.Price) (checkouts.Page, error) {
+	return checkouts.Page{}, plans.ErrOff
+}
+
+func (Off) Expire(context.Context, checkouts.SessionID) error {
+	return plans.ErrOff
 }
 
 func (Off) StopAtPeriodEnd(context.Context, renewals.SubscriptionID) error {

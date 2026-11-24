@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/stripe-go/v87"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/plans"
@@ -87,7 +88,7 @@ func TestAWeekIsSoldOnStripesPageUnderManagedPayments(t *testing.T) {
 		plans.Price{Plan: plans.Week, ID: "price_week", Amount: 400, Currency: "eur"})
 	require.NoError(t, err)
 
-	assert.Equal(t, "https://checkout.stripe.com/c/pay/cs_1", page)
+	assert.Equal(t, checkouts.Page{Session: "cs_1", URL: "https://checkout.stripe.com/c/pay/cs_1"}, page)
 	sent := fake.last()
 	assert.Equal(t, http.MethodPost, sent.method)
 	assert.Equal(t, "/v1/checkout/sessions", sent.path)
@@ -202,4 +203,22 @@ func TestASubscriptionCancelledAlreadyIsNoError(t *testing.T) {
 	fake.status = http.StatusNotFound
 
 	require.NoError(t, gate.Cancel(t.Context(), "sub_1"))
+}
+
+func TestAPageIsClosedBeforeItIsPaid(t *testing.T) {
+	gate, fake := gateway(t, `{"id":"cs_1","object":"checkout.session","status":"expired"}`)
+
+	require.NoError(t, gate.Expire(t.Context(), "cs_1"))
+
+	sent := fake.last()
+	assert.Equal(t, http.MethodPost, sent.method)
+	assert.Equal(t, "/v1/checkout/sessions/cs_1/expire", sent.path)
+}
+
+func TestAPageNoLongerOpenIsNoError(t *testing.T) {
+	gate, fake := gateway(t, `{"error":{"type":"invalid_request_error","message":"Only Checkout Sessions with a `+
+		`status in [\"open\"] can be expired. This Checkout Session has a status of `+"`complete`"+`."}}`)
+	fake.status = http.StatusBadRequest
+
+	require.NoError(t, gate.Expire(t.Context(), "cs_1"), "paid or expired: nothing left to close")
 }

@@ -548,6 +548,7 @@
   "flagSubmission.rejected.unreadable": "It is hard to read at the size of a tile.",
   "flagSubmission.rejected.hateful": "It is hateful.",
   "flagSubmission.rejected.other": "It was not approved.",
+  "flagSubmission.appeal": "Think we got it wrong? Ask a person to look again.",
   "flagSubmission.picture.type": "{file} is not a PNG, JPEG or WebP picture.",
   "flagSubmission.picture.size": "{file} is over {size}.",
   "flagSubmission.picture.narrow": "This picture is too narrow.",

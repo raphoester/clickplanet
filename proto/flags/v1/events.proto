@@ -44,3 +44,10 @@ message SubmissionRejected {
   string submission_id = 1;
   google.protobuf.Timestamp rejected_at = 2;
 }
+
+// A payment the rules refused bought no time: a submission rejected or replaced, a name another flag took since, a
+// flag closed 30 days ago or more. The shop refunds it.
+message TimeRefused {
+  string grant_id = 1;
+  google.protobuf.Timestamp refused_at = 2;
+}

@@ -2,13 +2,16 @@ package submissions_query
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -104,15 +107,54 @@ func (q PostgresQuery) Kept(ctx context.Context) (*flagsv1.ListSubmissionsRespon
 	if err != nil {
 		return nil, err
 	}
+	judged, err := q.judgements(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	kept := make([]*flagsv1.KeptSubmission, 0, len(rows))
 	for _, row := range rows {
 		message, err := q.messages.Kept(row)
 		if err != nil {
 			return nil, fmt.Errorf("failed to link the picture of %s: %w", row.ID, err)
 		}
+		if judgement, ok := judged[row.ID]; ok {
+			message.Judgement = submissionmessage.Judgement(judgement)
+		}
 		kept = append(kept, message)
 	}
 	return &flagsv1.ListSubmissionsResponse{Submissions: kept}, nil
+}
+
+// What the judge ruled on the submissions read, by id.
+func (q PostgresQuery) judgements(
+	ctx context.Context, rows []submissions.Snapshot,
+) (map[submissions.SubmissionID]judgements.Snapshot, error) {
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, uuid.UUID(row.ID))
+	}
+	read, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT submission_id, verdict::text, why, judged_at FROM judgements WHERE submission_id = ANY($1)
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the judgements: %w", err)
+	}
+	judged := map[submissions.SubmissionID]judgements.Snapshot{}
+	for read.Next() {
+		var id uuid.UUID
+		var verdict string
+		var judgement judgements.Snapshot
+		if err := read.Scan(&id, &verdict, &judgement.Why, &judgement.JudgedAt); err != nil {
+			_ = read.Close()
+			return nil, fmt.Errorf("failed to read a judgement: %w", err)
+		}
+		judgement.Submission, judgement.Verdict = submissions.SubmissionID(id), judgements.Verdict(verdict)
+		judged[judgement.Submission] = judgement
+	}
+	if err := errors.Join(read.Err(), read.Close()); err != nil {
+		return nil, fmt.Errorf("failed to read the judgements: %w", err)
+	}
+	return judged, nil
 }
 
 func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]submissions.Snapshot, error) {

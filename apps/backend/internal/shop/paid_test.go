@@ -23,6 +23,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis/cpredistest"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/checkouts/postgres_checkout_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/notices/postgres_inbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/notices/usecases/receive_notice_usecase"
@@ -162,8 +165,16 @@ func TestStripesEventsReachTheFlagsModuleAsCommandsOnce(t *testing.T) {
 // refunds keeps what the shop asks Stripe for a rejected flag: never the real Stripe.
 type refunds struct {
 	mu        sync.Mutex
+	expired   []checkouts.SessionID
 	refunded  []payments.IntentID
 	cancelled []renewals.SubscriptionID
+}
+
+func (r *refunds) Expire(_ context.Context, id checkouts.SessionID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.expired = append(r.expired, id)
+	return nil
 }
 
 func (r *refunds) Refund(_ context.Context, intent payments.IntentID) error {
@@ -199,7 +210,7 @@ func TestAFlagRejectedAfterItsPaymentIsRefundedAndItsRenewalCancelled(t *testing
 	paid, renewed, inbox := postgres_payment_store.New(db), postgres_renewal_store.New(db), postgres_inbox.New(db)
 	stripeAPI := &refunds{}
 	rejected, err := cpredis.Subscribe(t.Context(), streams, "shop-refund-rejected", rejected_subscriber.New(
-		refund_rejected_usecase.New(paid, renewed, stripeAPI)))
+		refund_rejected_usecase.New(cptime.SystemClock{}, postgres_checkout_store.New(db), paid, renewed, stripeAPI)))
 	require.NoError(t, err)
 	running(t, rejected)
 	endpoint := receive_notice_handler.New(stripe_gateway.NewReader(stripe_gateway.TestSecret),

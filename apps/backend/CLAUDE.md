@@ -200,7 +200,8 @@ and says what is in it. Read the doc before you change its area.
   rejection with a reason (the picture
   deleted 30 days later), and the opening of an approved one by hand; the paid time: `GetPayable`, the shop's
   `GrantTime` (the first payment opens the flag, each one adds its week, month or year, once per payment) and
-  `TakeBackTime` (a refund ends the flag that much sooner).
+  `TakeBackTime` (a refund ends the flag that much sooner); the judge, a Claude model that approves or rejects the clear
+  flags as they are sent, the rest left to the operator.
 - [The shop](docs/shop.md) — the founder pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
   once, a month or a year that renews; off with no Stripe key; the Checkout Session, Stripe's signed events at
   `/stripe/webhook` acted on once each, what each event does and what Stripe's pages leave open (refunds, disputes),

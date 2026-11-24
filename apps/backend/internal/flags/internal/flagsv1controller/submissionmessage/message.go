@@ -7,6 +7,7 @@ import (
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 )
 
@@ -119,4 +120,23 @@ func ReasonOf(reason flagsv1.RejectionReason) submissions.Reason {
 		return ""
 	}
 	return ""
+}
+
+// Judgement is what the judge ruled, as the operator reads it.
+func Judgement(judgement judgements.Snapshot) *flagsv1.Judgement {
+	return &flagsv1.Judgement{
+		Verdict: verdictOf(judgement.Verdict), Why: judgement.Why, JudgedAt: timestamppb.New(judgement.JudgedAt),
+	}
+}
+
+func verdictOf(verdict judgements.Verdict) flagsv1.JudgementVerdict {
+	switch verdict {
+	case judgements.Approve:
+		return flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_APPROVE
+	case judgements.Reject:
+		return flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_REJECT
+	case judgements.Unsure:
+		return flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_UNSURE
+	}
+	return flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_UNSPECIFIED
 }
