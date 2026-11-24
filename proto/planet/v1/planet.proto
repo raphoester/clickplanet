@@ -252,6 +252,15 @@ message GetMapResponse {
 
   // The board the map plays, by its name ("earth-1"): every tile id of the answer is a tile of that board.
   string board = 9;
+
+  // The capitals the arena gave the flags with no ground of their own (England, a flag sold), each from the flag's pin.
+  repeated Seat seats = 10;
+}
+
+message Seat {
+  string flag = 1;
+
+  uint32 tile_id = 2;
 }
 
 message InfectedTile {

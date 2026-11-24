@@ -34,6 +34,7 @@ func (s *Store) Boards(ctx context.Context, played clicks.MapID) ([]clicks.Board
 		UNION SELECT board FROM mines WHERE map = $1
 		UNION SELECT board FROM traps WHERE map = $1
 		UNION SELECT board FROM viruses WHERE map = $1
+		UNION SELECT board FROM seats WHERE map = $1
 		ORDER BY board
 	`, string(played))
 	if err != nil {
@@ -221,9 +222,10 @@ func upsertTiles(
 	return nil
 }
 
-// Open writes a map's first tiles in keep's transaction, once keep says to.
+// Open writes a map's first tiles and its seats in keep's transaction, once keep says to.
 func (s *Store) Open(
-	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, keep func(ctx context.Context) (bool, error),
+	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, seats []clicks.Capital,
+	keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	taken := make([]int64, 0, len(tiles))
 	takenBy := make([]string, 0, len(tiles))
@@ -243,6 +245,9 @@ func (s *Store) Open(
 			return err
 		}
 		if err := upsertTiles(ctx, s.db.On(ctx), played, taken, takenBy, shields, holders); err != nil {
+			return err
+		}
+		if err := insertSeats(ctx, s.db.On(ctx), played, seats); err != nil {
 			return err
 		}
 		opened = true
@@ -305,6 +310,9 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM knockouts WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the flags out: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM seats WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the seats: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM viruses WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the viruses: %w", err)

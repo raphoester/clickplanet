@@ -27,8 +27,10 @@ type FlagOpened struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Flag  string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
 	// In English.
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	OpenedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	OpenedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
+	// The flag's capital, as it is now.
+	Pin           *Pin `protobuf:"bytes,4,opt,name=pin,proto3" json:"pin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -80,6 +82,13 @@ func (x *FlagOpened) GetName() string {
 func (x *FlagOpened) GetOpenedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OpenedAt
+	}
+	return nil
+}
+
+func (x *FlagOpened) GetPin() *Pin {
+	if x != nil {
+		return x.Pin
 	}
 	return nil
 }
@@ -200,16 +209,78 @@ func (x *FlagRenamed) GetRenamedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// The flag's capital from moved_at: its founder's change approved, with a capital the operator or the founder moved.
+type FlagMoved struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	Pin           *Pin                   `protobuf:"bytes,2,opt,name=pin,proto3" json:"pin,omitempty"`
+	MovedAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=moved_at,json=movedAt,proto3" json:"moved_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlagMoved) Reset() {
+	*x = FlagMoved{}
+	mi := &file_flags_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlagMoved) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlagMoved) ProtoMessage() {}
+
+func (x *FlagMoved) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlagMoved.ProtoReflect.Descriptor instead.
+func (*FlagMoved) Descriptor() ([]byte, []int) {
+	return file_flags_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FlagMoved) GetFlag() string {
+	if x != nil {
+		return x.Flag
+	}
+	return ""
+}
+
+func (x *FlagMoved) GetPin() *Pin {
+	if x != nil {
+		return x.Pin
+	}
+	return nil
+}
+
+func (x *FlagMoved) GetMovedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MovedAt
+	}
+	return nil
+}
+
 var File_flags_v1_events_proto protoreflect.FileDescriptor
 
 const file_flags_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x15flags/v1/events.proto\x12\bflags.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"m\n" +
+	"\x15flags/v1/events.proto\x12\bflags.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14flags/v1/flags.proto\"\x8e\x01\n" +
 	"\n" +
 	"FlagOpened\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x127\n" +
-	"\topened_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\"Y\n" +
+	"\topened_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\x12\x1f\n" +
+	"\x03pin\x18\x04 \x01(\v2\r.flags.v1.PinR\x03pin\"Y\n" +
 	"\n" +
 	"FlagClosed\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x127\n" +
@@ -218,7 +289,11 @@ const file_flags_v1_events_proto_rawDesc = "" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
 	"\n" +
-	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAtB\xac\x01\n" +
+	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAt\"w\n" +
+	"\tFlagMoved\x12\x12\n" +
+	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x1f\n" +
+	"\x03pin\x18\x02 \x01(\v2\r.flags.v1.PinR\x03pin\x125\n" +
+	"\bmoved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\amovedAtB\xac\x01\n" +
 	"\fcom.flags.v1B\vEventsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
 var (
@@ -233,22 +308,27 @@ func file_flags_v1_events_proto_rawDescGZIP() []byte {
 	return file_flags_v1_events_proto_rawDescData
 }
 
-var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_flags_v1_events_proto_goTypes = []any{
 	(*FlagOpened)(nil),            // 0: flags.v1.FlagOpened
 	(*FlagClosed)(nil),            // 1: flags.v1.FlagClosed
 	(*FlagRenamed)(nil),           // 2: flags.v1.FlagRenamed
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*FlagMoved)(nil),             // 3: flags.v1.FlagMoved
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*Pin)(nil),                   // 5: flags.v1.Pin
 }
 var file_flags_v1_events_proto_depIdxs = []int32{
-	3, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
-	3, // 1: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
-	3, // 2: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
+	5, // 1: flags.v1.FlagOpened.pin:type_name -> flags.v1.Pin
+	4, // 2: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
+	4, // 3: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
+	5, // 4: flags.v1.FlagMoved.pin:type_name -> flags.v1.Pin
+	4, // 5: flags.v1.FlagMoved.moved_at:type_name -> google.protobuf.Timestamp
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_events_proto_init() }
@@ -256,13 +336,14 @@ func file_flags_v1_events_proto_init() {
 	if File_flags_v1_events_proto != nil {
 		return
 	}
+	file_flags_v1_flags_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_events_proto_rawDesc), len(file_flags_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

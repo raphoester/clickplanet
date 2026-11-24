@@ -61,7 +61,7 @@ func TestAFlagClosedComesBackOpenedAgainWithinThirtyDays(t *testing.T) {
 	assert.Equal(t, catalog.Open, added.State)
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(
-		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(back)},
+		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(back), Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778}},
 		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 

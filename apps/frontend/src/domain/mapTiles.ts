@@ -55,6 +55,9 @@ export class MapTiles {
     // The flags knocked out, in the epoch they were heard in: they only grow until a new epoch.
     private out = new Set<string>()
     private outEpoch: number | undefined
+    // The seats of the epoch's map, a new map whenever one is added, so a reader sees the change by identity.
+    private seated: ReadonlyMap<number, string> = new Map()
+    private seatsEpoch: number | undefined
     // The mines' and the traps' seqs are of this epoch's map.
     private marksEpoch: number | undefined
 
@@ -116,12 +119,17 @@ export class MapTiles {
         return this.out
     }
 
+    public get seats(): ReadonlyMap<number, string> {
+        return this.seated
+    }
+
     // Whether the range is current: else read it again.
-    public read({range, version, bindings, shields, knockedOut, infected}: Ownerships, changes: TileChanges): boolean {
+    public read({range, version, bindings, shields, knockedOut, infected, seats}: Ownerships, changes: TileChanges): boolean {
         if (!this.clock.counts(version)) return false
         const index = this.rangeOf(range.start)
         if (index === undefined) return false
         this.knockOut(knockedOut, version)
+        this.seat(seats, version)
 
         for (let tile = range.start; tile <= range.end; tile++) {
             if (!this.take(tile, version.seq)) continue
@@ -331,6 +339,13 @@ export class MapTiles {
             const shields = this.shields.shieldsOf(tile)
             if (this.ownership.ownerOf(tile) === flag && shields < most) this.shields.set(tile, shields + 1, changes)
         }
+    }
+
+    private seat(seats: ReadonlyMap<number, string>, {epoch}: MapVersion) {
+        const fresh = this.seatsEpoch !== epoch
+        if (!fresh && [...seats].every(([tile, flag]) => this.seated.get(tile) === flag)) return
+        this.seated = new Map([...(fresh ? [] : this.seated), ...seats])
+        this.seatsEpoch = epoch
     }
 
     private knockOut(flags: readonly string[], {epoch}: MapVersion) {

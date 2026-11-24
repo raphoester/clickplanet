@@ -3,12 +3,45 @@
 **Three knobs of a rule set play on the capitals** (`capitals`, `clicks.CapitalsPart`; knobs of their own since
 2026-11-10, the cut-off since 2026-11-19). All are off in `default`. Capital Siege plays all three on its fresh map, which starts with each capital (see
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
-(`clicks.Capitals`): each country's tile nearest its capital city. A region flag (England, Scotland, Wales)
-has no capital, nor has a sold flag.
+(`clicks.Capitals`): each country's tile nearest its capital city, and on an arena's map the **seats** its seed gave the
+flags with no ground of their own, England, Scotland, Wales and every flag sold ([The seats](#the-seats), regional
+flags step 6, 2026-11-24). On the world's map those flags have no capital.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
 (`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
 storage only does the atomic work under its lock.
+
+## The seats
+
+**Each flag with no ground of its own plays Capital Siege from its capital pin, as a country plays from its capital**
+(step 6 of the regional flags plan). Its seat is a capital in every rule: the knock-out, fixed shields, the cut-off, the
+standing and the crown.
+
+- **Which flags**: the ones a player may play when the arena opens and that stand on a pin (`catalog.Pinned`): the
+  regions the game ships with, England, Scotland and Wales, at their pins (`cpflags.Pins`, below), and every sold flag
+  heard open, at the pin heard last. A flag closed then has none, even under a lock.
+- **The seat** (`clicks.Ground.Seats`, a rule of the board): the land tile nearest the pin that is no capital and
+  touches none. The flags sit one after the other, in the order of their codes, each seat counted as a capital for the
+  flags after it, so two flags pinned on one city sit apart. A flag with a capital of its own gets none. Measured on
+  the shipped boards (`embedded_board`'s `seats_test.go`): on `earth-1`, `earth-2` and `siege-1`, England, Scotland,
+  Wales, Brittany (Rennes) and Corsica (Ajaccio) each sit on their country's land within 3 tiles of the pin, apart from
+  every capital. On `siege-1` England sits two tiles north of the United Kingdom's capital, London's tile.
+- **A point, never a tile**: the seat is snapped on the board the arena plays, as it opens. Each board numbers its tiles
+  its own way, so no seat outlives its map.
+- **Laid by the capitals seed** (`seeds.Capitals`): each seat held by its flag with the capitals' shields (50 in Capital
+  Siege), in the same transaction as the arena and its tiles. **Kept with the map** in `planet.seats` (`map`, `board`,
+  `flag`, `tile`; `20261124125255_seats`): the boot reads them with the arena's map, the arena's close deletes them with
+  it, and the world's map has none.
+- **The capitals in play** (`clicks.Played.Capitals`): the board's capitals and the map's seats. The tile map plays the
+  seats as it fills the map (`Played.Seat`), and a new map, its own or the world's, starts with the board's alone.
+- **A flag opened while a siege runs joins the next one**: it has no seat on this map, so while the knock-out plays it
+  does not stand, and a pledge to it is `allegiances.ErrDown`. **A flag closed while a siege runs plays to the end**: its
+  seat stays, and the rules' lock keeps it playable (see [The flags module](flags.md)).
+- **On the wire**: every map read says them (`GetMapResponse.seats`, `Seat{flag, tile_id}`), so the page crowns them.
+- **Tried locally** (2026-11-24, Capital Siege's set on `siege-1`, opened with `OpenArena` and `PlayRuleSet`): five
+  seats (England, Scotland, Wales, Brittany, Corsica), each with 50 shields; a restart read them back; England and
+  Scotland took pledges; a flag added during the arena was refused (`ErrDown`); the United Kingdom struck the 50
+  shields of England's seat and took it, knocking England out and clearing its other tile.
 
 ## Fixed shields (`capitals.fixedShields`)
 
@@ -105,6 +138,12 @@ that clears the land cut off in one change after the take (a shield on it too, a
 rule off, a capital taken with the knock-out and without it, and an enclosure cut once its pocket is written;
 `ledger_test.go` the event's entry, takes and scenes, and `Recording` noting it after the take; the stream's sink;
 `GetLedger`'s query with every kind.
+
+`clicks`' `seats_test.go` pins the seat (nearest land, off and away from a capital, two flags apart, a flag pinned
+twice, a flag with a capital, no land free) and the capitals in play; `embedded_board`'s `seats_test.go` the seats on
+each shipped board; `inmemory_tile_storage`'s `seats_test.go` a blank that plays and keeps them, no shield on one, a
+take that knocks its flag out, the boot that reads them and the close that drops them; `postgres_tile_store`'s
+`seats_test.go` their rows; `seeds_test.go` the capitals seed with seats; `open_arena_usecase` a flag on a pin seated.
 
 `clicks`' `knock_out_test.go` pins the rule, the standing and fixed shields by the rule; `inmemory_tile_storage`'s
 `capitals_test.go` a capital refused a shield while its shields are fixed (the world's map too) and taking one while

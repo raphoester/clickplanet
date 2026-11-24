@@ -12,13 +12,14 @@ const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
 const changes = (): TileChanges => ({owners: [], shields: [], infections: [], mines: [], traps: []})
 
-const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = []): Ownerships => ({
+const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = [], seats: Record<number, string> = {}): Ownerships => ({
     range: {start, end},
     version,
     bindings: new Map(Object.entries(owners).map(([tile, owner]) => [Number(tile), owner])),
     shields: new Map(Object.entries(shields).map(([tile, count]) => [Number(tile), count])),
     knockedOut,
     infected: new Map(),
+    seats: new Map(Object.entries(seats).map(([tile, flag]) => [Number(tile), flag])),
 })
 
 const update = (tile: number, newCountry: string | undefined, version: MapVersion, shields = 0): Update =>
@@ -235,6 +236,23 @@ describe("a knock-out", () => {
         tiles.opened(at(0, START + 60))
         read(tiles, batch(1, 4, at(0, START + 60), {}, {}, ["it"]))
         expect([...tiles.knockedOut]).toEqual(["it"])
+    })
+})
+
+describe("the seats", () => {
+    it("are the map's, a new map when a read brings one, forgotten with a new start", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {}, {}, [], {3: "gb-eng"}))
+        const seated = tiles.seats
+        expect([...seated]).toEqual([[3, "gb-eng"]])
+
+        read(tiles, batch(5, 6, at(11), {}, {}, [], {3: "gb-eng"}))
+        expect(tiles.seats).toBe(seated)
+
+        tiles.opened(at(0, START + 60))
+        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, []))
+        expect(tiles.seats.size).toBe(0)
     })
 })
 

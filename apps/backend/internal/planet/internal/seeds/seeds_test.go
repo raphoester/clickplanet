@@ -1,6 +1,8 @@
 package seeds_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,10 +33,36 @@ func battle(t *testing.T, own *planetv1.Rules) cprules.Set[*planetv1.Rules] {
 func TestDefaultSeedsEachCapitalWithItsShields(t *testing.T) {
 	set := battle(t, &planetv1.Rules{})
 
-	seed := seeds.Catalog{}.SeedOf(set, ground)
+	seed, err := seeds.NewCatalog(seeds.FixedPins{}).SeedOf(t.Context(), set, ground)
+	require.NoError(t, err)
 
 	assert.Equal(t, []clicks.StartTile{{Tile: 60, Country: "de", Shields: 100}, {Tile: 50, Country: "fr", Shields: 100}},
 		seed.Tiles())
+	assert.Empty(t, seed.Seats())
+}
+
+func TestEachFlagOnAPinSitsOnItsSeatWithACapitalsShields(t *testing.T) {
+	set := battle(t, &planetv1.Rules{Seed: capitalsSeed(new(uint32(50)))})
+	land := clicks.GroundWith(clicks.BordersOf(3, []uint32{1, 2, 3}), clicks.NewCapitals(map[string]uint32{"fr": 1}))
+
+	seed, err := seeds.NewCatalog(seeds.FixedPins{{Flag: "gb-eng"}}).SeedOf(t.Context(), set, land)
+	require.NoError(t, err)
+
+	assert.Equal(t, []clicks.Capital{{Country: "gb-eng", Tile: 2}}, seed.Seats())
+	assert.Equal(t, []clicks.StartTile{{Tile: 1, Country: "fr", Shields: 50}, {Tile: 2, Country: "gb-eng", Shields: 50}},
+		seed.Tiles())
+}
+
+type failingPins struct{}
+
+func (failingPins) Pinned(context.Context) ([]clicks.Pinned, error) {
+	return nil, errors.New("postgres is restarting")
+}
+
+func TestAFailedReadOfThePinsSeedsNothing(t *testing.T) {
+	_, err := seeds.NewCatalog(failingPins{}).SeedOf(t.Context(), battle(t, &planetv1.Rules{}), ground)
+
+	require.Error(t, err)
 }
 
 func TestASetHoldingThePatternAloneKeepsDefaultsNumbers(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_opened_subscriber"
 )
 
@@ -25,6 +26,19 @@ func TestAFlagOpenedIsPlayableOnceHeard(t *testing.T) {
 	playable, err := flags.Playable(t.Context(), rennes)
 	require.NoError(t, err)
 	assert.True(t, playable)
+}
+
+func TestAFlagOpenedSitsOnItsPinAtTheNextArena(t *testing.T) {
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
+
+	require.NoError(t, flag_opened_subscriber.New(flags).Handle(t.Context(), &flagsv1.FlagOpened{
+		Flag: rennes, Name: "Rennes", OpenedAt: timestamppb.New(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)),
+		Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778},
+	}))
+
+	pinned, err := flags.Pinned(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, pinned, clicks.Pinned{Flag: rennes, Pin: clicks.Pin{Latitude: 48.1173, Longitude: -1.6778}})
 }
 
 func TestAFactThatNamesNoFlagIsRefused(t *testing.T) {

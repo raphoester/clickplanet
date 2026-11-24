@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Pin } from "./flags_pb.js";
 
 /**
  * Players may play for the flag from opened_at.
@@ -29,6 +30,13 @@ export class FlagOpened extends Message<FlagOpened> {
    */
   openedAt?: Timestamp;
 
+  /**
+   * The flag's capital, as it is now.
+   *
+   * @generated from field: flags.v1.Pin pin = 4;
+   */
+  pin?: Pin;
+
   constructor(data?: PartialMessage<FlagOpened>) {
     super();
     proto3.util.initPartial(data, this);
@@ -40,6 +48,7 @@ export class FlagOpened extends Message<FlagOpened> {
     { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "opened_at", kind: "message", T: Timestamp },
+    { no: 4, name: "pin", kind: "message", T: Pin },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagOpened {
@@ -155,6 +164,57 @@ export class FlagRenamed extends Message<FlagRenamed> {
 
   static equals(a: FlagRenamed | PlainMessage<FlagRenamed> | undefined, b: FlagRenamed | PlainMessage<FlagRenamed> | undefined): boolean {
     return proto3.util.equals(FlagRenamed, a, b);
+  }
+}
+
+/**
+ * The flag's capital from moved_at: its founder's change approved, with a capital the operator or the founder moved.
+ *
+ * @generated from message flags.v1.FlagMoved
+ */
+export class FlagMoved extends Message<FlagMoved> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: flags.v1.Pin pin = 2;
+   */
+  pin?: Pin;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp moved_at = 3;
+   */
+  movedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<FlagMoved>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.FlagMoved";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "pin", kind: "message", T: Pin },
+    { no: 3, name: "moved_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagMoved {
+    return new FlagMoved().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagMoved {
+    return new FlagMoved().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagMoved {
+    return new FlagMoved().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagMoved | PlainMessage<FlagMoved> | undefined, b: FlagMoved | PlainMessage<FlagMoved> | undefined): boolean {
+    return proto3.util.equals(FlagMoved, a, b);
   }
 }
 

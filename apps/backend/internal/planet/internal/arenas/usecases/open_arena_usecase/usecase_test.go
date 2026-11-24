@@ -25,11 +25,19 @@ import (
 
 var capitals = clicks.NewCapitals(map[string]uint32{"fr": 50, "de": 60})
 
-// The world's ground, and a board of its own an arena may play: 30 tiles, with capitals of their own.
+// The world's ground, and a board of its own an arena may play: 30 tiles of land, with capitals of their own.
 var (
 	world = clicks.NamedGround(eras.Earth1.Name, clicks.BordersOf(100), capitals)
-	small = clicks.NamedGround(eras.Fixture.Name, clicks.BordersOf(30), clicks.NewCapitals(map[string]uint32{"fr": 7, "jp": 9}))
+	small = clicks.NamedGround(eras.Fixture.Name, clicks.BordersOf(30, landOf(30)), clicks.NewCapitals(map[string]uint32{"fr": 7, "jp": 9}))
 )
+
+func landOf(tiles uint32) []uint32 {
+	land := make([]uint32, tiles)
+	for i := range land {
+		land[i] = uint32(i) + 1 //nolint:gosec // thirty tiles.
+	}
+	return land
+}
 
 // groundsOf are the grounds of the boards planet keeps: by name, and by row.
 func groundsOf(kept eras.Boards) eras.Grounds {
@@ -66,6 +74,12 @@ func newHarness(t *testing.T) harness {
 // beside it.
 func newHarnessCarrying(t *testing.T, carried eras.Boards) harness {
 	t.Helper()
+	return newHarnessPinned(t, carried, seeds.FixedPins{})
+}
+
+// newHarnessPinned is a harness whose flags with no ground stand on those pins.
+func newHarnessPinned(t *testing.T, carried eras.Boards, pins seeds.FixedPins) harness {
+	t.Helper()
 	clock := cptime.NewFixedClock(starts)
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
 	grounds := groundsOf(carried)
@@ -86,7 +100,7 @@ func newHarnessCarrying(t *testing.T, carried eras.Boards) harness {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Freeze: durationpb.New(6 * time.Second), Board: new(string(eras.Fixture.Name))}
 		r.Seed = &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{Shields: new(uint32(40))}}}
 	}))
-	setups := arenas.NewSetups(sets, seeds.Catalog{}, grounds)
+	setups := arenas.NewSetups(sets, seeds.NewCatalog(pins), grounds)
 	return harness{
 		tiles: tiles, played: played, stored: stored, kept: kept, eras: keptEras, inPlay: inPlay, clock: clock,
 		useCase: open_arena_usecase.New(tiles, setups, kept, keptEras, inPlay, clock),
@@ -226,6 +240,21 @@ func TestAnArenaOpensOnTheBoardItsSetNames(t *testing.T) {
 	world, err := h.eras.Latest(t.Context(), clicks.World)
 	require.NoError(t, err)
 	assert.Equal(t, eras.Earth1, world.Board, "the world's era stays")
+}
+
+func TestAFlagOnAPinSitsOnItsSeatAsACountryOnItsCapital(t *testing.T) {
+	h := newHarnessPinned(t, eras.CarryingFixture, seeds.FixedPins{{Flag: "r-0000000001", Pin: clicks.Pin{Latitude: 48.1, Longitude: -1.7}}})
+
+	_, err := h.useCase.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: boardSet})
+
+	require.NoError(t, err)
+	seat := []clicks.Capital{{Country: "r-0000000001", Tile: 1}}
+	assert.Equal(t, seat, h.stored.StoredSeatsOn("battle"), "kept with the arena's map")
+	assert.Equal(t, map[uint32]string{1: "r-0000000001", 7: "fr", 9: "jp"}, h.stored.StoredOn("battle"))
+	assert.Equal(t, 40, h.tiles.Shields(1), "a capital's shields")
+	tile, ok := h.played.Capitals().Of("r-0000000001")
+	assert.True(t, ok, "played as a capital")
+	assert.Equal(t, uint32(1), tile)
 }
 
 func TestAnArenaOfABoardPlanetKeepsNoRowOfIsRefused(t *testing.T) {

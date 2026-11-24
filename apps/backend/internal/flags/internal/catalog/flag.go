@@ -79,10 +79,14 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 }
 
 // Restyled wears the name, the picture and the capital a review approved, whether the flag is open or closed: history
-// names it too.
-func (f Flag) Restyled(name Name, picture pictures.Picture, pin Pin, at time.Time) (Flag, proto.Message) {
+// names it too. A capital moved is told apart, to the modules that play the flag.
+func (f Flag) Restyled(name Name, picture pictures.Picture, pin Pin, at time.Time) (Flag, []proto.Message) {
+	facts := []proto.Message{&flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}}
+	if pin != f.pin {
+		facts = append(facts, &flagsv1.FlagMoved{Flag: f.id.String(), Pin: pin.message(), MovedAt: timestamppb.New(at)})
+	}
 	f.name, f.picture, f.pin = name, picture, pin
-	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: f.name.String(), RenamedAt: timestamppb.New(at)}
+	return f, facts
 }
 
 func (f Flag) TimeAdded(days Days, now time.Time) (Flag, error) {
@@ -127,7 +131,7 @@ func (f Flag) Facts() []proto.Message {
 	switch f.state {
 	case Open:
 		return []proto.Message{&flagsv1.FlagOpened{
-			Flag: f.id.String(), Name: f.name.String(), OpenedAt: timestamppb.New(f.decidedAt),
+			Flag: f.id.String(), Name: f.name.String(), OpenedAt: timestamppb.New(f.decidedAt), Pin: f.pin.message(),
 		}}
 	case Closed:
 		return []proto.Message{&flagsv1.FlagClosed{Flag: f.id.String(), ClosedAt: timestamppb.New(f.decidedAt)}}
