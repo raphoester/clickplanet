@@ -19,9 +19,9 @@ function codeOf(opened: {code: string} | {refused: NameRefusal}): string {
 // Serves the fake as useFlagsFeed does, and waits for its two reads: the load's and the stream's.
 async function serveFake(fake: FakeFlagsBackend) {
     const listFlags = vi.spyOn(fake, "listFlags")
-    const {serve, changed, told, gone} = useFlags.getState()
+    const {serve, changed, told} = useFlags.getState()
     serve(fake)
-    const stop = fake.listenForFlags({onOpened: changed, onChanged: told, onDeleted: gone})
+    const stop = fake.listenForFlags({onOpened: changed, onChanged: told})
     await vi.waitFor(() => expect(listFlags.mock.calls).toEqual([[false], [true]]))
     return {listFlags, stop}
 }
@@ -187,42 +187,6 @@ describe("the flags store", () => {
         expect(lister.listFlags).toHaveBeenCalledTimes(1)
     })
 
-    it("drops a flag the stream deletes with no read; its code then reads once, as any code it does not know", async () => {
-        const lister = listOnHold()
-        useFlags.getState().serve(lister)
-        await lister.answer([BAVARIA, SAVOY])
-
-        useFlags.getState().gone(SAVOY.code)
-
-        expect(flagCatalog().knows(SAVOY.code)).toBe(false)
-        expect(flagCatalog().soldOf(SAVOY.code)).toBeUndefined()
-        expect(flagCatalog().pictures().has(SAVOY.code)).toBe(false)
-        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
-        expect(lister.listFlags).toHaveBeenCalledTimes(1)
-
-        expect(ENGLISH_TRANSLATOR.country(SAVOY.code)).toBe(SAVOY.code)
-        expect(lister.listFlags.mock.calls).toEqual([[false], [true]])
-        await lister.answer([BAVARIA])
-        for (let i = 0; i < 50; i++) expect(knowsFlag(SAVOY.code)).toBe(false)
-        await settled()
-
-        expect(lister.listFlags).toHaveBeenCalledTimes(2)
-    })
-
-    it("keeps a delete the stream told during a read over that read's answer, which may predate it", async () => {
-        const lister = listOnHold()
-        useFlags.getState().serve(lister)
-        await lister.answer([SAVOY])
-
-        useFlags.getState().changed()
-        useFlags.getState().gone(SAVOY.code)
-        useFlags.getState().told(BAVARIA)
-        await lister.answer([SAVOY])
-
-        expect(flagCatalog().knows(SAVOY.code)).toBe(false)
-        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
-    })
-
     it("follows the fake's flags as the flags' stream would tell them, reading once more as it opens", async () => {
         let now = 0
         const fake = new FakeFlagsBackend(async () => PICTURE, () => now)
@@ -275,34 +239,6 @@ describe("the flags store", () => {
         expect(fake.rename(savoy, "savoy")).toBe("renamed")
         expect(ENGLISH_TRANSLATOR.country(savoy)).toBe("savoy")
         expect(listFlags).toHaveBeenCalledTimes(2)
-        stop()
-    })
-
-    it("deletes a fake's flag by the server's rules: closed a minute ago or more, and never played", async () => {
-        let now = 0
-        const fake = new FakeFlagsBackend(async () => PICTURE, () => now)
-        const closings: ReadonlySet<string>[] = []
-        fake.listenForClosed((closed) => closings.push(closed))
-        const {listFlags, stop} = await serveFake(fake)
-        const bavaria = codeOf(await fake.open("Bavaria"))
-        const savoy = codeOf(await fake.open("Savoy"))
-        fake.markPlayed(bavaria)
-
-        expect(fake.delete(savoy)).toBe("open")
-        fake.close(bavaria)
-        fake.close(savoy)
-        now = 59_999
-        expect(fake.delete(savoy)).toBe("too soon")
-        now = 60_000
-        expect(fake.delete(bavaria)).toBe("played")
-
-        expect(fake.delete(savoy)).toBe("deleted")
-        expect(flagCatalog().knows(savoy)).toBe(false)
-        expect(flagCatalog().knows(bavaria)).toBe(true)
-        expect((await fake.listFlags()).map((flag) => flag.code)).not.toContain(savoy)
-        expect(closings.at(-1)).toEqual(new Set([bavaria]))
-        expect(fake.delete(savoy)).toBe("unknown")
-        expect(listFlags).toHaveBeenCalledTimes(3)
         stop()
     })
 })

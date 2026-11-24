@@ -20,7 +20,7 @@ var (
 
 type fixture struct {
 	store   *catalog.MemoryStore
-	flags   <-chan feed.Told
+	flags   <-chan catalog.Snapshot
 	useCase *tell_streams_usecase.UseCase
 }
 
@@ -41,7 +41,7 @@ func TestAStreamHearsTheFlagAsTheCatalogHoldsItNow(t *testing.T) {
 	require.NoError(t, f.useCase.Execute(t.Context(), tell_streams_usecase.In{Flag: "r-0000000001", DecidedAt: openedAt}))
 
 	require.Len(t, f.flags, 1)
-	assert.Equal(t, feed.ToldAsItIs(closed.TakeSnapshot()), <-f.flags, "the opening heard after the close tells the flag closed")
+	assert.Equal(t, closed.TakeSnapshot(), <-f.flags, "the opening heard after the close tells the flag closed")
 }
 
 func TestAFactToldAgainAtTheBootIsNotNews(t *testing.T) {

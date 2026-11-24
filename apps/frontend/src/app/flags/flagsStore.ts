@@ -14,19 +14,15 @@ type FlagsStore = {
     changed: () => void
     // A flag opened, closed or renamed, as the stream tells it: no read.
     told: (flag: ListedFlag) => void
-    // A flag deleted, as the stream tells it: no read.
-    gone: (code: string) => void
     missed: (code: string) => void
 }
-
-type Change = (catalog: FlagCatalog) => FlagCatalog
 
 export const useFlags = create<FlagsStore>()((set, get) => {
     let lister: FlagLister | undefined
     let served = 0
     let reads = new FlagReads()
     // What the stream told during the read in flight, which its answer may predate.
-    let heard: Change[] = []
+    let heard: ListedFlag[] = []
 
     const read = (fresh: boolean) => {
         const from = lister
@@ -36,7 +32,7 @@ export const useFlags = create<FlagsStore>()((set, get) => {
         heard = []
         from.listFlags(fresh).then(
             (listed) => {
-                if (current()) set({catalog: heard.reduce((catalog, change) => change(catalog), FlagCatalog.BUILT_IN.withFlags(listed))})
+                if (current()) set({catalog: FlagCatalog.BUILT_IN.withFlags(listed).withFlags(heard)})
             },
             (e: unknown) => console.error("could not read the list of flags: the page keeps the flags it knows", e),
         ).finally(() => {
@@ -44,12 +40,6 @@ export const useFlags = create<FlagsStore>()((set, get) => {
             if (!get().read) set({read: true})
             if (reads.ended()) read(true)
         })
-    }
-
-    const hear = (change: Change) => {
-        if (lister === undefined) return
-        heard.push(change)
-        set({catalog: change(get().catalog)})
     }
 
     return {
@@ -66,8 +56,11 @@ export const useFlags = create<FlagsStore>()((set, get) => {
         changed: () => {
             if (lister !== undefined && reads.changed()) read(true)
         },
-        told: (flag) => hear((catalog) => catalog.withFlags([flag])),
-        gone: (code) => hear((catalog) => catalog.withoutFlag(code)),
+        told: (flag) => {
+            if (lister === undefined) return
+            heard.push(flag)
+            set({catalog: get().catalog.withFlags([flag])})
+        },
         missed: (code) => {
             if (lister !== undefined && reads.missed(code)) read(true)
         },
@@ -104,13 +97,12 @@ export function afterFirstRead(then: (catalog: FlagCatalog) => void): void {
     })
 }
 
-// Reads the list at load and each time the flags' stream opens, takes each flag it tells or deletes, and forgets them
-// once it stops.
+// Reads the list at load and each time the flags' stream opens, takes each flag it tells, and forgets them once it stops.
 export function useFlagsFeed(flags: FlagLister & FlagStream): void {
     useEffect(() => {
-        const {serve, changed, told, gone} = useFlags.getState()
+        const {serve, changed, told} = useFlags.getState()
         serve(flags)
-        const stop = flags.listenForFlags({onOpened: changed, onChanged: told, onDeleted: gone})
+        const stop = flags.listenForFlags({onOpened: changed, onChanged: told})
         return () => {
             stop()
             serve(undefined)

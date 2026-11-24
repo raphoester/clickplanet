@@ -72,28 +72,6 @@ func (c Catalog) Close(ctx context.Context, flag string, at time.Time) error {
 	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Closed(at) })
 }
 
-// A flag deleted is unknown: nobody played for it, so no history names it.
-func (c Catalog) Delete(ctx context.Context, flag string, at time.Time) error {
-	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Deleted(at) })
-}
-
-// Unkept is true for a flag opened since the game shipped, open or closed, that the flags module was never told a
-// player played for.
-func (c Catalog) Unkept(ctx context.Context, flag string) (bool, error) {
-	if cpflags.IsBuiltIn(flag) {
-		return false, nil
-	}
-	heard, err := c.heard(ctx, flag)
-	if err != nil {
-		return false, err
-	}
-	return heard.unkept(), nil
-}
-
-func (c Catalog) Keep(ctx context.Context, flag string) error {
-	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Kept() })
-}
-
 func (c Catalog) change(ctx context.Context, flag string, change func(Heard) Heard) error {
 	if err := c.store.Change(ctx, flag, change); err != nil {
 		return fmt.Errorf("failed to keep what was heard of the flag %q: %w", flag, err)

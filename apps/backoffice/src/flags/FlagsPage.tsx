@@ -13,7 +13,7 @@ import {SoldCard} from "./SoldCard.tsx"
 
 const ORDERS: {order: Order, label: string}[] = [{order: "end", label: "By end"}, {order: "name", label: "By name"}]
 
-// The sold flags, opened by hand: a form to open one, then each with its days added, its rename, its close and its delete.
+// The sold flags, opened by hand: a form to open one, then each with its days added, its rename and its close.
 export function FlagsPage({flags, put = putFile}: {flags: FlagsAdmin, put?: Put}) {
     // The rest of the console names a flag by the same list: one opened here is named there at once.
     const list = useCallback(async (signal: AbortSignal) => {
@@ -28,16 +28,10 @@ export function FlagsPage({flags, put = putFile}: {flags: FlagsAdmin, put?: Put}
         if (read.state === "done") setKept(read.value)
     }, [read])
     const [order, setOrder] = useState<Order>("end")
-    // A code is never given again, so a flag deleted here stays out of the list whatever a read answers meanwhile.
-    const [deleted, setDeleted] = useState<{codes: ReadonlySet<string>, last: Flag}>()
 
     const shown = read.state === "done" ? read.value : kept
-    const sold = sortedOf(soldOf(shown ?? []).filter(each => deleted?.codes.has(each.flag.code) !== true), order)
+    const sold = sortedOf(soldOf(shown ?? []), order)
     const open = sold.filter(each => each.closedAt === undefined).length
-    const gone = (flag: Flag) => {
-        setDeleted(was => ({codes: new Set([...was?.codes ?? [], flag.code]), last: flag}))
-        again()
-    }
 
     return (
         <div className="flags-page">
@@ -65,16 +59,11 @@ export function FlagsPage({flags, put = putFile}: {flags: FlagsAdmin, put?: Put}
                     </div>
                 </div>
                 {read.state === "failed" && <FailureNotice failure={read} onRetry={again}/>}
-                {deleted !== undefined && (
-                    <p className="action-said" role="status">Deleted {deleted.last.name} ({deleted.last.code}) for good.</p>
-                )}
                 {shown === undefined && read.state === "loading" && <p className="muted">Loading…</p>}
                 {shown !== undefined && sold.length === 0 && <p className="muted">No flag opened yet.</p>}
                 {sold.length > 0 && (
                     <ol className="cards sold-grid">
-                        {sold.map(each => (
-                            <SoldCard key={each.flag.code} flags={flags} sold={each} onChanged={again} onDeleted={gone}/>
-                        ))}
+                        {sold.map(each => <SoldCard key={each.flag.code} flags={flags} sold={each} onChanged={again}/>)}
                     </ol>
                 )}
             </section>

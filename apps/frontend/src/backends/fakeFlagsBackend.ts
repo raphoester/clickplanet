@@ -5,8 +5,7 @@ import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 const BUILT_IN: readonly ListedFlag[] = Object.entries(countriesData).map(([code, name]) => ({code, name, closed: false}))
 
 const CODE_LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
-const MINUTE_MS = 60 * 1000
-const DAY_MS = 24 * 60 * MINUTE_MS
+const DAY_MS = 24 * 60 * 60 * 1000
 // Time added within this long of a close opens the flag again.
 const COMEBACK_MS = 30 * DAY_MS
 const MAX_NAME = 40
@@ -17,11 +16,10 @@ export type FlagPainter = (name: string) => Promise<FlagPicture>
 // What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
 export type NameRefusal = "empty" | "too long" | "taken"
 
-// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code)`, `renameFlag(code, name)` and `deleteFlag(code)` on the
-// console, each told as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
+// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code)` and `renameFlag(code, name)` on the console, each told
+// as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
-    private sold: ListedFlag[] = []
-    private readonly played = new Set<string>()
+    private readonly sold: ListedFlag[] = []
     private readonly listeners = new Set<FlagHandlers>()
     private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
 
@@ -98,24 +96,6 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         return "renamed"
     }
 
-    // A pledge or a click for the flag, as planet hears it: such a flag is never deleted.
-    public markPlayed(code: string): void {
-        this.played.add(code)
-    }
-
-    // Only a closed flag nobody played for, closed a minute ago or more.
-    public delete(code: string): "deleted" | "unknown" | "open" | "played" | "too soon" {
-        const flag = this.sold.find((sold) => sold.code === code)
-        if (flag?.sold === undefined) return "unknown"
-        if (!flag.closed) return "open"
-        if (this.played.has(code)) return "played"
-        if (this.now() - (flag.sold.closedAt ?? 0) < MINUTE_MS) return "too soon"
-        this.sold = this.sold.filter((sold) => sold.code !== code)
-        this.listeners.forEach(({onDeleted}) => onDeleted(code))
-        this.tellClosings()
-        return "deleted"
-    }
-
     private nameRefusalOf(name: string, renamed: string | undefined): NameRefusal | undefined {
         if (name === "") return "empty"
         if ([...name].length > MAX_NAME) return "too long"
@@ -130,10 +110,6 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
 
     private tell(flag: ListedFlag) {
         this.listeners.forEach(({onChanged}) => onChanged(copyOf(flag)))
-        this.tellClosings()
-    }
-
-    private tellClosings() {
         const closed = this.closed()
         this.closings.forEach((onClosed) => onClosed(closed))
     }

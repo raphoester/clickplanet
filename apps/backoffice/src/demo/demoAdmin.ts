@@ -96,7 +96,7 @@ import {
     ReportDecision,
 } from "../gen/grpc/support/v1/admin_pb.ts"
 import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {FakeAdmin, playedFlag, soldFlag} from "../fakeAdmin.ts"
+import {FakeAdmin, soldFlag} from "../fakeAdmin.ts"
 import {
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
@@ -722,7 +722,7 @@ export class DemoAdmin extends FakeAdmin {
 
     // flags.v1, as the server answers it: a PNG, a JPEG or a WebP of 5 MB at most, the file in the made-up bucket, a
     // name of 1 to 40 characters no other flag has and an end to come; the picture shown from the page's memory. A rename
-    // and a delete as FakeFlags keeps them.
+    // as FakeFlags keeps it.
     readonly demoFlags = {
         listFlags: this.flags.listFlags.bind(this.flags),
         createFlagUpload: (request: PartialMessage<CreateFlagUploadRequest>) => {
@@ -755,7 +755,6 @@ export class DemoAdmin extends FakeAdmin {
         addTime: this.flags.addTime.bind(this.flags),
         closeFlag: this.flags.closeFlag.bind(this.flags),
         renameFlag: this.flags.renameFlag.bind(this.flags),
-        deleteFlag: this.flags.deleteFlag.bind(this.flags),
     }
 
     readonly demoProgression = {
@@ -853,21 +852,21 @@ const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const FLAG_PICTURE_BYTES = 5 * 1024 * 1024
 const BAVARIA = "r-demobavar1"
 
-// Made-up sold flags, each picture drawn in the page: Bavaria (played) and Cornwall open, Savoy (played) closed 3 days
-// ago (time added opens it again), Tyrol closed 41 days ago, never played (it no longer comes back, and may be deleted).
+// Made-up sold flags, each picture drawn in the page: Bavaria and Cornwall open, Savoy closed 3 days ago (time added
+// opens it again), Tyrol closed 41 days ago (it no longer comes back).
 function flagSvgOf(width: number, height: number, shapes: string): string {
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${shapes}</svg>`)}`
 }
 
 const DEMO_FLAGS = [
-    playedFlag(soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3,
+    soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3,
         `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
         `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
-        `</pattern></defs><rect width="5" height="3" fill="url(#l)"/>`))),
+        `</pattern></defs><rect width="5" height="3" fill="url(#l)"/>`)),
     soldFlag("r-democornw1", "Cornwall", new Date(NOW + 20 * HOUR), undefined, flagSvgOf(5, 3,
         `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`)),
-    playedFlag(soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,
-        `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`))),
+    soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,
+        `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`)),
     soldFlag("r-demotyrol1", "Tyrol", new Date(NOW - 41 * DAY), new Date(NOW - 41 * DAY), flagSvgOf(2, 1,
         `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`)),
 ]

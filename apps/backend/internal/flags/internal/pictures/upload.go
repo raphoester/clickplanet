@@ -66,7 +66,6 @@ type Bucket interface {
 	Uploaded(ctx context.Context, id UploadID, most int64) ([]byte, error)
 	Publish(ctx context.Context, drawn Drawn) error
 	Discard(ctx context.Context, id UploadID) error
-	Unpublish(ctx context.Context, picture Snapshot) error
 }
 
 func NewGallery(bucket Bucket, rules Rules) Gallery {
@@ -95,14 +94,6 @@ func (g Gallery) Draw(ctx context.Context, id UploadID) (Picture, error) {
 }
 
 // Discard deletes the file uploaded, once the flag that wears its picture is kept.
-// The edge may still serve a copy it keeps: a picture's link is good for a year.
-func (g Gallery) Unpublish(ctx context.Context, picture Snapshot) error {
-	if err := g.bucket.Unpublish(ctx, picture); err != nil {
-		return fmt.Errorf("failed to remove the picture: %w", err)
-	}
-	return nil
-}
-
 func (g Gallery) Discard(ctx context.Context, id UploadID) error {
 	if err := g.bucket.Discard(ctx, id); err != nil {
 		return fmt.Errorf("failed to discard the file uploaded: %w", err)

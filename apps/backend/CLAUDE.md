@@ -186,9 +186,9 @@ and says what is in it. Read the doc before you change its area.
 ## The other contexts
 
 - [The flags module](docs/flags.md) — the catalog: the flags the game ships with (the page's file, `make flags`) and the
-  ones opened since (`r-` ids, no two with one name; closed, and deleted only if never played: planet's `KeepFlag`); `FlagOpened` and `FlagClosed` through its outbox and again at
+  ones opened since (`r-` ids, no two with one name, closed never deleted); `FlagOpened` and `FlagClosed` through its outbox and again at
   each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
-  (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename, delete), the close at the end date and
+  (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename), the close at the end date and
   the comeback within 30 days; a closed flag's players changing at once, its land kept, its room read-only, a battle's
   lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room

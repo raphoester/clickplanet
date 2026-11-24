@@ -222,10 +222,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeClips = new FakeClipsBackend()
     const fakeFlags = new FakeFlagsBackend(paintFakeFlag)
     fakeFlags.listenForClosed((closed) => fake.closeFlags(closed))
-    // The fake planet holds a flag only once it was pledged or clicked for.
-    fake.listenForAllegiance((held) => {
-        if (held) fakeFlags.markPlayed(held.countryId)
-    })
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -319,20 +315,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                 case "too long":
                 case "taken":
                     return nameRefusedWords(name, renamed)
-            }
-        },
-        deleteFlag: (code: string) => {
-            switch (fakeFlags.delete(code)) {
-                case "deleted":
-                    return `${code} is gone for good`
-                case "unknown":
-                    return `no flag ${code}: openFlag(name) answers one`
-                case "open":
-                    return `${code} is open: closeFlag(code) first`
-                case "played":
-                    return `${code} was played for: it is never deleted`
-                case "too soon":
-                    return `${code} closed under a minute ago: try again in a minute`
             }
         },
         giveBomb: () => {

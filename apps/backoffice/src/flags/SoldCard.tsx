@@ -8,18 +8,15 @@ import {timeOf} from "../components/time.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {countOf} from "../support/labels.ts"
 import {
-    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, deletable,
-    deleteFlag, deleteRefusalOf, leftOf, lengthOf, MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag,
-    renameRefusalOf, Sold,
+    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, lengthOf,
+    MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
 } from "./actions.ts"
 
 const FIRST_DAYS = "30"
 
-type Props = {flags: FlagsAdmin, sold: Sold, onChanged: () => void, onDeleted: (flag: Flag) => void}
-
 // One sold flag: its picture, its name and code, open or closed and until when, and what is done to it.
-export function SoldCard({flags, sold, onChanged, onDeleted}: Props) {
-    const {flag, picture, endsAt, closedAt, played} = sold
+export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sold, onChanged: () => void}) {
+    const {flag, picture, endsAt, closedAt} = sold
     const now = new Date()
     const comeback = closedAt === undefined ? undefined : comebackUntil(closedAt)
 
@@ -28,12 +25,9 @@ export function SoldCard({flags, sold, onChanged, onDeleted}: Props) {
             <img className="flag-picture-large" src={picture} alt={`The flag of ${flag.name}`}/>
             <div className="card-head">
                 <h3 className="sold-name">{flag.name}</h3>
-                <span className="sold-states">
-                    {closedAt === undefined
-                        ? <span className="status status-good">Open</span>
-                        : <span className="status">Closed</span>}
-                    {played && <span className="status">Played</span>}
-                </span>
+                {closedAt === undefined
+                    ? <span className="status status-good">Open</span>
+                    : <span className="status">Closed</span>}
             </div>
             <dl className="facts">
                 <Fact label="Code"><Copyable text={flag.code}/></Fact>
@@ -83,22 +77,6 @@ export function SoldCard({flags, sold, onChanged, onDeleted}: Props) {
                     refusal={closeRefusalOf}
                     onDone={onChanged}
                 />
-                {deletable(sold) && (
-                    <ConfirmAction
-                        label="Delete"
-                        tone="danger"
-                        question={
-                            <>
-                                <p>Delete <strong>{flag.name}</strong> for good?</p>
-                                <p>It leaves every list and its picture is removed. Nothing brings it back.</p>
-                            </>
-                        }
-                        run={() => deleteFlag(flags, flag.code)}
-                        said={() => "Deleted."}
-                        refusal={deleteRefusalOf}
-                        onDone={() => onDeleted(flag)}
-                    />
-                )}
             </div>
         </li>
     )

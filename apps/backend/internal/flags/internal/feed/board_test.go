@@ -31,11 +31,11 @@ func TestAFlagReachesEveryStreamOpen(t *testing.T) {
 	second, leaveSecond := board.Attend()
 	defer leaveSecond()
 
-	board.Publish(feed.ToldAsItIs(rennes))
+	board.Publish(rennes)
 
-	for _, flags := range []<-chan feed.Told{first, second} {
+	for _, flags := range []<-chan catalog.Snapshot{first, second} {
 		require.Len(t, flags, 1)
-		assert.Equal(t, feed.ToldAsItIs(rennes), <-flags)
+		assert.Equal(t, rennes, <-flags)
 	}
 }
 
@@ -45,7 +45,7 @@ func TestAStreamThatLeftHearsNothing(t *testing.T) {
 	leave()
 	leave()
 
-	board.Publish(feed.ToldAsItIs(rennes))
+	board.Publish(rennes)
 
 	_, open := <-flags
 	assert.False(t, open)
@@ -56,10 +56,10 @@ func TestAStreamThatFallsBehindIsClosedNotSkipped(t *testing.T) {
 	flags, leave := board.Attend()
 	defer leave()
 
-	board.Publish(feed.ToldAsItIs(rennes))
-	board.Publish(feed.ToldAsItIs(rennes))
+	board.Publish(rennes)
+	board.Publish(rennes)
 
-	assert.Equal(t, feed.ToldAsItIs(rennes), <-flags)
+	assert.Equal(t, rennes, <-flags)
 	_, open := <-flags
 	assert.False(t, open, "its page opens it again and reads the list")
 }

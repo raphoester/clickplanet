@@ -10,7 +10,6 @@ export type FlagHandlers = {
     onOpened: () => void
     // A flag opened, closed or renamed, as it is now.
     onChanged: (flag: ListedFlag) => void
-    onDeleted: (code: string) => void
 }
 
 // The flags module's stream, open while it is listened to.

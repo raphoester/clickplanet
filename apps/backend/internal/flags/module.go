@@ -17,22 +17,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/random_flag_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/add_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/delete_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/expire_flags_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/keep_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/restate_flags_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/commands/keep_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_gone_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/add_time_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/delete_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler/flags_query"
@@ -121,22 +116,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagRenamed: %w", err)
 	}
-	deleted, err := cpredis.Subscribe(ctx, redis, "flags-streams-deleted",
-		log_subscriber.New(told_subscriber.NewDeleted(tell_gone_usecase.New(feed.NewsSince(clock.Now()), streams)),
-			props.Logger))
-	if err != nil {
-		_ = redis.Close()
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagDeleted: %w", err)
-	}
-	// Planet's word that a player played for a flag: from then on it is never deleted.
-	kept, err := cpredis.Handle(ctx, redis, log_subscriber.New(keep_flag_handler.New(keep_flag_usecase.New(db, store)),
-		props.Logger))
-	if err != nil {
-		_ = redis.Close()
-		_ = db.Close()
-		return fmt.Errorf("failed to handle flags.v1.KeepFlag: %w", err)
-	}
 
 	// Each module keeps what it heard: one that subscribed after a flag was told hears it at the next boot.
 	if err := restate_flags_usecase.New(db, store, cpoutbox.New(db)).Execute(ctx); err != nil {
@@ -149,7 +128,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		expire_flags_usecase.NewRunner(expiryInterval, expire_flags_usecase.New(clock, db, store, cpoutbox.New(db)),
 			props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, deleted, kept,
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed,
 			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
@@ -173,8 +152,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			AddTimeHandler:    add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			CloseFlagHandler:  close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			RenameFlagHandler: rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
-			DeleteFlagHandler: delete_flag_handler.New(delete_flag_usecase.New(clock, db, store, cpoutbox.New(db),
-				pictures.NewGallery(bucket, rules))),
 		}, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.AdminService: %w", err)

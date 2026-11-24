@@ -1,13 +1,12 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
-import {ConnectFlagsBackend, flagChangedOf, flagDeletedOf, listedOf} from "./flagsBackend.ts"
-import {Flag, FlagEvent, FlagGone, Heartbeat, ListFlagsResponse, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {ConnectFlagsBackend, flagChangedOf, listedOf} from "./flagsBackend.ts"
+import {Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 const heartbeat = () => new FlagEvent({event: {case: "heartbeat", value: new Heartbeat()}})
 const changed = (code: string, name: string, closed = false) =>
     new FlagEvent({event: {case: "flagChanged", value: new Flag({code, name, closed})}})
-const deleted = (code: string) => new FlagEvent({event: {case: "flagDeleted", value: new FlagGone({code})}})
 
 const backendOf = (listenForEvents: ReturnType<typeof vi.fn>, listFlags = vi.fn(), fresh = vi.fn()) =>
     new ConnectFlagsBackend({listFlags, listenForEvents} as never, {listFlags: fresh, listenForEvents: vi.fn()} as never)
@@ -17,17 +16,7 @@ describe("flagChangedOf", () => {
         expect(flagChangedOf(changed("r-k3p9x2ma0b", "Bavaria", true)))
             .toEqual({code: "r-k3p9x2ma0b", name: "Bavaria", closed: true})
         expect(flagChangedOf(heartbeat())).toBeUndefined()
-        expect(flagChangedOf(deleted("r-k3p9x2ma0b"))).toBeUndefined()
         expect(flagChangedOf(new FlagEvent())).toBeUndefined()
-    })
-})
-
-describe("flagDeletedOf", () => {
-    it("reads the code of a flag deleted, and nothing from another case", () => {
-        expect(flagDeletedOf(deleted("r-k3p9x2ma0b"))).toBe("r-k3p9x2ma0b")
-        expect(flagDeletedOf(changed("r-k3p9x2ma0b", "Bavaria"))).toBeUndefined()
-        expect(flagDeletedOf(heartbeat())).toBeUndefined()
-        expect(flagDeletedOf(new FlagEvent())).toBeUndefined()
     })
 })
 
@@ -64,7 +53,6 @@ describe("ConnectFlagsBackend", () => {
             .mockImplementationOnce(async function* () {
                 yield heartbeat()
                 yield changed("r-k3p9x2ma0b", "Bavaria")
-                yield deleted("r-0a1b2c3d4e")
                 yield new FlagEvent()
             })
             .mockImplementationOnce(async function* () {
@@ -73,19 +61,15 @@ describe("ConnectFlagsBackend", () => {
             })
         const onOpened = vi.fn()
         const onChanged = vi.fn()
-        const onDeleted = vi.fn()
-        const stop = backendOf(listenForEvents).listenForFlags({onOpened, onChanged, onDeleted})
+        const stop = backendOf(listenForEvents).listenForFlags({onOpened, onChanged})
 
-        await vi.waitFor(() => expect(onDeleted).toHaveBeenCalledOnce())
-        expect(onChanged).toHaveBeenCalledOnce()
+        await vi.waitFor(() => expect(onChanged).toHaveBeenCalledOnce())
         expect(onChanged).toHaveBeenCalledWith({code: "r-k3p9x2ma0b", name: "Bavaria", closed: false})
-        expect(onDeleted).toHaveBeenCalledWith("r-0a1b2c3d4e")
         expect(onOpened).toHaveBeenCalledOnce()
 
         await vi.waitFor(() => expect(onOpened).toHaveBeenCalledTimes(2), {timeout: 3_000})
         expect(listenForEvents).toHaveBeenCalledTimes(2)
         expect(onChanged).toHaveBeenCalledOnce()
-        expect(onDeleted).toHaveBeenCalledOnce()
         stop()
     })
 
@@ -95,7 +79,7 @@ describe("ConnectFlagsBackend", () => {
             throw new ConnectError("no flags", Code.Unimplemented)
         })
         const onOpened = vi.fn()
-        backendOf(listenForEvents).listenForFlags({onOpened, onChanged: vi.fn(), onDeleted: vi.fn()})
+        backendOf(listenForEvents).listenForFlags({onOpened, onChanged: vi.fn()})
 
         await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalledOnce())
         await new Promise((resolve) => setTimeout(resolve, 800))

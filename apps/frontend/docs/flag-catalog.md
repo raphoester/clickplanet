@@ -28,9 +28,8 @@ that `flagFit.json` gives a built flag), when its time runs out, and when it clo
 
 - **At load**, once.
 - **Each time the flags stream opens**, the first time included: nothing told before it opened is sent again.
-- **Not on `flag_changed` or `flag_deleted`**: the stream tells the flag as it is now, or that it is gone, and the store
-  merges it or drops it with no read. A flag told or deleted during a read is merged or dropped again over that read's
-  answer, which may predate it.
+- **Not on `flag_changed`**: the stream tells the flag as it is now, and the store merges it with no read. A flag told
+  during a read is merged again over that read's answer, which may predate it.
 - **When a lookup meets a code the catalog does not know**: the name of an opened code (`translator().country`), a
   `CountryFlag` with no picture, and `knowsFlag`.
 - **At most one read is in flight.** A stream opening during a read queues one more read after it, never two. A code missed
@@ -70,8 +69,7 @@ loaded.
   picture's `stretch` and `focus` take the place of `flagFit.json`'s entry (see [The zoomed-out
   view](zoomed-out-view.md)).
 - **A flag opened, closed or opened again while the page is open** is told by the stream and drawn with no reload. A
-  closed flag stays drawn: its land stays. A deleted flag keeps its cell and its number while the page lives: no tile
-  wears it, since nobody played for it. The globe follows the store itself (`useFlags.subscribe` in `globe.ts`), so the
+  closed flag stays drawn: its land stays. The globe follows the store itself (`useFlags.subscribe` in `globe.ts`), so the
   archive's and the clips' globes draw them too.
 
 ## A sold flag in the page
@@ -83,15 +81,11 @@ loaded.
   (a Cloudflare rule). The game's pages send no Content-Security-Policy; one that is added must allow that origin in
   `img-src` and `connect-src`.
 
-## A flag renamed or deleted
+## A flag renamed
 
-- **A rename** comes as `flag_changed` with the new name: the catalog takes it (`withFlags`), and the picker and every
-  name the translator reads from the catalog show it. A name already on screen keeps the old one until its component
-  draws again, as a code does until the list names it.
-- **A delete** comes as `flag_deleted` (`FlagGone`, its code alone), only for a closed flag nobody played for (no pledge,
-  no tile, `sold.played` false). The store drops it from the catalog (`withoutFlag`, `useFlags.gone`): its name, its
-  close and its picture. Its code is never given again. A lookup of it afterwards is a code the page does not know
-  (below): one read of the list, its code as its name, a grey flag.
+**A rename** comes as `flag_changed` with the new name, open or closed: the catalog takes it (`withFlags`), and the
+picker and every name the translator reads from the catalog show it. Its code, picture and land stay. A name already on
+screen keeps the old one until its component draws again, as a code does until the list names it.
 
 ## A held flag closed
 
@@ -136,21 +130,17 @@ Each place that looks up a flag by its code survives a code it does not know.
 
 `openFlag("Bavaria", days)` on the console opens a sold flag for that many days (30 by default), with a picture drawn
 in the page from its name (three bands and a disc, 3:2, 2:1 or square, a blob URL, `paintFakeFlag`). `addTime(code,
-days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it. `renameFlag(code,
-name)` renames it, open or closed; `deleteFlag(code)` deletes it. Each is told as the flags stream tells it, and the fake
-planet hears the closes (`FakeBackend.closeFlags`): it answers `closed` for a closed flag held, unless `lockFlags()`
+days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it; `renameFlag(code,
+name)` renames it, open or closed. Each is told as the flags stream tells it, and the fake planet hears the closes (`FakeBackend.closeFlags`): it answers `closed` for a closed flag held, unless `lockFlags()`
 locks the flags, and refuses a click or a pledge for one. Nothing closes a flag when its time runs out: `closeFlag` does.
 
-The fake keeps the server's rules: `openFlag` and `renameFlag` refuse a name of no character or over 40, or one another
-flag has, built-in or sold, whatever its case; `deleteFlag` refuses an open flag, one closed under a minute ago, and
-one played for. **A flag is played** once the fake planet holds it (`FakeBackend.listenForAllegiance`, `markPlayed`):
-a pledge, or a first click, which pledges. The fake planet does not refuse a click for a deleted flag.
+The fake keeps the server's rules on a name: `openFlag` and `renameFlag` refuse one of no character or over 40, or one
+another flag has, built-in or sold, whatever its case.
 
 To see the whole flow: `openFlag("Bavaria")`, pick Bavaria in the picker (its picture beside its name), take tiles and
 zoom out (its picture on the tiles, then painted over the land), `closeFlag("<code>")` (the window asks for another flag,
 the tiles keep the picture), then `addTime("<code>", 7)` (Bavaria is in the picker again), and `renameFlag("<code>",
-"Bayern")` (the picker names it Bayern). To see a delete: `openFlag("Tyrol")`, `closeFlag("<code>")` without picking it,
-then `deleteFlag("<code>")` a minute later.
+"Bayern")` (the picker names it Bayern).
 
 ## Not built yet
 

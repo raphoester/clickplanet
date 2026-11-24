@@ -128,14 +128,6 @@ export class FlagEvent extends Message<FlagEvent> {
      */
     value: Flag;
     case: "flagChanged";
-  } | {
-    /**
-     * A flag nobody ever played for, gone from the catalog.
-     *
-     * @generated from field: flags.v1.FlagGone flag_deleted = 3;
-     */
-    value: FlagGone;
-    case: "flagDeleted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<FlagEvent>) {
@@ -148,7 +140,6 @@ export class FlagEvent extends Message<FlagEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 2, name: "flag_changed", kind: "message", T: Flag, oneof: "event" },
-    { no: 3, name: "flag_deleted", kind: "message", T: FlagGone, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagEvent {
@@ -165,43 +156,6 @@ export class FlagEvent extends Message<FlagEvent> {
 
   static equals(a: FlagEvent | PlainMessage<FlagEvent> | undefined, b: FlagEvent | PlainMessage<FlagEvent> | undefined): boolean {
     return proto3.util.equals(FlagEvent, a, b);
-  }
-}
-
-/**
- * @generated from message flags.v1.FlagGone
- */
-export class FlagGone extends Message<FlagGone> {
-  /**
-   * @generated from field: string code = 1;
-   */
-  code = "";
-
-  constructor(data?: PartialMessage<FlagGone>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "flags.v1.FlagGone";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagGone {
-    return new FlagGone().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagGone {
-    return new FlagGone().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagGone {
-    return new FlagGone().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: FlagGone | PlainMessage<FlagGone> | undefined, b: FlagGone | PlainMessage<FlagGone> | undefined): boolean {
-    return proto3.util.equals(FlagGone, a, b);
   }
 }
 
@@ -325,13 +279,6 @@ export class Sold extends Message<Sold> {
    */
   closedAt?: Timestamp;
 
-  /**
-   * A player pledged it or took a tile for it: history names it, so it is never deleted.
-   *
-   * @generated from field: bool played = 4;
-   */
-  played = false;
-
   constructor(data?: PartialMessage<Sold>) {
     super();
     proto3.util.initPartial(data, this);
@@ -343,7 +290,6 @@ export class Sold extends Message<Sold> {
     { no: 1, name: "picture", kind: "message", T: Picture },
     { no: 2, name: "ends_at", kind: "message", T: Timestamp },
     { no: 3, name: "closed_at", kind: "message", T: Timestamp },
-    { no: 4, name: "played", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sold {

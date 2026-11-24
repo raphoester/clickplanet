@@ -5,7 +5,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/add_time_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/delete_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_flags_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_flag_handler"
@@ -26,7 +25,6 @@ type AdminService struct {
 	add_time_handler.AddTimeHandler
 	close_flag_handler.CloseFlagHandler
 	rename_flag_handler.RenameFlagHandler
-	delete_flag_handler.DeleteFlagHandler
 }
 
 var _ flagsv1connect.AdminServiceHandler = AdminService{}

@@ -80,13 +80,6 @@ func (m *MemoryStore) Save(_ context.Context, flags ...Flag) error {
 	return nil
 }
 
-func (m *MemoryStore) Delete(_ context.Context, id FlagID) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.rows, id)
-	return nil
-}
-
 // Sequence draws r-0000000001, r-0000000002 and so on.
 type Sequence struct {
 	mu   sync.Mutex

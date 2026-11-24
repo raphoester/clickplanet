@@ -199,59 +199,6 @@ func (x *FlagRenamed) GetRenamedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it.
-type FlagDeleted struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Flag          string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FlagDeleted) Reset() {
-	*x = FlagDeleted{}
-	mi := &file_flags_v1_events_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FlagDeleted) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FlagDeleted) ProtoMessage() {}
-
-func (x *FlagDeleted) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_events_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FlagDeleted.ProtoReflect.Descriptor instead.
-func (*FlagDeleted) Descriptor() ([]byte, []int) {
-	return file_flags_v1_events_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *FlagDeleted) GetFlag() string {
-	if x != nil {
-		return x.Flag
-	}
-	return ""
-}
-
-func (x *FlagDeleted) GetDeletedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.DeletedAt
-	}
-	return nil
-}
-
 var File_flags_v1_events_proto protoreflect.FileDescriptor
 
 const file_flags_v1_events_proto_rawDesc = "" +
@@ -270,11 +217,7 @@ const file_flags_v1_events_proto_rawDesc = "" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
 	"\n" +
-	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAt\"\\\n" +
-	"\vFlagDeleted\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\tR\x04flag\x129\n" +
-	"\n" +
-	"deleted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAtB\xac\x01\n" +
+	"renamed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trenamedAtB\xac\x01\n" +
 	"\fcom.flags.v1B\vEventsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
 var (
@@ -289,24 +232,22 @@ func file_flags_v1_events_proto_rawDescGZIP() []byte {
 	return file_flags_v1_events_proto_rawDescData
 }
 
-var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_flags_v1_events_proto_goTypes = []any{
 	(*FlagOpened)(nil),            // 0: flags.v1.FlagOpened
 	(*FlagClosed)(nil),            // 1: flags.v1.FlagClosed
 	(*FlagRenamed)(nil),           // 2: flags.v1.FlagRenamed
-	(*FlagDeleted)(nil),           // 3: flags.v1.FlagDeleted
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_flags_v1_events_proto_depIdxs = []int32{
-	4, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
-	4, // 1: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
-	4, // 2: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
-	4, // 3: flags.v1.FlagDeleted.deleted_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
+	3, // 1: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
+	3, // 2: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_events_proto_init() }
@@ -320,7 +261,7 @@ func file_flags_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_events_proto_rawDesc), len(file_flags_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

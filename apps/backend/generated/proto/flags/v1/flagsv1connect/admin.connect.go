@@ -46,8 +46,6 @@ const (
 	AdminServiceCloseFlagProcedure = "/flags.v1.AdminService/CloseFlag"
 	// AdminServiceRenameFlagProcedure is the fully-qualified name of the AdminService's RenameFlag RPC.
 	AdminServiceRenameFlagProcedure = "/flags.v1.AdminService/RenameFlag"
-	// AdminServiceDeleteFlagProcedure is the fully-qualified name of the AdminService's DeleteFlag RPC.
-	AdminServiceDeleteFlagProcedure = "/flags.v1.AdminService/DeleteFlag"
 )
 
 // AdminServiceClient is a client for the flags.v1.AdminService service.
@@ -64,8 +62,7 @@ type AdminServiceClient interface {
 	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
 	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
 	// wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
-	// player sees the flag at once, and once a player plays for it, it is never deleted: open one only when the owner
-	// says so.
+	// player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
 	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
 	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
@@ -79,11 +76,6 @@ type AdminServiceClient interface {
 	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
-	// Deletes a flag opened since the game shipped, for good: it leaves every list and its picture is removed. Only a
-	// closed flag nobody ever played for (sold.played false), closed a minute ago or more, so a flag opened by mistake;
-	// FailedPrecondition for an open flag, one closed under a minute ago or one a player played for: close it and let
-	// it be.
-	DeleteFlag(context.Context, *connect.Request[v1.DeleteFlagRequest]) (*connect.Response[v1.DeleteFlagResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the flags.v1.AdminService service. By default, it
@@ -134,12 +126,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RenameFlag")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteFlag: connect.NewClient[v1.DeleteFlagRequest, v1.DeleteFlagResponse](
-			httpClient,
-			baseURL+AdminServiceDeleteFlagProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("DeleteFlag")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -151,7 +137,6 @@ type adminServiceClient struct {
 	addTime          *connect.Client[v1.AddTimeRequest, v1.AddTimeResponse]
 	closeFlag        *connect.Client[v1.CloseFlagRequest, v1.CloseFlagResponse]
 	renameFlag       *connect.Client[v1.RenameFlagRequest, v1.RenameFlagResponse]
-	deleteFlag       *connect.Client[v1.DeleteFlagRequest, v1.DeleteFlagResponse]
 }
 
 // ListFlags calls flags.v1.AdminService.ListFlags.
@@ -184,11 +169,6 @@ func (c *adminServiceClient) RenameFlag(ctx context.Context, req *connect.Reques
 	return c.renameFlag.CallUnary(ctx, req)
 }
 
-// DeleteFlag calls flags.v1.AdminService.DeleteFlag.
-func (c *adminServiceClient) DeleteFlag(ctx context.Context, req *connect.Request[v1.DeleteFlagRequest]) (*connect.Response[v1.DeleteFlagResponse], error) {
-	return c.deleteFlag.CallUnary(ctx, req)
-}
-
 // AdminServiceHandler is an implementation of the flags.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
@@ -203,8 +183,7 @@ type AdminServiceHandler interface {
 	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
 	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
 	// wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
-	// player sees the flag at once, and once a player plays for it, it is never deleted: open one only when the owner
-	// says so.
+	// player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
 	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
 	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
@@ -218,11 +197,6 @@ type AdminServiceHandler interface {
 	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
-	// Deletes a flag opened since the game shipped, for good: it leaves every list and its picture is removed. Only a
-	// closed flag nobody ever played for (sold.played false), closed a minute ago or more, so a flag opened by mistake;
-	// FailedPrecondition for an open flag, one closed under a minute ago or one a player played for: close it and let
-	// it be.
-	DeleteFlag(context.Context, *connect.Request[v1.DeleteFlagRequest]) (*connect.Response[v1.DeleteFlagResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -269,12 +243,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RenameFlag")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceDeleteFlagHandler := connect.NewUnaryHandler(
-		AdminServiceDeleteFlagProcedure,
-		svc.DeleteFlag,
-		connect.WithSchema(adminServiceMethods.ByName("DeleteFlag")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/flags.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListFlagsProcedure:
@@ -289,8 +257,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceCloseFlagHandler.ServeHTTP(w, r)
 		case AdminServiceRenameFlagProcedure:
 			adminServiceRenameFlagHandler.ServeHTTP(w, r)
-		case AdminServiceDeleteFlagProcedure:
-			adminServiceDeleteFlagHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -322,8 +288,4 @@ func (UnimplementedAdminServiceHandler) CloseFlag(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.RenameFlag is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) DeleteFlag(context.Context, *connect.Request[v1.DeleteFlagRequest]) (*connect.Response[v1.DeleteFlagResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.DeleteFlag is not implemented"))
 }

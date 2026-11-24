@@ -3,8 +3,8 @@
 **The flags module owns the catalog of flags**: the 239 the game ships with, and the flags opened since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
-itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one, and deletes one nobody ever
-played for. The first real one opens when the owner says so.
+itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. The first real one opens
+when the owner says so.
 
 ## The catalog
 
@@ -13,12 +13,10 @@ played for. The first real one opens when the owner says so.
   `cpflags.BuiltIn()` (in the page's order, with each English name) and `cpflags.IsBuiltIn`. Never a list kept by hand:
   it replaced `shared/cpcountries` and its `data.go`.
 - **A flag opened since** is a row of `flags.flags`: `id`, `name`, `state` (`flag_state`: `open` or `closed`),
-  `decided_at`, when it took that state, `ends_at`, its picture (`picture_hash`, `_width`, `_height`, `_stretch`,
-  `_focus_x`, `_focus_y`) and `played`. **A flag a player played for is closed, never deleted**: the season standings,
-  the Hall of Fame, the map history and the videos still name it. **One nobody played for, closed, may be deleted**: a
-  flag opened by mistake (below).
-- **`played`** is planet's word (`flags.v1.KeepFlag`): a player pledged it or took a tile for it. The flags module knows
-  no play, and asks no module: planet tells it, in the flags module's words, as the antibot tells planet whom to refuse.
+  `decided_at`, when it took that state, `ends_at`, and its picture (`picture_hash`, `_width`, `_height`, `_stretch`,
+  `_focus_x`, `_focus_y`). **A flag is closed, never deleted**: the season standings, the Hall of Fame, the map
+  history and the videos still name it. A flag opened by mistake that nobody played for was deleted by hand in postgres
+  (`flags.flags` and `planet.heard_flags`) on 2026-11-24; there is no call for it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
   with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
   review in step 2 may change the name, and the id stays.
@@ -28,14 +26,14 @@ played for. The first real one opens when the owner says so.
 
 ## What it tells
 
-`flags.v1.FlagOpened{flag, name, opened_at}`, `FlagClosed{flag, closed_at}`, `FlagRenamed{flag, name, renamed_at}` and
-`FlagDeleted{flag, deleted_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the
-transaction that changes the flag. The outbox's `outbox_event` enum names each.
+`flags.v1.FlagOpened{flag, name, opened_at}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name, renamed_at}`,
+through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`.
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
 (`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
 subscribes after a flag was told hears it at the next boot, with no hand migration. With no flag opened, it tells
-nothing. A flag deleted is not told again: it is gone.
+nothing.
 
 **Of one flag, the fact with the latest time holds.** The two facts go on two streams, so a listener may hear a close
 before the opening it follows; it keeps the later one, and a fact told again changes nothing.
@@ -43,22 +41,14 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 ## Planet keeps a catalog, the others check a code's shape
 
 **Planet alone keeps what it heard**, in its own schema (`planet.heard_flags`: `flag`, `state` as `heard_flag_state`,
-`decided_at`, `kept`), because it plays the flags: whether one is open is a rule of the click.
+`decided_at`), because it plays the flags: whether one is open is a rule of the click.
 
 - **`catalog.Catalog`** (`internal/planet/internal/catalog`) answers two questions. `Playable`: a flag the game ships
   with, or one heard open. `Known`: the same, or one heard closed. A flag the game ships with is never read from
   postgres, so today's clicks cost nothing more.
-- **`flag_opened_subscriber`, `flag_closed_subscriber` and `flag_deleted_subscriber`** hear the facts
-  (`planet-flags-opened`, `planet-flags-closed`, `planet-flags-deleted`). `postgres_catalog_store` keeps one row per flag
-  under an advisory lock, and only when a fact changes it. A flag deleted stays a row (`deleted`), unknown, so a fact
-  older than its deletion, heard late on another stream, changes nothing.
-- **Planet tells the flags module the first play of each flag** (`keep_played_flag_usecase`): it hears its own
-  `TilesTaken` (`planet-flags-played-taken`, by batch, once per flag of a batch: a flag the game ships with is skipped
-  with no read) and `AllegiancePledged` (`planet-flags-played-pledged`), and for a flag opened since and not yet `kept`
-  sends `flags.v1.KeepFlag` on the flags module's command stream, then notes it `kept`. Sent before it is noted, so a
-  crash between the two sends it again, which changes nothing. Every take reaches `TilesTaken` (a bomb, a virus, a mine
-  too), and a guest takes with no pledge, so the two cover every play. A new consumer group reads the stream from its
-  start, so the takes Redis still held at the deploy were heard too.
+- **`flag_opened_subscriber` and `flag_closed_subscriber`** hear the facts (`planet-flags-opened`,
+  `planet-flags-closed`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
+  changes it.
 - **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
 - **Not an RPC to the flags module**: a click for a flag opened since is one read of planet's own postgres, not a call
   on every click, as planet keeps the antibot's bans (`refused_callers`).
@@ -96,12 +86,11 @@ land stays, shields too: the game never removes land by itself, and rivals take 
 
 **The flags module tells the pages itself**, on a stream of its own: `flags.v1.FlagService/ListenForEvents`, a
 `heartbeat` at once and every `httpServer.streamHeartbeat`, `flag_changed`, each flag opened, closed or renamed while the
-stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`), and `flag_deleted`, the code of a flag
-deleted. It reads no token: every page hears the same.
+stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`). It reads no token: every page hears the
+same.
 
-- **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`, `flags-streams-renamed`,
-  `flags-streams-deleted`) and tells each to the open streams (`tell_streams_usecase`, and `tell_gone_usecase` for a
-  deletion, `feed.Told`), the flag read from its table, so a close heard before its opening still tells the flag
+- **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`, `flags-streams-renamed`) and
+  tells each to the open streams (`tell_streams_usecase`), the flag read from its table, so a close heard before its opening still tells the flag
   closed. A fact told again (the restatement at each boot) changes nothing for a page, so it is skipped: only a fact
   decided since this process started is news (`feed.News`). A page reads `ListFlags` each time its stream opens, so it
   misses nothing told while the stream was down.
@@ -123,16 +112,16 @@ step.
 `flags.v1.FlagService/ListFlags`, public, and `flags.v1.AdminService/ListFlags`, for the backoffice and Claude
 (`flags_list_flags`): every flag the game ships with, in the page's order, then the flags opened since, by name, the
 closed ones with `closed`. A flag opened since carries `sold`: its picture (public URL, size, `stretch` and focus), its
-`ends_at`, once closed, `closed_at`, and `played`. One query (`flags_query`), no cache header: the page reads it again each time
+`ends_at` and, once closed, `closed_at`. One query (`flags_query`), no cache header: the page reads it again each time
 its stream opens, and a cached answer would not hold a flag opened while it was down.
 
 ## The operator's calls
 
 `flags.v1.AdminService`, on the backoffice's Flags page and as Claude's tools (`flags_create_flag_upload`,
-`flags_open_flag`, `flags_add_time`, `flags_close_flag`, `flags_rename_flag`, `flags_delete_flag`). **Every player sees a
-flag opened at once, and once a player plays for it, it is never deleted: open one only when the owner says so.**
-Each change reads the flag `FOR UPDATE` in its transaction, so two changes at once never undo each other (a rename at
-the first play keeps `played`).
+`flags_open_flag`, `flags_add_time`, `flags_close_flag`, `flags_rename_flag`). **Every player sees a flag opened at
+once, and a closed flag is never deleted: open one only when the owner says so.** Each change reads the flag
+`FOR UPDATE` in its transaction, so two changes at once never undo each other (a rename as the runner closes the flag
+at its end keeps it closed).
 
 - **`CreateFlagUpload(content_type, size_bytes)`**: a one-time link, good for 10 minutes, to `PUT` a PNG, JPEG or WebP
   of 5 MB at most into the bucket, under `flags/uploads/<id>`, private.
@@ -149,12 +138,6 @@ the first play keeps `played`).
 - **`RenameFlag(code, name)`** (`rename_flag_usecase`): open or closed; `catalog.ErrNameTaken` or `ErrInvalidName`
   (`InvalidArgument`) for a name another flag has or no name. Told as `FlagRenamed`: the pages show it at once, and the
   code, the picture, the land and the players stay.
-- **`DeleteFlag(code)`** (`delete_flag_usecase`, `Flag.Deleted`): only a closed flag nobody played for, closed a minute
-  ago or more (`catalog.ErrOpen`, `ErrPlayed`, `ErrJustClosed`: `FailedPrecondition`). The minute lets planet's word of
-  the last plays before the close arrive. The row goes, `FlagDeleted` is told, and its picture leaves the bucket once no
-  other flag wears it; the edge may serve a copy it keeps until it lapses. **A play under a battle's lock after the close
-  is the one hole**: its `KeepFlag` may come after the delete, and the few tiles it took would show a grey flag. Delete
-  a flag only outside a battle.
 - **At its end a flag closes by itself**: `expire_flags_usecase`, every 30 seconds, closes each open flag whose
   `ends_at` passed (`Store.Ending`, an index on `ends_at` of the open ones), at its end, and records `FlagClosed`.
 
@@ -180,8 +163,7 @@ pictures of the flags there are.
 - `shared/cps3` reads (`Read`, with a size limit) and writes (`Write`, with its cache header) through signed links.
 
 `internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and shows the fact reach
-another module's subscriber and an open page's stream with no restart, then the close, a rename and a deletion.
-`internal/flags/kept_test.go` sends `KeepFlag` on Redis and shows the flag played, and no longer deleted.
+another module's subscriber and an open page's stream with no restart, then the close and a rename.
 
 ## The pool
 

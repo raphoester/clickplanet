@@ -5,8 +5,8 @@ package flags.v1;
 import "google/protobuf/timestamp.proto";
 
 // What the flags module tells the other modules, over Redis Streams, from its outbox: in the transaction that opens,
-// closes, renames or deletes a flag, and FlagOpened and FlagClosed again for every flag at each boot. Of one flag, the
-// fact with the latest time is the one that holds.
+// closes or renames a flag, and FlagOpened and FlagClosed again for every flag at each boot. Of one flag, the fact with
+// the latest time is the one that holds.
 
 // Players may play for the flag from opened_at.
 message FlagOpened {
@@ -28,10 +28,4 @@ message FlagRenamed {
   // In English.
   string name = 2;
   google.protobuf.Timestamp renamed_at = 3;
-}
-
-// The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it.
-message FlagDeleted {
-  string flag = 1;
-  google.protobuf.Timestamp deleted_at = 2;
 }

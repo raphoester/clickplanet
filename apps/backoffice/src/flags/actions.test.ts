@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {AT, playedFlag, soldFlag} from "../fakeAdmin.ts"
-import {daysOf, deletable, leftOf, renamedOf, soldOf} from "./actions.ts"
+import {AT} from "../fakeAdmin.ts"
+import {daysOf, leftOf, renamedOf} from "./actions.ts"
 
 const HOUR = 3_600_000
 
@@ -36,16 +36,5 @@ describe("renamedOf", () => {
         expect(renamedOf(" Bavaria", "Bavaria")).toBeUndefined()
         expect(renamedOf("  ", "Bavaria")).toBeUndefined()
         expect(renamedOf("B".repeat(41), "Bavaria")).toBeUndefined()
-    })
-})
-
-describe("deletable", () => {
-    it("is a closed flag nobody played for", () => {
-        const [open, closed, played] = soldOf([
-            soldFlag("r-k3p9x2ma0b", "Bavaria", AT),
-            soldFlag("r-tyrol00001", "Tyrol", AT, AT),
-            playedFlag(soldFlag("r-0a1b2c3d4e", "Savoy", AT, AT)),
-        ])
-        expect([open, closed, played].map(deletable)).toEqual([false, true, false])
     })
 })

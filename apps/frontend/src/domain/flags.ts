@@ -39,17 +39,6 @@ export class FlagCatalog {
         return new FlagCatalog(opened, closed, sold)
     }
 
-    // A flag nobody played for, deleted: nothing names it, so it is a code like any the page does not know.
-    withoutFlag(code: string): FlagCatalog {
-        const opened = new Map(this.opened)
-        const closed = new Set(this.closed)
-        const sold = new Map(this.sold)
-        opened.delete(code)
-        closed.delete(code)
-        sold.delete(code)
-        return new FlagCatalog(opened, closed, sold)
-    }
-
     knows(code: string): boolean {
         return Countries.has(code) || this.opened.has(code)
     }

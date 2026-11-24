@@ -2415,12 +2415,6 @@ a.button {
     flex-basis: 100%;
 }
 
-.sold-states {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
 .sold-rename {
     display: flex;
     flex-wrap: wrap;

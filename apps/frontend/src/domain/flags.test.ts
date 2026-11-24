@@ -84,21 +84,6 @@ describe("a sold flag in the catalog", () => {
         expect(closed.soldOf(BAVARIA.code)?.closedAt).toBe(11)
     })
 
-    it("forgets a flag deleted, its name, its close and its picture, and keeps every other flag", () => {
-        const savoy = {...SAVOY, sold: {picture: PICTURE, endsAt: 10, closedAt: 11}}
-        const catalog = FlagCatalog.BUILT_IN.withFlags([{...BAVARIA, sold: {picture: PICTURE, endsAt: 10}}, savoy])
-            .withoutFlag(SAVOY.code)
-
-        expect(catalog.knows(SAVOY.code)).toBe(false)
-        expect(catalog.openedName(SAVOY.code)).toBeUndefined()
-        expect(catalog.closedFlag(SAVOY.code)).toBe(false)
-        expect(catalog.playable(SAVOY.code)).toBe(false)
-        expect(catalog.soldOf(SAVOY.code)).toBeUndefined()
-        expect([...catalog.pictures().keys()]).toEqual([BAVARIA.code])
-        expect(catalog.playableCodes().at(-1)).toBe(BAVARIA.code)
-        expect(catalog.withoutFlag("r-0000000000").playableCodes()).toEqual(catalog.playableCodes())
-    })
-
     it("keeps no picture for a flag of the build, which the atlas draws", () => {
         const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "fr", name: "France", closed: false, sold: {picture: PICTURE, endsAt: 1}}])
         expect(catalog.pictureOf("fr")).toBeUndefined()

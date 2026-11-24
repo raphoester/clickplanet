@@ -23,8 +23,7 @@ service AdminService {
   // CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
   // data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
   // wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
-  // player sees the flag at once, and once a player plays for it, it is never deleted: open one only when the owner
-  // says so.
+  // player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
   rpc OpenFlag(OpenFlagRequest) returns (OpenFlagResponse);
 
   // Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
@@ -41,12 +40,6 @@ service AdminService {
   // picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
   // InvalidArgument, as is an empty one or one over 40 characters.
   rpc RenameFlag(RenameFlagRequest) returns (RenameFlagResponse);
-
-  // Deletes a flag opened since the game shipped, for good: it leaves every list and its picture is removed. Only a
-  // closed flag nobody ever played for (sold.played false), closed a minute ago or more, so a flag opened by mistake;
-  // FailedPrecondition for an open flag, one closed under a minute ago or one a player played for: close it and let
-  // it be.
-  rpc DeleteFlag(DeleteFlagRequest) returns (DeleteFlagResponse);
 }
 
 message CreateFlagUploadRequest {
@@ -101,9 +94,3 @@ message RenameFlagRequest {
 message RenameFlagResponse {
   Flag flag = 1;
 }
-
-message DeleteFlagRequest {
-  string code = 1;
-}
-
-message DeleteFlagResponse {}

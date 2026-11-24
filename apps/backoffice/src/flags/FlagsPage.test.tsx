@@ -101,7 +101,7 @@ describe("FlagsPage", () => {
         const question = within(form).getByRole("group", {name: "Open"})
         expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left)?`)
         expect(question.textContent).toContain("Every player sees it at once")
-        expect(question.textContent).toContain("Once one does, it is never deleted")
+        expect(question.textContent).toContain("A flag is never deleted")
         expect(admin.askedFor("createFlagUpload")).toEqual([])
 
         fireEvent.click(within(form).getByRole("button", {name: "Yes, open"}))
@@ -302,48 +302,6 @@ describe("FlagsPage", () => {
             expect(await within(bavaria).findByText(words)).toBeTruthy()
         }
         expect(screen.getByRole("heading", {name: "Bavaria"})).toBeTruthy()
-        expect(admin.askedFor("listFlags")).toHaveLength(1)
-    })
-
-    it("deletes a closed flag nobody played for once asked, and it leaves the list", async () => {
-        const admin = new FakeAdmin()
-        admin.flags.listed = [...admin.flags.listed, soldFlag("r-tyrol00001", "Tyrol", later(-40), later(-40))]
-        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
-        const tyrol = await card("Tyrol")
-
-        const savoy = await card("Savoy")
-        expect(within(savoy).getByText("Played", {selector: ".status"})).toBeTruthy()
-        expect(within(savoy).queryByRole("button", {name: "Delete"})).toBeNull()
-        expect(within(await card("Bavaria")).queryByRole("button", {name: "Delete"})).toBeNull()
-        expect(within(tyrol).queryByText("Played", {selector: ".status"})).toBeNull()
-
-        fireEvent.click(within(tyrol).getByRole("button", {name: "Delete"}))
-        const question = within(tyrol).getByRole("group", {name: "Delete"}).textContent
-        expect(question).toContain("Delete Tyrol for good?")
-        expect(question).toContain("Nothing brings it back.")
-        expect(admin.askedFor("deleteFlag")).toEqual([])
-        fireEvent.click(within(tyrol).getByRole("button", {name: "Yes, delete"}))
-
-        expect(await screen.findByText("Deleted Tyrol (r-tyrol00001) for good.")).toBeTruthy()
-        expect(screen.queryByRole("heading", {name: "Tyrol"})).toBeNull()
-        expect(admin.askedFor("deleteFlag")).toEqual([{code: "r-tyrol00001"}])
-        await vi.waitFor(() => expect(admin.askedFor("listFlags")).toHaveLength(2))
-        expect(screen.getByText("2 sold flags, 1 open")).toBeTruthy()
-        expect(admin.flags.listed.map(flag => flag.code)).not.toContain("r-tyrol00001")
-    })
-
-    it("says the server's refusal of a delete, and keeps the flag", async () => {
-        const admin = new FakeAdmin()
-        admin.flags.listed = [...admin.flags.listed, soldFlag("r-tyrol00001", "Tyrol", later(-40), new Date(AT.getTime() - 30_000))]
-        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
-        const tyrol = await card("Tyrol")
-
-        fireEvent.click(within(tyrol).getByRole("button", {name: "Delete"}))
-        fireEvent.click(within(tyrol).getByRole("button", {name: "Yes, delete"}))
-
-        expect(await within(tyrol).findByText(
-            "The server keeps it: closed under a minute ago, or opened or played for since the list was read.")).toBeTruthy()
-        expect(screen.getByRole("heading", {name: "Tyrol"})).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(1)
     })
 

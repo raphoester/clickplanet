@@ -20,7 +20,7 @@ const DAY_MS = 24 * HOUR_MS
 export type Order = "end" | "name"
 
 // A sold flag as the page shows it.
-export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined, played: boolean}
+export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined}
 
 export function soldOf(flags: readonly Flag[]): Sold[] {
     return flags.flatMap(flag => flag.sold === undefined ? [] : [{
@@ -28,13 +28,7 @@ export function soldOf(flags: readonly Flag[]): Sold[] {
         picture: flag.sold.picture?.url ?? "",
         endsAt: flag.sold.endsAt?.toDate() ?? new Date(0),
         closedAt: flag.sold.closedAt?.toDate(),
-        played: flag.sold.played,
     }])
-}
-
-// The server deletes only a closed flag nobody played for, and refuses one closed under a minute ago.
-export function deletable(sold: Sold): boolean {
-    return sold.closedAt !== undefined && !sold.played
 }
 
 // By end: the open ones first, the soonest to end first, then the closed ones, the last closed first.
@@ -139,18 +133,9 @@ export async function renameFlag(flags: FlagsAdmin, code: string, name: string):
     return answered((await flags.renameFlag({code, name})).flag)
 }
 
-export async function deleteFlag(flags: FlagsAdmin, code: string): Promise<void> {
-    await flags.deleteFlag({code})
-}
-
 export const openRefusalOf = refusalWith({failedPrecondition: PICTURES_OFF})
 
 export const renameRefusalOf = refusalWith({notFound: NO_SUCH_FLAG})
-
-export const deleteRefusalOf = refusalWith({
-    failedPrecondition: "The server keeps it: closed under a minute ago, or opened or played for since the list was read.",
-    notFound: NO_SUCH_FLAG,
-})
 
 export const addTimeRefusalOf = refusalWith({
     failedPrecondition: `Closed over ${COMEBACK_DAYS} days ago: time added no longer opens it.`,

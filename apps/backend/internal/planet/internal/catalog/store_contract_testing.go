@@ -65,19 +65,3 @@ func (s *StoreContractSuite) TestAChangeIsHandedWhatWasKept() {
 	})
 	s.Equal(HeardSnapshot{State: Closed, DecidedAt: closedAt}, handed)
 }
-
-func (s *StoreContractSuite) TestAFlagKeptStaysKeptThroughItsLaterFacts() {
-	s.change("r-0000000000", func(heard Heard) Heard { return heard.Opened(openedAt) })
-	s.change("r-0000000000", func(heard Heard) Heard { return heard.Kept() })
-	s.change("r-0000000000", func(heard Heard) Heard { return heard.Closed(closedAt) })
-
-	s.Equal(HeardSnapshot{State: Closed, DecidedAt: closedAt, Kept: true}, s.heard("r-0000000000"))
-}
-
-func (s *StoreContractSuite) TestAFlagDeletedStaysDeletedWhateverOlderFactComesLate() {
-	deletedAt := closedAt.Add(time.Hour)
-	s.change("r-0000000000", func(heard Heard) Heard { return heard.Deleted(deletedAt) })
-	s.change("r-0000000000", func(heard Heard) Heard { return heard.Closed(closedAt) })
-
-	s.Equal(HeardSnapshot{State: Deleted, DecidedAt: deletedAt}, s.heard("r-0000000000"))
-}
