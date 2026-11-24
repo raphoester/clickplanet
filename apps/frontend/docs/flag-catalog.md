@@ -5,8 +5,10 @@
 names in every language. The backend's flags module owns the whole catalog: `flags.v1.FlagService/ListFlags` lists the
 built-in flags first, then the opened ones, each with a name in English and whether it is closed. An opened flag's code
 is a flag's shape the build does not ship (`isOpenedCode`): `r-` and ten letters or digits, or the code a flag kept when
-it left the build. Brittany (`xb`) shipped with the game until 2026-11-24 and is sold since, under its code, so its
-land, players and room stay its own (see the backend's [flags module](../../backend/docs/flags.md#brittany-from-the-build-to-the-sold-flags)).
+it left the build. Brittany (`xb`), England (`gb-eng`), Scotland (`gb-sct`) and Wales (`gb-wls`) shipped with the game
+until 2026-11-24 and are sold since, under their codes, so their land, players and rooms stay their own (see the
+backend's flags module: [Brittany](../../backend/docs/flags.md#brittany-from-the-build-to-the-sold-flags),
+[England, Scotland and Wales](../../backend/docs/flags.md#england-scotland-and-wales-from-the-build-to-the-sold-flags)).
 
 **A flag opened since the build is sold** (step 2 of the regional flags, 2026-11-23): the operator opens it by hand in
 the backoffice, with a picture and an end. The list carries its `sold`: its picture (a PNG at most 768 x 512, between
@@ -132,8 +134,8 @@ Each place that looks up a flag by its code survives a code it does not know.
 
 ## In fake mode
 
-The fake lists Brittany sold, as the server does, open for 30 days from the page's load, its picture at its address in
-the bucket (the blank until the file is there). `openFlag("Bavaria", days)` on the console opens a sold flag for that many days (30 by default), with a picture drawn
+The fake lists Brittany, England, Scotland and Wales sold, as the server does, open for 30 days from the page's load,
+each picture at its address in the bucket (the blank until the file is there). `openFlag("Bavaria", days)` on the console opens a sold flag for that many days (30 by default), with a picture drawn
 in the page from its name (three bands and a disc, 3:2, 2:1 or square, a blob URL, `paintFakeFlag`). `addTime(code,
 days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code, note)` closes it, with the note its founder reads; `renameFlag(code,
 name)` renames it, open or closed. Each is told as the flags stream tells it, and the fake planet hears the closes

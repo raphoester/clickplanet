@@ -17,9 +17,9 @@ export type Renewal = {id: string, plan: Plan, target: CheckoutTarget, state: Re
 // Time added within this long of a close opens the flag again.
 export const COMEBACK_MS = 30 * 24 * 60 * 60 * 1000
 
-// A new flag approved, which waits for its first payment.
+// A flag approved, which waits for its first payment.
 export function payable(submission: Submission): boolean {
-    return submission.state === "approved" && !submission.change
+    return submission.state === "approved"
 }
 
 export function awaitsPayment(submissions: readonly Submission[]): boolean {

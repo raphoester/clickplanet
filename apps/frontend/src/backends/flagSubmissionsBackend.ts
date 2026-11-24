@@ -39,7 +39,6 @@ export function submissionOf(submission: SubmissionPb, closeNotes: ReadonlyMap<s
         id: submission.id,
         name: submission.name,
         ...submission.pin ? {pin: pinOf(submission.pin)} : {},
-        change: submission.change,
         flag: submission.flag,
         state,
         submittedAt: submission.submittedAt?.toDate().getTime() ?? 0,
@@ -70,9 +69,9 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
     }
 
     // Not retried: a call that landed and lost its answer would wait twice, and the second would be refused.
-    public async submitFlag({name, uploadId, pin, flag}: SubmittedFlag): Promise<Submission> {
-        const res = await this.send(flag !== undefined, (headers) =>
-            this.client.submitFlag({name, uploadId, pin, flag: flag ?? ""}, {headers}))
+    public async submitFlag({name, uploadId, pin, replaces}: SubmittedFlag): Promise<Submission> {
+        const res = await this.send(replaces !== undefined, (headers) =>
+            this.client.submitFlag({name, uploadId, pin, replaces: replaces ?? ""}, {headers}))
         const submission = res.submission && submissionOf(res.submission)
         if (!submission) throw new Error("the flags module answered no submission it can read")
         return submission
@@ -92,11 +91,11 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
         }
     }
 
-    private async send<T>(change: boolean, call: (headers: Headers) => Promise<T>): Promise<T> {
+    private async send<T>(replacing: boolean, call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
             return await this.authenticated(call)
         } catch (e) {
-            throw refusalOf(e, change)
+            throw refusalOf(e, replacing)
         }
     }
 
@@ -125,18 +124,19 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
     }
 }
 
-// PermissionDenied is a guest's, or a change of a flag another account founded.
 const REFUSALS: Partial<Record<Code, SubmissionRefusal>> = {
     [Code.Unauthenticated]: "no-session",
+    [Code.PermissionDenied]: "guest",
     [Code.AlreadyExists]: "waiting",
     [Code.InvalidArgument]: "invalid",
     [Code.FailedPrecondition]: "off",
     [Code.ResourceExhausted]: "too-many",
 }
 
-function refusalOf(e: unknown, change: boolean): unknown {
+// FailedPrecondition for a replacement is the operator's decision on the one it replaced, more likely than pictures off.
+function refusalOf(e: unknown, replacing: boolean): unknown {
     if (!(e instanceof ConnectError)) return e
 
-    const refusal = e.code === Code.PermissionDenied ? (change ? "not-yours" : "guest") : REFUSALS[e.code]
+    const refusal = e.code === Code.FailedPrecondition && replacing ? "decided" : REFUSALS[e.code]
     return refusal ? new SubmissionRefusedError(refusal, {cause: e}) : e
 }

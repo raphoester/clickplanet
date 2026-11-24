@@ -407,7 +407,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     profile = new AdminGetPlayerResponse({name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime())})
     progress = new AdminGetProgressResponse({
         messagesSent: 4n, stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
-        playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
+        playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb", tiles: 100n})],
     })
     // A bug from a named account, waiting for an answer, and an idea whose sender deleted its account.
     notes = [
@@ -918,11 +918,11 @@ function onGlobe(pin: PartialMessage<Pin>): boolean {
     return Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180
 }
 
-// The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
+// The server checks all 235 flags the game ships with, where the fake lists a few: the rest by their region names.
 const GAME_FLAG_NAMES: readonly string[] = (() => {
     const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    const names = ["England", "Scotland", "Wales"]
+    const names: string[] = []
     for (const first of letters) {
         for (const second of letters) {
             const name = regions.of(first + second)
@@ -953,21 +953,19 @@ function latestLettersFirst(letters: Letter[]): Letter[] {
 
 export class FakeFlags implements FlagsAdmin {
     listed = [
-        ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
+        ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb", "UK"]]
             .map(([code, name]) => new Flag({code, name})),
         soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS), undefined, undefined, MUNICH),
         soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS), undefined, CHAMBERY),
     ]
-    // Catalonia, fine; a photo of a lake, from an account the player read names none; a new name and picture for
-    // Bavaria; Sardinia, approved; Brittany, rejected as the game has it; and Savoy, opened from its submission.
+    // Catalonia, fine; a photo of a lake, from an account the player read names none; Bavaria's flag again, which the
+    // game has; Sardinia, approved; Brittany, rejected as the game has it; and Savoy, opened from its submission.
     submissions = [
         keptSubmission("sub-catalonia", "Catalonia", {latitude: 41.3874, longitude: 2.1686}, {
             submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 5 * 3_600_000)),
         }),
         keptSubmission("sub-beach", "Lake Garda", {latitude: 45.6, longitude: 10.6}, {otherColorsPercent: 41, accountId: "account-gone"}),
-        keptSubmission("sub-bavaria", "Free State of Bavaria", {latitude: 48.1374, longitude: 11.5755}, {
-            change: true, flag: "r-k3p9x2ma0b",
-        }),
+        keptSubmission("sub-bavaria", "Free State of Bavaria", {latitude: 48.1374, longitude: 11.5755}),
         keptSubmission("sub-sardinia", "Sardinia", {latitude: 39.2238, longitude: 9.1217}, {
             state: SubmissionState.APPROVED, decidedAt: Timestamp.fromDate(new Date(AT.getTime() - DAY_MS)),
             picture: new Picture({url: "https://media.test/flags/pictures/sardinia.png", width: 768, height: 512}),
@@ -1062,19 +1060,12 @@ export class FakeFlags implements FlagsAdmin {
         if (submission.state !== SubmissionState.WAITING) {
             return this.refused("approveSubmission", request, "the submission is decided already", Code.FailedPrecondition)
         }
-        const taken = nameRefusalOf(submission.name, this.listed.filter(each => !submission.change || each.code !== submission.flag))
+        const taken = nameRefusalOf(submission.name, this.listed)
         if (taken !== undefined) return this.refused("approveSubmission", request, taken, Code.FailedPrecondition)
         const pin = moved === undefined ? submission.pin : new Pin({latitude: moved.latitude ?? 0, longitude: moved.longitude ?? 0})
         const approved = this.decided(submission, {state: SubmissionState.APPROVED, pin})
         const answer = this.admin.answer("approveSubmission", request, new ApproveSubmissionResponse({submission: approved}))
-        if (!this.admin.refusals.has("approveSubmission")) {
-            this.keep(approved)
-            const flag = this.listed.find(each => each.code === submission.flag)
-            if (submission.change && flag !== undefined) {
-                this.listed = this.listed.map(each => each !== flag ? each : soldFlag(flag.code, submission.name,
-                    flag.sold?.endsAt?.toDate() ?? new Date(), flag.sold?.closedAt?.toDate(), submission.picture?.url, pin))
-            }
-        }
+        if (!this.admin.refusals.has("approveSubmission")) this.keep(approved)
         return answer
     }
 
@@ -1101,8 +1092,8 @@ export class FakeFlags implements FlagsAdmin {
     openSubmittedFlag(request: PartialMessage<OpenSubmittedFlagRequest>): Promise<OpenSubmittedFlagResponse> {
         const submission = this.submissions.find(each => each.id === request.submissionId)
         if (submission === undefined) return this.refused("openSubmittedFlag", request, "no such submission", Code.NotFound)
-        if (submission.state !== SubmissionState.APPROVED || submission.change) {
-            return this.refused("openSubmittedFlag", request, "the submission is no approved new flag", Code.FailedPrecondition)
+        if (submission.state !== SubmissionState.APPROVED) {
+            return this.refused("openSubmittedFlag", request, "the submission is not approved", Code.FailedPrecondition)
         }
         const taken = nameRefusalOf(submission.name, this.listed)
         if (taken !== undefined) return this.refused("openSubmittedFlag", request, taken, Code.FailedPrecondition)

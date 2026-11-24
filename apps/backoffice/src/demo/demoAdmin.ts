@@ -901,6 +901,8 @@ const MUNICH = {latitude: 48.1374, longitude: 11.5755}
 const TRURO = {latitude: 50.2632, longitude: -5.051}
 const INNSBRUCK = {latitude: 47.2692, longitude: 11.4041}
 const RENNES = {latitude: 48.1173, longitude: -1.6778}
+const LONDON = {latitude: 51.501941, longitude: -0.118668}
+const EDINBURGH = {latitude: 55.948328, longitude: -3.219091}
 
 const LOZENGES = `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
     `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
@@ -913,6 +915,10 @@ const DEMO_FLAGS = [
         [0, 4, 8, 12, 16].map(y => `<rect x="${y < 10 ? 12 : 0}" y="${y}" width="27" height="2" fill="#000"/>`).join("") +
         [[2, 2], [5, 2], [8, 2], [3.5, 5], [6.5, 5], [2, 8], [5, 8], [8, 8]]
             .map(([x, y]) => `<path d="M${x} ${y}l-.8 1.6h1.6z" fill="#000"/>`).join("")), RENNES),
+    soldFlag("gb-eng", "England", new Date(NOW + 27 * DAY), undefined, flagSvgOf(25, 15,
+        `<rect width="25" height="15" fill="#fff"/><rect x="11" width="3" height="15" fill="#ce1124"/><rect y="6" width="25" height="3" fill="#ce1124"/>`), LONDON),
+    soldFlag("gb-sct", "Scotland", new Date(NOW + 27 * DAY), undefined, flagSvgOf(5, 3,
+        `<rect width="5" height="3" fill="#005eb8"/><path d="M0 0l5 3M0 3L5 0" stroke="#fff" stroke-width=".6"/>`), EDINBURGH),
     soldFlag("r-democornw1", "Cornwall", new Date(NOW + 20 * HOUR), undefined, flagSvgOf(5, 3,
         `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`), TRURO),
     soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,
@@ -968,7 +974,7 @@ const DEMO_SUBMISSIONS: DemoSubmission[] = [
         id: "demo-sub-bavaria", name: "Free State of Bavaria", pin: MUNICH, hoursAgo: 1,
         picture: flagSvgOf(5, 3, `${LOZENGES}<path d="M2.1 .7 h.8 v.8 q0 .6 -.4 .8 q-.4 -.2 -.4 -.8z" fill="#fff" stroke="#0098d4" stroke-width=".06"/>` +
             `<path d="M2.25 .55 l.1 -.2 l.15 .12 l.15 -.12 l.1 .2z" fill="#f5c400"/>`),
-        part: {change: true, flag: BAVARIA, otherColorsPercent: 5},
+        part: {otherColorsPercent: 5},
     },
     {
         id: "demo-sub-sardinia", name: "Sardinia", pin: {latitude: 39.2238, longitude: 9.1217}, hoursAgo: 52, decidedHoursAgo: 30,

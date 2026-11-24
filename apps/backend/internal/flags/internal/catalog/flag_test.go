@@ -13,7 +13,6 @@ import (
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -23,12 +22,12 @@ var (
 )
 
 func TestAFlagIDIsRAndTenLettersOrDigitsOrTheCodeOfAFlagThatLeftTheBuild(t *testing.T) {
-	for _, valid := range []string{"r-k3p9x2ma0b", "r-0000000001", "xb"} {
+	for _, valid := range []string{"r-k3p9x2ma0b", "r-0000000001", "xb", "gb-eng"} {
 		id, err := catalog.ParseFlagID(valid)
 		require.NoError(t, err, valid)
 		assert.Equal(t, valid, id.String())
 	}
-	for _, invalid := range []string{"", "fr", "gb-eng", "r-", "r-K3P9X2MA0B", "r-k3p9x2ma0", "r-k3p9x2ma0bc", "Rennes"} {
+	for _, invalid := range []string{"", "fr", "gb", "r-", "r-K3P9X2MA0B", "r-k3p9x2ma0", "r-k3p9x2ma0bc", "Rennes"} {
 		_, err := catalog.ParseFlagID(invalid)
 		require.ErrorIs(t, err, catalog.ErrInvalidFlagID, invalid)
 	}
@@ -198,37 +197,6 @@ func TestAPinIsAPointOnTheGlobe(t *testing.T) {
 		_, err := catalog.ParsePin(invalid[0], invalid[1])
 		require.ErrorIs(t, err, catalog.ErrInvalidPin, invalid)
 	}
-}
-
-func TestARestyledFlagWearsItsNewNameAndPictureAndTellsItRenamed(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
-	require.NoError(t, err)
-	picture, err := pictures.Snapshot{Hash: strings.Repeat("cd", 32), Width: 400, Height: 200}.Restore()
-	require.NoError(t, err)
-
-	quimper := catalog.Pin{Latitude: 47.996, Longitude: -4.102}
-	restyled, facts := closed.Restyled("Breizh", picture, quimper, closedAt.Add(time.Hour))
-
-	want := closed.TakeSnapshot()
-	want.Name, want.Picture, want.Pin = "Breizh", picture.TakeSnapshot(), quimper
-	assert.Equal(t, want, restyled.TakeSnapshot(), "closed as it was")
-	require.Len(t, facts, 2)
-	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
-		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(closedAt.Add(time.Hour)),
-	}, facts[0]), "%v", facts[0])
-	assert.True(t, proto.Equal(&flagsv1.FlagMoved{
-		Flag: "r-0000000001", Pin: &flagsv1.Pin{Latitude: 47.996, Longitude: -4.102}, MovedAt: timestamppb.New(closedAt.Add(time.Hour)),
-	}, facts[1]), "the capital moved, for the modules that play the flag: %v", facts[1])
-}
-
-func TestARestyledFlagWhoseCapitalStaysTellsNoMove(t *testing.T) {
-	picture, err := catalog.TestPicture.Restore()
-	require.NoError(t, err)
-
-	_, facts := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Restyled("Breizh", picture, catalog.TestPin, closedAt)
-
-	require.Len(t, facts, 1)
-	assert.IsType(t, &flagsv1.FlagRenamed{}, facts[0])
 }
 
 func TestARenamedFlagKeepsItsCodeAndTellsItsNewName(t *testing.T) {

@@ -1,11 +1,10 @@
 import {Ago} from "../components/When.tsx"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
-import {Flag, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
-import {founderOf, kindOf, looksLikePhoto, reasonLabel, stateLabel, toOpen} from "./submissions.ts"
+import {SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {founderOf, looksLikePhoto, reasonLabel, stateLabel, toOpen} from "./submissions.ts"
 
 type Props = {
     submissions: KeptSubmission[]
-    flags: Flag[]
     names: Map<string, string> | undefined
     // The submissions whose founder's reply to their letter waits.
     replied: ReadonlySet<string>
@@ -15,7 +14,7 @@ type Props = {
 
 // One row a submission: its picture small, its name, new or a change, who sent it, how long ago, its verdict, and a
 // reply that waits.
-export function SubmissionList({submissions, flags, names, replied, opened, onOpen}: Props) {
+export function SubmissionList({submissions, names, replied, opened, onOpen}: Props) {
     return (
         <ol className="rows" aria-label="The submissions">
             {submissions.map(submission => (
@@ -37,7 +36,7 @@ export function SubmissionList({submissions, flags, names, replied, opened, onOp
                                 <span className="row-end"><Ago at={submission.submittedAt}/></span>
                             </span>
                             <span className="row-sub muted">
-                                {kindOf(submission, flags)} · by {founderOf(submission.accountId, names)}
+                                by {founderOf(submission.accountId, names)}
                                 {submission.state !== SubmissionState.WAITING && ` · ${verdictOf(submission)}`}
                             </span>
                         </span>

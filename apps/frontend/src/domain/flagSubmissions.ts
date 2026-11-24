@@ -11,9 +11,7 @@ export type Submission = {
     id: string
     name: string
     pin?: Pin
-    // A new name or picture for a flag already opened.
-    change: boolean
-    // The flag a change is for, or the one opened from it; empty until then.
+    // The flag opened from it; empty until then.
     flag: string
     state: SubmissionState
     submittedAt: number
@@ -73,16 +71,14 @@ export function latestOf(submissions: readonly Submission[]): Submission | undef
     return submissions[0]
 }
 
-export function waits(submissions: readonly Submission[]): boolean {
-    return submissions.some((submission) => submission.state === "waiting")
+// The one that waits: one at a time, and the only one its player may change.
+export function waitingOf(submissions: readonly Submission[]): Submission | undefined {
+    return submissions.find((submission) => submission.state === "waiting")
 }
 
-// The flags the account founded, the newest first: each opened from one of its submissions, or changed by one.
+// The flags the account founded, the newest first: each opened from one of its submissions.
 export function foundedFlags(submissions: readonly Submission[]): string[] {
-    const founded = submissions
-        .filter(({state, flag, change}) => flag !== "" && (state === "opened" || (change && state === "approved")))
-        .map(({flag}) => flag)
-    return [...new Set(founded)]
+    return submissions.filter(({state, flag}) => state === "opened" && flag !== "").map(({flag}) => flag)
 }
 
 // What its player reads: once a submission opened its flag, the flag's state now.

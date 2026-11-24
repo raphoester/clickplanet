@@ -85,17 +85,6 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 	return Flag{id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt}, nil
 }
 
-// Restyled wears the name, the picture and the capital a review approved, whether the flag is open or closed: history
-// names it too. A capital moved is told apart, to the modules that play the flag.
-func (f Flag) Restyled(name Name, picture pictures.Picture, pin Pin, at time.Time) (Flag, []proto.Message) {
-	facts := []proto.Message{&flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}}
-	if pin != f.pin {
-		facts = append(facts, &flagsv1.FlagMoved{Flag: f.id.String(), Pin: pin.message(), MovedAt: timestamppb.New(at)})
-	}
-	f.name, f.picture, f.pin = name, picture, pin
-	return f, facts
-}
-
 func (f Flag) TimeAdded(span Span, now time.Time) (Flag, error) {
 	added, _, err := f.Extended(span, now)
 	return added, err

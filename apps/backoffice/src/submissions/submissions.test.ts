@@ -43,12 +43,14 @@ describe("the filters", () => {
 })
 
 describe("nearOf", () => {
-    it("lists the other capitals within 1,000 km, nearest first, but the flag a change is for", () => {
+    it("lists the other capitals within 1,000 km, nearest first", () => {
         const near = nearOf(pinOf("sub-bavaria"), aroundOf(byId("sub-bavaria"), listed, submissions, []))
-        expect(namesOf(near)).toEqual([["submission Lake Garda", 292], ["flag Savoy", 516], ["submission Brittany", 982]])
+        expect(namesOf(near)).toEqual([
+            ["flag Bavaria", 0], ["submission Lake Garda", 292], ["flag Savoy", 516], ["submission Brittany", 982],
+        ])
     })
 
-    it("leaves out a submission opened, whose flag is listed, and a change, whose flag is", () => {
+    it("leaves out a submission opened, whose flag is listed", () => {
         const near = nearOf(pinOf("sub-catalonia"), aroundOf(byId("sub-catalonia"), listed, submissions, []))
         expect(near.map(each => nameOf(each.other))).toEqual(["flag Savoy", "submission Sardinia", "submission Brittany", "submission Lake Garda"])
     })

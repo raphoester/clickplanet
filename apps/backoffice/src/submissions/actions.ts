@@ -37,7 +37,7 @@ export function rejectRefusalOf(err: unknown): string {
     return refused(err) ?? wordsOf(err, {notFound: GONE, failedPrecondition: "It is decided already. Reload the list."})
 }
 
-// A failed_precondition is quoted: opened already, a change, or a name another flag took since.
+// A failed_precondition is quoted: opened already, or a name another flag took since.
 export function openRefusalOf(err: unknown): string {
     return refused(err) ?? quoted(err) ?? wordsOf(err, {notFound: GONE})
 }

@@ -26,7 +26,7 @@ type PostgresQuery struct {
 	messages submissionmessage.Messages
 }
 
-const columns = `s.id, s.account_id, s.kind::text, s.flag, s.name, s.pin_latitude, s.pin_longitude,
+const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
 	COALESCE(r.reason::text, ''), COALESCE(r.note, '')`
@@ -109,18 +109,18 @@ func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]s
 	for rows.Next() {
 		var id uuid.UUID
 		var account uuid.UUID
-		var kind, flag, name, state, reason string
+		var flag, name, state, reason string
 		var row submissions.Snapshot
 		var picture pictures.Snapshot
 		var focusX, focusY float32
 		var others uint32
-		if err := rows.Scan(&id, &account, &kind, &flag, &name, &row.Pin.Latitude, &row.Pin.Longitude,
+		if err := rows.Scan(&id, &account, &flag, &name, &row.Pin.Latitude, &row.Pin.Longitude,
 			&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY, &others,
 			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note); err != nil {
 			return nil, fmt.Errorf("failed to read a submission: %w", err)
 		}
-		row.ID, row.Kind, row.Flag, row.Name, row.State = submissions.SubmissionID(id), submissions.Kind(kind),
-			catalog.FlagID(flag), catalog.Name(name), submissions.State(state)
+		row.ID, row.Flag, row.Name, row.State = submissions.SubmissionID(id), catalog.FlagID(flag), catalog.Name(name),
+			submissions.State(state)
 		row.Account = submissions.AccountID(account)
 		picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
 		row.Picture, row.OtherColors, row.Rejection.Reason = picture, pictures.OtherColors(others),

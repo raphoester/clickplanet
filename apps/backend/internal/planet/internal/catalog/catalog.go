@@ -82,14 +82,10 @@ func (c Catalog) Move(ctx context.Context, flag string, pin clicks.Pin, at time.
 	return c.change(ctx, flag, func(heard Heard) Heard { return heard.Moved(pin, at) })
 }
 
-// Pinned are the flags a player may play now that have no ground and stand on a pin: the regions the game ships with,
-// and the flags heard open, by code. A flag closed under a lock is not one: a flag sits at an arena's start.
+// Pinned are the flags heard open with a pin, by code: a flag sits at an arena's start, so one closed under a lock is
+// not one.
 func (c Catalog) Pinned(ctx context.Context) ([]clicks.Pinned, error) {
 	var pinned []clicks.Pinned
-	for _, flag := range cpflags.Pins() {
-		pinned = append(pinned, clicks.Pinned{Flag: flag.Code, Pin: clicks.Pin{Latitude: flag.Latitude, Longitude: flag.Longitude}})
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 	heard, err := c.store.All(ctx)

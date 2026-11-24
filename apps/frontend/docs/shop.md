@@ -45,7 +45,7 @@ approved one shows the plans. A new product is a new card.
 
 ## The offer
 
-**In the flag's place, the latest submission approved, new (not a change), shows the plans** under "Approved! Pick a plan
+**In the flag's place, the latest submission approved shows the plans** under "Approved! Pick a plan
 to open it.", each a `menu-tile`: its name ("1 month") and its price ("€10 / month"). A pick shows it alone, then:
 
 - **One checkbox, unchecked**: "I want my flag to start now. I know I can't cancel once it starts." This is the EU right

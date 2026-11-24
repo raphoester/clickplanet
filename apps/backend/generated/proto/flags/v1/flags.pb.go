@@ -27,7 +27,7 @@ type SubmissionState int32
 const (
 	SubmissionState_SUBMISSION_STATE_UNSPECIFIED SubmissionState = 0
 	SubmissionState_SUBMISSION_STATE_WAITING     SubmissionState = 1
-	// A new flag waits to be paid for; a change is on its flag.
+	// It waits to be paid for.
 	SubmissionState_SUBMISSION_STATE_APPROVED SubmissionState = 2
 	SubmissionState_SUBMISSION_STATE_REJECTED SubmissionState = 3
 	// A flag was opened from it.
@@ -378,8 +378,8 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 
 type Flag struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
-	// opened since.
+	// An ISO code for a flag the game ships with; r- and ten letters or digits for one opened since, or the code a flag
+	// kept when it left the build (xb, gb-eng, gb-sct, gb-wls).
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// In English.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -690,8 +690,8 @@ type SubmitFlagRequest struct {
 	UploadId string `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
 	// Required.
 	Pin *Pin `protobuf:"bytes,3,opt,name=pin,proto3" json:"pin,omitempty"`
-	// Empty for a new flag; the code of a flag the account founded, for its new name or picture.
-	Flag          string `protobuf:"bytes,4,opt,name=flag,proto3" json:"flag,omitempty"`
+	// The id of the account's submission that waits, which this one replaces; empty for none.
+	Replaces      string `protobuf:"bytes,5,opt,name=replaces,proto3" json:"replaces,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -747,9 +747,9 @@ func (x *SubmitFlagRequest) GetPin() *Pin {
 	return nil
 }
 
-func (x *SubmitFlagRequest) GetFlag() string {
+func (x *SubmitFlagRequest) GetReplaces() string {
 	if x != nil {
-		return x.Flag
+		return x.Replaces
 	}
 	return ""
 }
@@ -948,9 +948,7 @@ type Submission struct {
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Pin   *Pin                   `protobuf:"bytes,3,opt,name=pin,proto3" json:"pin,omitempty"`
-	// A new name or picture for a flag already opened, in place of a new flag.
-	Change bool `protobuf:"varint,4,opt,name=change,proto3" json:"change,omitempty"`
-	// The flag a change is for, or the flag opened from a new one; empty until then.
+	// The flag opened from it; empty until then.
 	Flag        string                 `protobuf:"bytes,5,opt,name=flag,proto3" json:"flag,omitempty"`
 	State       SubmissionState        `protobuf:"varint,6,opt,name=state,proto3,enum=flags.v1.SubmissionState" json:"state,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
@@ -1013,13 +1011,6 @@ func (x *Submission) GetPin() *Pin {
 		return x.Pin
 	}
 	return nil
-}
-
-func (x *Submission) GetChange() bool {
-	if x != nil {
-		return x.Change
-	}
-	return false
 }
 
 func (x *Submission) GetFlag() string {
@@ -1241,12 +1232,12 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\x1eCreateSubmissionUploadResponse\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x1d\n" +
 	"\n" +
-	"upload_url\x18\x02 \x01(\tR\tuploadUrl\"y\n" +
+	"upload_url\x18\x02 \x01(\tR\tuploadUrl\"\x8d\x01\n" +
 	"\x11SubmitFlagRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
 	"\tupload_id\x18\x02 \x01(\tR\buploadId\x12\x1f\n" +
-	"\x03pin\x18\x03 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x12\n" +
-	"\x04flag\x18\x04 \x01(\tR\x04flag\"J\n" +
+	"\x03pin\x18\x03 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x1a\n" +
+	"\breplaces\x18\x05 \x01(\tR\breplacesJ\x04\b\x04\x10\x05R\x04flag\"J\n" +
 	"\x12SubmitFlagResponse\x124\n" +
 	"\n" +
 	"submission\x18\x01 \x01(\v2\x14.flags.v1.SubmissionR\n" +
@@ -1257,13 +1248,12 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\bclosures\x18\x02 \x03(\v2\x11.flags.v1.ClosureR\bclosures\"1\n" +
 	"\aClosure\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
-	"\x04note\x18\x02 \x01(\tR\x04note\"\x88\x03\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\"\xfe\x02\n" +
 	"\n" +
 	"Submission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
-	"\x03pin\x18\x03 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x16\n" +
-	"\x06change\x18\x04 \x01(\bR\x06change\x12\x12\n" +
+	"\x03pin\x18\x03 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x12\n" +
 	"\x04flag\x18\x05 \x01(\tR\x04flag\x12/\n" +
 	"\x05state\x18\x06 \x01(\x0e2\x19.flags.v1.SubmissionStateR\x05state\x12=\n" +
 	"\fsubmitted_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x129\n" +
@@ -1271,7 +1261,7 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"decided_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x121\n" +
 	"\trejection\x18\t \x01(\v2\x13.flags.v1.RejectionR\trejection\x12+\n" +
 	"\apicture\x18\n" +
-	" \x01(\v2\x11.flags.v1.PictureR\apicture\"R\n" +
+	" \x01(\v2\x11.flags.v1.PictureR\apictureJ\x04\b\x04\x10\x05R\x06change\"R\n" +
 	"\tRejection\x121\n" +
 	"\x06reason\x18\x01 \x01(\x0e2\x19.flags.v1.RejectionReasonR\x06reason\x12\x12\n" +
 	"\x04note\x18\x02 \x01(\tR\x04note\"\x95\x01\n" +

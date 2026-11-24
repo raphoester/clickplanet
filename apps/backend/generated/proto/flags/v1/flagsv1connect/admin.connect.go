@@ -92,19 +92,18 @@ type AdminServiceClient interface {
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
-	// waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
-	// capital too. NotFound for an unknown submission;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
+	// to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
 	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+	// later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
-	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change, or a
-	// name another flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a name another
+	// flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
 	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 
@@ -280,19 +279,18 @@ type AdminServiceHandler interface {
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
-	// waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
-	// capital too. NotFound for an unknown submission;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
+	// to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
 	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+	// later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
-	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change, or a
-	// name another flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a name another
+	// flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
 	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 

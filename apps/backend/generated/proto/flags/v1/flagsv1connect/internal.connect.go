@@ -43,8 +43,8 @@ type InternalServiceClient interface {
 	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, once approved
 	// (the first payment opens its flag) or opened (the time goes to its flag). A flag: the account whose submission
 	// opened it, while it is open or closed less than 30 days ago. NotFound for no such submission or flag;
-	// PermissionDenied for another account's; FailedPrecondition for a submission that waits, was rejected or is a
-	// change, and for a flag closed 30 days ago or more.
+	// PermissionDenied for another account's; FailedPrecondition for a submission that waits or was rejected, and for a
+	// flag closed 30 days ago or more.
 	GetPayable(context.Context, *connect.Request[v1.GetPayableRequest]) (*connect.Response[v1.GetPayableResponse], error)
 }
 
@@ -84,8 +84,8 @@ type InternalServiceHandler interface {
 	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, once approved
 	// (the first payment opens its flag) or opened (the time goes to its flag). A flag: the account whose submission
 	// opened it, while it is open or closed less than 30 days ago. NotFound for no such submission or flag;
-	// PermissionDenied for another account's; FailedPrecondition for a submission that waits, was rejected or is a
-	// change, and for a flag closed 30 days ago or more.
+	// PermissionDenied for another account's; FailedPrecondition for a submission that waits or was rejected, and for a
+	// flag closed 30 days ago or more.
 	GetPayable(context.Context, *connect.Request[v1.GetPayableRequest]) (*connect.Response[v1.GetPayableResponse], error)
 }
 

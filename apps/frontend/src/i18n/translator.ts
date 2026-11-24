@@ -33,7 +33,7 @@ export type RichValues<T> = Readonly<Record<string, Value<T>>>
 
 // The flags ISO has no code for, and the codes CLDR names in a way that reads badly on a board ("Congo - Kinshasa",
 // "Saint-Martin (partie néerlandaise)", "État de la Cité du Vatican"): each has its own line, `country.<code>`.
-export const OWN_COUNTRY_NAMES: ReadonlySet<string> = new Set(["xk", "gb-eng", "gb-sct", "gb-wls", "cd", "cg", "sx", "va"])
+export const OWN_COUNTRY_NAMES: ReadonlySet<string> = new Set(["xk", "cd", "cg", "sx", "va"])
 
 // The server's list names a flag opened since the build, in English, after the page draws.
 let openedNameOf: (code: string) => string | undefined = () => undefined

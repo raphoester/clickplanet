@@ -1,12 +1,5 @@
 import type {FlagPicture} from "../domain/flags.ts"
-import {
-    flagNameOf,
-    foundedFlags,
-    isValidFlagName,
-    pictureFileRefusal,
-    RejectionReason,
-    Submission,
-} from "../domain/flagSubmissions.ts"
+import {flagNameOf, isValidFlagName, pictureFileRefusal, RejectionReason, Submission} from "../domain/flagSubmissions.ts"
 import {FakeFlagsBackend, NameRefusal} from "./fakeFlagsBackend.ts"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {UploadOptions} from "./support.ts"
@@ -55,31 +48,29 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         return id
     }
 
-    public async submitFlag({name, uploadId, pin, flag}: SubmittedFlag): Promise<Submission> {
+    // One that replaces the submission that waits takes its place; one the operator decided never changes.
+    public async submitFlag({name, uploadId, pin, replaces}: SubmittedFlag): Promise<Submission> {
         await this.answer()
         const upload = this.uploads.get(uploadId)
-        if (!isValidFlagName(name) || Math.abs(pin.latitude) > 90 || Math.abs(pin.longitude) > 180) {
+        if (!isValidFlagName(name) || Math.abs(pin.latitude) > 90 || Math.abs(pin.longitude) > 180 || upload === undefined) {
             throw new SubmissionRefusedError("invalid")
         }
-        if (flag === undefined ? upload === undefined : uploadId !== "" && upload === undefined) {
-            throw new SubmissionRefusedError("invalid")
-        }
-        const submissions = this.submissions()
-        if (flag !== undefined && !foundedFlags(submissions).includes(flag)) throw new SubmissionRefusedError("not-yours")
-        if (submissions.some(({state}) => state === "waiting")) throw new SubmissionRefusedError("waiting")
+        const waiting = this.waiting()
+        if (replaces !== undefined && waiting?.submission.id !== replaces) throw new SubmissionRefusedError("decided")
+        if (replaces === undefined && waiting !== undefined) throw new SubmissionRefusedError("waiting")
 
         const at = this.now()
         const submission: Submission = {
             id: crypto.randomUUID(),
             name: flagNameOf(name),
             pin,
-            change: flag !== undefined,
-            flag: flag ?? "",
+            flag: "",
             state: "waiting",
             submittedAt: at,
             decidedAt: at,
         }
         this.uploads.delete(uploadId)
+        if (waiting !== undefined) this.kept.splice(this.kept.indexOf(waiting), 1)
         this.kept.unshift({submission, upload})
         return {...submission}
     }
@@ -98,11 +89,6 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         if (!kept) return "no submission waits: send one from the flag picker"
         const picture = kept.upload && await this.paint(kept.upload)
         this.decide(kept, {state: "approved", picture})
-        if (kept.submission.change) {
-            this.flags.change(kept.submission.flag, kept.submission.name, picture)
-            this.flags.reopen()
-            return `the change to ${kept.submission.name} is on its flag`
-        }
         this.flags.reopen()
         return `${kept.submission.name} is approved: openSubmission() opens it, as a payment would`
     }
@@ -116,18 +102,18 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     }
 
     public async open(days = 30): Promise<string> {
-        const kept = this.kept.find(({submission}) => submission.state === "approved" && !submission.change)
-        if (!kept) return "no new flag is approved: approveSubmission() approves the one that waits"
+        const kept = this.kept.find(({submission}) => submission.state === "approved")
+        if (!kept) return "no flag is approved: approveSubmission() approves the one that waits"
         const {name} = kept.submission
         const opened = await this.openApproved(kept.submission.id, days)
         if ("refused" in opened) return `${name} cannot open: ${opened.refused}`
         return `${name} is open as ${opened.code} for ${days} days`
     }
 
-    // An approved new flag opened, as its first payment would open it.
+    // An approved flag opened, as its first payment would open it.
     public async openApproved(id: string, days: number): Promise<{code: string} | {refused: NameRefusal | "not approved"}> {
         const kept = this.kept.find(({submission}) => submission.id === id)
-        if (!kept || kept.submission.state !== "approved" || kept.submission.change) return {refused: "not approved"}
+        if (!kept || kept.submission.state !== "approved") return {refused: "not approved"}
         const {name, pin, picture} = kept.submission
         const opened = await this.flags.open(name, days, {picture, pin})
         if ("refused" in opened) return opened

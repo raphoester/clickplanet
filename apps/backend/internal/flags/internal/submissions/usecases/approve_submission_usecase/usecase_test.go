@@ -6,15 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/approve_submission_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -28,15 +24,13 @@ type fixture struct {
 	store   *submissions.MemoryStore
 	flags   *catalog.MemoryStore
 	bucket  *pictures.MemoryBucket
-	outbox  *cpatomic.FakeOutbox
 	drawn   pictures.Drawn
 	useCase *approve_submission_usecase.UseCase
 }
 
 func newFixture(t *testing.T, submission submissions.Snapshot) fixture {
 	t.Helper()
-	store, flags, bucket, outbox := submissions.NewMemoryStore(), catalog.NewMemoryStore(), pictures.NewMemoryBucket(),
-		&cpatomic.FakeOutbox{}
+	store, flags, bucket := submissions.NewMemoryStore(), catalog.NewMemoryStore(), pictures.NewMemoryBucket()
 	drawn, err := pictures.Redraw(pictures.TestPNG(300, 200))
 	require.NoError(t, err)
 	gallery := pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20})
@@ -44,9 +38,8 @@ func newFixture(t *testing.T, submission submissions.Snapshot) fixture {
 	submission.Picture = drawn.Picture.TakeSnapshot()
 	store.Seed(submission)
 	return fixture{
-		store: store, flags: flags, bucket: bucket, outbox: outbox, drawn: drawn,
-		useCase: approve_submission_usecase.New(cptime.NewFixedClock(now), gallery, cpatomic.FakeTransactioner{}, store,
-			flags, outbox),
+		store: store, flags: flags, bucket: bucket, drawn: drawn,
+		useCase: approve_submission_usecase.New(cptime.NewFixedClock(now), gallery, store, flags),
 	}
 }
 
@@ -61,26 +54,9 @@ func TestAnApprovedNewFlagIsPublicAndWaitsToBePaidFor(t *testing.T) {
 	assert.Equal(t, f.drawn.PNG, f.bucket.Published()[f.drawn.Picture.Key()], "public at its content's name")
 	assert.Empty(t, f.bucket.HeldPictures(), "no longer held in private")
 	assert.Equal(t, []submissions.Snapshot{approved}, f.store.Kept())
-	assert.Empty(t, f.outbox.Recorded(), "no flag opens before it is paid for")
-}
-
-func TestAnApprovedChangeIsOnItsFlagForEveryPlayer(t *testing.T) {
-	change := submissions.TestWaiting(id, ada, now.Add(-time.Hour))
-	change.Kind, change.Flag, change.Name = submissions.Change, "r-0000000001", "Breizh"
-	f := newFixture(t, change)
-	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-24*time.Hour))))
-
-	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String()})
+	flags, err := f.flags.Flags(t.Context())
 	require.NoError(t, err)
-
-	flag, err := f.flags.Flag(t.Context(), "r-0000000001")
-	require.NoError(t, err)
-	assert.Equal(t, catalog.Name("Breizh"), flag.TakeSnapshot().Name)
-	assert.Equal(t, f.drawn.Picture.TakeSnapshot(), flag.TakeSnapshot().Picture)
-	require.Len(t, f.outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
-		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(now),
-	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
+	assert.Empty(t, flags, "no flag opens before it is paid for")
 }
 
 func TestASubmissionDecidedIsNotApprovedAgain(t *testing.T) {
@@ -127,24 +103,4 @@ func TestTheOperatorMovesTheCapitalBeforeTheApproval(t *testing.T) {
 
 	_, err = f.useCase.Execute(t.Context(), approve_submission_usecase.In{Submission: id.String(), Moved: true, Latitude: 95})
 	require.ErrorIs(t, err, catalog.ErrInvalidPin)
-}
-
-func TestAChangeApprovedMovesItsFlagsCapital(t *testing.T) {
-	change := submissions.TestWaiting(id, ada, now.Add(-time.Hour))
-	change.Kind, change.Flag, change.Name = submissions.Change, "r-0000000001", "Breizh"
-	f := newFixture(t, change)
-	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-24*time.Hour))))
-
-	_, err := f.useCase.Execute(t.Context(), approve_submission_usecase.In{
-		Submission: id.String(), Moved: true, Latitude: 47.996, Longitude: -4.102,
-	})
-	require.NoError(t, err)
-
-	flag, err := f.flags.Flag(t.Context(), "r-0000000001")
-	require.NoError(t, err)
-	assert.Equal(t, catalog.Pin{Latitude: 47.996, Longitude: -4.102}, flag.TakeSnapshot().Pin)
-	require.Len(t, f.outbox.Recorded(), 2, "renamed, and moved for the next Capital Siege")
-	assert.True(t, proto.Equal(&flagsv1.FlagMoved{
-		Flag: "r-0000000001", Pin: &flagsv1.Pin{Latitude: 47.996, Longitude: -4.102}, MovedAt: timestamppb.New(now),
-	}, f.outbox.Recorded()[1]), "%v", f.outbox.Recorded()[1])
 }

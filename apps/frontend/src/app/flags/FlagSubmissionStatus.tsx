@@ -1,7 +1,7 @@
 import {ReactNode, useState} from "react"
 import {Shop} from "../../backends/shop.ts"
 import type {FlagCatalog} from "../../domain/flags.ts"
-import {RejectionReason, Shown, shownOf, Submission, waits} from "../../domain/flagSubmissions.ts"
+import {RejectionReason, Shown, shownOf, Submission, waitingOf} from "../../domain/flagSubmissions.ts"
 import {payable} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
@@ -45,7 +45,6 @@ function lineOf(shown: Shown, catalog: FlagCatalog, selling: boolean): ReactNode
         case "waiting":
             return t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":
-            if (shown.change) return t("flagSubmission.status.changed")
             return selling ? t("flagSubmission.status.pay") : t("flagSubmission.status.approved")
         case "rejected":
             return t(REASONS[shown.rejection?.reason ?? "other"])
@@ -59,8 +58,8 @@ function lineOf(shown: Shown, catalog: FlagCatalog, selling: boolean): ReactNode
 }
 
 // The same submission again: the picture is picked again, since the page keeps none.
-function againOf({name, pin, change, flag}: Submission): Draft {
-    return {name, pinned: pin && {pin}, flag: change && flag !== "" ? flag : undefined}
+function againOf({name, pin}: Submission): Draft {
+    return {name, pinned: pin && {pin}}
 }
 
 export default function FlagSubmissionStatus({submissions, shop, toCheckout}: FlagSubmissionStatusProps) {
@@ -71,14 +70,16 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
     const [addingTo, setAddingTo] = useState<string>()
     const [latest] = submissions
     const shown = shownOf(latest, catalog)
-    const waiting = waits(submissions)
+    const waiting = waitingOf(submissions)
     const selling = plans.length > 0
     const offered = selling && payable(latest)
     // Pay is the one thing to press while the plans show.
     const footerButton = offered || (selling && addingTo !== undefined) ? "button-secondary" : "button-action"
 
     const footer = waiting
-        ? <button type="button" className="button support-wide" onClick={close}>{t("common.close")}</button>
+        ? <button type="button" className="button support-wide" onClick={() => compose({...againOf(waiting), replaces: waiting.id})}>
+            {t("flagSubmission.change")}
+        </button>
         : latest.state === "rejected"
             ? <button type="button" className={`button ${footerButton} support-wide`} onClick={() => compose(againOf(latest))}>{t("common.retry")}</button>
             : <button type="button" className={`button ${footerButton} support-wide`} onClick={() => compose()}>{t("flagSubmission.new")}</button>

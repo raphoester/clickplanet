@@ -199,7 +199,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 					create_submission_upload_usecase.New(uploads),
 				),
 				SubmitFlagHandler: submit_flag_handler.New(
-					submit_flag_usecase.New(uuid_submission_ids.Provider{}, clock, gallery, submitted), reviews,
+					submit_flag_usecase.New(uuid_submission_ids.Provider{}, clock, gallery, db, submitted), reviews,
 				),
 				ListMySubmissionsHandler: list_my_submissions_handler.New(submittedQuery),
 			}, options...)
@@ -227,9 +227,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			CloseFlagHandler:       close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			RenameFlagHandler:      rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			ListSubmissionsHandler: list_submissions_handler.New(submittedQuery),
-			ApproveSubmissionHandler: approve_submission_handler.New(approve_submission_usecase.New(
-				clock, gallery, db, submitted, store, cpoutbox.New(db),
-			), reviews),
+			ApproveSubmissionHandler: approve_submission_handler.New(
+				approve_submission_usecase.New(clock, gallery, submitted, store), reviews,
+			),
 			RejectSubmissionHandler: reject_submission_handler.New(
 				reject_submission_usecase.New(clock, submitted), reviews,
 			),

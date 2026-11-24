@@ -53,7 +53,9 @@
   `OpenSubmittedFlag`. A sold flag has a `Pin` (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also
   takes a signed-in player's `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (`Submission`, its
   `SubmissionState`, and a `Closure` per flag it founded that the operator closed: the note `CloseFlag` requires, which
-  the founder alone reads). `FlagRenamed` also tells a founder's change approved (a new name or picture). Planet's
+  the founder alone reads). `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
+  replaces: nothing changes a submission once decided (`flag` and `Submission.change`, a founder's change of its flag,
+  are `reserved` since 2026-11-24, and `FlagMoved` is gone). Planet's
   `Allegiance.closed` says the flag held is closed: its account picks another at once. `FlagService/ListenForEvents` is
   its stream: a heartbeat, and each flag opened, closed or renamed while it is open (`flag_changed`), and a page reads
   `ListFlags` as it opens (see the backend's

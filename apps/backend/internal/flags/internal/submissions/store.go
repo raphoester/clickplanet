@@ -10,4 +10,6 @@ type Store interface {
 	// Every rejected submission whose picture the bucket still holds.
 	RejectedHeld(ctx context.Context) ([]Submission, error)
 	Save(ctx context.Context, submissions ...Submission) error
+	// Deletes a submission that still waits: ErrNotWaiting for one the operator decided, or never kept.
+	DeleteWaiting(ctx context.Context, id SubmissionID) error
 }

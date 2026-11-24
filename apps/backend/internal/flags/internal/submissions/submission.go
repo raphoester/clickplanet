@@ -6,33 +6,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 )
 
 var (
-	ErrWaiting      = errors.New("one of the account's submissions waits for its review already")
-	ErrNotFounder   = errors.New("only the account that founded a flag submits its new name or picture")
+	ErrWaiting      = errors.New("another of the account's submissions waits for its review")
+	ErrNotWaiting   = errors.New("the submission to replace no longer waits: the operator decided it")
 	ErrDecided      = errors.New("the submission is decided already")
-	ErrNotApproved  = errors.New("only an approved submission of a new flag opens one")
+	ErrNotApproved  = errors.New("only an approved submission opens a flag")
 	ErrInvalidState = errors.New("a submission kept in no state it can be in")
 	ErrNotYours     = errors.New("only its founder pays for a submission or its flag")
-	ErrNotPayable   = errors.New("only an approved or opened submission of a new flag is paid for")
+	ErrNotPayable   = errors.New("only an approved or opened submission is paid for")
 )
 
 // A rejected picture is deleted this long after the rejection. It never became public.
 const rejectedKept = 30 * 24 * time.Hour
-
-type Kind string
-
-const (
-	// A flag the game does not have yet.
-	New Kind = "new"
-	// A new name or picture for a flag opened from the account's own submission.
-	Change Kind = "change"
-)
 
 type State string
 
@@ -44,15 +34,16 @@ const (
 	Opened State = "opened"
 )
 
-// Draft is what a player typed: the place's name, its pin, and for a change the flag it is for.
+// Draft is what a player typed: the place's name and its pin, and the account's submission that waits, which it
+// replaces.
 type Draft struct {
 	Name catalog.Name
 	Pin  catalog.Pin
-	// Empty for a new flag.
-	Flag catalog.FlagID
+	// The zero id for none.
+	Replaces SubmissionID
 }
 
-func ParseDraft(name string, latitude, longitude float64, flag string) (Draft, error) {
+func ParseDraft(name string, latitude, longitude float64, replaces string) (Draft, error) {
 	parsed, err := catalog.ParseName(name)
 	if err != nil {
 		return Draft{}, err //nolint:wrapcheck // the parse names it.
@@ -62,10 +53,10 @@ func ParseDraft(name string, latitude, longitude float64, flag string) (Draft, e
 		return Draft{}, err //nolint:wrapcheck // the parse names it.
 	}
 	draft := Draft{Name: parsed, Pin: pin}
-	if flag == "" {
+	if replaces == "" {
 		return draft, nil
 	}
-	draft.Flag, err = catalog.ParseFlagID(flag)
+	draft.Replaces, err = ParseSubmissionID(replaces)
 	if err != nil {
 		return Draft{}, err //nolint:wrapcheck // the parse names it.
 	}
@@ -77,7 +68,6 @@ func ParseDraft(name string, latitude, longitude float64, flag string) (Draft, e
 type Submission struct {
 	id      SubmissionID
 	account AccountID
-	kind    Kind
 	flag    catalog.FlagID
 	name    catalog.Name
 	pin     catalog.Pin
@@ -91,39 +81,37 @@ type Submission struct {
 	decidedAt   time.Time
 }
 
-// Submit is the account's new submission, refused while another of its submissions waits, and for a change of a flag
-// no submission of the account opened.
+// Submit is the account's new submission, refused while another of its submissions waits. It may replace the one
+// that waits, never one the operator decided: the ids it replaces are deleted unreviewed, with their pictures.
 func Submit(
 	id SubmissionID, account AccountID, draft Draft, drawn pictures.Drawn, earlier []Submission, at time.Time,
-) (Submission, error) {
-	kind := New
-	if draft.Flag != "" {
-		kind = Change
-	}
-	founded := false
+) (Submission, []SubmissionID, error) {
+	var replaced []SubmissionID
 	for _, submission := range earlier {
-		if submission.state == Waiting {
-			return Submission{}, fmt.Errorf("%w: %s", ErrWaiting, submission.id)
+		switch {
+		case submission.id == draft.Replaces && submission.state == Waiting:
+			replaced = append(replaced, submission.id)
+		case submission.state == Waiting:
+			return Submission{}, nil, fmt.Errorf("%w: %s", ErrWaiting, submission.id)
 		}
-		founded = founded || submission.opened(draft.Flag)
 	}
-	if kind == Change && !founded {
-		return Submission{}, fmt.Errorf("%w: %s", ErrNotFounder, draft.Flag)
+	if draft.Replaces != (SubmissionID{}) && len(replaced) == 0 {
+		return Submission{}, nil, fmt.Errorf("%w: %s", ErrNotWaiting, draft.Replaces)
 	}
-	return Snapshot{
-		ID: id, Account: account, Kind: kind, Flag: draft.Flag, Name: draft.Name, Pin: draft.Pin,
-		Picture: drawn.Picture.TakeSnapshot(), OtherColors: drawn.OtherColors, Held: true, State: Waiting,
-		SubmittedAt: at, DecidedAt: at,
+	submission, err := Snapshot{
+		ID: id, Account: account, Name: draft.Name, Pin: draft.Pin, Picture: drawn.Picture.TakeSnapshot(),
+		OtherColors: drawn.OtherColors, Held: true, State: Waiting, SubmittedAt: at, DecidedAt: at,
 	}.Restore()
+	return submission, replaced, err
 }
 
 // Approved makes the picture public: the bucket no longer holds it in private. Two flags never share a name, so a name
-// another flag has is no flag to approve: a change keeps its own flag's.
+// another flag has is no flag to approve.
 func (s Submission) Approved(names catalog.Names, at time.Time) (Submission, error) {
 	if s.state != Waiting {
 		return s, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrDecided)
 	}
-	if err := names.Free(s.name, s.flag); err != nil {
+	if err := names.Free(s.name, ""); err != nil {
 		return s, err //nolint:wrapcheck // the names say which.
 	}
 	s.state, s.decidedAt, s.held = Approved, at, false
@@ -147,20 +135,11 @@ func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, err
 	return s, nil
 }
 
-// Restyle puts an approved change on its flag: the flag wears the name, the picture and the capital approved.
-func (s Submission) Restyle(flag catalog.Flag, at time.Time) (catalog.Flag, []proto.Message, error) {
-	if s.kind != Change || s.state != Approved {
-		return flag, nil, fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotApproved)
-	}
-	restyled, facts := flag.Restyled(s.name, s.picture, s.pin, at)
-	return restyled, facts, nil
-}
-
-// Open opens the flag of an approved new submission, at its pin, with its name and picture, unless a flag took its
-// name since.
+// Open opens the flag of an approved submission, at its pin, with its name and picture, unless a flag took its name
+// since.
 func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt time.Time) (Submission, catalog.Flag, error) {
-	if s.kind != New || s.state != Approved {
-		return s, catalog.Flag{}, fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotApproved)
+	if s.state != Approved {
+		return s, catalog.Flag{}, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrNotApproved)
 	}
 	if err := names.Free(s.name, ""); err != nil {
 		return s, catalog.Flag{}, err //nolint:wrapcheck // the names say which.
@@ -180,15 +159,15 @@ func (s Submission) PayableBy(account AccountID) error {
 	if s.account != account {
 		return fmt.Errorf("%w: %s", ErrNotYours, s.id)
 	}
-	if s.kind != New || (s.state != Approved && s.state != Opened) {
-		return fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotPayable)
+	if s.state != Approved && s.state != Opened {
+		return fmt.Errorf("%s is %s: %w", s.id, s.state, ErrNotPayable)
 	}
 	return nil
 }
 
 // OpenedFlag is the flag opened from the submission, once one was.
 func (s Submission) OpenedFlag() (catalog.FlagID, bool) {
-	return s.flag, s.kind == New && s.state == Opened
+	return s.flag, s.state == Opened
 }
 
 // FoundedBy is nil when one of the account's submissions opened the flag: its founder.
@@ -202,7 +181,7 @@ func FoundedBy(founded []Submission, flag catalog.FlagID) error {
 }
 
 func (s Submission) opened(flag catalog.FlagID) bool {
-	return s.kind == New && s.state == Opened && s.flag == flag
+	return s.state == Opened && s.flag == flag
 }
 
 // PictureDeleted is the submission once its rejected picture is deleted, 30 days after the rejection.
@@ -216,7 +195,7 @@ func (s Submission) PictureDeleted(now time.Time) (Submission, bool) {
 
 func (s Submission) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: s.id, Account: s.account, Kind: s.kind, Flag: s.flag, Name: s.name, Pin: s.pin,
+		ID: s.id, Account: s.account, Flag: s.flag, Name: s.name, Pin: s.pin,
 		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, State: s.state, Rejection: s.rejection,
 		SubmittedAt: s.submittedAt, DecidedAt: s.decidedAt,
 	}
@@ -225,8 +204,7 @@ func (s Submission) TakeSnapshot() Snapshot {
 type Snapshot struct {
 	ID      SubmissionID
 	Account AccountID
-	Kind    Kind
-	// The flag a change is for, or the flag opened from a new one; empty until then.
+	// The flag opened from it; empty until then.
 	Flag        catalog.FlagID
 	Name        catalog.Name
 	Pin         catalog.Pin
@@ -260,30 +238,21 @@ func (s Snapshot) Restore() (Submission, error) {
 		return Submission{}, fmt.Errorf("the submission %s: %w", s.ID, err)
 	}
 	return Submission{
-		id: s.ID, account: s.Account, kind: s.Kind, flag: s.Flag, name: s.Name, pin: s.Pin, picture: picture,
+		id: s.ID, account: s.Account, flag: s.Flag, name: s.Name, pin: s.Pin, picture: picture,
 		others: s.OtherColors, held: s.Held, state: s.State, rejection: s.Rejection, submittedAt: s.SubmittedAt,
 		decidedAt: s.DecidedAt,
 	}, nil
 }
 
 func (s Snapshot) checkState() error {
-	switch s.Kind {
-	case New, Change:
-	default:
-		return fmt.Errorf("%w: the kind %q", ErrInvalidState, s.Kind)
-	}
-	if s.Kind == Change && s.Flag == "" {
-		return fmt.Errorf("%w: a change for no flag", ErrInvalidState)
+	if (s.State == Opened) != (s.Flag != "") {
+		return fmt.Errorf("%w: %s, with the flag %q", ErrInvalidState, s.State, s.Flag)
 	}
 	switch s.State {
-	case Waiting, Approved:
+	case Waiting, Approved, Opened:
 	case Rejected:
 		if err := s.Rejection.check(); err != nil {
 			return err
-		}
-	case Opened:
-		if s.Kind != New || s.Flag == "" {
-			return fmt.Errorf("%w: opened, a %s submission of the flag %q", ErrInvalidState, s.Kind, s.Flag)
 		}
 	default:
 		return fmt.Errorf("%w: the state %q", ErrInvalidState, s.State)

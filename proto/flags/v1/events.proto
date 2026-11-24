@@ -25,18 +25,10 @@ message FlagClosed {
   google.protobuf.Timestamp closed_at = 2;
 }
 
-// The flag's name from renamed_at: the operator's rename, or its founder's change approved, which may bring a new picture
-// too. Its code stays. Only the flags module listens.
+// The flag's name from renamed_at: the operator's rename. Its code stays. Only the flags module listens.
 message FlagRenamed {
   string flag = 1;
   // In English.
   string name = 2;
   google.protobuf.Timestamp renamed_at = 3;
-}
-
-// The flag's capital from moved_at: its founder's change approved, with a capital the operator or the founder moved.
-message FlagMoved {
-  string flag = 1;
-  Pin pin = 2;
-  google.protobuf.Timestamp moved_at = 3;
 }

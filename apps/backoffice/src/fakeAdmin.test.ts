@@ -17,12 +17,4 @@ describe("the fake's approval", () => {
         expect(refused).toBeInstanceOf(ConnectError)
         expect((refused as ConnectError).code).toBe(Code.InvalidArgument)
     })
-
-    it("moves a change's flag to the capital approved", async () => {
-        const {flags} = new FakeAdmin()
-        const {submission} = await flags.approveSubmission({submissionId: "sub-bavaria", pin: {latitude: 49.4521, longitude: 11.0767}})
-        expect(submission?.pin?.latitude).toBe(49.4521)
-        const bavaria = flags.listed.find(flag => flag.code === "r-k3p9x2ma0b")
-        expect({latitude: bavaria?.sold?.pin?.latitude, longitude: bavaria?.sold?.pin?.longitude}).toEqual({latitude: 49.4521, longitude: 11.0767})
-    })
 })

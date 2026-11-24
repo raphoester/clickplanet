@@ -4,8 +4,8 @@
 2026-11-10, the cut-off since 2026-11-19). All are off in `default`. Capital Siege plays all three on its fresh map, which starts with each capital (see
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
 (`clicks.Capitals`): each country's tile nearest its capital city, and on an arena's map the **seats** its seed gave the
-flags with no ground of their own, England, Scotland, Wales and every flag sold ([The seats](#the-seats), regional
-flags step 6, 2026-11-24). On the world's map those flags have no capital.
+sold flags, which have no ground of their own ([The seats](#the-seats), regional flags step 6, 2026-11-24). On the
+world's map a sold flag has no capital.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
 (`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
@@ -17,15 +17,14 @@ storage only does the atomic work under its lock.
 (step 6 of the regional flags plan). Its seat is a capital in every rule: the knock-out, fixed shields, the cut-off, the
 standing and the crown.
 
-- **Which flags**: the ones a player may play when the arena opens and that stand on a pin (`catalog.Pinned`): the
-  regions the game ships with, England, Scotland and Wales, at their pins (`cpflags.Pins`, below), and every sold flag
-  heard open, at the pin heard last. A flag closed then has none, even under a lock.
+- **Which flags**: every sold flag heard open when the arena opens, at the pin heard last (`catalog.Pinned`). A flag
+  closed then has none, even under a lock.
 - **The seat** (`clicks.Ground.Seats`, a rule of the board): the land tile nearest the pin that is no capital and
   touches none. The flags sit one after the other, in the order of their codes, each seat counted as a capital for the
   flags after it, so two flags pinned on one city sit apart. A flag with a capital of its own gets none. Measured on
-  the shipped boards (`embedded_board`'s `seats_test.go`): on `earth-1`, `earth-2` and `siege-1`, England, Scotland,
-  Wales, Brittany (Rennes) and Corsica (Ajaccio) each sit on their country's land within 3 tiles of the pin, apart from
-  every capital. On `siege-1` England sits two tiles north of the United Kingdom's capital, London's tile.
+  the shipped boards (`embedded_board`'s `seats_test.go`): on `earth-1`, `earth-2` and `siege-1`, flags pinned on
+  London, Edinburgh, Cardiff, Rennes and Ajaccio each sit on their country's land within 3 tiles of the pin, apart from
+  every capital. On `siege-1` the one on London sits two tiles north of the United Kingdom's capital, London's tile.
 - **A point, never a tile**: the seat is snapped on the board the arena plays, as it opens. Each board numbers its tiles
   its own way, so no seat outlives its map.
 - **Laid by the capitals seed** (`seeds.Capitals`): each seat held by its flag with the capitals' shields (50 in Capital
@@ -38,10 +37,11 @@ standing and the crown.
   does not stand, and a pledge to it is `allegiances.ErrDown`. **A flag closed while a siege runs plays to the end**: its
   seat stays, and the rules' lock keeps it playable (see [The flags module](flags.md)).
 - **On the wire**: every map read says them (`GetMapResponse.seats`, `Seat{flag, tile_id}`), so the page crowns them.
-- **Tried locally** (2026-11-24, Capital Siege's set on `siege-1`, opened with `OpenArena` and `PlayRuleSet`): five
-  seats (England, Scotland, Wales, Brittany, Corsica), each with 50 shields; a restart read them back; England and
-  Scotland took pledges; a flag added during the arena was refused (`ErrDown`); the United Kingdom struck the 50
-  shields of England's seat and took it, knocking England out and clearing its other tile.
+- **Tried locally** (2026-11-24, Capital Siege's set on `siege-1`, opened with `OpenArena` and `PlayRuleSet`, with
+  England, Scotland and Wales pinned as they will be once sold): five seats (those three, Brittany, Corsica), each with
+  50 shields; a restart read them back; England and Scotland took pledges; a flag added during the arena was refused
+  (`ErrDown`); the United Kingdom struck the 50 shields of England's seat and took it, knocking England out and clearing
+  its other tile.
 
 ## Fixed shields (`capitals.fixedShields`)
 

@@ -21,7 +21,7 @@ export enum SubmissionState {
   WAITING = 1,
 
   /**
-   * A new flag waits to be paid for; a change is on its flag.
+   * It waits to be paid for.
    *
    * @generated from enum value: SUBMISSION_STATE_APPROVED = 2;
    */
@@ -287,8 +287,8 @@ export class Heartbeat extends Message<Heartbeat> {
  */
 export class Flag extends Message<Flag> {
   /**
-   * An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
-   * opened since.
+   * An ISO code for a flag the game ships with; r- and ten letters or digits for one opened since, or the code a flag
+   * kept when it left the build (xb, gb-eng, gb-sct, gb-wls).
    *
    * @generated from field: string code = 1;
    */
@@ -573,11 +573,11 @@ export class SubmitFlagRequest extends Message<SubmitFlagRequest> {
   pin?: Pin;
 
   /**
-   * Empty for a new flag; the code of a flag the account founded, for its new name or picture.
+   * The id of the account's submission that waits, which this one replaces; empty for none.
    *
-   * @generated from field: string flag = 4;
+   * @generated from field: string replaces = 5;
    */
-  flag = "";
+  replaces = "";
 
   constructor(data?: PartialMessage<SubmitFlagRequest>) {
     super();
@@ -590,7 +590,7 @@ export class SubmitFlagRequest extends Message<SubmitFlagRequest> {
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "upload_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "pin", kind: "message", T: Pin },
-    { no: 4, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "replaces", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmitFlagRequest {
@@ -792,14 +792,7 @@ export class Submission extends Message<Submission> {
   pin?: Pin;
 
   /**
-   * A new name or picture for a flag already opened, in place of a new flag.
-   *
-   * @generated from field: bool change = 4;
-   */
-  change = false;
-
-  /**
-   * The flag a change is for, or the flag opened from a new one; empty until then.
+   * The flag opened from it; empty until then.
    *
    * @generated from field: string flag = 5;
    */
@@ -847,7 +840,6 @@ export class Submission extends Message<Submission> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "pin", kind: "message", T: Pin },
-    { no: 4, name: "change", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "state", kind: "enum", T: proto3.getEnumType(SubmissionState) },
     { no: 7, name: "submitted_at", kind: "message", T: Timestamp },

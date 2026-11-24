@@ -7,7 +7,7 @@ const NOW = 1_000_000_000_000
 const PICTURE = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
 
 const submission = (changes: Partial<Submission> = {}): Submission => ({
-    id: "s-1", name: "Bavaria", change: false, flag: "", state: "approved", submittedAt: 1, decidedAt: 2, ...changes,
+    id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, ...changes,
 })
 
 const renewal = (changes: Partial<Renewal> = {}): Renewal => ({
@@ -17,9 +17,8 @@ const renewal = (changes: Partial<Renewal> = {}): Renewal => ({
 const sold = (changes: Partial<SoldFlag> = {}): SoldFlag => ({picture: PICTURE, endsAt: NOW + 5, ...changes})
 
 describe("payable", () => {
-    it("is an approved new flag alone", () => {
+    it("is an approved flag alone", () => {
         expect(payable(submission())).toBe(true)
-        expect(payable(submission({change: true, flag: "r-k3p9x2ma0b"}))).toBe(false)
         expect(payable(submission({state: "opened", flag: "r-k3p9x2ma0b"}))).toBe(false)
         expect(payable(submission({state: "waiting"}))).toBe(false)
     })

@@ -90,9 +90,6 @@ func TestAFounderReadsWhyTheOperatorClosedItsFlagsAndNoOtherFlag(t *testing.T) {
 	founded("r-0000000001", "Bavaria", ada, 1, "Broke the rules.")
 	founded("r-0000000002", "Swabia", ada, 2, "")
 	founded("r-0000000003", "Tyrol", bob, 3, "A test.")
-	change := submissions.TestWaiting(submissions.SubmissionID{15: 4}, ada, at)
-	change.Kind, change.Flag, change.State, change.Held = submissions.Change, "r-0000000003", submissions.Approved, false
-	require.NoError(t, store.Save(t.Context(), submissions.Restored(change)))
 
 	mine, err := query.Mine(t.Context(), ada)
 	require.NoError(t, err)

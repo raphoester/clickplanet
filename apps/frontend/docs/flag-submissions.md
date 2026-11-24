@@ -4,7 +4,8 @@
 the regional flags, 2026-11-24): a name, a picture and its capital, a pin on the globe. The pin is the region's capital:
 in Capital Siege the flag starts there, as a country starts on its capital. So the page says "capital" wherever the
 player reads about the pin (the owner, 2026-11-24). The operator approves or rejects it in the backoffice; an approved
-new flag waits to be opened (paid for, see [The shop](shop.md)), a change goes on its flag. The backend's side is `flags.v1.FlagService`'s
+flag waits to be opened (paid for, see [The shop](shop.md)). **The player changes it while it waits, never once the
+operator decided it** (the owner, 2026-11-24: a "Change" on an approved flag "shouldn't be allowed"). The backend's side is `flags.v1.FlagService`'s
 `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`).
 
 ## Where
@@ -30,7 +31,8 @@ stores:
 
 - **`useFlagForm`** (`flagFormStore.ts`): whether the place is open (`shown`), the form rather than the status
   (`composing`), the pin aimed (`aiming`), and the `Draft`: the name, the `File`, the pin with the place's name, and
-  the flag a change is for. What was typed is in the store, so it stays while the form is aside.
+  the submission that waits, which a change replaces. What was typed is in the store, so it stays while the form is
+  aside.
 - **`useFlagSubmissions`** (`submissionsStore.ts`): the account's submissions, the newest first, and whether a read
   ended.
 
@@ -54,7 +56,8 @@ until the first read), and a guest's sign-in. Opening it reads the submissions a
   "Uploading… 50%" on the button, then `SubmitFlag`. Its answer goes first in the store (`submitted`) and the place shows
   its status. **Each send uploads the picture again**: the server may have used or dropped an upload it refused.
 - **Each refusal is one line under the form, and the form keeps what was typed** (`SubmissionRefusedError`'s
-  `refusal`): `no-session`, `guest`, `not-yours`, `waiting` (one already waits), `invalid` (said as the picture's, since
+  `refusal`): `no-session`, `guest`, `decided` (the operator decided the one a change replaces: "Your flag was reviewed
+  already, so it can't change."), `waiting` (one already waits), `invalid` (said as the picture's, since
   the page checked the rest), `off` (pictures off on the server), `too-many` (the uploads of a day); a `PUT` that failed
   is "The picture did not upload".
 - **Closing it calls the upload off** (an `AbortController` made in an effect, as `NoteModal`'s: made once per component,
@@ -72,14 +75,13 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
 - **Escape, Cancel, or a bonus aimed** puts it away (`onPinAimChange(false)`), and the form comes back as it was.
 - **While aimed, a line over the globe** says "Tap your region's capital", with Cancel (`PinAim`, at the news line's
   place).
-- **A change is prefilled** with the flag's capital, `Sold.pin` from the list of flags: coordinates alone, with no
-  place name.
+- **A change is prefilled** with the capital that was sent: coordinates alone, with no place name.
 
 ## The status, in the game
 
 **The place shows the latest submission**: its name, its state's chip and one line. Waiting: "Sent on Nov 24, 2026."
 Approved: "Approved! It opens soon.", or "Approved! Pick a plan to open it." over the plans while the shop sells (see
-[The shop](shop.md#the-offer)), or for a change "Approved! The change is on your flag." Rejected: its reason in
+[The shop](shop.md#the-offer)). Rejected: its reason in
 plain words (not a place, a flag in the game already, unreadable at a tile's size, hateful, or "It was not approved."),
 then the operator's note quoted. Opened: "Bavaria is in the game until Dec 24, 2026!" (its `endsAt`; "Bavaria is in the
 game!" while the list of flags does not hold it yet), the picture an approval made public beside the name. Closed:
@@ -91,8 +93,7 @@ game!" while the list of flags does not hold it yet), the picture an approval ma
 `domain/flagSubmissions.ts`): the server keeps the submission `opened` for good, and the flag lives on in the flags
 module, which closes it at its end, at the operator's `CloseFlag`, and opens it again at an `AddTime` within 30 days. So
 an opened submission whose flag the list of flags holds closed reads Closed, a muted chip, in the picker's entry and
-the place, and Open again once its flag comes back. "Your flags" marks each closed flag with the same chip. A change
-keeps its own state: its flag's state is on the "Your flags" row.
+the place, and Open again once its flag comes back. "Your flags" marks each closed flag with the same chip.
 
 **Why the operator closed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
 founded that the operator closed and that has not come back; see the backend's [flags module](../../backend/docs/flags.md)):
@@ -104,13 +105,14 @@ founded closes or comes back** (`useFlagSubmissionsFeed`, on the list of flags),
 left open. The note is the operator's, in English, never translated.
 
 - **A new submission can be sent once none waits**: "New flag" after an approval or an opening, "Try again" after a
-  rejection, which opens the form with what was sent (the name, the capital, the flag of a change; the picture is
-  picked again). While one waits, Close alone.
-- **A change**: "Your flags" (`FoundedFlags`) lists each flag the account founded (`foundedFlags`: one of its submissions
-  opened it, or an approved change named it), each with Change, off while one waits, and while the shop sells its time:
-  Add time, or its renewal (see [The shop](shop.md#time-for-a-founded-flag)). The form opens on the flag's name from the list of
-  flags and its capital; Send waits for a picture, the same file for a new name alone: the server draws and reviews
-  every flag as the players will see it.
+  rejection, which opens the form with what was sent (the name and the capital; the picture is picked again). The
+  footer holds that one next step, and the × closes.
+- **A change, while it waits alone**: Change, the footer's button while one waits (`waitingOf`), opens "Change your
+  flag" with what was sent, and `replaces` its id. Send waits for a picture, the same file for a new name alone: the page keeps none, and the server
+  draws and reviews every flag as the players will see it. The new one takes the old one's place, which the server
+  deletes unreviewed. "Your flags" (`FoundedFlags`) lists each flag the account founded (`foundedFlags`: one of its
+  submissions opened it), with no Change: nothing changes a flag once the operator approved it. While the shop sells,
+  each row says its time: Add time, or its renewal (see [The shop](shop.md#time-for-a-founded-flag)).
 
 **When the page reads them** (`useFlagSubmissionsFeed`): at once for a signed-in account, each time the flags stream
 opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the place opens, and every 3
@@ -118,7 +120,7 @@ seconds for a while after a payment (see [The shop](shop.md#back-from-stripe)). 
 at a time, one queued behind it; a read that fails keeps what is shown. A guest reads none, and a sign-out forgets them.
 
 **A decision is told once on the news line** (`SubmissionNews`, the news store's `submission` kind, 4 seconds): "Your
-flag Bavaria is approved!", "Your change to Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in the
+flag Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in the
 game!", "Your flag Bavaria is closed.". The first time the page sees a submission in a decided state, the newest one is
 told, and each one's state as the player reads it is kept in `localStorage` under `clickplanet-flag-submissions-told`
 (`{id: state}`, `closed` among them), so an approval, an opening then a close is told thrice, a comeback again, and a
@@ -129,14 +131,13 @@ the list of flags change, so a close the flags stream tells is told at once.
 ## In fake mode
 
 `FakeFlagSubmissions` (`backends/fakeFlagSubmissions.ts`) keeps the submissions in memory, uploads in eight steps so the
-bar moves, and refuses as the server does (a guest, one waiting, a flag not founded). Sign in first (`signIn()`), send a
+bar moves, and refuses as the server does (a guest, one waiting, a change of one decided). Sign in first (`signIn()`), send a
 flag from the picker, then on the console:
 
-- `approveSubmission()`: the one that waits is approved, with its upload as its public picture; a change goes on its
-  flag at once.
+- `approveSubmission()`: the one that waits is approved, with its upload as its public picture.
 - `rejectSubmission("not-a-place", "A club's crest.")`: rejected, with a reason (`not-a-place`, `exists`, `unreadable`,
   `hateful`, `other`) and a note.
-- `openSubmission(days)`: the approved new flag opens (`FakeFlagsBackend.open` with the upload's picture and the pin),
+- `openSubmission(days)`: the approved flag opens (`FakeFlagsBackend.open` with the upload's picture and the pin),
   for 30 days by default.
 - `refuseSubmissions("waiting")`: the next sends are refused with that refusal, or `"upload-failed"` for a `PUT` that
   fails; `refuseSubmissions()` lets them through again.

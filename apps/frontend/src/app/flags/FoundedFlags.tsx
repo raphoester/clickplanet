@@ -1,13 +1,11 @@
 import {ReactNode, useState} from "react"
 import {Shop} from "../../backends/shop.ts"
-import type {FlagCatalog} from "../../domain/flags.ts"
-import {foundedFlags, Submission, waits} from "../../domain/flagSubmissions.ts"
+import {foundedFlags, Submission} from "../../domain/flagSubmissions.ts"
 import {FlagTime, flagRenewal, flagTimeOf} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useShop} from "../shop/shopStore.ts"
 import FlagNote from "./FlagNote.tsx"
-import {Draft, useFlagForm} from "./flagFormStore.ts"
 import {useFlags} from "./flagsStore.ts"
 import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
 import "../support/Support.css"
@@ -20,11 +18,6 @@ export type FoundedFlagsProps = {
     // The closed flag whose note the place shows above, not repeated in its row.
     noteShownFor?: string
     onAddTime: (flag: string) => void
-}
-
-function changeOf(catalog: FlagCatalog, flag: string): Draft {
-    const pin = catalog.soldOf(flag)?.pin
-    return {name: catalog.openedName(flag) ?? "", pinned: pin && {pin}, flag}
 }
 
 function dateOf(at: number): string {
@@ -46,13 +39,13 @@ function lineOf(time: FlagTime): string | undefined {
     }
 }
 
-// The flags the account founded, each with Change, and while the shop is open its time: Add time, or its renewal.
+// The flags the account founded, and while the shop is open each one's time: Add time, or its renewal. None changes
+// once approved.
 function closeNoteOf(submissions: readonly Submission[], flag: string): string | undefined {
     return submissions.find((submission) => submission.state === "opened" && submission.flag === flag)?.closeNote
 }
 
 export default function FoundedFlags({submissions, shop, noteShownFor, onAddTime}: FoundedFlagsProps) {
-    const compose = useFlagForm((form) => form.compose)
     const catalog = useFlags((store) => store.catalog)
     const plans = useShop((store) => store.plans)
     const renewals = useShop((store) => store.renewals)
@@ -61,7 +54,6 @@ export default function FoundedFlags({submissions, shop, noteShownFor, onAddTime
     const [stopping, setStopping] = useState<string>()
     const [stopFailed, setStopFailed] = useState(false)
     const founded = foundedFlags(submissions)
-    const waiting = waits(submissions)
     const selling = plans.length > 0
 
     if (founded.length === 0) return null
@@ -117,15 +109,7 @@ export default function FoundedFlags({submissions, shop, noteShownFor, onAddTime
                         {line && <span className="flag-founded-time">{line}</span>}
                     </span>
                     {closed && <SubmissionStateChip state="closed"/>}
-                    <span className="flag-founded-actions">
-                        <button type="button"
-                                className="button button-mini button-secondary"
-                                disabled={waiting}
-                                onClick={() => compose(changeOf(catalog, flag))}>
-                            {t("flagSubmission.change")}
-                        </button>
-                        {actionOf(flag, time)}
-                    </span>
+                    {actionOf(flag, time) && <span className="flag-founded-actions">{actionOf(flag, time)}</span>}
                     {closeNote && <FlagNote text={closeNote}/>}
                 </li>
             })}

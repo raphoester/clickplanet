@@ -1,6 +1,6 @@
 # The flags module
 
-**The flags module owns the catalog of flags**: the 238 the game ships with, and the flags sold since. Step 1 of the
+**The flags module owns the catalog of flags**: the 235 the game ships with, and the flags sold since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
 itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. Step 3 (2026-11-24) lets a
@@ -20,9 +20,9 @@ signed-in player submit a flag, and the operator approve or reject it ([Submissi
   standings, the Hall of Fame, the map history and the videos still name it. A flag opened by mistake that nobody played
   for was deleted by hand in postgres (`flags.flags` and `planet.heard_flags`) on 2026-11-24; there is no call for it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
-  with is two letters, or `gb-` and three letters, so no ISO code and no `gb-xxx` code can take one. Never the name: a
-  review in step 2 may change the name, and the id stays. **A flag that left the build keeps the code it shipped with**
-  (Brittany, `xb`, below), so its land, players, room and points stay its own.
+  with is two letters, so no ISO code can take one. Never the name: a review in step 2 may change the name, and the id
+  stays. **A flag that left the build keeps the code it shipped with** (Brittany, `xb`; England, Scotland and Wales,
+  `gb-eng`, `gb-sct`, `gb-wls`; below), so its land, players, room and points stay its own.
 - **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
   **Two flags never share a name**, whatever its case, a flag the game ships with included (`catalog.Names`, at the open,
   at a rename, and at a submission's approval and opening), and `flags_name_key`, a unique index on `lower(name)`, holds
@@ -31,23 +31,21 @@ signed-in player submit a flag, and the operator approve or reject it ([Submissi
   the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
-  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)).
-- **The regions the game ships with have pins too**: England, Scotland and Wales, in `generated/flags/pins.json`,
-  embedded beside `countries.json` (`cpflags.Pins`). `make flag-pins` (`cmd/flagpins`) writes it from Natural Earth at
-  the map's tag (`v5.1.2`), as the map's capitals are chosen: for each flag `xx-yyy`, the populated place inside the map
-  subunit `YYY` of country `XX` that is its country's main capital, else another capital, else the biggest: London,
-  Edinburgh, Cardiff. Never edited by hand. The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
-  Corsica Ajaccio's pin and Brittany Rennes', by name, and stops on any other flag, so none is left with no pin.
+  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)). The
+  game's own flags have no pin: each has ground of its own since England, Scotland and Wales, the last that had none,
+  moved to the sold flags with their pins (below). The migration that brought the pins
+  (`20261124101101_flag_submissions`) gave production's test flag of Corsica Ajaccio's pin and Brittany Rennes', by
+  name, and stops on any other flag, so none is left with no pin.
 
 ## What it tells
 
-`flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}`, `FlagRenamed{flag, name,
-renamed_at}` and `FlagMoved{flag, pin, moved_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
-The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`. It
-tells the operator's rename, and a founder's change approved, which may bring a new picture too: the pages read the
-flag from the table as it is now. **`FlagMoved` tells planet a capital moved**: a founder's change approved whose
-capital differs from the flag's (`Flag.Restyled`, after `FlagRenamed`, in one transaction; `20261124125257_moved_flags`).
-`FlagOpened` carries the capital as it is now, at each opening, comeback and restatement.
+`flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name,
+renamed_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
+operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
+opening, comeback and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
+approved, and went with it (`20261124145305_no_changes` deleted any left in the outbox; the enum keeps its value, as
+postgres drops none).
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
 (`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
@@ -63,16 +61,16 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 `decided_at`, and the pin: `pin_latitude`, `pin_longitude`, `pinned_at`, all null until a fact names one), because it
 plays the flags: whether one is open is a rule of the click, and where it starts a siege a rule of the arena.
 
-- **Of one flag's pin, the latest fact that named one holds** (`Heard.Moved`): `FlagOpened`'s at its `opened_at`,
-  `FlagMoved`'s at its `moved_at`. A pin told again at the time of the one kept replaces it, so the restatement at each
+- **Of one flag's pin, the latest fact that named one holds** (`Heard.Moved`): `FlagOpened`'s at its `opened_at`. A
+  pin told again at the time of the one kept replaces it, so the restatement at each
   boot puts a wrong pin right, and gave the flags opened before pins their first one (Brittany, Corsica) at the deploy.
   A flag never heard keeps no pin. A `FlagOpened` from a build before pins names none and keeps the pin as it is.
 
 - **`catalog.Catalog`** (`internal/planet/internal/catalog`) answers two questions. `Playable`: a flag the game ships
   with, or one heard open. `Known`: the same, or one heard closed. A flag the game ships with is never read from
   postgres, so today's clicks cost nothing more.
-- **`flag_opened_subscriber`, `flag_closed_subscriber` and `flag_moved_subscriber`** hear the facts
-  (`planet-flags-opened`, `planet-flags-closed`, `planet-flags-moved`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
+- **`flag_opened_subscriber` and `flag_closed_subscriber`** hear the facts (`planet-flags-opened`,
+  `planet-flags-closed`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
   changes it.
 - **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
 - **Not an RPC to the flags module**: a click for a flag opened since is one read of planet's own postgres, not a call
@@ -83,9 +81,9 @@ plays the flags: whether one is open is a rule of the click, and where it starts
 | `Playable` | a click, a pledge (and the allegiance a click checks), a bomb, a shield, a virus, a mine, a trap, a rally |
 | `Known` | the operator's `FindPlayers`, a flag and an area |
 
-**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): two letters or `gb-` and three, as the
-flags the game ships with, or `r-` and ten letters or digits. A code of that shape the game does not ship is a sold
-flag's (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by one: the flag
+**The chat, scoring and player check a code's shape alone** (`cpflags.Codes`): two letters, as the flags the game ships
+with, `gb-` and three, as England, Scotland and Wales shipped, or `r-` and ten letters or digits. A code of that shape
+the game does not ship is a sold flag's (`cpflags.IsOpenedCode`, which `catalog.ParseFlagID` reads too). They only show a flag or filter by one: the flag
 a message is sent under, a board or a tally asked for one flag, the flag a player is announced under. A made-up code
 there shows as its code with a grey flag on the page, and a board of it is empty. Their code is
 `main`'s, with `cpflags.Codes{}` in place of `cpcountries.New()`.
@@ -185,9 +183,17 @@ rejected flag never costs money, so a rejection never needs a refund. The review
   `ErrGuest`, `PermissionDenied`.
 - **One submission of an account waits at a time** (`submissions.Submit` reads the account's earlier ones):
   `ErrWaiting`, `AlreadyExists`. Once it is decided the account may submit another.
-- **A submission** is a name (`catalog.Name`), a picture, a pin (`catalog.Pin`) and, for a change, the flag it is for.
-  A row of `flags.submissions`: `id`, `account_id`, `kind` (`submission_kind`: `new` or `change`), `flag` (the flag a
-  change is for, or the flag opened from a new one, empty until then), the name, the pin, the picture as drawn
+- **A player changes its submission while it waits, never once the operator decided it** (the owner, 2026-11-24: a
+  founder's change of an approved flag "shouldn't be allowed"). The change is a new submission that `replaces` the one
+  that waits: in one transaction the old row is deleted (`Store.DeleteWaiting`, which refuses one no longer waiting)
+  and the new one kept, then the old picture dropped from the private bucket. It waits at the back of the queue, and
+  the operator's approval of the old id is `NotFound`: the operator never approves a picture it did not see. A
+  replacement of one decided, or of none, is `ErrNotWaiting` (`FailedPrecondition`). Until that day a founder could
+  send a new name or picture for a flag it founded, reviewed again; `20261124145305_no_changes` deleted those rows
+  (an approved one was on its flag already; a waiting or rejected one's picture stays private in the bucket) and the
+  `kind` column.
+- **A submission** is a name (`catalog.Name`), a picture and a pin (`catalog.Pin`). A row of `flags.submissions`:
+  `id`, `account_id`, `flag` (the flag opened from it, empty until then), the name, the pin, the picture as drawn
   (`picture_*`, with `picture_other_colors`), `picture_held`, `state` (`submission_state`: `waiting`, `approved`,
   `rejected`, `opened`), `submitted_at`, and `decided_at`, when it took its state. A rejection's reason and note are a
   row of `flags.rejections`, which only a rejected one has.
@@ -212,11 +218,9 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
 - **`CreateSubmissionUpload(content_type, size_bytes)`**: a one-time link, as the operator's, for a signed-in account
   alone. 20 a day for an account and for its address together (`flags.submissionUploads`, `ResourceExhausted`): each is
   room in the bucket.
-- **`SubmitFlag(name, upload_id, pin, flag)`** (`submit_flag_usecase`): with `flag`, a new name or picture for a flag the
-  account founded, that is a flag opened from one of its own submissions (`ErrNotFounder`, `PermissionDenied`
-  otherwise). Open or closed: a closed flag still shows in history. **The flag keeps its name and picture until the
-  operator approves the change.** The refusals of a bad name, pin or picture are `InvalidArgument`, pictures off
-  `FailedPrecondition`.
+- **`SubmitFlag(name, upload_id, pin, replaces)`** (`submit_flag_usecase`): with `replaces`, the id of the account's
+  submission that waits, which the new one replaces (above). The refusals of a bad name, pin, picture or id are
+  `InvalidArgument`, pictures off or a replacement of one decided `FailedPrecondition`.
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
   rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
   for a guest. Beside them, `closures`: the note of each flag the account founded (opened from one of its
@@ -236,17 +240,16 @@ flag in production unless the owner says so.**
   moved it on the backoffice's map (`Submission.Moved`, a waiting submission alone; unset keeps the player's, never a
   move to 0, 0). Then the picture held is read, checked against the
   hash the submission keeps (`ErrNotThePicture`), and written public at `flags/pictures/<sha256>.png`, as a flag sold by
-  hand; then the approval is kept and the private copy deleted. **A new flag waits to be paid for**: nothing opens.
-  **A change is on its flag at once**: in the same transaction the flag wears the new name, picture and capital
-  (`Submission.Restyle`, `Flag.Restyled`) and `FlagRenamed` is recorded. `ErrDecided` (`FailedPrecondition`) for one
-  decided already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: a change keeps its
-  own flag's name, and the operator rejects the rest as `exists`.
+  hand; then the approval is kept and the private copy deleted. **It waits to be paid for**: nothing opens.
+  `ErrUnknownSubmission` (`NotFound`) for one its player replaced, `ErrDecided` (`FailedPrecondition`) for one decided
+  already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: the operator rejects those
+  as `exists`.
 - **`RejectSubmission(submission_id, rejection)`** (`reject_submission_usecase`): a reason from a short list
   (`not_a_place`, `exists`, `unreadable` at a tile's size, `hateful`, `other`) and a note of 500 characters at most,
   which `other` needs. The EU's rules for online platforms ask for this statement of reasons. **The picture never
   becomes public, and is deleted 30 days later** (`delete_rejected_pictures_usecase`, every hour: the file first, then
   `picture_held` false, so a row that says so holds none).
-- **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): the operator opens an approved new
+- **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): the operator opens an approved
   submission by hand, for a flag sold by hand; a founder who pays opens it through the shop ([Paid time](#paid-time)). A name another flag took since the approval is
   `ErrNameTaken`. The flag takes the submission's name,
   picture and pin (`Submission.Open`), and the submission is `opened` with the flag's code, in one transaction with
@@ -312,7 +315,8 @@ pictures of the flags there are.
 
 `internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and shows the fact reach
 another module's subscriber and an open page's stream with no restart, then the close and a rename. `submitted_test.go`
-takes a player's flag from its submission to an open page, then its founder's new name, approved, to the same page.
+takes a player's flag from its submission, changed while it waits, to an open page, the old one's approval refused,
+then refuses a change of the flag opened.
 
 ## Brittany, from the build to the sold flags
 
@@ -345,6 +349,41 @@ Production, in order, each with the owner's yes:
 2. Deploy: frontend first, then the backend (see [A server restart reloads the page](../../../docs/reload-on-restart.md)).
 3. Then the owner's call: keep it until a date (`flags_add_time`, `xb`, the days past its 30), or close it now
    (`flags_close_flag`, `xb`); within 30 days of a close, `flags_add_time` brings it back.
+
+## England, Scotland and Wales, from the build to the sold flags
+
+**England (`gb-eng`), Scotland (`gb-sct`) and Wales (`gb-wls`) shipped with the game until 2026-11-24.** The owner
+decided that day that they are sold like Brittany. One deploy moves them, as it moved Brittany, and each keeps its code,
+so nothing of them is rewritten: land and shields, pledges, chat rooms, season points, ledger rows. In production that
+morning none held land, nobody had taken a tile for them in 72 hours, and none had a flag day in the week; Wales had 1
+point of Season 1, England and Scotland none.
+
+- **The build no longer lists them**, as Brittany: `countries.json` (`make flags`), the atlas, the SVGs, the fit, the
+  names in the page's languages, the backoffice's own names and its emoji of the three nations. With them went the
+  last built-in flags with no ground: `cpflags.Pins` and its `make flag-pins`, and the map audit's `REGIONS`.
+- **The flags module holds them from the first boot of that build** (`20261124143335_regions_sold`): open, named
+  "England", "Scotland" and "Wales", ending 30 days after the deploy (the owner's choice), each picture the build's SVG
+  rendered at 1500 x 900 with `rsvg-convert` and drawn by `pictures.Redraw`, 768 x 461, each pin its capital as
+  `cmd/flagpins` read it from Natural Earth's populated places: London (51.501941, -0.118668), Edinburgh (55.948328,
+  -3.219091), Cardiff (51.499995, -3.225008). The restatement at boot tells them to planet, pins and all.
+- **Planet hears them open, on their pins, in the same deploy** (`20261124143336_regions_heard`), so their players are
+  never told their flag closed, and a Capital Siege opened before the restatement arrives still seats them.
+- **Their pictures go into the bucket by hand, once**: until then the page draws them as the blank.
+- **What they lost**: their Discord roles (the alerts' tidy at boot deletes them), their names in other languages, their
+  old addresses (`clickplanet.lol/gb-eng/<name>`). Their 85 quiz questions (31 England, 33 Scotland, 21 Wales) moved to
+  subject `gb`, their ids kept, so their ratings stay. England keeps the United Kingdom's anthem: `anthemsAsset.ts` maps
+  a code, whatever the build lists.
+
+Production, in order, each with the owner's yes:
+
+1. Put each picture in the bucket `clickplanet-media`, `Content-Type: image/png`, `Cache-Control: public,
+   max-age=31536000, immutable`, at `flags/pictures/<sha256>.png`: England
+   `a5bbe1742db6aa08e5850c063ca9feb11b17c99fbf2546f07ed1f2e57bb44edb`, Scotland
+   `e044e22d0d52a24b10503b26b85c66d0c9223e2ddd07842b65d0c9b00ab0a5f8`, Wales
+   `625234995a5a9c1da4e98805b1f62053d49ee570cc82c79494ae5e6914fb32d5`. The files are on the PR's assets branch.
+2. Deploy: frontend first, then the backend.
+3. Then the owner's call for each: keep it longer (`flags_add_time`), or close it (`flags_close_flag`); within 30 days of
+   a close, `flags_add_time` brings it back.
 
 ## The pool
 
