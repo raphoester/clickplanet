@@ -44,8 +44,18 @@ func (s *Store) Renewal(ctx context.Context, id renewals.SubscriptionID) (renewa
 }
 
 func (s *Store) Bought(ctx context.Context, buyer orders.AccountID) ([]renewals.Renewal, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT `+columns+` FROM renewals WHERE account_id = $1
-		ORDER BY period_ends_at, id`, uuid.UUID(buyer))
+	return s.read(ctx, `SELECT `+columns+` FROM renewals WHERE account_id = $1 ORDER BY period_ends_at, id`,
+		uuid.UUID(buyer))
+}
+
+func (s *Store) OfTarget(ctx context.Context, target orders.Target) ([]renewals.Renewal, error) {
+	kind, id := target.Kept()
+	return s.read(ctx, `SELECT `+columns+` FROM renewals WHERE target_kind = $1::target_kind AND target = $2
+		ORDER BY period_ends_at, id`, string(kind), id)
+}
+
+func (s *Store) read(ctx context.Context, query string, args ...any) ([]renewals.Renewal, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the renewals: %w", err)
 	}

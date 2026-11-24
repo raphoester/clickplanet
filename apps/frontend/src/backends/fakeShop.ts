@@ -40,7 +40,7 @@ export class FakeShop implements Shop {
 
     public turn(on: boolean): string {
         this.on = on
-        return on ? "the shop is on: an approved flag offers its plans" : "the shop is off: no plan, no pay button"
+        return on ? "the shop is on: a flag sent offers its plans" : "the shop is off: no plan, no pay button"
     }
 
     public refuse(refusal?: ShopRefusal): string {
@@ -91,6 +91,11 @@ export class FakeShop implements Shop {
         const submission = (await this.submissions.mySubmissions()).find((mine) => mine.id === id)
         if (!submission) throw new ShopRefusedError("not-found")
         if (!payable(submission)) throw new ShopRefusedError("unavailable")
+        if (submission.state === "waiting") {
+            return async () => {
+                if (!this.submissions.hold(id, days)) console.error(`the fake shop could not hold the time of ${submission.name}`)
+            }
+        }
         return async () => {
             const opened = await this.submissions.openApproved(id, days)
             if ("refused" in opened) console.error(`the fake shop could not open ${submission.name}: ${opened.refused}`)

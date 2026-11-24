@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -237,4 +238,51 @@ func TestOnlyAWaitingSubmissionsCapitalMoves(t *testing.T) {
 	require.NoError(t, err)
 	_, err = approved.Moved(catalog.TestPin)
 	require.ErrorIs(t, err, submissions.ErrDecided)
+}
+
+func paidFor(snapshot submissions.Snapshot) submissions.Submission {
+	snapshot.Paid = true
+	return submissions.Restored(snapshot)
+}
+
+func TestAFlagPaidForWhileItWaitsIsNotChanged(t *testing.T) {
+	again := submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Replaces: first}
+
+	_, _, err := submissions.Submit(second, ada, again, submissions.TestDrawn,
+		[]submissions.Submission{paidFor(submissions.TestWaiting(first, ada, at))}, at)
+
+	require.ErrorIs(t, err, submissions.ErrPaid)
+}
+
+func TestItsFounderPaysForAFlagUntilItsTimeIsPaidThenForItsFlag(t *testing.T) {
+	waiting := submissions.TestWaiting(first, ada, at)
+	approved := waiting
+	approved.State, approved.Held = submissions.Approved, false
+	opened := approved
+	opened.State, opened.Flag = submissions.Opened, "r-0000000001"
+	rejected := waiting
+	rejected.State, rejected.Rejection = submissions.Rejected, submissions.Rejection{Reason: submissions.Hateful}
+
+	require.NoError(t, submissions.Restored(waiting).PayableBy(ada), "paid before its review")
+	require.NoError(t, submissions.Restored(approved).PayableBy(ada), "approved before it was paid for")
+	require.NoError(t, submissions.Restored(opened).PayableBy(ada), "time for its flag")
+	require.ErrorIs(t, paidFor(waiting).PayableBy(ada), submissions.ErrPaidAlready)
+	require.ErrorIs(t, paidFor(approved).PayableBy(ada), submissions.ErrPaidAlready, "it opens with that time")
+	require.ErrorIs(t, submissions.Restored(rejected).PayableBy(ada), submissions.ErrNotPayable)
+	require.ErrorIs(t, submissions.Restored(waiting).PayableBy(submissions.AccountID{15: 9}), submissions.ErrNotYours)
+}
+
+func TestAVerdictIsToldAndNothingElse(t *testing.T) {
+	waiting := submitted(t, rennes)
+	assert.Empty(t, waiting.Facts())
+
+	approved, err := waiting.Approved(none, at.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, approved.Facts(), 1)
+	assert.Equal(t, second.String(), approved.Facts()[0].(*flagsv1.SubmissionApproved).GetSubmissionId())
+
+	rejected, err := waiting.Rejected(submissions.Rejection{Reason: submissions.Hateful}, at.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, rejected.Facts(), 1)
+	assert.Equal(t, at.Add(time.Hour), rejected.Facts()[0].(*flagsv1.SubmissionRejected).GetRejectedAt().AsTime())
 }

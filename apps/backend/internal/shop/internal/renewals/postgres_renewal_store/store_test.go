@@ -46,6 +46,10 @@ func (s inTx) Bought(ctx context.Context, buyer orders.AccountID) ([]renewals.Re
 	return s.store.Bought(ctx, buyer) //nolint:wrapcheck // the store named it.
 }
 
+func (s inTx) OfTarget(ctx context.Context, target orders.Target) ([]renewals.Renewal, error) {
+	return s.store.OfTarget(ctx, target) //nolint:wrapcheck // the store named it.
+}
+
 func (s inTx) Save(ctx context.Context, renewal renewals.Renewal) error {
 	return s.store.Save(ctx, renewal) //nolint:wrapcheck // the store named it.
 }

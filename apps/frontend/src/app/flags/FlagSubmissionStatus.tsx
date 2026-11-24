@@ -43,8 +43,10 @@ function lineOf(shown: Shown, catalog: FlagCatalog, selling: boolean): ReactNode
     const sold = catalog.soldOf(shown.flag)
     switch (shown.state) {
         case "waiting":
-            return t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
+            if (shown.paid) return t("flagSubmission.status.paid")
+            return selling ? t("flagSubmission.status.payFirst") : t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":
+            if (shown.paid) return t("flagSubmission.status.opening")
             return selling ? t("flagSubmission.status.pay") : t("flagSubmission.status.approved")
         case "rejected":
             return t(REASONS[shown.rejection?.reason ?? "other"])
@@ -65,6 +67,7 @@ function againOf({name, pin}: Submission): Draft {
 export default function FlagSubmissionStatus({submissions, shop, toCheckout}: FlagSubmissionStatusProps) {
     const compose = useFlagForm((form) => form.compose)
     const close = useFlagForm((form) => form.close)
+    const payFailure = useFlagForm((form) => form.payFailure)
     const catalog = useFlags((store) => store.catalog)
     const plans = useShop((store) => store.plans)
     const [addingTo, setAddingTo] = useState<string>()
@@ -76,7 +79,10 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
     // Pay is the one thing to press while the plans show.
     const footerButton = offered || (selling && addingTo !== undefined) ? "button-secondary" : "button-action"
 
-    const footer = waiting
+    // A paid flag is not changed, and no other is sent while it waits.
+    const footer = waiting?.paid
+        ? undefined
+        : waiting
         ? <button type="button" className="button support-wide" onClick={() => compose({...againOf(waiting), replaces: waiting.id})}>
             {t("flagSubmission.change")}
         </button>
@@ -114,7 +120,11 @@ export default function FlagSubmissionStatus({submissions, shop, toCheckout}: Fl
             <p className="flag-status-line" role="status">{lineOf(shown, catalog, selling)}</p>
             {latest.state === "rejected" && latest.rejection?.note && <FlagNote text={latest.rejection.note}/>}
             {shown.state === "closed" && latest.closeNote && <FlagNote text={latest.closeNote}/>}
-            {offered && <PlanOffer shop={shop} plans={plans} target={{kind: "submission", id: latest.id}} toCheckout={toCheckout}/>}
+            {offered && <PlanOffer shop={shop}
+                                   plans={plans}
+                                   target={{kind: "submission", id: latest.id}}
+                                   toCheckout={toCheckout}
+                                   failed={payFailure}/>}
 
             <FoundedFlags submissions={submissions}
                           shop={shop}

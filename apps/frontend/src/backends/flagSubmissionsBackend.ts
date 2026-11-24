@@ -48,6 +48,7 @@ export function submissionOf(submission: SubmissionPb, closeNotes: ReadonlyMap<s
             : {},
         ...submission.picture && submission.picture.url !== "" ? {picture: pictureOf(submission.picture)} : {},
         ...closeNote !== undefined ? {closeNote} : {},
+        paid: submission.paid,
     }
 }
 

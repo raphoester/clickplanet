@@ -19,6 +19,9 @@ export interface Shop {
 // a flag closed 30 days ago or more, or one whose renewal runs.
 export type ShopRefusal = "not-yours" | "not-found" | "unavailable" | "invalid"
 
+// Why a payment page did not open: a refusal, or any other failure.
+export type PayFailure = ShopRefusal | "failed"
+
 // One class and not one per reason: each is said the same way, as one line under the buttons.
 export class ShopRefusedError extends Error {
     constructor(public readonly refusal: ShopRefusal, options?: {cause?: unknown}) {

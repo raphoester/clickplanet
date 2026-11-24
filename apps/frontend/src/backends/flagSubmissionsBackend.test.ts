@@ -43,8 +43,12 @@ describe("submissionOf", () => {
         })
         expect(submissionOf(rejected)).toEqual({
             id: "s-1", name: "Bavaria", pin: {latitude: 48.1, longitude: 11.6}, flag: "", state: "rejected",
-            submittedAt: 1_000, decidedAt: 2_000, rejection: {reason: "hateful", note: "No."},
+            submittedAt: 1_000, decidedAt: 2_000, rejection: {reason: "hateful", note: "No."}, paid: false,
         })
+    })
+
+    it("reads a flag paid while it waits", () => {
+        expect(submissionOf(new Submission({...waiting(), paid: true}))?.paid).toBe(true)
     })
 
     it("reads the picture an approval makes public, and the flag an opening made", () => {

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/stripe-go/v87"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -28,11 +29,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/postgres_payment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/pay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/take_back_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/renewals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/renewals/postgres_renewal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/renewals/usecases/hear_renewal_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripe_gateway"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripecontroller/receive_notice_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/subscribers/rejected_subscriber"
 )
 
 const (
@@ -153,4 +157,74 @@ func TestStripesEventsReachTheFlagsModuleAsCommandsOnce(t *testing.T) {
 		"grant stripe:in_renewal TIME_PERIOD_MONTH " + submission,
 		"take back stripe:in_renewal",
 	}, heard.all())
+}
+
+// refunds keeps what the shop asks Stripe for a rejected flag: never the real Stripe.
+type refunds struct {
+	mu        sync.Mutex
+	refunded  []payments.IntentID
+	cancelled []renewals.SubscriptionID
+}
+
+func (r *refunds) Refund(_ context.Context, intent payments.IntentID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.refunded = append(r.refunded, intent)
+	return nil
+}
+
+func (r *refunds) Cancel(_ context.Context, id renewals.SubscriptionID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.cancelled = append(r.cancelled, id)
+	return nil
+}
+
+func (r *refunds) all() ([]payments.IntentID, []renewals.SubscriptionID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.refunded), slices.Clone(r.cancelled)
+}
+
+func TestAFlagRejectedAfterItsPaymentIsRefundedAndItsRenewalCancelled(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "shop", migrations.FS)
+	redis := cpredistest.StartServer(t).Config()
+	streams := cpredis.New(redis, prometheus.NewRegistry())
+	require.NoError(t, streams.ConnectCtx(t.Context()))
+	t.Cleanup(func() { _ = streams.Close() })
+	flags := cpredis.New(redis, prometheus.NewRegistry())
+	require.NoError(t, flags.ConnectCtx(t.Context()))
+	t.Cleanup(func() { _ = flags.Close() })
+
+	paid, renewed, inbox := postgres_payment_store.New(db), postgres_renewal_store.New(db), postgres_inbox.New(db)
+	stripeAPI := &refunds{}
+	rejected, err := cpredis.Subscribe(t.Context(), streams, "shop-refund-rejected", rejected_subscriber.New(
+		refund_rejected_usecase.New(paid, renewed, stripeAPI)))
+	require.NoError(t, err)
+	running(t, rejected)
+	endpoint := receive_notice_handler.New(stripe_gateway.NewReader(stripe_gateway.TestSecret),
+		receive_notice_usecase.New(
+			pay_usecase.New(db, inbox, paid, intents{}, cpoutbox.New(db)),
+			take_back_usecase.New(db, inbox, paid, cpoutbox.New(db)),
+			hear_renewal_usecase.New(db, inbox, renewed),
+		), 1<<20)
+
+	now := time.Now()
+	month, signature := stripe_gateway.Signed("evt_month", stripe.EventTypeInvoicePaid,
+		stripe_gateway.Invoice("in_month", "sub_1", stripe_gateway.Metadata(founder, submission, "month")), now)
+	assert.Equal(t, http.StatusOK, post(t, endpoint, month, signature))
+	subscription, signature := stripe_gateway.Signed("evt_subscription", stripe.EventTypeCustomerSubscriptionCreated,
+		stripe_gateway.Subscription("sub_1", "active", false, now.AddDate(0, 1, 0),
+			stripe_gateway.Metadata(founder, submission, "month")), now)
+	assert.Equal(t, http.StatusOK, post(t, endpoint, subscription, signature))
+
+	require.NoError(t, flags.Send(t.Context(), &flagsv1.SubmissionRejected{
+		SubmissionId: submission, RejectedAt: timestamppb.New(now),
+	}))
+
+	require.Eventually(t, func() bool {
+		refunded, cancelled := stripeAPI.all()
+		return slices.Equal(refunded, []payments.IntentID{"pi_renewal"}) &&
+			slices.Equal(cancelled, []renewals.SubscriptionID{"sub_1"})
+	}, 10*time.Second, 20*time.Millisecond, "the month refunded, its renewal cancelled")
 }

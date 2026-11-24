@@ -1,5 +1,6 @@
-import {FormEvent, useEffect, useId, useRef, useState} from "react"
+import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError} from "../../backends/flags.ts"
+import {Shop, ShopRefusedError} from "../../backends/shop.ts"
 import {
     flagNameLength,
     flagNameOf,
@@ -11,11 +12,17 @@ import {
     pictureFileRefusal,
     pictureShapeRefusal,
 } from "../../domain/flagSubmissions.ts"
+import {pickedOf} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import {Key} from "../../i18n/translator.ts"
 import Modal from "../components/Modal.tsx"
 import {CrownIcon, PictureIcon} from "../components/icons.tsx"
 import {useScreen} from "../hud/screenStore.ts"
+import Money from "../shop/Money.tsx"
+import {Consent, FinePrint} from "../shop/PayTerms.tsx"
+import PlanCards from "../shop/PlanCards.tsx"
+import {useShop} from "../shop/shopStore.ts"
 import {sizeLine} from "../support/attachmentLines.ts"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
@@ -24,6 +31,9 @@ import "./FlagSubmission.css"
 
 export type FlagSubmissionFormProps = {
     submitter: FlagSubmitter
+    shop: Shop
+    // Stripe's page.
+    toCheckout: (url: string) => void
 }
 
 type Failure = SubmissionRefusal | "upload-failed" | "failed"
@@ -32,6 +42,8 @@ type State =
     | {kind: "writing", failure?: Failure}
     | {kind: "uploading", fraction: number}
     | {kind: "sending"}
+    // Sent, and its payment page asked for.
+    | {kind: "paying"}
 
 const FAILURES: Record<Failure, Key> = {
     "no-session": "support.failure.noSession",
@@ -67,13 +79,18 @@ function readyToSend(draft: Draft, problem: PictureProblem | undefined): boolean
     return isValidFlagName(draft.name) && draft.pinned !== undefined && problem === undefined && draft.file !== undefined
 }
 
-export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps) {
+// While the shop sells, the flag is paid as it is sent: the form ends with the plans, the consent and Pay.
+export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSubmissionFormProps) {
     const draft = useFlagForm((form) => form.draft)
     const edit = useFlagForm((form) => form.edit)
     const aim = useFlagForm((form) => form.aim)
     const close = useFlagForm((form) => form.close)
     const sent = useFlagForm((form) => form.sent)
+    const plans = useShop((store) => store.plans)
+    const chosen = useShop((store) => store.chosen)
+    const choose = useShop((store) => store.choose)
     const [state, setState] = useState<State>({kind: "writing"})
+    const [agreed, setAgreed] = useState(false)
     const [problem, setProblem] = useState<PictureProblem>()
     const closing = useRef<AbortController>()
     const input = useRef<HTMLInputElement>(null)
@@ -91,7 +108,8 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
 
     const change = draft.replaces !== undefined
     const busy = state.kind !== "writing"
-    const canSend = !busy && readyToSend(draft, problem)
+    const picked = pickedOf(plans, chosen)
+    const canSend = !busy && readyToSend(draft, problem) && (picked === undefined || agreed)
     const length = flagNameLength(draft.name)
     const failure = state.kind === "writing" ? state.failure : undefined
 
@@ -141,7 +159,17 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
             })
             if (signal?.aborted) return
             useFlagSubmissions.getState().submitted(submission)
-            sent()
+            if (picked === undefined) {
+                sent()
+                return
+            }
+            setState({kind: "paying"})
+            try {
+                toCheckout(await shop.checkout({plan: picked.plan, target: {kind: "submission", id: submission.id}, startsNow: true}))
+            } catch (e) {
+                if (!(e instanceof ShopRefusedError)) console.error("could not open the payment page", e)
+                if (!signal?.aborted) sent(e instanceof ShopRefusedError ? e.refusal : "failed")
+            }
         } catch (e) {
             if (signal?.aborted) return
             if (!(e instanceof SubmissionRefusedError)) console.error("could not send the flag", e)
@@ -150,14 +178,24 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
     }
 
     const shown = preview
-    const sendLabel = state.kind === "uploading"
-        ? t("flagSubmission.uploading", {percent: translator().number(state.fraction, {style: "percent"})})
-        : state.kind === "sending" ? t("flagSubmission.sending") : t("common.send")
+    const sendLabel = (): ReactNode => {
+        switch (state.kind) {
+            case "uploading":
+                return t("flagSubmission.uploading", {percent: translator().number(state.fraction, {style: "percent"})})
+            case "sending":
+                return t("flagSubmission.sending")
+            case "paying":
+                return t("common.loading")
+            case "writing":
+                return picked ? rich("shop.payPrice", {price: <Money price={picked}/>}) : t("common.send")
+        }
+    }
 
     return <Modal title={change ? t("flagSubmission.changeTitle") : t("flagSubmission.add")}
+                  className={picked ? "shop-modal" : undefined}
                   stayOnBackdropClick={busy || draft.name !== "" || draft.file !== undefined || draft.pinned !== undefined}
                   footer={<button type="submit" form={formId} className="button button-action support-wide" disabled={!canSend}>
-                      {sendLabel}
+                      {sendLabel()}
                   </button>}
                   onClose={close}>
         <form id={formId} className="support-form flag-form" onSubmit={submit} aria-busy={busy}>
@@ -234,7 +272,14 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
                     </button>
                 </div>}
 
+            {picked && <>
+                <span className="menu-label">{t("shop.plans")}</span>
+                <PlanCards plans={plans} picked={picked.plan} disabled={busy} onPick={choose}/>
+                <Consent agreed={agreed} disabled={busy} onAgree={setAgreed}/>
+            </>}
+
             {failure && <p className="support-notice" role="alert">{t(FAILURES[failure])}</p>}
+            {picked && <FinePrint renews={picked.renews}/>}
         </form>
     </Modal>
 }

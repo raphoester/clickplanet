@@ -104,6 +104,9 @@ func (u *UseCase) grant(ctx context.Context, grant grants.Grant, paid grants.Pai
 	if err != nil {
 		return grant, nil, err //nolint:wrapcheck // the grant names it.
 	}
+	if _, ok := granted.GrantedFlag(); !ok {
+		return granted, facts, nil
+	}
 	if err := u.stores.Flags.Save(ctx, flag); err != nil {
 		return grant, nil, fmt.Errorf("failed to keep the flag: %w", err)
 	}

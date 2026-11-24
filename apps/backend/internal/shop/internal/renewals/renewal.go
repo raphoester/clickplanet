@@ -105,6 +105,11 @@ func NoneRenewing(kept []Renewal, target orders.Target) error {
 	return nil
 }
 
+// Cancellable is the subscription to cancel while it may still charge.
+func (r Renewal) Cancellable() (SubscriptionID, bool) {
+	return r.id, r.state != Ended
+}
+
 func (r Renewal) TakeSnapshot() Snapshot {
 	return Snapshot{ID: r.id, Order: r.order, State: r.state, PeriodEndsAt: r.periodEndsAt, DecidedAt: r.decidedAt}
 }

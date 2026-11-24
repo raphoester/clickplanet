@@ -829,6 +829,13 @@ export class Submission extends Message<Submission> {
    */
   picture?: Picture;
 
+  /**
+   * Its time is paid and held: it starts when the flag opens, at its approval. A paid submission is not changed.
+   *
+   * @generated from field: bool paid = 11;
+   */
+  paid = false;
+
   constructor(data?: PartialMessage<Submission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -846,6 +853,7 @@ export class Submission extends Message<Submission> {
     { no: 8, name: "decided_at", kind: "message", T: Timestamp },
     { no: 9, name: "rejection", kind: "message", T: Rejection },
     { no: 10, name: "picture", kind: "message", T: Picture },
+    { no: 11, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Submission {

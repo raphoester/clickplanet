@@ -77,6 +77,34 @@ func (g Gateway) StopAtPeriodEnd(ctx context.Context, id renewals.SubscriptionID
 	return nil
 }
 
+// Refund gives a payment's money back in full, once: told again, Stripe answers the first refund.
+func (g Gateway) Refund(ctx context.Context, intent payments.IntentID) error {
+	params := &stripe.RefundCreateParams{PaymentIntent: stripe.String(intent.String())}
+	params.SetIdempotencyKey("refund-" + intent.String())
+	_, err := g.client.V1Refunds.Create(ctx, params)
+	var refused *stripe.Error
+	if errors.As(err, &refused) && refused.Code == stripe.ErrorCodeChargeAlreadyRefunded {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to refund %s: %w", intent, err)
+	}
+	return nil
+}
+
+// Cancel ends a subscription now: it charges no more. Stripe answers one cancelled already as missing.
+func (g Gateway) Cancel(ctx context.Context, id renewals.SubscriptionID) error {
+	_, err := g.client.V1Subscriptions.Cancel(ctx, id.String(), &stripe.SubscriptionCancelParams{})
+	var refused *stripe.Error
+	if errors.As(err, &refused) && refused.Code == stripe.ErrorCodeResourceMissing {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to cancel the subscription %s: %w", id, err)
+	}
+	return nil
+}
+
 // IntentOf is the PaymentIntent that paid an invoice: since API version 2025-03-31, an invoice no longer names it, and
 // a refund names only the intent.
 func (g Gateway) IntentOf(ctx context.Context, invoice payments.PaymentID) (payments.IntentID, error) {

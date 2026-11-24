@@ -6,7 +6,7 @@ import {useScreen} from "../hud/screenStore.ts"
 import {newestNews, useNews} from "../news/newsStore.ts"
 import {PAID_READ_EVERY_MS, PAID_READ_FOR_MS, returnFromShop} from "./shopReturn.ts"
 
-const approved: Submission = {id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2}
+const approved: Submission = {id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, paid: false}
 const opened: Submission = {...approved, state: "opened", flag: "r-k3p9x2ma0b"}
 
 let refresh: ReturnType<typeof vi.fn>

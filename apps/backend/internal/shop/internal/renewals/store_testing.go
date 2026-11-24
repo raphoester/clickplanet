@@ -42,11 +42,19 @@ func (m *MemoryStore) Renewal(_ context.Context, id SubscriptionID) (Renewal, er
 }
 
 func (m *MemoryStore) Bought(_ context.Context, buyer orders.AccountID) ([]Renewal, error) {
+	return m.where(func(row Snapshot) bool { return row.Order.Buyer == buyer })
+}
+
+func (m *MemoryStore) OfTarget(_ context.Context, target orders.Target) ([]Renewal, error) {
+	return m.where(func(row Snapshot) bool { return row.Order.Target == target })
+}
+
+func (m *MemoryStore) where(kept func(row Snapshot) bool) ([]Renewal, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var rows []Snapshot
 	for _, row := range m.rows {
-		if row.Order.Buyer == buyer {
+		if kept(row) {
 			rows = append(rows, row)
 		}
 	}

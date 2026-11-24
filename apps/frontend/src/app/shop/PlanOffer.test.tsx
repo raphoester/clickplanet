@@ -56,7 +56,7 @@ describe("PlanOffer", () => {
         const user = userEvent.setup()
 
         await user.click(plan(/1 month/))
-        const consent = screen.getByRole("checkbox", {name: "I want my flag to start now. I know I can't cancel once it starts."})
+        const consent = screen.getByRole("checkbox", {name: "I want my flag to start as soon as it's approved. I know I can't cancel once it starts."})
         const pay = screen.getByRole("button", {name: "Pay €10"})
         expect(plan(/1 month/).getAttribute("aria-checked")).toBe("true")
         expect((consent as HTMLInputElement).checked).toBe(false)

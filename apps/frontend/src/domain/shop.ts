@@ -45,9 +45,9 @@ export type Renewal = {id: string, plan: Plan, target: CheckoutTarget, state: Re
 // Time added within this long of a close opens the flag again.
 export const COMEBACK_MS = 30 * 24 * 60 * 60 * 1000
 
-// A flag approved, which waits for its first payment.
+// A new flag not paid yet: sent and waiting for its review, or approved before it was paid.
 export function payable(submission: Submission): boolean {
-    return submission.state === "approved"
+    return (submission.state === "waiting" || submission.state === "approved") && !submission.paid
 }
 
 export function awaitsPayment(submissions: readonly Submission[]): boolean {
@@ -81,20 +81,25 @@ export function flagTimeOf(sold: SoldFlag | undefined, closed: boolean, renewal:
     return closed ? {kind: "closed", closedAt: sold.closedAt ?? now} : {kind: "open", endsAt: sold.endsAt}
 }
 
-// What the shop sells the account now: an approved flag to open, time for a flag it founded, or a flag to add.
+// What the shop sells the account now: a flag sent to pay for, an approved one to open, time for a flag it founded,
+// or a flag to add.
 export type ShopOffer =
+    | {kind: "pay", submission: Submission}
     | {kind: "open", submission: Submission}
+    // Paid, and checked before it opens.
+    | {kind: "checking", submission: Submission}
     | {kind: "addTime", flag: string, time: FlagTime}
-    | {kind: "waiting", submission: Submission}
     // A flag founded whose renewal runs: its place stops it.
     | {kind: "renewing", flag: string, time: FlagTime}
     | {kind: "new"}
 
 export function offerOf(submissions: readonly Submission[], catalog: FlagCatalog, renewals: readonly Renewal[], now: number): ShopOffer {
-    const approved = submissions.find(payable)
+    const approved = submissions.find((submission) => submission.state === "approved" && !submission.paid)
     if (approved) return {kind: "open", submission: approved}
     const waiting = waitingOf(submissions)
-    if (waiting) return {kind: "waiting", submission: waiting}
+    if (waiting) return waiting.paid ? {kind: "checking", submission: waiting} : {kind: "pay", submission: waiting}
+    const opening = submissions.find((submission) => submission.state === "approved")
+    if (opening) return {kind: "checking", submission: opening}
     const times = foundedFlags(submissions).map((flag) => ({
         flag, time: flagTimeOf(catalog.soldOf(flag), catalog.closedFlag(flag), flagRenewal(renewals, flag, submissions), now),
     }))

@@ -17,7 +17,7 @@ const NOW = 1_000_000_000_000
 const PICTURE = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
 
 const submission = (changes: Partial<Submission> = {}): Submission => ({
-    id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, ...changes,
+    id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, paid: false, ...changes,
 })
 
 const renewal = (changes: Partial<Renewal> = {}): Renewal => ({
@@ -27,15 +27,19 @@ const renewal = (changes: Partial<Renewal> = {}): Renewal => ({
 const sold = (changes: Partial<SoldFlag> = {}): SoldFlag => ({picture: PICTURE, endsAt: NOW + 5, ...changes})
 
 describe("payable", () => {
-    it("is an approved flag alone", () => {
+    it("is a new flag not paid yet, sent or approved", () => {
+        expect(payable(submission({state: "waiting"}))).toBe(true)
         expect(payable(submission())).toBe(true)
+        expect(payable(submission({state: "waiting", paid: true}))).toBe(false)
+        expect(payable(submission({paid: true}))).toBe(false)
         expect(payable(submission({state: "opened", flag: "r-k3p9x2ma0b"}))).toBe(false)
-        expect(payable(submission({state: "waiting"}))).toBe(false)
+        expect(payable(submission({state: "rejected"}))).toBe(false)
     })
 
     it("tells whether any submission still waits for its payment", () => {
         expect(awaitsPayment([submission({state: "opened"}), submission({id: "s-2", state: "rejected"})])).toBe(false)
-        expect(awaitsPayment([submission({id: "s-2", state: "waiting"}), submission()])).toBe(true)
+        expect(awaitsPayment([submission({id: "s-2", state: "waiting", paid: true})])).toBe(false)
+        expect(awaitsPayment([submission({id: "s-2", state: "waiting"})])).toBe(true)
     })
 })
 
@@ -102,14 +106,21 @@ describe("offerOf", () => {
         FlagCatalog.BUILT_IN.withFlags([{code: FLAG, name: "Bavaria", closed, sold: sold(changes)}])
     const opened = submission({id: "s-0", state: "opened", flag: FLAG})
 
-    it("sells the opening of an approved flag first", () => {
+    it("sells the opening of an approved flag not paid first", () => {
         expect(offerOf([submission({id: "s-2", state: "waiting"}), submission(), opened], catalog(), [], NOW))
             .toEqual({kind: "open", submission: submission()})
     })
 
-    it("waits for a flag in review", () => {
+    it("sells a flag sent the time it starts with once approved", () => {
         const waiting = submission({state: "waiting"})
-        expect(offerOf([waiting, opened], catalog(), [], NOW)).toEqual({kind: "waiting", submission: waiting})
+        expect(offerOf([waiting, opened], catalog(), [], NOW)).toEqual({kind: "pay", submission: waiting})
+    })
+
+    it("sells nothing more for a flag paid, while it is checked and as it opens", () => {
+        const paid = submission({state: "waiting", paid: true})
+        const approved = submission({paid: true})
+        expect(offerOf([paid, opened], catalog(), [], NOW)).toEqual({kind: "checking", submission: paid})
+        expect(offerOf([approved, opened], catalog(), [], NOW)).toEqual({kind: "checking", submission: approved})
     })
 
     it("sells time for a founded flag, open, closed less than 30 days ago, or whose renewal stops", () => {

@@ -132,6 +132,11 @@ func (p Payment) TakenBack(at time.Time) (Payment, *flagsv1.TakeBackTime, bool) 
 	return p, &flagsv1.TakeBackTime{GrantId: p.id.GrantID(), DecidedAt: timestamppb.New(at)}, true
 }
 
+// Refundable is the intent to refund while the payment's money is still kept.
+func (p Payment) Refundable() (IntentID, bool) {
+	return p.intent, p.state == Paid
+}
+
 func (p Payment) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: p.id, Order: p.order, Intent: p.intent, Amount: p.amount, Currency: p.currency, State: p.state,

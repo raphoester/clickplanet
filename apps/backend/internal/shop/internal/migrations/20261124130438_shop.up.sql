@@ -42,6 +42,10 @@ CREATE TABLE renewals (
 
 CREATE INDEX renewals_account ON renewals (account_id);
 
+-- A rejected flag's payments and renewals, refunded and cancelled.
+CREATE INDEX payments_target ON payments (target_kind, target);
+CREATE INDEX renewals_target ON renewals (target_kind, target);
+
 -- Each Stripe event acted on: Stripe sends one again until it is answered, and the shop acts on it once.
 CREATE TABLE stripe_events (
     id          text        PRIMARY KEY,

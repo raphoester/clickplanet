@@ -24,22 +24,29 @@ type fakeStripe struct {
 	mu       sync.Mutex
 	requests []request
 	answer   string
+	status   int
 }
 
 type request struct {
 	method, path string
 	form         url.Values
 	query        url.Values
+	header       http.Header
 }
 
 func (f *fakeStripe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	form, _ := url.ParseQuery(string(body))
 	f.mu.Lock()
-	f.requests = append(f.requests, request{method: r.Method, path: r.URL.Path, form: form, query: r.URL.Query()})
-	answer := f.answer
+	f.requests = append(f.requests, request{
+		method: r.Method, path: r.URL.Path, form: form, query: r.URL.Query(), header: r.Header.Clone(),
+	})
+	answer, status := f.answer, f.status
 	f.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
+	if status != 0 {
+		w.WriteHeader(status)
+	}
 	_, _ = io.WriteString(w, answer)
 }
 
@@ -149,4 +156,50 @@ func TestAnInvoiceWithNoPaidIntentIsAnError(t *testing.T) {
 	_, err := gate.IntentOf(t.Context(), "in_1")
 
 	require.ErrorIs(t, err, stripe_gateway.ErrNoIntent)
+}
+
+func TestARefundGivesAPaymentsMoneyBackOnce(t *testing.T) {
+	gate, fake := gateway(t, `{"id":"re_1","object":"refund","payment_intent":"pi_1","status":"succeeded"}`)
+
+	require.NoError(t, gate.Refund(t.Context(), "pi_1"))
+
+	sent := fake.last()
+	assert.Equal(t, http.MethodPost, sent.method)
+	assert.Equal(t, "/v1/refunds", sent.path)
+	assert.Equal(t, "pi_1", sent.form.Get("payment_intent"))
+	assert.Empty(t, sent.form.Get("amount"), "in full")
+	assert.Equal(t, "refund-pi_1", sent.header.Get("Idempotency-Key"), "told twice, refunded once")
+}
+
+func TestAPaymentRefundedAlreadyIsNoError(t *testing.T) {
+	gate, fake := gateway(t, `{"error":{"type":"invalid_request_error","code":"charge_already_refunded",
+		"message":"Charge ch_1 has already been refunded."}}`)
+	fake.status = http.StatusBadRequest
+
+	require.NoError(t, gate.Refund(t.Context(), "pi_1"))
+}
+
+func TestAFailedRefundIsAnError(t *testing.T) {
+	gate, fake := gateway(t, `{"error":{"type":"api_error","message":"Try again."}}`)
+	fake.status = http.StatusInternalServerError
+
+	require.Error(t, gate.Refund(t.Context(), "pi_1"))
+}
+
+func TestASubscriptionIsCancelledNow(t *testing.T) {
+	gate, fake := gateway(t, `{"id":"sub_1","object":"subscription","status":"canceled"}`)
+
+	require.NoError(t, gate.Cancel(t.Context(), "sub_1"))
+
+	sent := fake.last()
+	assert.Equal(t, http.MethodDelete, sent.method)
+	assert.Equal(t, "/v1/subscriptions/sub_1", sent.path)
+}
+
+func TestASubscriptionCancelledAlreadyIsNoError(t *testing.T) {
+	gate, fake := gateway(t, `{"error":{"type":"invalid_request_error","code":"resource_missing",
+		"message":"No such subscription: 'sub_1'"}}`)
+	fake.status = http.StatusNotFound
+
+	require.NoError(t, gate.Cancel(t.Context(), "sub_1"))
 }

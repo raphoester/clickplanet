@@ -11,5 +11,7 @@ type Store interface {
 	Renewal(ctx context.Context, id SubscriptionID) (Renewal, error)
 	// Every renewal of the buyer, the ended ones too.
 	Bought(ctx context.Context, buyer orders.AccountID) ([]Renewal, error)
+	// Every renewal for the target, the ended ones too.
+	OfTarget(ctx context.Context, target orders.Target) ([]Renewal, error)
 	Save(ctx context.Context, renewal Renewal) error
 }

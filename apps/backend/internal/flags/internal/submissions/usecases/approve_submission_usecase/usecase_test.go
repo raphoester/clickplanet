@@ -6,11 +6,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/approve_submission_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -25,6 +29,7 @@ type fixture struct {
 	flags   *catalog.MemoryStore
 	bucket  *pictures.MemoryBucket
 	drawn   pictures.Drawn
+	outbox  *cpatomic.FakeOutbox
 	useCase *approve_submission_usecase.UseCase
 }
 
@@ -37,9 +42,11 @@ func newFixture(t *testing.T, submission submissions.Snapshot) fixture {
 	require.NoError(t, gallery.Hold(t.Context(), id.PictureKey(), drawn))
 	submission.Picture = drawn.Picture.TakeSnapshot()
 	store.Seed(submission)
+	outbox := &cpatomic.FakeOutbox{}
 	return fixture{
-		store: store, flags: flags, bucket: bucket, drawn: drawn,
-		useCase: approve_submission_usecase.New(cptime.NewFixedClock(now), gallery, store, flags),
+		store: store, flags: flags, bucket: bucket, drawn: drawn, outbox: outbox,
+		useCase: approve_submission_usecase.New(cptime.NewFixedClock(now), gallery, cpatomic.FakeTransactioner{},
+			approve_submission_usecase.Stores{Submissions: store, Flags: flags}, outbox),
 	}
 }
 
@@ -56,7 +63,10 @@ func TestAnApprovedNewFlagIsPublicAndWaitsToBePaidFor(t *testing.T) {
 	assert.Equal(t, []submissions.Snapshot{approved}, f.store.Kept())
 	flags, err := f.flags.Flags(t.Context())
 	require.NoError(t, err)
-	assert.Empty(t, flags, "no flag opens before it is paid for")
+	assert.Empty(t, flags, "a flag paid for opens when the approval is heard")
+	require.Len(t, f.outbox.Recorded(), 1)
+	assert.True(t, proto.Equal(&flagsv1.SubmissionApproved{SubmissionId: id.String(), ApprovedAt: timestamppb.New(now)},
+		f.outbox.Recorded()[0]))
 }
 
 func TestASubmissionDecidedIsNotApprovedAgain(t *testing.T) {

@@ -23,3 +23,11 @@ func (Off) StopAtPeriodEnd(context.Context, renewals.SubscriptionID) error {
 func (Off) IntentOf(context.Context, payments.PaymentID) (payments.IntentID, error) {
 	return "", plans.ErrOff
 }
+
+func (Off) Refund(context.Context, payments.IntentID) error {
+	return plans.ErrOff
+}
+
+func (Off) Cancel(context.Context, renewals.SubscriptionID) error {
+	return plans.ErrOff
+}

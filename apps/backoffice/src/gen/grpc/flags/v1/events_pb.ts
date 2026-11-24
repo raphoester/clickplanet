@@ -166,3 +166,93 @@ export class FlagRenamed extends Message<FlagRenamed> {
   }
 }
 
+/**
+ * The operator approved a submission. One paid for while it waited opens its flag now, with the time paid.
+ *
+ * @generated from message flags.v1.SubmissionApproved
+ */
+export class SubmissionApproved extends Message<SubmissionApproved> {
+  /**
+   * @generated from field: string submission_id = 1;
+   */
+  submissionId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp approved_at = 2;
+   */
+  approvedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<SubmissionApproved>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SubmissionApproved";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "approved_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmissionApproved {
+    return new SubmissionApproved().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubmissionApproved {
+    return new SubmissionApproved().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubmissionApproved {
+    return new SubmissionApproved().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SubmissionApproved | PlainMessage<SubmissionApproved> | undefined, b: SubmissionApproved | PlainMessage<SubmissionApproved> | undefined): boolean {
+    return proto3.util.equals(SubmissionApproved, a, b);
+  }
+}
+
+/**
+ * The operator rejected a submission. The shop refunds what was paid for it.
+ *
+ * @generated from message flags.v1.SubmissionRejected
+ */
+export class SubmissionRejected extends Message<SubmissionRejected> {
+  /**
+   * @generated from field: string submission_id = 1;
+   */
+  submissionId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp rejected_at = 2;
+   */
+  rejectedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<SubmissionRejected>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SubmissionRejected";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "rejected_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmissionRejected {
+    return new SubmissionRejected().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubmissionRejected {
+    return new SubmissionRejected().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubmissionRejected {
+    return new SubmissionRejected().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SubmissionRejected | PlainMessage<SubmissionRejected> | undefined, b: SubmissionRejected | PlainMessage<SubmissionRejected> | undefined): boolean {
+    return proto3.util.equals(SubmissionRejected, a, b);
+  }
+}
+

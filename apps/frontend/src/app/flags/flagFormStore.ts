@@ -1,4 +1,5 @@
 import {create} from "zustand"
+import type {PayFailure} from "../../backends/shop.ts"
 import type {Pin} from "../../domain/flags.ts"
 
 // A pin, and the place the page names there: a province or a landmass; none at sea, or for a pin the page was given.
@@ -21,6 +22,8 @@ type FlagFormStore = {
     composing: boolean
     aiming: boolean
     draft: Draft
+    // The flag was sent, and its payment page did not open.
+    payFailure?: PayFailure
     show: () => void
     compose: (draft?: Draft) => void
     edit: (changes: Partial<Draft>) => void
@@ -28,7 +31,7 @@ type FlagFormStore = {
     pinned: (pinned: PinnedPlace) => void
     putAway: () => void
     // Back to the status, which shows what was sent.
-    sent: () => void
+    sent: (payFailure?: PayFailure) => void
     close: () => void
 }
 
@@ -37,12 +40,12 @@ export const useFlagForm = create<FlagFormStore>()((set) => ({
     composing: false,
     aiming: false,
     draft: EMPTY,
-    show: () => set({shown: true, composing: false, aiming: false, draft: EMPTY}),
-    compose: (draft = EMPTY) => set({shown: true, composing: true, aiming: false, draft}),
+    show: () => set({shown: true, composing: false, aiming: false, draft: EMPTY, payFailure: undefined}),
+    compose: (draft = EMPTY) => set({shown: true, composing: true, aiming: false, draft, payFailure: undefined}),
     edit: (changes) => set(({draft}) => ({draft: {...draft, ...changes}})),
     aim: () => set(({shown}) => shown ? {aiming: true} : {}),
     pinned: (pinned) => set(({draft, aiming}) => aiming ? {aiming: false, draft: {...draft, pinned}} : {}),
     putAway: () => set({aiming: false}),
-    sent: () => set({composing: false, aiming: false, draft: EMPTY}),
-    close: () => set({shown: false, composing: false, aiming: false, draft: EMPTY}),
+    sent: (payFailure) => set({composing: false, aiming: false, draft: EMPTY, payFailure}),
+    close: () => set({shown: false, composing: false, aiming: false, draft: EMPTY, payFailure: undefined}),
 }))

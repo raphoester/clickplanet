@@ -19,6 +19,8 @@ var (
 	ErrInvalidTarget  = errors.New("time goes to a submission or a flag")
 	ErrNotTheFlag     = errors.New("the flag is not the one the submission opened")
 	ErrInvalidGranted = errors.New("a grant kept in no state it can be in")
+	ErrNotHeld        = errors.New("the payment's time is not held for a review")
+	ErrStillWaiting   = errors.New("held time is released once its submission is decided")
 )
 
 const maxGrantID = 255
@@ -66,7 +68,7 @@ func (p Period) check() error {
 	return fmt.Errorf("%w: %q", ErrInvalidPeriod, p)
 }
 
-// Target is what paid time goes to: an approved submission of a new flag, or a flag opened since.
+// Target is what paid time goes to: a submission of a new flag, or a flag opened since.
 type Target struct {
 	submission submissions.SubmissionID
 	flag       catalog.FlagID
@@ -124,9 +126,14 @@ func ParsePaid(grant, submission, flag string, period Period, at time.Time) (Pai
 }
 
 // Grant is a payment's time, on the flag it went to, from its payment to a refund that takes it back. A payment taken
-// back before it was heard grants nothing.
+// back before it was heard grants nothing. One for a submission that waits is held until its approval.
 type Grant struct {
 	id GrantID
+	// Held.
+	held       bool
+	submission submissions.SubmissionID
+	period     Period
+	heldAt     time.Time
 	// Granted.
 	granted   bool
 	flag      catalog.FlagID
@@ -142,9 +149,9 @@ func Unheard(id GrantID) Grant {
 	return Grant{id: id}
 }
 
-// Heard is true once the payment granted its time, or was taken back: the next word of it changes nothing.
+// Heard is true once the payment's time was held, granted, or taken back: the next word of it changes nothing.
 func (g Grant) Heard() bool {
-	return g.granted || g.takenBack
+	return g.held || g.granted || g.takenBack
 }
 
 // TakenBackAlready is true once the payment was taken back: told again, it takes back nothing more.
@@ -152,9 +159,35 @@ func (g Grant) TakenBackAlready() bool {
 	return g.takenBack
 }
 
-// ToSubmission grants the time of a payment for a submission: an approved one opens its flag for the period from now,
-// an opened one adds the period to its flag, read beside it (the zero flag otherwise).
+// ToSubmission grants the time of a payment for a submission: one that waits holds it until its approval, an approved
+// one opens its flag for the period from now, an opened one adds the period to its flag, read beside it (the zero flag
+// otherwise).
 func (g Grant) ToSubmission(
+	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, period Period,
+	now time.Time,
+) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
+	if submission.Waiting() {
+		g.held, g.submission, g.period, g.heldAt = true, submission.TakeSnapshot().ID, period, now
+		return g, submission, flag, nil, nil
+	}
+	return g.toDecided(submission, flag, opening, names, period, now)
+}
+
+// Released grants the time held for a submission once it is approved, from now: its flag opens for the period, or ends
+// that much later when another payment opened it first.
+func (g Grant) Released(
+	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, now time.Time,
+) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
+	if !g.held || g.granted || g.takenBack {
+		return g, submission, flag, nil, fmt.Errorf("%w: %s", ErrNotHeld, g.id)
+	}
+	if submission.Waiting() {
+		return g, submission, flag, nil, fmt.Errorf("%w: %s", ErrStillWaiting, g.submission)
+	}
+	return g.toDecided(submission, flag, opening, names, g.period, now)
+}
+
+func (g Grant) toDecided(
 	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, period Period,
 	now time.Time,
 ) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
@@ -189,7 +222,8 @@ func (g Grant) ToFlag(flag catalog.Flag, period Period, now time.Time) (Grant, c
 }
 
 // TakenBack is the grant once its payment was refunded or lost in a dispute. Once granted, the flag it went to is read
-// beside it and ends that much sooner, told closed when that end is past; before, the grant comes to nothing.
+// beside it and ends that much sooner, told closed when that end is past; before, held or not, the grant comes to
+// nothing.
 func (g Grant) TakenBack(flag catalog.Flag, now time.Time) (Grant, catalog.Flag, []proto.Message, error) {
 	g.takenBack, g.takenBackAt = true, now
 	if !g.granted {
@@ -212,13 +246,18 @@ func (g Grant) GrantedFlag() (catalog.FlagID, bool) {
 
 func (g Grant) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: g.id, Granted: g.granted, Flag: g.flag, Added: g.added, GrantedAt: g.grantedAt, TakenBack: g.takenBack,
-		TakenBackAt: g.takenBackAt,
+		ID: g.id, Held: g.held, Submission: g.submission, Period: g.period, HeldAt: g.heldAt, Granted: g.granted,
+		Flag: g.flag, Added: g.added, GrantedAt: g.grantedAt, TakenBack: g.takenBack, TakenBackAt: g.takenBackAt,
 	}
 }
 
 type Snapshot struct {
 	ID GrantID
+	// The payment's Period was held for Submission while it waited for its review; released once Granted too.
+	Held       bool
+	Submission submissions.SubmissionID
+	Period     Period
+	HeldAt     time.Time
 	// The payment's time went to Flag, and Added was its length there.
 	Granted   bool
 	Flag      catalog.FlagID
@@ -239,8 +278,19 @@ func (s Snapshot) Restore() (Grant, error) {
 	if !s.Granted && (s.Flag != "" || s.Added != 0) {
 		return Grant{}, fmt.Errorf("%w: %s not granted, with a flag or a length", ErrInvalidGranted, s.ID)
 	}
+	if s.Held {
+		if s.Submission == (submissions.SubmissionID{}) {
+			return Grant{}, fmt.Errorf("%w: %s held for no submission", ErrInvalidGranted, s.ID)
+		}
+		if err := s.Period.check(); err != nil {
+			return Grant{}, fmt.Errorf("%w: %s held: %w", ErrInvalidGranted, s.ID, err)
+		}
+	}
+	if !s.Held && (s.Submission != (submissions.SubmissionID{}) || s.Period != "") {
+		return Grant{}, fmt.Errorf("%w: %s not held, with a submission or a period", ErrInvalidGranted, s.ID)
+	}
 	return Grant{
-		id: s.ID, granted: s.Granted, flag: s.Flag, added: s.Added, grantedAt: s.GrantedAt, takenBack: s.TakenBack,
-		takenBackAt: s.TakenBackAt,
+		id: s.ID, held: s.Held, submission: s.Submission, period: s.Period, heldAt: s.HeldAt, granted: s.Granted,
+		flag: s.Flag, added: s.Added, grantedAt: s.GrantedAt, takenBack: s.TakenBack, takenBackAt: s.TakenBackAt,
 	}, nil
 }

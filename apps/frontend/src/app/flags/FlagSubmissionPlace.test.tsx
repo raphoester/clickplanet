@@ -22,7 +22,7 @@ import {useFlagSubmissions} from "./submissionsStore.ts"
 const PIN = {latitude: 48.1, longitude: 11.6}
 
 const submission = (changes: Partial<Submission> = {}): Submission => ({
-    id: "s-1", name: "Bavaria", pin: PIN, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
+    id: "s-1", name: "Bavaria", pin: PIN, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false, ...changes,
 })
 
 async function accountOf(linked: Provider[]) {
@@ -279,6 +279,53 @@ describe("FlagSubmissionPlace", () => {
 
         expect(sells.checkout).toHaveBeenCalledWith({plan: "year", target: {kind: "submission", id: "s-1"}, startsNow: true})
         expect(toCheckout).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_1")
+    })
+
+    it("offers the plans for a flag sent and not paid, which may still change", async () => {
+        const account = await accountOf(["google"])
+        read([submission({state: "waiting"})])
+        useShop.setState({plans: PLANS})
+        useFlagForm.getState().show()
+        const sells = shop()
+        render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={sells} toCheckout={vi.fn()}/>)
+        const user = userEvent.setup()
+
+        expect(screen.getByRole("status").textContent).toBe("Sent! Pay to send it for review.")
+        expect(screen.getByRole("button", {name: "Change"})).not.toBeNull()
+        await user.click(screen.getByRole("checkbox"))
+        await user.click(screen.getByRole("button", {name: "Pay €60"}))
+
+        expect(sells.checkout).toHaveBeenCalledWith({plan: "year", target: {kind: "submission", id: "s-1"}, startsNow: true})
+    })
+
+    it("says why the payment page did not open once the flag was sent", async () => {
+        const account = await accountOf(["google"])
+        read([submission({state: "waiting"})])
+        useShop.setState({plans: PLANS})
+        useFlagForm.getState().show()
+        useFlagForm.getState().sent("unavailable")
+        render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/>)
+
+        expect(screen.getByRole("alert").textContent).toBe("You can't pay for this flag now.")
+        expect(screen.getByRole("button", {name: "Pay €60"})).not.toBeNull()
+    })
+
+    it("offers nothing more and no change for a flag paid, while it is checked and as it opens", async () => {
+        const account = await accountOf(["google"])
+        read([submission({state: "waiting", paid: true})])
+        useShop.setState({plans: PLANS})
+        useFlagForm.getState().show()
+        const view = render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/>)
+
+        expect(screen.getByRole("status").textContent).toBe("Paid! We check your flag, then it opens.")
+        expect(screen.queryByRole("radio")).toBeNull()
+        expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "New flag"})).toBeNull()
+
+        act(() => read([submission({state: "approved", paid: true, picture: PICTURE})]))
+        view.rerender(<FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/>)
+        expect(screen.getByRole("status").textContent).toBe("Approved! It opens now.")
+        expect(screen.queryByRole("radio")).toBeNull()
     })
 
     it("adds time to a founded flag through the same plans, for the flag", async () => {

@@ -6,7 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 )
@@ -18,7 +21,9 @@ var (
 	ErrNotApproved  = errors.New("only an approved submission opens a flag")
 	ErrInvalidState = errors.New("a submission kept in no state it can be in")
 	ErrNotYours     = errors.New("only its founder pays for a submission or its flag")
-	ErrNotPayable   = errors.New("only an approved or opened submission is paid for")
+	ErrNotPayable   = errors.New("a rejected submission is not paid for")
+	ErrPaidAlready  = errors.New("the submission's time is paid already")
+	ErrPaid         = errors.New("a submission paid for is not changed")
 )
 
 // A rejected picture is deleted this long after the rejection. It never became public.
@@ -74,6 +79,7 @@ type Submission struct {
 	picture pictures.Picture
 	others  pictures.OtherColors
 	held    bool
+	paid    bool
 	state   State
 	// Only a rejected one.
 	rejection   Rejection
@@ -89,6 +95,8 @@ func Submit(
 	var replaced []SubmissionID
 	for _, submission := range earlier {
 		switch {
+		case submission.id == draft.Replaces && submission.state == Waiting && submission.paid:
+			return Submission{}, nil, fmt.Errorf("%w: %s", ErrPaid, submission.id)
 		case submission.id == draft.Replaces && submission.state == Waiting:
 			replaced = append(replaced, submission.id)
 		case submission.state == Waiting:
@@ -153,16 +161,30 @@ func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt ti
 	return s, flag, nil
 }
 
-// PayableBy is nil when the account may pay for the submission: its founder, once approved (the payment opens its
-// flag) or opened (the time goes to its flag).
+// PayableBy is nil when the account may pay for the submission: its founder, while it waits with no time paid (the
+// time is held until its approval), once approved with none (the payment opens its flag), or opened (the time goes to
+// its flag).
 func (s Submission) PayableBy(account AccountID) error {
 	if s.account != account {
 		return fmt.Errorf("%w: %s", ErrNotYours, s.id)
 	}
-	if s.state != Approved && s.state != Opened {
+	switch s.state {
+	case Waiting, Approved:
+		if s.paid {
+			return fmt.Errorf("%w: %s", ErrPaidAlready, s.id)
+		}
+		return nil
+	case Opened:
+		return nil
+	case Rejected:
 		return fmt.Errorf("%s is %s: %w", s.id, s.state, ErrNotPayable)
 	}
-	return nil
+	return fmt.Errorf("%w: the state %q", ErrInvalidState, s.state)
+}
+
+// Waiting is true until the operator's verdict: a payment's time is held for it till then.
+func (s Submission) Waiting() bool {
+	return s.state == Waiting
 }
 
 // OpenedFlag is the flag opened from the submission, once one was.
@@ -184,6 +206,22 @@ func (s Submission) opened(flag catalog.FlagID) bool {
 	return s.state == Opened && s.flag == flag
 }
 
+// Facts is what the other modules hear of a verdict: an approval opens a paid flag, a rejection refunds it.
+func (s Submission) Facts() []proto.Message {
+	switch s.state {
+	case Approved:
+		return []proto.Message{&flagsv1.SubmissionApproved{
+			SubmissionId: s.id.String(), ApprovedAt: timestamppb.New(s.decidedAt),
+		}}
+	case Rejected:
+		return []proto.Message{&flagsv1.SubmissionRejected{
+			SubmissionId: s.id.String(), RejectedAt: timestamppb.New(s.decidedAt),
+		}}
+	case Waiting, Opened:
+	}
+	return nil
+}
+
 // PictureDeleted is the submission once its rejected picture is deleted, 30 days after the rejection.
 func (s Submission) PictureDeleted(now time.Time) (Submission, bool) {
 	if s.state != Rejected || !s.held || now.Sub(s.decidedAt) < rejectedKept {
@@ -196,8 +234,8 @@ func (s Submission) PictureDeleted(now time.Time) (Submission, bool) {
 func (s Submission) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: s.id, Account: s.account, Flag: s.flag, Name: s.name, Pin: s.pin,
-		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, State: s.state, Rejection: s.rejection,
-		SubmittedAt: s.submittedAt, DecidedAt: s.decidedAt,
+		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, Paid: s.paid, State: s.state,
+		Rejection: s.rejection, SubmittedAt: s.submittedAt, DecidedAt: s.decidedAt,
 	}
 }
 
@@ -211,7 +249,9 @@ type Snapshot struct {
 	Picture     pictures.Snapshot
 	OtherColors pictures.OtherColors
 	// The bucket holds the picture in private: until its approval, or 30 days after its rejection.
-	Held  bool
+	Held bool
+	// Time is paid and held for it until its flag opens: read from the payments' grants, never saved with it.
+	Paid  bool
 	State State
 	// Only for a rejected one.
 	Rejection   Rejection
@@ -239,8 +279,8 @@ func (s Snapshot) Restore() (Submission, error) {
 	}
 	return Submission{
 		id: s.ID, account: s.Account, flag: s.Flag, name: s.Name, pin: s.Pin, picture: picture,
-		others: s.OtherColors, held: s.Held, state: s.State, rejection: s.Rejection, submittedAt: s.SubmittedAt,
-		decidedAt: s.DecidedAt,
+		others: s.OtherColors, held: s.Held, paid: s.Paid, state: s.State, rejection: s.Rejection,
+		submittedAt: s.SubmittedAt, decidedAt: s.DecidedAt,
 	}, nil
 }
 

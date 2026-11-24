@@ -90,15 +90,16 @@ type AdminServiceClient interface {
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-	// submitted, its picture as the server drew it, and the verdict.
+	// submitted, its picture as the server drew it, and the verdict. While the shop sells, a submission waits for
+	// review only once its time is paid.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
-	// to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. One paid for
+	// while it waited opens at once with the time paid; another waits to be paid for, or opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
 	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-	// later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
+	// later. What was paid for it is refunded. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
@@ -277,15 +278,16 @@ type AdminServiceHandler interface {
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-	// submitted, its picture as the server drew it, and the verdict.
+	// submitted, its picture as the server drew it, and the verdict. While the shop sells, a submission waits for
+	// review only once its time is paid.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
-	// Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
-	// to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
+	// Approves a submission, at its capital or where the operator moved it: its picture is made public. One paid for
+	// while it waited opens at once with the time paid; another waits to be paid for, or opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
 	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
 	// pictures are off; InvalidArgument for a capital off the globe.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-	// later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
+	// later. What was paid for it is refunded. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold

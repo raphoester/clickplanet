@@ -14,3 +14,20 @@ CREATE TABLE time_takebacks (
     grant_id   text        PRIMARY KEY,
     decided_at timestamptz NOT NULL
 );
+
+CREATE TYPE time_period AS ENUM ('week', 'month', 'year');
+
+-- A payment for a submission that waits for its review: its time is held, and starts at its approval, when it is
+-- granted too. A paid submission is never replaced, so it is never deleted.
+CREATE TABLE time_held (
+    grant_id      text        PRIMARY KEY,
+    submission_id uuid        NOT NULL REFERENCES submissions (id),
+    period        time_period NOT NULL,
+    held_at       timestamptz NOT NULL
+);
+
+CREATE INDEX time_held_submission ON time_held (submission_id);
+
+-- The verdicts: an approval opens a flag paid for, a rejection is refunded by the shop.
+ALTER TYPE outbox_event ADD VALUE 'flags.v1.SubmissionApproved';
+ALTER TYPE outbox_event ADD VALUE 'flags.v1.SubmissionRejected';

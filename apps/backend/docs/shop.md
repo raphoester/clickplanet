@@ -1,7 +1,8 @@
 # The shop
 
-**The founder of an approved flag pays for its time on Stripe's own page, and the payment opens the flag** (step 4 of
-the regional flags, 2026-11-24). The shop sells three plans: a week at €4 paid once, a month at €10 and a year at €60
+**The founder pays for its flag's time on Stripe's own page as it sends the flag, before its review; the approval opens
+the flag with that time, and a rejection is refunded** (step 4 of the regional flags, 2026-11-24; pay first since the
+owner's word that day: a buyer who waits for the review to pay may change their mind). The shop sells three plans: a week at €4 paid once, a month at €10 and a year at €60
 that renew, prices with VAT. It is **Stripe Managed Payments**: Stripe, through Link, is the merchant of record. It
 charges the VAT, sends the receipts, and handles refunds and disputes. The shop keeps no name, address or card.
 
@@ -13,16 +14,23 @@ operator's `OpenSubmittedFlag` stays, for flags sold by hand. Production is off 
 ## A module of its own
 
 `internal/shop/`, its own schema (`shop`), its own proto package (`shop.v1`, the page's `ShopService`), one postgres
-connection. **It is downstream of the flags**: it asks the flags module in the flags' words, and no module hears or asks
-it (`TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheShops`).
+connection. **It is downstream of the flags**: it asks and hears the flags module in the flags' words, and no module
+hears or asks it (`TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheShops`).
 
 - **Before a checkout it asks** `flags.v1.InternalService/GetPayable(account, target)`: may this account buy time for
-  this submission or flag now? A submission: its founder alone, approved or opened. A flag: the account whose
-  submission opened it, while it is open or closed less than 30 days ago.
+  this submission or flag now? A submission: its founder alone, while it waits or once approved with no time paid, or
+  opened. A flag: the account whose submission opened it, while it is open or closed less than 30 days ago.
 - **Each payment's time goes to the flags module as a command**, `flags.v1.GrantTime` (a refund's as `TakeBackTime`),
   through the shop's outbox, in the transaction that keeps the payment. A command in the flags' words, not a
   `shop.v1.TimeBought` event the flags module hears: the shop already asks the flags module, so hearing the shop would
   make a cycle, and the flags module, which planet, chat, scoring, player and alerts hear, stays upstream of all.
+
+- **A rejected flag is refunded** (`refund_rejected_usecase`, on the flags' `SubmissionRejected`, group
+  `shop-refund-rejected`): its renewals that may still charge are cancelled now (`DELETE /v1/subscriptions/{id}`; one
+  cancelled already answers `resource_missing`, which is no error), then every payment for it still kept is refunded in
+  full (`POST /v1/refunds`, idempotency key `refund-<intent>`; `charge_already_refunded` is no error). Stripe's
+  `charge.refunded` then takes the time back as any refund does. A Stripe call that fails fails the event, which comes
+  again, up to the dead letters, with "failed to refund a rejected flag" in the log: then the operator refunds by hand.
 
 The flags' side is in [The flags module](flags.md#paid-time).
 
@@ -47,7 +55,8 @@ The flags' side is in [The flags module](flags.md#paid-time).
 - **`notices`**: what one Stripe event tells, in the shop's words (`Paid`, `TakenBack`, `Renewal`, `Ignored`), the
   `Reader` port, and the `Inbox` of event ids acted on (`shop.stripe_events`).
 - **`stripe_gateway`**: Stripe's API with stripe-go (`github.com/stripe/stripe-go/v87`, API version `2026-10-28.endive`),
-  dumb: the session, the stop, an invoice's intent, and the `Reader` of the webhook. `Off` answers `plans.ErrOff`.
+  dumb: the session, the stop, an invoice's intent, a refund, a cancel, and the `Reader` of the webhook. `Off` answers
+  `plans.ErrOff`.
 
 ## The page's calls
 

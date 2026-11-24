@@ -86,3 +86,27 @@ func (s *StoreContractSuite) TestAFlagsPaymentKeepsItsFlag() {
 	s.Require().NoError(err)
 	s.Equal(payment.TakeSnapshot(), kept.TakeSnapshot())
 }
+
+func (s *StoreContractSuite) TestThePaymentsForATargetAreFoundTheFirstPaidFirst() {
+	later := s.paid("in_2", "pi_2")
+	first, _, err := Pay(Charged{
+		ID: "cs_1", Order: TestOrder(buyer, plans.Week, paidAt.Add(-2*time.Hour)), Intent: "pi_1", Amount: 400,
+		Currency: "eur", At: paidAt.Add(-time.Hour),
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), first))
+	other, err := orders.ParseTarget("", "r-0000000001")
+	s.Require().NoError(err)
+	elsewhere, _, err := Pay(Charged{
+		ID: "cs_3", Order: orders.Snapshot{Buyer: buyer, Plan: plans.Week, Target: other, AgreedAt: paidAt},
+		Intent: "pi_3", Amount: 400, Currency: "eur", At: paidAt,
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), elsewhere))
+
+	kept, err := s.store.OfTarget(s.T().Context(), first.TakeSnapshot().Order.Target)
+	s.Require().NoError(err)
+	s.Require().Len(kept, 2)
+	s.Equal(first.TakeSnapshot(), kept[0].TakeSnapshot())
+	s.Equal(later.TakeSnapshot(), kept[1].TakeSnapshot())
+}

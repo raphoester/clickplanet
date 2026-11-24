@@ -22,9 +22,17 @@ var (
 
 func seeded(t *testing.T, state submissions.State, flag catalog.Flag) *get_payable_usecase.UseCase {
 	t.Helper()
+	return seededPaid(t, state, flag, false)
+}
+
+func seededPaid(t *testing.T, state submissions.State, flag catalog.Flag, paid bool) *get_payable_usecase.UseCase {
+	t.Helper()
 	kept, flags := submissions.NewMemoryStore(), catalog.NewMemoryStore()
 	row := submissions.TestWaiting(id, founder, now.Add(-time.Hour))
-	row.State, row.Held = state, state == submissions.Waiting
+	row.State, row.Held, row.Paid = state, state == submissions.Waiting || state == submissions.Rejected, paid
+	if state == submissions.Rejected {
+		row.Rejection = submissions.Rejection{Reason: submissions.Hateful}
+	}
 	if state == submissions.Opened {
 		row.Flag = flag.TakeSnapshot().ID
 		require.NoError(t, flags.Save(t.Context(), flag))
@@ -55,10 +63,18 @@ func TestAnotherAccountDoesNotPayForASubmission(t *testing.T) {
 	require.ErrorIs(t, err, submissions.ErrNotYours)
 }
 
-func TestNobodyPaysForASubmissionThatWaits(t *testing.T) {
-	useCase := seeded(t, submissions.Waiting, catalog.Flag{})
+func TestTheFounderPaysForASubmissionThatWaitsOnce(t *testing.T) {
+	require.NoError(t, seeded(t, submissions.Waiting, catalog.Flag{}).Execute(t.Context(),
+		get_payable_usecase.In{Account: founder.String(), Target: target(t, id.String(), "")}))
 
-	err := useCase.Execute(t.Context(),
+	err := seededPaid(t, submissions.Waiting, catalog.Flag{}, true).Execute(t.Context(),
+		get_payable_usecase.In{Account: founder.String(), Target: target(t, id.String(), "")})
+
+	require.ErrorIs(t, err, submissions.ErrPaidAlready)
+}
+
+func TestNobodyPaysForASubmissionRejected(t *testing.T) {
+	err := seeded(t, submissions.Rejected, catalog.Flag{}).Execute(t.Context(),
 		get_payable_usecase.In{Account: founder.String(), Target: target(t, id.String(), "")})
 
 	require.ErrorIs(t, err, submissions.ErrNotPayable)

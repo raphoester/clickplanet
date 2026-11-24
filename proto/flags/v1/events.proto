@@ -32,3 +32,15 @@ message FlagRenamed {
   string name = 2;
   google.protobuf.Timestamp renamed_at = 3;
 }
+
+// The operator approved a submission. One paid for while it waited opens its flag now, with the time paid.
+message SubmissionApproved {
+  string submission_id = 1;
+  google.protobuf.Timestamp approved_at = 2;
+}
+
+// The operator rejected a submission. The shop refunds what was paid for it.
+message SubmissionRejected {
+  string submission_id = 1;
+  google.protobuf.Timestamp rejected_at = 2;
+}

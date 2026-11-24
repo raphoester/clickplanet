@@ -162,14 +162,48 @@ func TestAPaymentPastTheThirtyDaysGrantsNothing(t *testing.T) {
 	assert.False(t, grant.Heard(), "nothing was granted")
 }
 
-func TestAWaitingSubmissionIsNotOpenedByAPayment(t *testing.T) {
+func TestAPaymentForASubmissionThatWaitsHoldsItsTimeAndOpensNothing(t *testing.T) {
 	f := newFixture()
 	f.submissions.Seed(submissions.TestWaiting(id, founder, now))
 
-	err := f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week))
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week)))
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week)))
+
+	assert.Empty(t, f.outbox.Recorded())
+	held, err := f.grants.Held(t.Context(), id)
+	require.NoError(t, err)
+	require.Len(t, held, 1, "told twice, held once")
+	assert.Equal(t, grants.Snapshot{ID: "stripe:cs_1", Held: true, Submission: id, Period: grants.Week, HeldAt: now},
+		held[0].TakeSnapshot())
+}
+
+func TestARefundBeforeTheReviewTakesTheHeldTimeBack(t *testing.T) {
+	f := newFixture()
+	f.submissions.Seed(submissions.TestWaiting(id, founder, now))
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week)))
+
+	require.NoError(t, f.takeBack.Execute(t.Context(), "stripe:cs_1"))
+
+	held, err := f.grants.Held(t.Context(), id)
+	require.NoError(t, err)
+	assert.Empty(t, held)
+	assert.Empty(t, f.outbox.Recorded())
+}
+
+func TestAPaymentForARejectedSubmissionGrantsNothing(t *testing.T) {
+	f := newFixture()
+	rejection, err := submissions.ParseRejection(submissions.NotAPlace, "")
+	require.NoError(t, err)
+	rejected := submissions.TestWaiting(id, founder, now)
+	rejected.State, rejected.Rejection = submissions.Rejected, rejection
+	f.submissions.Seed(rejected)
+
+	err = f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week))
 
 	require.ErrorIs(t, err, submissions.ErrNotApproved)
-	assert.Empty(t, f.outbox.Recorded())
+	grant, err := f.grants.Grant(t.Context(), "stripe:cs_1")
+	require.NoError(t, err)
+	assert.False(t, grant.Heard())
 }
 
 func TestARefundTakesBackThePaymentsTimeAndClosesTheFlagItOpened(t *testing.T) {

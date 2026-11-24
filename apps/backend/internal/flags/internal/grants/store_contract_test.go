@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 )
 
 func TestTheMemoryStoreKeepsTheContract(t *testing.T) {
 	suite.Run(t, &grants.StoreContractSuite{
-		NewStore: func() grants.Store { return grants.NewMemoryStore() },
-		Flag:     "r-0000000001",
+		NewStore:   func() grants.Store { return grants.NewMemoryStore() },
+		Flag:       "r-0000000001",
+		Submission: submissions.SubmissionID{9},
 	})
 }

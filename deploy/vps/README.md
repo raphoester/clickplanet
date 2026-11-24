@@ -1951,7 +1951,8 @@ the merchant of record): see the backend's [The shop](../../apps/backend/docs/sh
 3. **The terms on Stripe's page** (Settings, Checkout and Payment Links, Public details): terms of service
    `https://clickplanet.lol/sale`, privacy policy `https://clickplanet.lol/privacy`.
 4. **A restricted key** (Developers, API keys, Create restricted key), named `clickplanet-shop`: Checkout Sessions
-   **Write**, Subscriptions **Write**, Invoices **Read** (the shop lists an invoice's payments). If a call is refused for
+   **Write**, Subscriptions **Write**, Refunds **Write** (a rejected flag is refunded), Invoices **Read** (the shop lists
+   an invoice's payments). If a call is refused for
    a missing right, the backend's log names the resource: add it to the key.
 5. **The webhook endpoint** (Developers, Webhooks, Add destination): URL **`https://api.clickplanet.lol/stripe/webhook`**,
    API version **`2026-10-28.endive`** (stripe-go's: an event of another version is refused), and these events:
@@ -1984,8 +1985,10 @@ the merchant of record): see the backend's [The shop](../../apps/backend/docs/sh
 
    The amounts are what the page shows: they must be the prices' own.
 8. **Check it**: Stripe's "Send test event" to the endpoint answers `200` (an event the shop never sold is ignored), and
-   journald shows `Stripe event heard`. A first real payment, by the owner, of an approved flag of the owner's, then
-   its refund, shows the whole path (`time paid for granted`, then `time paid for taken back`).
+   journald shows `Stripe event heard`. A first real payment, by the owner, of a flag of the owner's as it sends it, then
+   its approval, shows the whole path (`time paid for granted` while it waits, then `FlagOpened`); a second flag sent,
+   paid and rejected shows the refund (`a rejected flag refunded`, then `time paid for taken back`). While the shop
+   sells, the backoffice lists a waiting flag only once it is paid for.
 
 **Caddy** routes `/stripe/*` to the admin listener with no CORS, as `/mailroom/*`; a request nobody signed is `400`.
 **The postgres pool**: the shop holds 1 connection, the antibot's second (section 13).

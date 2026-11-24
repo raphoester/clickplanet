@@ -40,11 +40,12 @@ const (
 
 // InternalServiceClient is a client for the flags.v1.InternalService service.
 type InternalServiceClient interface {
-	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, once approved
-	// (the first payment opens its flag) or opened (the time goes to its flag). A flag: the account whose submission
-	// opened it, while it is open or closed less than 30 days ago. NotFound for no such submission or flag;
-	// PermissionDenied for another account's; FailedPrecondition for a submission that waits or was rejected, and for a
-	// flag closed 30 days ago or more.
+	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, while it waits
+	// with no time paid (the time is held, and starts when it is approved), once approved (the payment opens its flag)
+	// or opened (the time goes to its flag). A flag: the account whose submission opened it, while it is open or closed
+	// less than 30 days ago. NotFound for no such submission or flag; PermissionDenied for another account's;
+	// FailedPrecondition for a submission that waits with time paid already or was rejected, and for a flag closed 30
+	// days ago or more.
 	GetPayable(context.Context, *connect.Request[v1.GetPayableRequest]) (*connect.Response[v1.GetPayableResponse], error)
 }
 
@@ -81,11 +82,12 @@ func (c *internalServiceClient) GetPayable(ctx context.Context, req *connect.Req
 
 // InternalServiceHandler is an implementation of the flags.v1.InternalService service.
 type InternalServiceHandler interface {
-	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, once approved
-	// (the first payment opens its flag) or opened (the time goes to its flag). A flag: the account whose submission
-	// opened it, while it is open or closed less than 30 days ago. NotFound for no such submission or flag;
-	// PermissionDenied for another account's; FailedPrecondition for a submission that waits or was rejected, and for a
-	// flag closed 30 days ago or more.
+	// Whether an account may buy time for this submission or flag now. A submission: its founder alone, while it waits
+	// with no time paid (the time is held, and starts when it is approved), once approved (the payment opens its flag)
+	// or opened (the time goes to its flag). A flag: the account whose submission opened it, while it is open or closed
+	// less than 30 days ago. NotFound for no such submission or flag; PermissionDenied for another account's;
+	// FailedPrecondition for a submission that waits with time paid already or was rejected, and for a flag closed 30
+	// days ago or more.
 	GetPayable(context.Context, *connect.Request[v1.GetPayableRequest]) (*connect.Response[v1.GetPayableResponse], error)
 }
 

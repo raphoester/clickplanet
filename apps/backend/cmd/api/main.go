@@ -100,9 +100,11 @@ func run(ctx context.Context) error {
 }
 
 func describeModules(config Config) []cpbootstrap.Module {
+	flagsConfig := config.Flags
+	flagsConfig.PaidReview = config.Shop.Sells()
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
-		flags.NewModule(config.Flags),
+		flags.NewModule(flagsConfig),
 		shop.NewModule(config.Shop),
 		planet.NewModule(config.Planet),
 		boxes.NewModule(config.Boxes),

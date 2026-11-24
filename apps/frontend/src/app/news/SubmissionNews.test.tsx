@@ -5,7 +5,7 @@ import {Decided} from "../../domain/flagSubmissions.ts"
 import SubmissionNews, {SUBMISSION_NEWS_MS} from "./SubmissionNews.tsx"
 
 const decided = (changes: Partial<Decided>): Decided => ({
-    id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, ...changes,
+    id: "s-1", name: "Bavaria", flag: "", state: "approved", submittedAt: 1, decidedAt: 2, paid: false, ...changes,
 })
 
 afterEach(() => {

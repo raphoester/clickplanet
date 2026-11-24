@@ -24,9 +24,9 @@ export type ShopModalProps = {
 
 type Head = {picture: ReactNode, name: string, line: ReactNode}
 
-const STEPS = ["shop.step.send", "shop.step.review", "shop.step.pay"] as const
+const STEPS = ["shop.step.send", "shop.step.pay", "shop.step.review"] as const
 
-// Where a new flag is on its way to the globe: sent, checked, paid.
+// Where a new flag is on its way to the globe: sent, paid, checked.
 function Steps({at}: {at: number}) {
     return <ol className="shop-steps">
         {STEPS.map((step, i) => <li key={step}
@@ -38,7 +38,20 @@ function Steps({at}: {at: number}) {
     </ol>
 }
 
-const STEP_AT: Partial<Record<ShopOffer["kind"], number>> = {new: 0, waiting: 1, open: 2}
+function stepOf(offer: ShopOffer): number | undefined {
+    switch (offer.kind) {
+        case "new":
+            return 0
+        case "pay":
+            return 1
+        case "checking":
+            return offer.submission.state === "waiting" ? 2 : STEPS.length
+        case "open":
+        case "addTime":
+        case "renewing":
+            return undefined
+    }
+}
 
 const GOLD_FLAG = <span className="shop-coin"><FlagIcon size={30}/></span>
 
@@ -46,8 +59,10 @@ function headOf(offer: ShopOffer): Head {
     switch (offer.kind) {
         case "new":
             return {picture: GOLD_FLAG, name: t("shop.flag.name"), line: t("shop.flag.pitch")}
+        case "pay":
+            return {picture: GOLD_FLAG, name: offer.submission.name, line: undefined}
         case "open":
-        case "waiting":
+        case "checking":
             return {
                 picture: offer.submission.picture ? <img src={offer.submission.picture.url} alt=""/> : GOLD_FLAG,
                 name: offer.submission.name,
@@ -64,7 +79,7 @@ function headOf(offer: ShopOffer): Head {
 }
 
 // What the game sells. Today the region's flag: the plans side by side, and the one step the account is at, from adding
-// its flag to paying for it.
+// its flag to paying for it; the flag form ends with the plans and Pay.
 export default function ShopModal({shop, toCheckout}: ShopModalProps) {
     const open = useScreen((screen) => screen.shopOpen)
     const setShopOpen = useScreen((screen) => screen.setShopOpen)
@@ -103,13 +118,16 @@ export default function ShopModal({shop, toCheckout}: ShopModalProps) {
                         {t("shop.flag.add")}
                     </button>
                 </>
-            case "waiting":
+            case "checking":
                 return <>
-                    <PlanCards plans={plans} picked={picked.plan} onPick={choose}/>
+                    <p className="shop-note" role="status">
+                        {offer.submission.state === "waiting" ? t("flagSubmission.status.paid") : t("flagSubmission.status.opening")}
+                    </p>
                     <button type="button" className="button button-secondary shop-go" aria-haspopup="dialog" onClick={toFlagPlace}>
                         {t("shop.flag.yours")}
                     </button>
                 </>
+            case "pay":
             case "open":
                 return <PlanOffer key={offer.submission.id}
                                   shop={shop}
@@ -144,7 +162,7 @@ export default function ShopModal({shop, toCheckout}: ShopModalProps) {
                     <span>{t(perk)}</span>
                 </li>)}
             </ul>}
-            {picked && STEP_AT[offer.kind] !== undefined && <Steps at={STEP_AT[offer.kind] ?? 0}/>}
+            {picked && stepOf(offer) !== undefined && <Steps at={stepOf(offer) ?? 0}/>}
             {body()}
         </section>
     </Modal>

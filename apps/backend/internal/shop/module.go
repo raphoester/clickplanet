@@ -27,6 +27,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/orders/usecases/create_checkout_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/postgres_payment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/pay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/refund_rejected_usecase/log_refund_rejected"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/payments/usecases/take_back_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/plans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/renewals/postgres_renewal_store"
@@ -41,6 +43,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/shopv1controller/stop_renewal_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripe_gateway"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/stripecontroller/receive_notice_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/subscribers/rejected_subscriber"
 )
 
 const moduleName = "shop"
@@ -66,6 +69,7 @@ type gateway interface {
 	create_checkout_usecase.Checkouts
 	stop_renewal_usecase.Subscriptions
 	pay_usecase.Intents
+	refund_rejected_usecase.Refunder
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
@@ -104,11 +108,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to connect the shop to redis: %w", err)
 	}
+	paid, renewed := postgres_payment_store.New(db), postgres_renewal_store.New(db)
+	// A flag rejected after it was paid for is refunded, and its renewal cancelled.
+	rejected, err := cpredis.Subscribe(ctx, streams, "shop-refund-rejected", rejected_subscriber.New(
+		log_refund_rejected.New(refund_rejected_usecase.New(paid, renewed, stripeAPI), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to flags.v1.SubmissionRejected: %w", err)
+	}
 	// Not a closer: closers run before the runners stop, and the relay uses the pool.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, rejected,
 		cpoutbox.NewRelay("shop-outbox", db, streams.Commands(), props.Logger))))
 
-	paid, renewed := postgres_payment_store.New(db), postgres_renewal_store.New(db)
 	if err := props.RPC.Mount(
 		func(options ...connect.HandlerOption) (string, http.Handler) {
 			return shopv1connect.NewShopServiceHandler(shopv1controller.ShopService{
@@ -154,8 +166,8 @@ type Config struct {
 
 // The shop is off with no key or no webhook secret: no plan is on sale and no Stripe event is read.
 type StripeConfig struct {
-	// A restricted key (rk_) or a secret key (sk_), with the rights the shop uses: Checkout Sessions and Subscriptions
-	// written, Invoices read.
+	// A restricted key (rk_) or a secret key (sk_), with the rights the shop uses: Checkout Sessions, Subscriptions and
+	// Refunds written, Invoices read.
 	SecretKey string
 	// The webhook endpoint's signing secret (whsec_).
 	WebhookSecret string
@@ -176,6 +188,11 @@ type PriceConfig struct {
 	// In the currency's smallest unit: 400 is 4.00 EUR.
 	Amount   uint32
 	Currency string
+}
+
+// Sells is true while the shop is on: a flag is then paid for before its review.
+func (c Config) Sells() bool {
+	return c.Stripe.on()
 }
 
 func (c StripeConfig) on() bool {

@@ -54,7 +54,9 @@ export default function FlagSubmissionPlace({account: store, submitter, shop, to
         </Modal>
     }
 
-    if (composing || (read && submissions.length === 0)) return <FlagSubmissionForm submitter={submitter}/>
+    if (composing || (read && submissions.length === 0)) {
+        return <FlagSubmissionForm submitter={submitter} shop={shop} toCheckout={toCheckout}/>
+    }
     if (!read) {
         return <Modal title={t("flagSubmission.yours")} onClose={close}>
             <p className="flag-status-line" role="status">{t("common.loading")}</p>

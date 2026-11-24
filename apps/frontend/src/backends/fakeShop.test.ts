@@ -83,6 +83,30 @@ describe("FakeShop", () => {
         expect(await shop.myRenewals()).toMatchObject([{plan: "month", target: {kind: "submission", id}, state: "renewing"}])
     })
 
+    it("holds the time of a flag paid as it is sent, opens it at its approval, and refunds it at its rejection", async () => {
+        const {shop, submissions, flags} = await setup()
+        const upload = () => submissions.uploadPicture(new Blob(["png"], {type: "image/png"}))
+        const sent = await submissions.submitFlag({name: "Bavaria", uploadId: await upload(), pin: PIN})
+
+        await shop.checkout({plan: "year", target: {kind: "submission", id: sent.id}, startsNow: true})
+        await vi.advanceTimersByTimeAsync(LANDS_MS)
+        expect(await submissions.mySubmissions()).toMatchObject([{state: "waiting", paid: true}])
+        expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "submission", id: sent.id}, startsNow: true}))).toBe("unavailable")
+        expect(await submissions.submitFlag({name: "Bayern", uploadId: await upload(), pin: PIN, replaces: sent.id})
+            .then(() => "sent", () => "refused")).toBe("refused")
+
+        await submissions.approve()
+        const [opened] = await submissions.mySubmissions()
+        expect(opened).toMatchObject({state: "opened", paid: false})
+        expect((await flags.listFlags()).find(({code}) => code === opened.flag)?.sold?.endsAt).toBeGreaterThan(Date.now() + 364 * DAY_MS)
+
+        const other = await submissions.submitFlag({name: "Saxony", uploadId: await upload(), pin: PIN})
+        await shop.checkout({plan: "week", target: {kind: "submission", id: other.id}, startsNow: true})
+        await vi.advanceTimersByTimeAsync(LANDS_MS)
+        submissions.reject("exists")
+        expect((await submissions.mySubmissions())[0]).toMatchObject({state: "rejected", paid: false})
+    })
+
     it("adds a week to a founded flag, and refuses more while its renewal runs", async () => {
         const {shop, submissions, flags} = await setup()
         const id = await approved(submissions)

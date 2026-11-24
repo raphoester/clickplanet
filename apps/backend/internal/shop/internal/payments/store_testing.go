@@ -3,8 +3,10 @@
 package payments
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -42,6 +44,29 @@ func (m *MemoryStore) OfIntent(_ context.Context, intent IntentID) (Payment, err
 		}
 	}
 	return Payment{}, fmt.Errorf("%s: %w", intent, ErrUnknownPayment)
+}
+
+func (m *MemoryStore) OfTarget(_ context.Context, target orders.Target) ([]Payment, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var rows []Snapshot
+	for _, row := range m.rows {
+		if row.Order.Target == target {
+			rows = append(rows, row)
+		}
+	}
+	slices.SortFunc(rows, func(a, b Snapshot) int {
+		return cmp.Or(a.PaidAt.Compare(b.PaidAt), cmp.Compare(a.ID, b.ID))
+	})
+	paid := make([]Payment, 0, len(rows))
+	for _, row := range rows {
+		payment, err := row.Restore()
+		if err != nil {
+			return nil, err
+		}
+		paid = append(paid, payment)
+	}
+	return paid, nil
 }
 
 func (m *MemoryStore) Save(_ context.Context, payment Payment) error {

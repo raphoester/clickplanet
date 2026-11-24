@@ -72,6 +72,24 @@ func (s *StoreContractSuite) TestARenewalStoppedKeepsItsState() {
 }
 
 // TestRenewing is a month the account bought for a submission, renewing until a time, as Stripe told it then.
+func (s *StoreContractSuite) TestTheRenewalsForATargetAreFound() {
+	first := s.told("sub_1", buyer, toldAt.AddDate(0, 1, 0))
+	second := s.told("sub_2", orders.AccountID{15: 2}, toldAt.AddDate(0, 2, 0))
+	other, err := orders.ParseTarget("", "r-0000000001")
+	s.Require().NoError(err)
+	elsewhere := TestRenewing("sub_3", buyer, toldAt.AddDate(0, 1, 0), toldAt)
+	elsewhere.Order.Target = other
+	renewal, err := elsewhere.Restore()
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), renewal))
+
+	kept, err := s.store.OfTarget(s.T().Context(), first.TakeSnapshot().Order.Target)
+	s.Require().NoError(err)
+	s.Require().Len(kept, 2)
+	s.Equal(first.TakeSnapshot(), kept[0].TakeSnapshot())
+	s.Equal(second.TakeSnapshot(), kept[1].TakeSnapshot())
+}
+
 func TestRenewing(id SubscriptionID, account orders.AccountID, ends, at time.Time) Snapshot {
 	target, err := orders.ParseTarget("00000000-0000-0000-0000-000000000001", "")
 	if err != nil {

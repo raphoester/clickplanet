@@ -16,7 +16,7 @@ import {
 import {FlagCatalog} from "./flags.ts"
 
 const submission = (id: string, changes: Partial<Submission> = {}): Submission => ({
-    id, name: "Bavaria", flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
+    id, name: "Bavaria", flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false, ...changes,
 })
 
 describe("a flag's name", () => {

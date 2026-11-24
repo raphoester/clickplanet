@@ -41,7 +41,8 @@ func (h GetPayableHandler) GetPayable(
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, submissions.ErrNotYours):
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	case errors.Is(err, submissions.ErrNotPayable), errors.Is(err, catalog.ErrTooLate):
+	case errors.Is(err, submissions.ErrNotPayable), errors.Is(err, submissions.ErrPaidAlready),
+		errors.Is(err, catalog.ErrTooLate):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.

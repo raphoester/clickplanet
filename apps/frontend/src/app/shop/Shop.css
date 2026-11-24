@@ -292,6 +292,13 @@
     width: 100%;
 }
 
+.shop-note {
+    margin: 0;
+    font-size: var(--text-m);
+    color: var(--text-soft);
+    text-align: center;
+}
+
 /* A new flag's way to the globe; gold up to where it is. */
 .shop-steps {
     display: grid;
