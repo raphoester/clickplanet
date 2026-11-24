@@ -5,7 +5,8 @@
 `DemoAdmin` (`src/demo/demoAdmin.ts`), a `FakeAdmin` with a hundred and twenty made-up players, a day and a half of
 chat with insults in it, a dozen reports, seven notes (new, replied to, answered, closed, and one with no address), four rule sets in each of planet, the offers, the quizzes and the antibot, three videos, four graffiti
 drawn from the vandal squad's test samples, a few of the game's own flags and five sold ones, Brittany among them (see
-[Flags](flags.md)), seven flag submissions (see [Flag submissions](flag-submissions.md)), the same on every load. It
+[Flags](flags.md)), seven flag submissions and a letter to a founder who replied (see [Flag submissions](flag-submissions.md)), the
+same on every load. It
 keeps what the operator does (a ban, a mute, a closed report, an answered note, a saved set, an uploaded video, a flag
 opened, a submission approved, rejected or opened, and each in the account's moderation
 history, beside a few actions Claude took) until the page reloads, and answers

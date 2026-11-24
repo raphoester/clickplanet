@@ -3,11 +3,13 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {Timestamp} from "@bufbuild/protobuf"
 import {timeOf} from "../components/time.ts"
 import {ACCOUNT, AT, FakeAdmin, soldFlag} from "../fakeAdmin.ts"
 import {learnFlags} from "../flags.ts"
 import {placeWords} from "../flags/pin.ts"
 import {Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Letter, LetterMail, NoteReply} from "../gen/grpc/support/v1/admin_pb.ts"
 import {patch} from "../graffiti/testPlaces.ts"
 import {placeAt, regionOf, roundedOf} from "./mapView.ts"
 import {Ground} from "./submissions.ts"
@@ -393,6 +395,74 @@ describe("the submissions inbox", () => {
         render(<Inbox admin={admin}/>)
 
         expect(await screen.findByText("No submission waits. All done.")).toBeTruthy()
+    })
+
+    it("writes to the founder: a new letter under its subject, asked first, then one more mail in it", async () => {
+        const admin = new FakeAdmin()
+        render(<Inbox admin={admin} first="sub-catalonia"/>)
+
+        const panel = within(await screen.findByRole("region", {name: "Write to BraveFox42"}))
+        expect((panel.getByLabelText(/^Subject/) as HTMLInputElement).value).toBe("Your flag Catalonia")
+        const send = () => panel.getAllByRole("button", {name: "Send"}).at(-1) as HTMLButtonElement
+        expect(send().disabled).toBe(true)
+        fireEvent.change(panel.getByLabelText("Text"), {target: {value: "Is it the Spanish region or all the lands?"}})
+        fireEvent.click(send())
+        expect(panel.getByRole("group", {name: "Send"}).textContent).toContain("Send this to BraveFox42's verified address?")
+        expect(admin.askedFor("writeLetter")).toEqual([])
+        fireEvent.click(panel.getByRole("button", {name: "Yes, send"}))
+
+        expect(await panel.findByText("Sent to ada@example.com.")).toBeTruthy()
+        const letter = within(panel.getByRole("article", {name: "Letter: Your flag Catalonia"}))
+        expect(letter.getByText("To ada@example.com")).toBeTruthy()
+        expect(letter.getByText("Is it the Spanish region or all the lands?")).toBeTruthy()
+
+        fireEvent.change(letter.getByLabelText("Write again"), {target: {value: "Thanks, approved."}})
+        fireEvent.click(letter.getByRole("button", {name: "Send"}))
+        expect(letter.getByRole("group", {name: "Send"}).textContent).toContain("Send this to ada@example.com?")
+        fireEvent.click(letter.getByRole("button", {name: "Yes, send"}))
+        expect(await letter.findByText("Thanks, approved.")).toBeTruthy()
+        expect(admin.askedFor("writeLetter")).toEqual([
+            {accountId: ACCOUNT, subject: "Your flag Catalonia", text: "Is it the Spanish region or all the lands?"},
+            {letterId: "letter-1", text: "Thanks, approved."},
+        ])
+    })
+
+    it("marks the submissions whose founder replied, lists them under Replies, and closes the letter", async () => {
+        const admin = new FakeAdmin()
+        const minute = (n: number) => Timestamp.fromDate(new Date(AT.getTime() + n * 60_000))
+        admin.letters = [new Letter({
+            id: "letter-7", accountId: ACCOUNT, address: "ada@example.com", subject: "Your flag Catalonia",
+            mails: [new LetterMail({text: "Which Catalonia?", sentAt: minute(-30)})],
+            replies: [new NoteReply({text: "the spanish one", from: "ada@example.com", receivedAt: minute(-10)})],
+        })]
+        render(<Inbox admin={admin}/>)
+
+        await screen.findByRole("list", {name: "The submissions"})
+        const row = await list().findByRole("button", {name: /Catalonia/})
+        expect(within(row).getByText("Replied")).toBeTruthy()
+        expect(list().getByRole("button", {name: /Lake Garda/}).textContent).not.toContain("Replied")
+        expect(admin.askedFor("listLetters")).toEqual([{openOnly: true, limit: 500}])
+        fireEvent.click(screen.getByRole("button", {name: "Replies (5)"}))
+        fireEvent.click(list().getByRole("button", {name: /Catalonia/}))
+
+        const letter = within(await screen.findByRole("article", {name: "Letter: Your flag Catalonia"}))
+        expect(letter.getByText("the spanish one")).toBeTruthy()
+        fireEvent.click(letter.getByRole("button", {name: "Close"}))
+        fireEvent.click(letter.getByRole("button", {name: "Yes, close"}))
+        expect(await letter.findByText("Closed with no further mail")).toBeTruthy()
+        expect(letter.queryByText("Replied")).toBeNull()
+        expect(await screen.findByRole("button", {name: "Replies (0)"})).toBeTruthy()
+        expect(admin.askedFor("closeLetter")).toEqual([{letterId: "letter-7"}])
+    })
+
+    it("says when a founder has no verified address to write to", async () => {
+        render(<Inbox admin={new FakeAdmin()} first="sub-beach"/>)
+
+        const panel = within(await screen.findByRole("region", {name: "Write to account…"}))
+        fireEvent.change(panel.getByLabelText("Text"), {target: {value: "Is this a flag?"}})
+        fireEvent.click(panel.getByRole("button", {name: "Send"}))
+        fireEvent.click(panel.getByRole("button", {name: "Yes, send"}))
+        expect(await panel.findByText("No mail can go: the player has no verified address, or the letter is over 90 days old.")).toBeTruthy()
     })
 
     it("says the map could not be drawn on a board the page does not carry, and shows the rest", async () => {

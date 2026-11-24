@@ -206,10 +206,16 @@ import {CountryTiles, Stats} from "./gen/grpc/progression/v1/progression_pb.ts"
 import {
     AnswerNoteRequest,
     AnswerNoteResponse,
+    CloseLetterRequest,
+    CloseLetterResponse,
     CloseNoteRequest,
     CloseNoteResponse,
     DecideReportRequest,
     DecideReportResponse,
+    Letter,
+    LetterMail,
+    ListLettersRequest,
+    ListLettersResponse,
     ListNotesRequest,
     ListNotesResponse,
     ListReportsRequest,
@@ -218,7 +224,10 @@ import {
     NoteAnswer,
     NoteKind,
     Report,
+    WriteLetterRequest,
+    WriteLetterResponse,
 } from "./gen/grpc/support/v1/admin_pb.ts"
+import {latestLettersFirst, waitsOf} from "./support/letters.ts"
 import {
     GetRulesRequest as MissionsGetRulesRequest,
     GetRulesResponse as MissionsGetRulesResponse,
@@ -411,6 +420,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)),
         }),
     ]
+
+    // What the operator wrote to players first: none yet. Only BraveFox42 holds a verified address.
+    letters: Letter[] = []
+    addresses = new Map([[ACCOUNT, "ada@example.com"]])
 
     reports = [new Report({id: "report-1", reporterAccountId: "account-reporter", reportedAccountId: "account-reported"})]
     // Four clicks of BraveFox42 (three taken, one struck), and a tile a guest's spread took back from France.
@@ -793,6 +806,55 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const answer = this.answer("closeNote", request, new CloseNoteResponse({closedAt}))
         if (!this.refusals.has("closeNote")) {
             this.notes = this.notes.map(note => note.id !== request.noteId ? note : new Note({...note, closedAt}))
+        }
+        return answer
+    }
+
+    // A new letter to the account's verified address, or one more mail in a letter, refused as the server refuses it.
+    writeLetter(request: PartialMessage<WriteLetterRequest>): Promise<WriteLetterResponse> {
+        const text = (request.text ?? "").trim()
+        const sentAt = Timestamp.fromDate(this.now())
+        const refused = (why: string, code: Code) => this.answer("writeLetter", request, undefined).then((): WriteLetterResponse => {
+            throw new ConnectError(why, code)
+        })
+        if (text === "" || [...text].length > 5000) return refused("a text of 1 to 5,000 characters", Code.InvalidArgument)
+        let letter: Letter
+        if ((request.letterId ?? "") !== "") {
+            const kept = this.letters.find(each => each.id === request.letterId)
+            if (kept === undefined) return refused("no such letter", Code.NotFound)
+            letter = new Letter({...kept, mails: [...kept.mails, new LetterMail({text, sentAt})]})
+        } else {
+            const address = this.addresses.get(request.accountId ?? "")
+            if (address === undefined) return refused("the account has no verified address", Code.FailedPrecondition)
+            const subject = (request.subject ?? "").trim()
+            if (subject === "" || [...subject].length > 200) return refused("a subject of 1 to 200 characters", Code.InvalidArgument)
+            letter = new Letter({
+                id: `letter-${this.letters.length + 1}`, accountId: request.accountId, address, subject,
+                mails: [new LetterMail({text, sentAt})],
+            })
+        }
+        const answer = this.answer("writeLetter", request, new WriteLetterResponse({letter}))
+        if (!this.refusals.has("writeLetter")) this.letters = [letter, ...this.letters.filter(each => each.id !== letter.id)]
+        return answer
+    }
+
+    listLetters(request: PartialMessage<ListLettersRequest>): Promise<ListLettersResponse> {
+        const letters = latestLettersFirst(this.letters.filter(letter =>
+            ((request.accountId ?? "") === "" || letter.accountId === request.accountId) && (request.openOnly !== true || waitsOf(letter))))
+        return this.answer("listLetters", request, new ListLettersResponse({letters: letters.slice(0, Math.min(request.limit || 100, 500))}))
+    }
+
+    closeLetter(request: PartialMessage<CloseLetterRequest>): Promise<CloseLetterResponse> {
+        const kept = this.letters.find(each => each.id === request.letterId)
+        if (kept === undefined) {
+            return this.answer("closeLetter", request, undefined).then((): CloseLetterResponse => {
+                throw new ConnectError("no such letter", Code.NotFound)
+            })
+        }
+        const closedAt = Timestamp.fromDate(this.now())
+        const answer = this.answer("closeLetter", request, new CloseLetterResponse({closedAt}))
+        if (!this.refusals.has("closeLetter")) {
+            this.letters = this.letters.map(letter => letter.id === kept.id ? new Letter({...letter, closedAt}) : letter)
         }
         return answer
     }

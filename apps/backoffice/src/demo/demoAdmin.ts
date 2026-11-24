@@ -87,6 +87,8 @@ import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
+    Letter,
+    LetterMail,
     ListReportsRequest,
     ListReportsResponse,
     Note,
@@ -387,6 +389,23 @@ export class DemoAdmin extends FakeAdmin {
             picture: new Picture({url: picture, width: 768, height: 512}),
             ...part,
         }))
+        // Every founder holds a verified address but Lake Garda's; Tyrol's replied to a letter the operator wrote.
+        const addressOfAccount = (accountId: string) =>
+            `${(this.accounts.find(account => account.id === accountId)?.name ?? "player").toLowerCase()}@example.com`
+        this.addresses = new Map(this.flags.submissions.filter(each => each.id !== "demo-sub-garda")
+            .map(each => [each.accountId, addressOfAccount(each.accountId)]))
+        const tyrol = this.flags.submissions.find(each => each.id === "demo-sub-tyrol")?.accountId ?? ""
+        this.letters = [new Letter({
+            id: "demo-letter-1", accountId: tyrol, address: addressOfAccount(tyrol), subject: "Your flag Tyrol",
+            mails: [new LetterMail({
+                text: "Hi! Tyrol was a sold flag already, closed in October. Do you mean the Austrian state alone, or the whole region with South Tyrol and Trentino?",
+                sentAt: at(NOW - 3 * HOUR),
+            })],
+            replies: [new NoteReply({
+                text: "the whole region!! south tyrol and trentino too, my grandparents are from bolzano",
+                from: addressOfAccount(tyrol), receivedAt: at(NOW - 40 * MINUTE),
+            })],
+        })]
         // The board the world plays since 2026-11-18: the submissions' capitals are drawn on it.
         this.territories = new GetTerritoriesResponse({...this.territories, board: "earth-2", tiles: 1004682})
         this.promo.backgrounds = DEMO_BACKGROUNDS

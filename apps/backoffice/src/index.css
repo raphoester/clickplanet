@@ -358,6 +358,10 @@ button:disabled {
     color: var(--idea);
 }
 
+.badge-replied {
+    color: var(--accent);
+}
+
 .badge-dismissed {
     color: var(--muted);
 }
@@ -2633,6 +2637,26 @@ a.button {
 .map-buttons .button-small {
     min-width: 32px;
     background: var(--surface);
+}
+
+.letters, .letter {
+    display: grid;
+    gap: 10px;
+}
+
+.letter {
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.letter-subject {
+    margin: 0;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+.letter > p {
+    margin: 0;
 }
 
 .capital-moved {

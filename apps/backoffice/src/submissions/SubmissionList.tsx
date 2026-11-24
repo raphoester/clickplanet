@@ -7,12 +7,15 @@ type Props = {
     submissions: KeptSubmission[]
     flags: Flag[]
     names: Map<string, string> | undefined
+    // The founders whose reply to a letter waits.
+    replied: ReadonlySet<string>
     opened: string
     onOpen: (submissionId: string) => void
 }
 
-// One row a submission: its picture small, its name, new or a change, who sent it, how long ago, and its verdict.
-export function SubmissionList({submissions, flags, names, opened, onOpen}: Props) {
+// One row a submission: its picture small, its name, new or a change, who sent it, how long ago, its verdict, and a
+// reply that waits.
+export function SubmissionList({submissions, flags, names, replied, opened, onOpen}: Props) {
     return (
         <ol className="rows" aria-label="The submissions">
             {submissions.map(submission => (
@@ -30,6 +33,7 @@ export function SubmissionList({submissions, flags, names, opened, onOpen}: Prop
                             <span className="row-head">
                                 <span className="name">{submission.name}</span>
                                 {looksLikePhoto(submission) && <span className="badge badge-report">Many colours</span>}
+                                {replied.has(submission.accountId) && <span className="badge badge-replied">Replied</span>}
                                 <span className="row-end"><Ago at={submission.submittedAt}/></span>
                             </span>
                             <span className="row-sub muted">

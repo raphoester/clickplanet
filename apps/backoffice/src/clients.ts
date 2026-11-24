@@ -43,7 +43,7 @@ export type GamemasterAdmin = PromiseClient<typeof GamemasterAdminService>
 export type MissionsAdmin = Pick<PromiseClient<typeof MissionsAdminService>, "getRules" | "saveRules">
 export type SupportAdmin = Pick<
     PromiseClient<typeof SupportAdminService>,
-    "listNotes" | "answerNote" | "closeNote" | "listReports" | "decideReport"
+    "listNotes" | "answerNote" | "closeNote" | "listReports" | "decideReport" | "writeLetter" | "listLetters" | "closeLetter"
 >
 
 // The videos the operator posts by hand.

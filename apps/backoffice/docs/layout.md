@@ -34,9 +34,11 @@ src/
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts, and
                     the board the ledger is on), heat.ts (the picture) and activity.ts; useWidth.ts (a chart's width as
                     it resizes)
-  support/          Ideas and bugs: NotesView (the inbox), NoteList, NoteDetail, AnswerPanel, Attachments, actions.ts
-                    (an answer and a close), notes.ts (a note's conversation and where it stands), labels.ts (names,
-                    outcomes, device lines, sizes)
+  support/          Ideas and bugs: NotesView (the inbox), NoteList, NoteDetail (and LineHead, a line's who and
+                    when), AnswerPanel, Attachments, actions.ts (an answer and a close), notes.ts (a note's
+                    conversation and where it stands), labels.ts (names, outcomes, device lines, sizes); the letters
+                    the operator writes first: LettersPanel (one player's letters, one more mail, a close, a new one)
+                    over letters.ts (a letter's thread, whether a reply waits, the calls and their refusals)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts; said.ts (what a message said,
                     in words)
@@ -66,7 +68,7 @@ src/
                     whole world once a board), SubmissionVerdict (Approve or Reject, at the capital moved),
                     OpenSubmittedPanel (an approved new flag opened), actions.ts (the calls and their refusals),
                     submissions.ts (the lists, the filters, the next one, the board's land and capitals, the capitals
-                    near one and the flags of the same name, the photo warning)
+                    near one and the flags of the same name, the photo warning, the founders who replied)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)
