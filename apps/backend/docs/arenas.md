@@ -175,7 +175,7 @@ the flags on a pin). A failed read of the pins refuses nothing: the open is aske
   past `charges.shield.perTile`). `default` holds `shields` 100. The capitals are the map's (`clicks.Capitals`, from
   `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital city, picked by the map generator (see
   [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for. **A flag with no
-  ground of its own** (England, Scotland, Wales, a sold flag) **gets a seat**, the land tile nearest its pin, with the
+  ground of its own** (a sold flag, England, Scotland and Wales among them) **gets a seat**, the land tile nearest its pin, with the
   same shields, kept with the map and played as its capital (see [The seats](capitals.md#the-seats)). No ledger event
   and no holder: no player took them. A one-tile province held whole settles locked to its holder, as at boot.
 - **A new pattern** is a message in `Seed`'s `oneof`, a type in `seeds` and one case in `seeds.Part`. The arena does not

@@ -36,9 +36,6 @@ make quiz
 # pre-push and CI run make check-flags, which fails while the copy differs
 make flags
 
-# Write the capitals of the flags of a region (England, Scotland, Wales) from Natural Earth: generated/flags/pins.json
-make flag-pins
-
 # Copy the chat moderation policy (../../docs/moderation.md) the judge sends to Claude, then commit it; pre-push and CI
 # run make check-moderation, which fails while the copy differs
 make moderation

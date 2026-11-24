@@ -287,8 +287,8 @@ export class Heartbeat extends Message<Heartbeat> {
  */
 export class Flag extends Message<Flag> {
   /**
-   * An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
-   * opened since.
+   * An ISO code for a flag the game ships with; r- and ten letters or digits for one opened since, or the code a flag
+   * kept when it left the build (xb, gb-eng, gb-sct, gb-wls).
    *
    * @generated from field: string code = 1;
    */

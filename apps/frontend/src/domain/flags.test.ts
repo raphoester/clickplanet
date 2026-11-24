@@ -13,10 +13,11 @@ describe("isOpenedCode", () => {
         expect(isOpenedCode("r-k3p9x2ma0bb")).toBe(false)
     })
 
-    it("is a flag's code the build does not ship, as Brittany's since it is sold", () => {
+    it("is a flag's code the build does not ship, as Brittany's and England's since they are sold", () => {
         expect(isOpenedCode("xb")).toBe(true)
+        expect(isOpenedCode("gb-eng")).toBe(true)
         expect(isOpenedCode("fr")).toBe(false)
-        expect(isOpenedCode("gb-eng")).toBe(false)
+        expect(isOpenedCode("gb")).toBe(false)
         expect(isOpenedCode("Rennes")).toBe(false)
         expect(isOpenedCode("")).toBe(false)
     })

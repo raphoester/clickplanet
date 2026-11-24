@@ -191,7 +191,7 @@ describe("one player", () => {
         expect(within(profile).getByText("1200")).toBeTruthy()
         expect(within(profile).getByText("3 days now, best 12 days")).toBeTruthy()
         expect(within(profile).getByText("France")).toBeTruthy()
-        expect(within(profile).getByText("Scotland")).toBeTruthy()
+        expect(within(profile).getByText("United Kingdom")).toBeTruthy()
         expect(screen.getByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
         expect(admin.askedFor("getPlayer")).toEqual([{accountId: ACCOUNT}])
         expect(admin.askedFor("getProgress")).toEqual([{accountId: ACCOUNT}])

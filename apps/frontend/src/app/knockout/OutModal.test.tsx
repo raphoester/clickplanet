@@ -4,12 +4,14 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Countries} from "../../domain/countries.ts"
 import {standingOf} from "../../domain/standing.ts"
+import {nameOpenedFlags} from "../../i18n/translator.ts"
 import CountryPicker from "../CountryPicker.tsx"
 import {useStanding} from "./standingStore.ts"
 import OutModal, {CONFIRM_ARM_MS} from "./OutModal.tsx"
 
 const france = Countries.get("fr")!
-const england = Countries.get("gb-eng")!
+// Sold since it left the build: no ground of its own, and no seat in an arena opened before it.
+const england = {code: "gb-eng"}
 
 // Paris fell; Berlin and Rome stand.
 const standing = standingOf(new Map([[1, "fr"], [2, "de"], [3, "it"]]), new Set(["fr"]))
@@ -98,11 +100,13 @@ describe("the out window", () => {
         expect(screen.queryByText(/change your flag again/)).toBeNull()
     })
 
-    it("tells a region flag's player that it has no capital", () => {
+    it("tells the player of a flag with no seat that it has no capital", () => {
+        nameOpenedFlags((code) => code === england.code ? "England" : undefined)
         useStanding.getState().follow(standing)
         render(<OutModal flag={england} onPick={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "England has no capital"})).toBeDefined()
+        nameOpenedFlags(() => undefined)
     })
 
     it("shows nothing while the knock-out does not play, or for a flag still in", () => {

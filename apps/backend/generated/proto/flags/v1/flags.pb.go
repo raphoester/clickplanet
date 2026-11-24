@@ -378,8 +378,8 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 
 type Flag struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// An ISO code, or gb-eng, gb-sct and gb-wls, for a flag the game ships with; r- and ten letters or digits for one
-	// opened since.
+	// An ISO code for a flag the game ships with; r- and ten letters or digits for one opened since, or the code a flag
+	// kept when it left the build (xb, gb-eng, gb-sct, gb-wls).
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// In English.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`

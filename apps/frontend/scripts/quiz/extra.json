@@ -7302,14 +7302,14 @@
     },
     {
       "id": "extra:gb-eng-magna-carta",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English king sealed the Magna Carta in 1215?",
       "answer": "John",
       "wrong": ["Richard I", "Henry II", "Henry III", "Edward I", "Stephen"]
     },
     {
       "id": "extra:gb-eng-hastings-harold",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which king of England died at the Battle of Hastings in 1066?",
       "answer": "Harold Godwinson",
       "wrong": [
@@ -7322,7 +7322,7 @@
     },
     {
       "id": "extra:gb-eng-domesday",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which great survey of England, ordered by William the Conqueror, was finished in 1086?",
       "answer": "Domesday Book",
       "wrong": [
@@ -7335,35 +7335,35 @@
     },
     {
       "id": "extra:gb-eng-alfred",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which king of Wessex, famed for fighting the Vikings, is called 'the Great'?",
       "answer": "Alfred",
       "wrong": ["Athelstan", "Egbert", "Edgar", "Edmund", "Ethelred"]
     },
     {
       "id": "extra:gb-eng-boudica",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which queen of the Iceni led a revolt against Roman rule around 60 AD?",
       "answer": "Boudica",
       "wrong": ["Cartimandua", "Æthelflæd", "Matilda", "Zenobia", "Eleanor"]
     },
     {
       "id": "extra:gb-eng-agincourt",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "At which 1415 battle did Henry V defeat the French?",
       "answer": "Agincourt",
       "wrong": ["Crécy", "Poitiers", "Castillon", "Bosworth", "Formigny"]
     },
     {
       "id": "extra:gb-eng-henry-viii-wives",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "How many wives did Henry VIII have?",
       "answer": "6",
       "wrong": ["3", "4", "5", "7", "8"]
     },
     {
       "id": "extra:gb-eng-church-of-england",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Henry VIII broke with the Pope and made himself head of which church?",
       "answer": "Church of England",
       "wrong": [
@@ -7376,14 +7376,14 @@
     },
     {
       "id": "extra:gb-eng-armada-queen",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English queen saw off the Spanish Armada in 1588?",
       "answer": "Elizabeth I",
       "wrong": ["Mary I", "Mary II", "Anne", "Victoria", "Mary, Queen of Scots"]
     },
     {
       "id": "extra:gb-eng-gunpowder-plot",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "In 1605, Guy Fawkes was caught trying to blow up what?",
       "answer": "House of Lords",
       "wrong": [
@@ -7396,42 +7396,42 @@
     },
     {
       "id": "extra:gb-eng-charles-i",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English king was beheaded in 1649?",
       "answer": "Charles I",
       "wrong": ["Charles II", "James II", "Henry VI", "Richard II", "Edward II"]
     },
     {
       "id": "extra:gb-eng-cromwell",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Who ruled England as Lord Protector from 1653 to 1658?",
       "answer": "Oliver Cromwell",
       "wrong": ["Thomas Fairfax", "John Pym", "Thomas Cromwell", "John Lambert", "John Hampden"]
     },
     {
       "id": "extra:gb-eng-great-fire-bakery",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "The Great Fire of London in 1666 began in a shop that made what?",
       "answer": "Bread",
       "wrong": ["Candles", "Beer", "Shoes", "Gunpowder", "Soap"]
     },
     {
       "id": "extra:gb-eng-wars-of-the-roses",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "The Wars of the Roses were fought between the houses of Lancaster and which?",
       "answer": "York",
       "wrong": ["Tudor", "Stuart", "Windsor", "Hanover", "Wessex"]
     },
     {
       "id": "extra:gb-eng-richard-iii-car-park",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "In 2012, the bones of which English king were found under a car park in Leicester?",
       "answer": "Richard III",
       "wrong": ["Henry VI", "Edward V", "Harold II", "Richard II", "Edward II"]
     },
     {
       "id": "extra:gb-eng-shakespeare-town",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "In which town was William Shakespeare born?",
       "answer": "Stratford-upon-Avon",
       "wrong": [
@@ -7444,28 +7444,28 @@
     },
     {
       "id": "extra:gb-eng-newton-cambridge",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Isaac Newton studied and taught at which university?",
       "answer": "Cambridge",
       "wrong": ["Oxford", "Edinburgh", "Durham", "London", "St Andrews"]
     },
     {
       "id": "extra:gb-eng-hurst-1966",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Who scored a hat-trick for England in the 1966 World Cup final?",
       "answer": "Geoff Hurst",
       "wrong": ["Bobby Charlton", "Bobby Moore", "Martin Peters", "Jimmy Greaves", "Roger Hunt"]
     },
     {
       "id": "extra:gb-eng-ashes",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "The Ashes is a cricket series between England and which country?",
       "answer": "Australia",
       "wrong": ["India", "South Africa", "New Zealand", "West Indies", "Pakistan"]
     },
     {
       "id": "extra:gb-eng-sherwood",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "The legendary outlaw Robin Hood is said to have lived in which forest?",
       "answer": "Sherwood Forest",
       "wrong": [
@@ -7478,35 +7478,35 @@
     },
     {
       "id": "extra:gb-eng-scafell-pike",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "England's highest mountain, Scafell Pike, is in which area?",
       "answer": "Lake District",
       "wrong": ["Peak District", "Yorkshire Dales", "Dartmoor", "Pennines", "Exmoor"]
     },
     {
       "id": "extra:gb-eng-york-jorvik",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English city was Eboracum to the Romans and Jorvik to the Vikings?",
       "answer": "York",
       "wrong": ["Lincoln", "Chester", "Bath", "London", "Winchester"]
     },
     {
       "id": "extra:gb-eng-becket",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Archbishop Thomas Becket was murdered in 1170 in which cathedral?",
       "answer": "Canterbury",
       "wrong": ["York", "Durham", "Salisbury", "Winchester", "Lincoln"]
     },
     {
       "id": "extra:gb-eng-lionheart",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English king, called 'the Lionheart', fought in the Third Crusade?",
       "answer": "Richard I",
       "wrong": ["Henry II", "John", "Edward I", "Henry V", "William II"]
     },
     {
       "id": "extra:gb-eng-austen",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Who wrote the novel 'Pride and Prejudice'?",
       "answer": "Jane Austen",
       "wrong": [
@@ -7519,7 +7519,7 @@
     },
     {
       "id": "extra:gb-eng-dickens",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English writer created Oliver Twist and Ebenezer Scrooge?",
       "answer": "Charles Dickens",
       "wrong": [
@@ -7532,56 +7532,56 @@
     },
     {
       "id": "extra:gb-eng-orwell",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which author wrote 'Animal Farm' and 'Nineteen Eighty-Four'?",
       "answer": "George Orwell",
       "wrong": ["Aldous Huxley", "H. G. Wells", "Ray Bradbury", "Evelyn Waugh", "Graham Greene"]
     },
     {
       "id": "extra:gb-eng-queen-band",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which London band released 'Bohemian Rhapsody' in 1975?",
       "answer": "Queen",
       "wrong": ["The Rolling Stones", "Led Zeppelin", "Pink Floyd", "The Who", "Deep Purple"]
     },
     {
       "id": "extra:gb-eng-rose",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which flower is the national flower of England?",
       "answer": "Rose",
       "wrong": ["Thistle", "Daffodil", "Shamrock", "Tulip", "Lily"]
     },
     {
       "id": "extra:gb-eng-cottonopolis",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "Which English city was nicknamed 'Cottonopolis' in the 1800s?",
       "answer": "Manchester",
       "wrong": ["Liverpool", "Leeds", "Birmingham", "Bradford", "Sheffield"]
     },
     {
       "id": "extra:gb-eng-platform-nine",
-      "subject": "gb-eng",
+      "subject": "gb",
       "text": "In Harry Potter, Platform 9¾ is at which London station?",
       "answer": "King's Cross",
       "wrong": ["Paddington", "Euston", "Waterloo", "Victoria", "St Pancras"]
     },
     {
       "id": "extra:gb-sct-bannockburn",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "At which 1314 battle did Robert the Bruce defeat the English?",
       "answer": "Bannockburn",
       "wrong": ["Stirling Bridge", "Falkirk", "Flodden", "Culloden", "Otterburn"]
     },
     {
       "id": "extra:gb-sct-wallace",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish hero won the Battle of Stirling Bridge in 1297?",
       "answer": "William Wallace",
       "wrong": ["Robert the Bruce", "Rob Roy", "James Douglas", "Kenneth MacAlpin", "Macbeth"]
     },
     {
       "id": "extra:gb-sct-culloden",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which side lost the Battle of Culloden in 1746?",
       "answer": "The Jacobites",
       "wrong": [
@@ -7594,14 +7594,14 @@
     },
     {
       "id": "extra:gb-sct-flora-macdonald",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Who helped Bonnie Prince Charlie escape after Culloden, dressed as her maid?",
       "answer": "Flora MacDonald",
       "wrong": ["Mary Somerville", "Grace Darling", "Mary Slessor", "Jenny Geddes", "Elsie Inglis"]
     },
     {
       "id": "extra:gb-sct-mary-executed",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish ruler was executed in England in 1587?",
       "answer": "Mary, Queen of Scots",
       "wrong": [
@@ -7614,21 +7614,21 @@
     },
     {
       "id": "extra:gb-sct-flodden",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish king was killed at the Battle of Flodden in 1513?",
       "answer": "James IV",
       "wrong": ["James III", "James V", "James II", "Robert III", "David II"]
     },
     {
       "id": "extra:gb-sct-macbeth",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Macbeth, the king in Shakespeare's play, really ruled which country?",
       "answer": "Scotland",
       "wrong": ["Ireland", "Denmark", "Norway", "England", "Wales"]
     },
     {
       "id": "extra:gb-sct-james-watt",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish engineer greatly improved the steam engine in the 1700s?",
       "answer": "James Watt",
       "wrong": [
@@ -7641,7 +7641,7 @@
     },
     {
       "id": "extra:gb-sct-logie-baird",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish inventor is famous for early television in the 1920s?",
       "answer": "John Logie Baird",
       "wrong": [
@@ -7654,7 +7654,7 @@
     },
     {
       "id": "extra:gb-sct-watson-watt",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish scientist led Britain's early work on radar in the 1930s?",
       "answer": "Robert Watson-Watt",
       "wrong": [
@@ -7667,14 +7667,14 @@
     },
     {
       "id": "extra:gb-sct-adam-smith",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish thinker wrote 'The Wealth of Nations' in 1776?",
       "answer": "Adam Smith",
       "wrong": ["David Hume", "John Locke", "Karl Marx", "David Ricardo", "John Stuart Mill"]
     },
     {
       "id": "extra:gb-sct-burns-night",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish poet is honoured each year with a supper on 25 January?",
       "answer": "Robert Burns",
       "wrong": [
@@ -7687,7 +7687,7 @@
     },
     {
       "id": "extra:gb-sct-stevenson",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish writer created 'Treasure Island' and 'Dr Jekyll and Mr Hyde'?",
       "answer": "Robert Louis Stevenson",
       "wrong": [
@@ -7700,7 +7700,7 @@
     },
     {
       "id": "extra:gb-sct-peter-pan",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish writer created Peter Pan?",
       "answer": "J. M. Barrie",
       "wrong": [
@@ -7713,28 +7713,28 @@
     },
     {
       "id": "extra:gb-sct-conan-doyle",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Arthur Conan Doyle, creator of Sherlock Holmes, was born in which city?",
       "answer": "Edinburgh",
       "wrong": ["Glasgow", "London", "Dublin", "Aberdeen", "Dundee"]
     },
     {
       "id": "extra:gb-sct-nessie",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "What nickname is given to the legendary monster of Loch Ness?",
       "answer": "Nessie",
       "wrong": ["Morag", "Champy", "Ogopogo", "Bessie", "Lochie"]
     },
     {
       "id": "extra:gb-sct-ben-nevis",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "What is the highest mountain in the British Isles?",
       "answer": "Ben Nevis",
       "wrong": ["Snowdon", "Scafell Pike", "Ben Macdui", "Carrauntoohil", "Ben Lomond"]
     },
     {
       "id": "extra:gb-sct-castle-rock",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Edinburgh Castle sits on the remains of what?",
       "answer": "An extinct volcano",
       "wrong": [
@@ -7747,35 +7747,35 @@
     },
     {
       "id": "extra:gb-sct-parliament-1999",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "In which year did a Scottish parliament meet again, after nearly 300 years?",
       "answer": "1999",
       "wrong": ["1979", "1997", "2001", "2014", "1989"]
     },
     {
       "id": "extra:gb-sct-alba",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "What is Scotland called in Scottish Gaelic?",
       "answer": "Alba",
       "wrong": ["Caledonia", "Éire", "Cymru", "Kernow", "Albion"]
     },
     {
       "id": "extra:gb-sct-caledonia",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "What Latin name did the Romans give to Scotland?",
       "answer": "Caledonia",
       "wrong": ["Hibernia", "Cambria", "Gallia", "Armorica", "Dumnonia"]
     },
     {
       "id": "extra:gb-sct-sporran",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "What is the pouch worn at the front of a kilt called?",
       "answer": "Sporran",
       "wrong": ["Sgian-dubh", "Tam o' shanter", "Plaid", "Brogue", "Glengarry"]
     },
     {
       "id": "extra:gb-sct-caber",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "In the Highland Games, what is the 'caber' that athletes toss?",
       "answer": "A tree trunk",
       "wrong": [
@@ -7788,7 +7788,7 @@
     },
     {
       "id": "extra:gb-sct-whisky-name",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "The word 'whisky' comes from Gaelic words meaning what?",
       "answer": "Water of life",
       "wrong": [
@@ -7801,56 +7801,56 @@
     },
     {
       "id": "extra:gb-sct-st-andrews-golf",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish town is known as the 'home of golf'?",
       "answer": "St Andrews",
       "wrong": ["Troon", "Carnoustie", "Gleneagles", "Musselburgh", "Turnberry"]
     },
     {
       "id": "extra:gb-sct-clyde",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which river flows through Glasgow?",
       "answer": "Clyde",
       "wrong": ["Tay", "Forth", "Dee", "Tweed", "Spey"]
     },
     {
       "id": "extra:gb-sct-orkney-norway",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Orkney and Shetland were Norse lands, held by which kingdom until the 1460s?",
       "answer": "Norway",
       "wrong": ["Sweden", "England", "Ireland", "Iceland", "France"]
     },
     {
       "id": "extra:gb-sct-dolly",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Dolly the sheep, cloned in 1996, was created in which country?",
       "answer": "Scotland",
       "wrong": ["England", "Wales", "Ireland", "New Zealand", "Netherlands"]
     },
     {
       "id": "extra:gb-sct-livingstone",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which Scottish explorer did Henry Stanley find in Africa in 1871?",
       "answer": "David Livingstone",
       "wrong": ["Mungo Park", "John Speke", "Richard Burton", "Samuel Baker", "James Bruce"]
     },
     {
       "id": "extra:gb-sct-clearances",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "In the Highland Clearances, families were driven off the land to make room for what?",
       "answer": "Sheep farms",
       "wrong": ["Cattle ranches", "Coal mines", "Railways", "Barley fields", "Army camps"]
     },
     {
       "id": "extra:gb-sct-glencoe",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "In the 1692 Massacre of Glencoe, soldiers killed members of which clan?",
       "answer": "MacDonald",
       "wrong": ["MacGregor", "Fraser", "Cameron", "Stewart", "MacLeod"]
     },
     {
       "id": "extra:gb-sct-arbroath",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "The 1320 Declaration of Arbroath was a letter sent to whom?",
       "answer": "Pope John XXII",
       "wrong": [
@@ -7863,21 +7863,21 @@
     },
     {
       "id": "extra:gb-sct-stone-of-destiny",
-      "subject": "gb-sct",
+      "subject": "gb",
       "text": "Which English king took Scotland's Stone of Destiny to London in 1296?",
       "answer": "Edward I",
       "wrong": ["Edward II", "Edward III", "Henry II", "Richard I", "Henry III"]
     },
     {
       "id": "extra:gb-wls-cymru",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "What is the Welsh name for Wales?",
       "answer": "Cymru",
       "wrong": ["Alba", "Éire", "Kernow", "Breizh", "Mannin"]
     },
     {
       "id": "extra:gb-wls-glyndwr",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which Welsh leader started a great revolt against English rule in 1400?",
       "answer": "Owain Glyndŵr",
       "wrong": [
@@ -7890,14 +7890,14 @@
     },
     {
       "id": "extra:gb-wls-edward-i-conquest",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which English king conquered Wales in the 1280s and built castles there?",
       "answer": "Edward I",
       "wrong": ["Henry II", "Edward III", "Richard I", "Henry III", "William I"]
     },
     {
       "id": "extra:gb-wls-caernarfon",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "In 1969, at which castle was Charles invested as Prince of Wales?",
       "answer": "Caernarfon Castle",
       "wrong": [
@@ -7910,70 +7910,70 @@
     },
     {
       "id": "extra:gb-wls-snowdon",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "What is the highest mountain in Wales?",
       "answer": "Snowdon",
       "wrong": ["Cadair Idris", "Pen y Fan", "Tryfan", "Plynlimon", "Moel Famau"]
     },
     {
       "id": "extra:gb-wls-long-name",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "The Welsh village with a 58-letter name is on which island?",
       "answer": "Anglesey",
       "wrong": ["Skomer", "Caldey", "Bardsey", "Ramsey Island", "Isle of Man"]
     },
     {
       "id": "extra:gb-wls-daffodil",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Besides the leek, which flower is a national emblem of Wales?",
       "answer": "Daffodil",
       "wrong": ["Thistle", "Rose", "Shamrock", "Bluebell", "Heather"]
     },
     {
       "id": "extra:gb-wls-st-david",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which saint is the patron saint of Wales?",
       "answer": "St David",
       "wrong": ["St Patrick", "St Andrew", "St George", "St Columba", "St Piran"]
     },
     {
       "id": "extra:gb-wls-coal",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "In the 1800s, the valleys of South Wales were world-famous for mining what?",
       "answer": "Coal",
       "wrong": ["Tin", "Salt", "Silver", "Gold", "Granite"]
     },
     {
       "id": "extra:gb-wls-dylan-thomas",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which Welsh poet wrote 'Do not go gentle into that good night'?",
       "answer": "Dylan Thomas",
       "wrong": ["R. S. Thomas", "Ted Hughes", "W. H. Auden", "Seamus Heaney", "John Betjeman"]
     },
     {
       "id": "extra:gb-wls-roald-dahl",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Roald Dahl, author of 'Matilda', was born in which country?",
       "answer": "Wales",
       "wrong": ["Norway", "England", "Scotland", "Denmark", "Ireland"]
     },
     {
       "id": "extra:gb-wls-rarebit",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Welsh rarebit is a dish of what on toast?",
       "answer": "Melted cheese",
       "wrong": ["Rabbit meat", "Baked beans", "Lamb stew", "Fried leeks", "Cockles"]
     },
     {
       "id": "extra:gb-wls-laverbread",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Welsh laverbread is made from what?",
       "answer": "Seaweed",
       "wrong": ["Oats", "Leeks", "Lamb's liver", "Cockles", "Barley"]
     },
     {
       "id": "extra:gb-wls-flag-colours",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "The red dragon on the Welsh flag stands on which two colours?",
       "answer": "White and green",
       "wrong": [
@@ -7986,49 +7986,49 @@
     },
     {
       "id": "extra:gb-wls-cardiff-1955",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "In which year was Cardiff made the capital of Wales?",
       "answer": "1955",
       "wrong": ["1905", "1922", "1945", "1969", "1999"]
     },
     {
       "id": "extra:gb-wls-patagonia",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "In 1865, Welsh settlers founded a colony in which country?",
       "answer": "Argentina",
       "wrong": ["Chile", "Australia", "Canada", "South Africa", "Brazil"]
     },
     {
       "id": "extra:gb-wls-henry-tudor",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which king, born at Pembroke Castle in Wales, founded the Tudor dynasty?",
       "answer": "Henry VII",
       "wrong": ["Henry VI", "Henry VIII", "Edward IV", "Richard III", "Edward VI"]
     },
     {
       "id": "extra:gb-wls-s4c",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which Welsh-language TV channel began broadcasting in 1982?",
       "answer": "S4C",
       "wrong": ["BBC Alba", "TG4", "Channel 4", "ITV Wales", "Sky One"]
     },
     {
       "id": "extra:gb-wls-shirley-bassey",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which Welsh singer sang three James Bond themes, including 'Goldfinger'?",
       "answer": "Shirley Bassey",
       "wrong": ["Tom Jones", "Bonnie Tyler", "Lulu", "Adele", "Dusty Springfield"]
     },
     {
       "id": "extra:gb-wls-rugby",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Which sport is often called the national sport of Wales?",
       "answer": "Rugby union",
       "wrong": ["Football", "Cricket", "Hurling", "Shinty", "Snooker"]
     },
     {
       "id": "extra:gb-wls-offas-dyke",
-      "subject": "gb-wls",
+      "subject": "gb",
       "text": "Offa's Dyke is an old earthwork near the border between England and which land?",
       "answer": "Wales",
       "wrong": ["Scotland", "Cornwall", "Mercia", "Northumbria", "Wessex"]

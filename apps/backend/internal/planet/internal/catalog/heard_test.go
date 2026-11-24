@@ -40,7 +40,7 @@ func TestAFlagClosedOrOpenedAgainKeepsItsPin(t *testing.T) {
 		heard.TakeSnapshot())
 }
 
-func TestTheFlagsOnAPinAreTheRegionsAndEveryFlagOpenWithAPin(t *testing.T) {
+func TestTheFlagsOnAPinAreEveryFlagOpenWithAPin(t *testing.T) {
 	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
 	for flag, pin := range map[string]clicks.Pin{"r-0000000002": quimper, brittanyCity: rennes, "r-0000000003": rennes} {
 		require.NoError(t, flags.Open(t.Context(), flag, opened))
@@ -53,9 +53,6 @@ func TestTheFlagsOnAPinAreTheRegionsAndEveryFlagOpenWithAPin(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []clicks.Pinned{
-		{Flag: "gb-eng", Pin: clicks.Pin{Latitude: 51.501941, Longitude: -0.118668}},
-		{Flag: "gb-sct", Pin: clicks.Pin{Latitude: 55.948328, Longitude: -3.219091}},
-		{Flag: "gb-wls", Pin: clicks.Pin{Latitude: 51.499995, Longitude: -3.225008}},
 		{Flag: "r-0000000002", Pin: quimper},
 		{Flag: brittanyCity, Pin: rennes},
 	}, pinned, "a closed flag sits nowhere, nor one with no pin heard yet")

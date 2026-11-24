@@ -4,8 +4,8 @@
 2026-11-10, the cut-off since 2026-11-19). All are off in `default`. Capital Siege plays all three on its fresh map, which starts with each capital (see
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
 (`clicks.Capitals`): each country's tile nearest its capital city, and on an arena's map the **seats** its seed gave the
-flags with no ground of their own, England, Scotland, Wales and every flag sold ([The seats](#the-seats), regional
-flags step 6, 2026-11-24). On the world's map those flags have no capital.
+flags with no ground of their own, the flags sold, England, Scotland and Wales among them ([The seats](#the-seats),
+regional flags step 6, 2026-11-24). On the world's map those flags have no capital.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
 (`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
@@ -17,9 +17,10 @@ storage only does the atomic work under its lock.
 (step 6 of the regional flags plan). Its seat is a capital in every rule: the knock-out, fixed shields, the cut-off, the
 standing and the crown.
 
-- **Which flags**: the ones a player may play when the arena opens and that stand on a pin (`catalog.Pinned`): the
-  regions the game ships with, England, Scotland and Wales, at their pins (`cpflags.Pins`, below), and every sold flag
-  heard open, at the pin heard last. A flag closed then has none, even under a lock.
+- **Which flags**: the ones a player may play when the arena opens and that stand on a pin (`catalog.Pinned`): every sold
+  flag heard open, at the pin heard last. A flag closed then has none, even under a lock. England, Scotland and Wales
+  shipped with the game, their pins in the build (`cpflags.Pins`), until they left it to be sold, the day after this
+  step (see [The flags module](flags.md#england-scotland-and-wales-from-the-build-to-the-sold-flags)).
 - **The seat** (`clicks.Ground.Seats`, a rule of the board): the land tile nearest the pin that is no capital and
   touches none. The flags sit one after the other, in the order of their codes, each seat counted as a capital for the
   flags after it, so two flags pinned on one city sit apart. A flag with a capital of its own gets none. Measured on

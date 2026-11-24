@@ -21,6 +21,7 @@ func TestAnOpenedCodeIsAFlagsCodeTheGameDoesNotShip(t *testing.T) {
 	assert.True(t, cpflags.IsOpenedCode("r-0000000001"))
 	assert.True(t, cpflags.IsOpenedCode("xb"), "Brittany, sold since it left the build")
 	assert.False(t, cpflags.IsOpenedCode("fr"))
-	assert.False(t, cpflags.IsOpenedCode("gb-eng"))
+	assert.True(t, cpflags.IsOpenedCode("gb-eng"), "England, sold since it left the build")
+	assert.False(t, cpflags.IsOpenedCode("gb"))
 	assert.False(t, cpflags.IsOpenedCode("Rennes"))
 }
