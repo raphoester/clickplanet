@@ -24,9 +24,9 @@ jobs:
     outputs:
       teasers: ${{ steps.due.outputs.teasers }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
@@ -49,7 +49,7 @@ jobs:
           echo "teasers=$teasers" >> "$GITHUB_OUTPUT"
 
       - if: steps.due.outputs.teasers != '[]'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: teasers
           path: teasers
@@ -74,9 +74,9 @@ jobs:
       run:
         working-directory: apps/frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -89,7 +89,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends ffmpeg
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: teasers
           path: apps/frontend/teasers
@@ -101,7 +101,7 @@ jobs:
           TEASER: ${{ matrix.teaser }}
         run: npm run teaser -- --teaser "teasers/$TEASER/teaser.json" --out "rendered/$TEASER"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: rendered-${{ matrix.teaser }}
           path: apps/frontend/rendered/${{ matrix.teaser }}
@@ -115,14 +115,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: rendered-*
           path: rendered

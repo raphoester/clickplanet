@@ -44,9 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
@@ -63,7 +63,7 @@ jobs:
           echo "id=$RUN" >> "$GITHUB_OUTPUT"
           echo "Findings of the clips run [$RUN]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$RUN)." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: findings
           run-id: ${{ steps.run.outputs.id }}
@@ -81,7 +81,7 @@ jobs:
           go run ./cmd/clips bench -findings "$GITHUB_WORKSPACE/findings.json" -out "$GITHUB_WORKSPACE/bench.json" \
             -stories "$STORIES" -tones "$TONES" -models "$MODELS" -day "$DAY" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bench-scripts
           path: bench.json
@@ -95,9 +95,9 @@ jobs:
       run:
         working-directory: apps/frontend/scripts/clip/voice
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -110,7 +110,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends ffmpeg
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: bench-scripts
           path: apps/frontend/scripts/clip/voice
@@ -127,7 +127,7 @@ jobs:
           sed -i 's/\.wav"/.mp3"/' bench/voices.json
           cp bench.json bench/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bench
           path: apps/frontend/scripts/clip/voice/bench
