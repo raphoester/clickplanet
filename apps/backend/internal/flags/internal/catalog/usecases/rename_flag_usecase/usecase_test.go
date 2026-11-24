@@ -56,7 +56,7 @@ func TestAFlagTakesNoNameAnotherFlagHas(t *testing.T) {
 
 	_, err := f.useCase.Execute(t.Context(), rename_flag_usecase.In{Flag: "r-0000000001", Name: "bavaria"})
 	require.ErrorIs(t, err, catalog.ErrNameTaken)
-	_, err = f.useCase.Execute(t.Context(), rename_flag_usecase.In{Flag: "r-0000000001", Name: "Brittany"})
+	_, err = f.useCase.Execute(t.Context(), rename_flag_usecase.In{Flag: "r-0000000001", Name: "Germany"})
 	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag the game ships with")
 	_, err = f.useCase.Execute(t.Context(), rename_flag_usecase.In{Flag: "r-0000000001", Name: "RENNES"})
 	require.NoError(t, err, "its own name in another case")

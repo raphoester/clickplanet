@@ -95,7 +95,7 @@ func TestAFlagIsNotOpenedUnderANameAnotherFlagHas(t *testing.T) {
 
 	_, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "BAVARIA", Upload: upload.String(), EndsAt: ends})
 	require.ErrorIs(t, err, catalog.ErrNameTaken)
-	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "brittany", Upload: upload.String(), EndsAt: ends})
+	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "germany", Upload: upload.String(), EndsAt: ends})
 	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag the game ships with")
 
 	assert.Equal(t, 1, f.bucket.Uploads(), "the operator may try again with another name")

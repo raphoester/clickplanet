@@ -825,7 +825,7 @@ export function playedFlag(flag: Flag): Flag {
 const GAME_FLAG_NAMES: readonly string[] = (() => {
     const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    const names = ["England", "Scotland", "Wales", "Brittany"]
+    const names = ["England", "Scotland", "Wales"]
     for (const first of letters) {
         for (const second of letters) {
             const name = regions.of(first + second)
