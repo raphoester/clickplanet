@@ -115,10 +115,14 @@ func Submit(
 	}.Restore()
 }
 
-// Approved makes the picture public: the bucket no longer holds it in private.
-func (s Submission) Approved(at time.Time) (Submission, error) {
+// Approved makes the picture public: the bucket no longer holds it in private. Two flags never share a name, so a name
+// another flag has is no flag to approve: a change keeps its own flag's.
+func (s Submission) Approved(names catalog.Names, at time.Time) (Submission, error) {
 	if s.state != Waiting {
 		return s, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrDecided)
+	}
+	if err := names.Free(s.name, s.flag); err != nil {
+		return s, err //nolint:wrapcheck // the names say which.
 	}
 	s.state, s.decidedAt, s.held = Approved, at, false
 	return s, nil
@@ -141,10 +145,14 @@ func (s Submission) Restyle(flag catalog.Flag, at time.Time) (catalog.Flag, prot
 	return restyled, fact, nil
 }
 
-// Open opens the flag of an approved new submission, at its pin, with its name and picture.
-func (s Submission) Open(opening catalog.Opening, endsAt time.Time) (Submission, catalog.Flag, error) {
+// Open opens the flag of an approved new submission, at its pin, with its name and picture, unless a flag took its
+// name since.
+func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt time.Time) (Submission, catalog.Flag, error) {
 	if s.kind != New || s.state != Approved {
 		return s, catalog.Flag{}, fmt.Errorf("%s is a %s submission %s: %w", s.id, s.kind, s.state, ErrNotApproved)
+	}
+	if err := names.Free(s.name, ""); err != nil {
+		return s, catalog.Flag{}, err //nolint:wrapcheck // the names say which.
 	}
 	flag, err := opening.Open(s.name, s.picture, s.pin, endsAt)
 	if err != nil {

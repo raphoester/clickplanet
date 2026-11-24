@@ -354,6 +354,88 @@ export class CloseFlagResponse extends Message<CloseFlagResponse> {
 }
 
 /**
+ * @generated from message flags.v1.RenameFlagRequest
+ */
+export class RenameFlagRequest extends Message<RenameFlagRequest> {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  /**
+   * 1 to 40 characters, in English.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<RenameFlagRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.RenameFlagRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenameFlagRequest {
+    return new RenameFlagRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RenameFlagRequest {
+    return new RenameFlagRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RenameFlagRequest {
+    return new RenameFlagRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RenameFlagRequest | PlainMessage<RenameFlagRequest> | undefined, b: RenameFlagRequest | PlainMessage<RenameFlagRequest> | undefined): boolean {
+    return proto3.util.equals(RenameFlagRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.RenameFlagResponse
+ */
+export class RenameFlagResponse extends Message<RenameFlagResponse> {
+  /**
+   * @generated from field: flags.v1.Flag flag = 1;
+   */
+  flag?: Flag;
+
+  constructor(data?: PartialMessage<RenameFlagResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.RenameFlagResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "message", T: Flag },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenameFlagResponse {
+    return new RenameFlagResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RenameFlagResponse {
+    return new RenameFlagResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RenameFlagResponse {
+    return new RenameFlagResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RenameFlagResponse | PlainMessage<RenameFlagResponse> | undefined, b: RenameFlagResponse | PlainMessage<RenameFlagResponse> | undefined): boolean {
+    return proto3.util.equals(RenameFlagResponse, a, b);
+  }
+}
+
+/**
  * @generated from message flags.v1.ListSubmissionsRequest
  */
 export class ListSubmissionsRequest extends Message<ListSubmissionsRequest> {

@@ -429,6 +429,103 @@ func (x *CloseFlagResponse) GetFlag() *Flag {
 	return nil
 }
 
+type RenameFlagRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// 1 to 40 characters, in English.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFlagRequest) Reset() {
+	*x = RenameFlagRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFlagRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFlagRequest) ProtoMessage() {}
+
+func (x *RenameFlagRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFlagRequest.ProtoReflect.Descriptor instead.
+func (*RenameFlagRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RenameFlagRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *RenameFlagRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RenameFlagResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          *Flag                  `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFlagResponse) Reset() {
+	*x = RenameFlagResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFlagResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFlagResponse) ProtoMessage() {}
+
+func (x *RenameFlagResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFlagResponse.ProtoReflect.Descriptor instead.
+func (*RenameFlagResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RenameFlagResponse) GetFlag() *Flag {
+	if x != nil {
+		return x.Flag
+	}
+	return nil
+}
+
 type ListSubmissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -437,7 +534,7 @@ type ListSubmissionsRequest struct {
 
 func (x *ListSubmissionsRequest) Reset() {
 	*x = ListSubmissionsRequest{}
-	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	mi := &file_flags_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -449,7 +546,7 @@ func (x *ListSubmissionsRequest) String() string {
 func (*ListSubmissionsRequest) ProtoMessage() {}
 
 func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	mi := &file_flags_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -462,7 +559,7 @@ func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsRequest) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 type ListSubmissionsResponse struct {
@@ -474,7 +571,7 @@ type ListSubmissionsResponse struct {
 
 func (x *ListSubmissionsResponse) Reset() {
 	*x = ListSubmissionsResponse{}
-	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	mi := &file_flags_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +583,7 @@ func (x *ListSubmissionsResponse) String() string {
 func (*ListSubmissionsResponse) ProtoMessage() {}
 
 func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	mi := &file_flags_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +596,7 @@ func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsResponse.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsResponse) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListSubmissionsResponse) GetSubmissions() []*KeptSubmission {
@@ -539,7 +636,7 @@ type KeptSubmission struct {
 
 func (x *KeptSubmission) Reset() {
 	*x = KeptSubmission{}
-	mi := &file_flags_v1_admin_proto_msgTypes[10]
+	mi := &file_flags_v1_admin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +648,7 @@ func (x *KeptSubmission) String() string {
 func (*KeptSubmission) ProtoMessage() {}
 
 func (x *KeptSubmission) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[10]
+	mi := &file_flags_v1_admin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +661,7 @@ func (x *KeptSubmission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeptSubmission.ProtoReflect.Descriptor instead.
 func (*KeptSubmission) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{10}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *KeptSubmission) GetId() string {
@@ -660,7 +757,7 @@ type ApproveSubmissionRequest struct {
 
 func (x *ApproveSubmissionRequest) Reset() {
 	*x = ApproveSubmissionRequest{}
-	mi := &file_flags_v1_admin_proto_msgTypes[11]
+	mi := &file_flags_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -672,7 +769,7 @@ func (x *ApproveSubmissionRequest) String() string {
 func (*ApproveSubmissionRequest) ProtoMessage() {}
 
 func (x *ApproveSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[11]
+	mi := &file_flags_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -685,7 +782,7 @@ func (x *ApproveSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*ApproveSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{11}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ApproveSubmissionRequest) GetSubmissionId() string {
@@ -704,7 +801,7 @@ type ApproveSubmissionResponse struct {
 
 func (x *ApproveSubmissionResponse) Reset() {
 	*x = ApproveSubmissionResponse{}
-	mi := &file_flags_v1_admin_proto_msgTypes[12]
+	mi := &file_flags_v1_admin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -716,7 +813,7 @@ func (x *ApproveSubmissionResponse) String() string {
 func (*ApproveSubmissionResponse) ProtoMessage() {}
 
 func (x *ApproveSubmissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[12]
+	mi := &file_flags_v1_admin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -729,7 +826,7 @@ func (x *ApproveSubmissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveSubmissionResponse.ProtoReflect.Descriptor instead.
 func (*ApproveSubmissionResponse) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{12}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApproveSubmissionResponse) GetSubmission() *KeptSubmission {
@@ -749,7 +846,7 @@ type RejectSubmissionRequest struct {
 
 func (x *RejectSubmissionRequest) Reset() {
 	*x = RejectSubmissionRequest{}
-	mi := &file_flags_v1_admin_proto_msgTypes[13]
+	mi := &file_flags_v1_admin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -761,7 +858,7 @@ func (x *RejectSubmissionRequest) String() string {
 func (*RejectSubmissionRequest) ProtoMessage() {}
 
 func (x *RejectSubmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[13]
+	mi := &file_flags_v1_admin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -774,7 +871,7 @@ func (x *RejectSubmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectSubmissionRequest.ProtoReflect.Descriptor instead.
 func (*RejectSubmissionRequest) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{13}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RejectSubmissionRequest) GetSubmissionId() string {
@@ -800,7 +897,7 @@ type RejectSubmissionResponse struct {
 
 func (x *RejectSubmissionResponse) Reset() {
 	*x = RejectSubmissionResponse{}
-	mi := &file_flags_v1_admin_proto_msgTypes[14]
+	mi := &file_flags_v1_admin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -812,7 +909,7 @@ func (x *RejectSubmissionResponse) String() string {
 func (*RejectSubmissionResponse) ProtoMessage() {}
 
 func (x *RejectSubmissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[14]
+	mi := &file_flags_v1_admin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -825,7 +922,7 @@ func (x *RejectSubmissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectSubmissionResponse.ProtoReflect.Descriptor instead.
 func (*RejectSubmissionResponse) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{14}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RejectSubmissionResponse) GetSubmission() *KeptSubmission {
@@ -846,7 +943,7 @@ type OpenSubmittedFlagRequest struct {
 
 func (x *OpenSubmittedFlagRequest) Reset() {
 	*x = OpenSubmittedFlagRequest{}
-	mi := &file_flags_v1_admin_proto_msgTypes[15]
+	mi := &file_flags_v1_admin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +955,7 @@ func (x *OpenSubmittedFlagRequest) String() string {
 func (*OpenSubmittedFlagRequest) ProtoMessage() {}
 
 func (x *OpenSubmittedFlagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[15]
+	mi := &file_flags_v1_admin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +968,7 @@ func (x *OpenSubmittedFlagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenSubmittedFlagRequest.ProtoReflect.Descriptor instead.
 func (*OpenSubmittedFlagRequest) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{15}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *OpenSubmittedFlagRequest) GetSubmissionId() string {
@@ -897,7 +994,7 @@ type OpenSubmittedFlagResponse struct {
 
 func (x *OpenSubmittedFlagResponse) Reset() {
 	*x = OpenSubmittedFlagResponse{}
-	mi := &file_flags_v1_admin_proto_msgTypes[16]
+	mi := &file_flags_v1_admin_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -909,7 +1006,7 @@ func (x *OpenSubmittedFlagResponse) String() string {
 func (*OpenSubmittedFlagResponse) ProtoMessage() {}
 
 func (x *OpenSubmittedFlagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_admin_proto_msgTypes[16]
+	mi := &file_flags_v1_admin_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -922,7 +1019,7 @@ func (x *OpenSubmittedFlagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenSubmittedFlagResponse.ProtoReflect.Descriptor instead.
 func (*OpenSubmittedFlagResponse) Descriptor() ([]byte, []int) {
-	return file_flags_v1_admin_proto_rawDescGZIP(), []int{16}
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *OpenSubmittedFlagResponse) GetFlag() *Flag {
@@ -960,6 +1057,11 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\x10CloseFlagRequest\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\"7\n" +
 	"\x11CloseFlagResponse\x12\"\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\";\n" +
+	"\x11RenameFlagRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"8\n" +
+	"\x12RenameFlagResponse\x12\"\n" +
 	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"\x18\n" +
 	"\x16ListSubmissionsRequest\"U\n" +
 	"\x17ListSubmissionsResponse\x12:\n" +
@@ -997,13 +1099,15 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x123\n" +
 	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"?\n" +
 	"\x19OpenSubmittedFlagResponse\x12\"\n" +
-	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag2\xf1\x05\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag2\xba\x06\n" +
 	"\fAdminService\x12I\n" +
 	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\x10CreateFlagUpload\x12!.flags.v1.CreateFlagUploadRequest\x1a\".flags.v1.CreateFlagUploadResponse\x12A\n" +
 	"\bOpenFlag\x12\x19.flags.v1.OpenFlagRequest\x1a\x1a.flags.v1.OpenFlagResponse\x12>\n" +
 	"\aAddTime\x12\x18.flags.v1.AddTimeRequest\x1a\x19.flags.v1.AddTimeResponse\x12D\n" +
-	"\tCloseFlag\x12\x1a.flags.v1.CloseFlagRequest\x1a\x1b.flags.v1.CloseFlagResponse\x12[\n" +
+	"\tCloseFlag\x12\x1a.flags.v1.CloseFlagRequest\x1a\x1b.flags.v1.CloseFlagResponse\x12G\n" +
+	"\n" +
+	"RenameFlag\x12\x1b.flags.v1.RenameFlagRequest\x1a\x1c.flags.v1.RenameFlagResponse\x12[\n" +
 	"\x0fListSubmissions\x12 .flags.v1.ListSubmissionsRequest\x1a!.flags.v1.ListSubmissionsResponse\"\x03\x90\x02\x01\x12\\\n" +
 	"\x11ApproveSubmission\x12\".flags.v1.ApproveSubmissionRequest\x1a#.flags.v1.ApproveSubmissionResponse\x12Y\n" +
 	"\x10RejectSubmission\x12!.flags.v1.RejectSubmissionRequest\x1a\".flags.v1.RejectSubmissionResponse\x12\\\n" +
@@ -1023,7 +1127,7 @@ func file_flags_v1_admin_proto_rawDescGZIP() []byte {
 	return file_flags_v1_admin_proto_rawDescData
 }
 
-var file_flags_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_flags_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_flags_v1_admin_proto_goTypes = []any{
 	(*CreateFlagUploadRequest)(nil),   // 0: flags.v1.CreateFlagUploadRequest
 	(*CreateFlagUploadResponse)(nil),  // 1: flags.v1.CreateFlagUploadResponse
@@ -1033,65 +1137,70 @@ var file_flags_v1_admin_proto_goTypes = []any{
 	(*AddTimeResponse)(nil),           // 5: flags.v1.AddTimeResponse
 	(*CloseFlagRequest)(nil),          // 6: flags.v1.CloseFlagRequest
 	(*CloseFlagResponse)(nil),         // 7: flags.v1.CloseFlagResponse
-	(*ListSubmissionsRequest)(nil),    // 8: flags.v1.ListSubmissionsRequest
-	(*ListSubmissionsResponse)(nil),   // 9: flags.v1.ListSubmissionsResponse
-	(*KeptSubmission)(nil),            // 10: flags.v1.KeptSubmission
-	(*ApproveSubmissionRequest)(nil),  // 11: flags.v1.ApproveSubmissionRequest
-	(*ApproveSubmissionResponse)(nil), // 12: flags.v1.ApproveSubmissionResponse
-	(*RejectSubmissionRequest)(nil),   // 13: flags.v1.RejectSubmissionRequest
-	(*RejectSubmissionResponse)(nil),  // 14: flags.v1.RejectSubmissionResponse
-	(*OpenSubmittedFlagRequest)(nil),  // 15: flags.v1.OpenSubmittedFlagRequest
-	(*OpenSubmittedFlagResponse)(nil), // 16: flags.v1.OpenSubmittedFlagResponse
-	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
-	(*Pin)(nil),                       // 18: flags.v1.Pin
-	(*Flag)(nil),                      // 19: flags.v1.Flag
-	(SubmissionState)(0),              // 20: flags.v1.SubmissionState
-	(*Rejection)(nil),                 // 21: flags.v1.Rejection
-	(*Picture)(nil),                   // 22: flags.v1.Picture
-	(*ListFlagsRequest)(nil),          // 23: flags.v1.ListFlagsRequest
-	(*ListFlagsResponse)(nil),         // 24: flags.v1.ListFlagsResponse
+	(*RenameFlagRequest)(nil),         // 8: flags.v1.RenameFlagRequest
+	(*RenameFlagResponse)(nil),        // 9: flags.v1.RenameFlagResponse
+	(*ListSubmissionsRequest)(nil),    // 10: flags.v1.ListSubmissionsRequest
+	(*ListSubmissionsResponse)(nil),   // 11: flags.v1.ListSubmissionsResponse
+	(*KeptSubmission)(nil),            // 12: flags.v1.KeptSubmission
+	(*ApproveSubmissionRequest)(nil),  // 13: flags.v1.ApproveSubmissionRequest
+	(*ApproveSubmissionResponse)(nil), // 14: flags.v1.ApproveSubmissionResponse
+	(*RejectSubmissionRequest)(nil),   // 15: flags.v1.RejectSubmissionRequest
+	(*RejectSubmissionResponse)(nil),  // 16: flags.v1.RejectSubmissionResponse
+	(*OpenSubmittedFlagRequest)(nil),  // 17: flags.v1.OpenSubmittedFlagRequest
+	(*OpenSubmittedFlagResponse)(nil), // 18: flags.v1.OpenSubmittedFlagResponse
+	(*timestamppb.Timestamp)(nil),     // 19: google.protobuf.Timestamp
+	(*Pin)(nil),                       // 20: flags.v1.Pin
+	(*Flag)(nil),                      // 21: flags.v1.Flag
+	(SubmissionState)(0),              // 22: flags.v1.SubmissionState
+	(*Rejection)(nil),                 // 23: flags.v1.Rejection
+	(*Picture)(nil),                   // 24: flags.v1.Picture
+	(*ListFlagsRequest)(nil),          // 25: flags.v1.ListFlagsRequest
+	(*ListFlagsResponse)(nil),         // 26: flags.v1.ListFlagsResponse
 }
 var file_flags_v1_admin_proto_depIdxs = []int32{
-	17, // 0: flags.v1.OpenFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
-	18, // 1: flags.v1.OpenFlagRequest.pin:type_name -> flags.v1.Pin
-	19, // 2: flags.v1.OpenFlagResponse.flag:type_name -> flags.v1.Flag
-	19, // 3: flags.v1.AddTimeResponse.flag:type_name -> flags.v1.Flag
-	19, // 4: flags.v1.CloseFlagResponse.flag:type_name -> flags.v1.Flag
-	10, // 5: flags.v1.ListSubmissionsResponse.submissions:type_name -> flags.v1.KeptSubmission
-	18, // 6: flags.v1.KeptSubmission.pin:type_name -> flags.v1.Pin
-	20, // 7: flags.v1.KeptSubmission.state:type_name -> flags.v1.SubmissionState
-	17, // 8: flags.v1.KeptSubmission.submitted_at:type_name -> google.protobuf.Timestamp
-	17, // 9: flags.v1.KeptSubmission.decided_at:type_name -> google.protobuf.Timestamp
-	21, // 10: flags.v1.KeptSubmission.rejection:type_name -> flags.v1.Rejection
-	22, // 11: flags.v1.KeptSubmission.picture:type_name -> flags.v1.Picture
-	10, // 12: flags.v1.ApproveSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
-	21, // 13: flags.v1.RejectSubmissionRequest.rejection:type_name -> flags.v1.Rejection
-	10, // 14: flags.v1.RejectSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
-	17, // 15: flags.v1.OpenSubmittedFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
-	19, // 16: flags.v1.OpenSubmittedFlagResponse.flag:type_name -> flags.v1.Flag
-	23, // 17: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	0,  // 18: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
-	2,  // 19: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
-	4,  // 20: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
-	6,  // 21: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
-	8,  // 22: flags.v1.AdminService.ListSubmissions:input_type -> flags.v1.ListSubmissionsRequest
-	11, // 23: flags.v1.AdminService.ApproveSubmission:input_type -> flags.v1.ApproveSubmissionRequest
-	13, // 24: flags.v1.AdminService.RejectSubmission:input_type -> flags.v1.RejectSubmissionRequest
-	15, // 25: flags.v1.AdminService.OpenSubmittedFlag:input_type -> flags.v1.OpenSubmittedFlagRequest
-	24, // 26: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	1,  // 27: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
-	3,  // 28: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
-	5,  // 29: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
-	7,  // 30: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
-	9,  // 31: flags.v1.AdminService.ListSubmissions:output_type -> flags.v1.ListSubmissionsResponse
-	12, // 32: flags.v1.AdminService.ApproveSubmission:output_type -> flags.v1.ApproveSubmissionResponse
-	14, // 33: flags.v1.AdminService.RejectSubmission:output_type -> flags.v1.RejectSubmissionResponse
-	16, // 34: flags.v1.AdminService.OpenSubmittedFlag:output_type -> flags.v1.OpenSubmittedFlagResponse
-	26, // [26:35] is the sub-list for method output_type
-	17, // [17:26] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	19, // 0: flags.v1.OpenFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
+	20, // 1: flags.v1.OpenFlagRequest.pin:type_name -> flags.v1.Pin
+	21, // 2: flags.v1.OpenFlagResponse.flag:type_name -> flags.v1.Flag
+	21, // 3: flags.v1.AddTimeResponse.flag:type_name -> flags.v1.Flag
+	21, // 4: flags.v1.CloseFlagResponse.flag:type_name -> flags.v1.Flag
+	21, // 5: flags.v1.RenameFlagResponse.flag:type_name -> flags.v1.Flag
+	12, // 6: flags.v1.ListSubmissionsResponse.submissions:type_name -> flags.v1.KeptSubmission
+	20, // 7: flags.v1.KeptSubmission.pin:type_name -> flags.v1.Pin
+	22, // 8: flags.v1.KeptSubmission.state:type_name -> flags.v1.SubmissionState
+	19, // 9: flags.v1.KeptSubmission.submitted_at:type_name -> google.protobuf.Timestamp
+	19, // 10: flags.v1.KeptSubmission.decided_at:type_name -> google.protobuf.Timestamp
+	23, // 11: flags.v1.KeptSubmission.rejection:type_name -> flags.v1.Rejection
+	24, // 12: flags.v1.KeptSubmission.picture:type_name -> flags.v1.Picture
+	12, // 13: flags.v1.ApproveSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
+	23, // 14: flags.v1.RejectSubmissionRequest.rejection:type_name -> flags.v1.Rejection
+	12, // 15: flags.v1.RejectSubmissionResponse.submission:type_name -> flags.v1.KeptSubmission
+	19, // 16: flags.v1.OpenSubmittedFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
+	21, // 17: flags.v1.OpenSubmittedFlagResponse.flag:type_name -> flags.v1.Flag
+	25, // 18: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	0,  // 19: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
+	2,  // 20: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
+	4,  // 21: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
+	6,  // 22: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
+	8,  // 23: flags.v1.AdminService.RenameFlag:input_type -> flags.v1.RenameFlagRequest
+	10, // 24: flags.v1.AdminService.ListSubmissions:input_type -> flags.v1.ListSubmissionsRequest
+	13, // 25: flags.v1.AdminService.ApproveSubmission:input_type -> flags.v1.ApproveSubmissionRequest
+	15, // 26: flags.v1.AdminService.RejectSubmission:input_type -> flags.v1.RejectSubmissionRequest
+	17, // 27: flags.v1.AdminService.OpenSubmittedFlag:input_type -> flags.v1.OpenSubmittedFlagRequest
+	26, // 28: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	1,  // 29: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
+	3,  // 30: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
+	5,  // 31: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
+	7,  // 32: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
+	9,  // 33: flags.v1.AdminService.RenameFlag:output_type -> flags.v1.RenameFlagResponse
+	11, // 34: flags.v1.AdminService.ListSubmissions:output_type -> flags.v1.ListSubmissionsResponse
+	14, // 35: flags.v1.AdminService.ApproveSubmission:output_type -> flags.v1.ApproveSubmissionResponse
+	16, // 36: flags.v1.AdminService.RejectSubmission:output_type -> flags.v1.RejectSubmissionResponse
+	18, // 37: flags.v1.AdminService.OpenSubmittedFlag:output_type -> flags.v1.OpenSubmittedFlagResponse
+	28, // [28:38] is the sub-list for method output_type
+	18, // [18:28] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_admin_proto_init() }
@@ -1106,7 +1215,7 @@ func file_flags_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_admin_proto_rawDesc), len(file_flags_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

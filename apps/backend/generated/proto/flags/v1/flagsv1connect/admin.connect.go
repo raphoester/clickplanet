@@ -44,6 +44,8 @@ const (
 	AdminServiceAddTimeProcedure = "/flags.v1.AdminService/AddTime"
 	// AdminServiceCloseFlagProcedure is the fully-qualified name of the AdminService's CloseFlag RPC.
 	AdminServiceCloseFlagProcedure = "/flags.v1.AdminService/CloseFlag"
+	// AdminServiceRenameFlagProcedure is the fully-qualified name of the AdminService's RenameFlag RPC.
+	AdminServiceRenameFlagProcedure = "/flags.v1.AdminService/RenameFlag"
 	// AdminServiceListSubmissionsProcedure is the fully-qualified name of the AdminService's
 	// ListSubmissions RPC.
 	AdminServiceListSubmissionsProcedure = "/flags.v1.AdminService/ListSubmissions"
@@ -71,8 +73,8 @@ type AdminServiceClient interface {
 	// Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
 	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
 	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
-	// wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
-	// one only when the owner says so.
+	// wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
+	// player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
 	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
 	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
@@ -82,20 +84,25 @@ type AdminServiceClient interface {
 	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
 	// lifts. FailedPrecondition for a flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
+	// Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
+	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
+	// InvalidArgument, as is an empty one or one over 40 characters.
+	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
 	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
 	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
-	// FailedPrecondition for one decided already, or while the flags' pictures are off.
+	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
+	// pictures are off.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
 	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
-	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
-	// InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change, or a
+	// name another flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
 	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 
@@ -141,6 +148,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
 			connect.WithClientOptions(opts...),
 		),
+		renameFlag: connect.NewClient[v1.RenameFlagRequest, v1.RenameFlagResponse](
+			httpClient,
+			baseURL+AdminServiceRenameFlagProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RenameFlag")),
+			connect.WithClientOptions(opts...),
+		),
 		listSubmissions: connect.NewClient[v1.ListSubmissionsRequest, v1.ListSubmissionsResponse](
 			httpClient,
 			baseURL+AdminServiceListSubmissionsProcedure,
@@ -176,6 +189,7 @@ type adminServiceClient struct {
 	openFlag          *connect.Client[v1.OpenFlagRequest, v1.OpenFlagResponse]
 	addTime           *connect.Client[v1.AddTimeRequest, v1.AddTimeResponse]
 	closeFlag         *connect.Client[v1.CloseFlagRequest, v1.CloseFlagResponse]
+	renameFlag        *connect.Client[v1.RenameFlagRequest, v1.RenameFlagResponse]
 	listSubmissions   *connect.Client[v1.ListSubmissionsRequest, v1.ListSubmissionsResponse]
 	approveSubmission *connect.Client[v1.ApproveSubmissionRequest, v1.ApproveSubmissionResponse]
 	rejectSubmission  *connect.Client[v1.RejectSubmissionRequest, v1.RejectSubmissionResponse]
@@ -205,6 +219,11 @@ func (c *adminServiceClient) AddTime(ctx context.Context, req *connect.Request[v
 // CloseFlag calls flags.v1.AdminService.CloseFlag.
 func (c *adminServiceClient) CloseFlag(ctx context.Context, req *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error) {
 	return c.closeFlag.CallUnary(ctx, req)
+}
+
+// RenameFlag calls flags.v1.AdminService.RenameFlag.
+func (c *adminServiceClient) RenameFlag(ctx context.Context, req *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error) {
+	return c.renameFlag.CallUnary(ctx, req)
 }
 
 // ListSubmissions calls flags.v1.AdminService.ListSubmissions.
@@ -240,8 +259,8 @@ type AdminServiceHandler interface {
 	// Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
 	// CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
 	// data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
-	// wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
-	// one only when the owner says so.
+	// wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
+	// player sees the flag at once, and a closed flag is never deleted: open one only when the owner says so.
 	OpenFlag(context.Context, *connect.Request[v1.OpenFlagRequest]) (*connect.Response[v1.OpenFlagResponse], error)
 	// Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
@@ -251,20 +270,25 @@ type AdminServiceHandler interface {
 	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
 	// lifts. FailedPrecondition for a flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
+	// Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
+	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
+	// InvalidArgument, as is an empty one or one over 40 characters.
+	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
 	// submitted, its picture as the server drew it, and the verdict.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
 	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
 	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
-	// FailedPrecondition for one decided already, or while the flags' pictures are off.
+	// FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
+	// pictures are off.
 	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
 	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
 	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
-	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
-	// InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change, or a
+	// name another flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
 	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 
@@ -306,6 +330,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRenameFlagHandler := connect.NewUnaryHandler(
+		AdminServiceRenameFlagProcedure,
+		svc.RenameFlag,
+		connect.WithSchema(adminServiceMethods.ByName("RenameFlag")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceListSubmissionsHandler := connect.NewUnaryHandler(
 		AdminServiceListSubmissionsProcedure,
 		svc.ListSubmissions,
@@ -343,6 +373,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceAddTimeHandler.ServeHTTP(w, r)
 		case AdminServiceCloseFlagProcedure:
 			adminServiceCloseFlagHandler.ServeHTTP(w, r)
+		case AdminServiceRenameFlagProcedure:
+			adminServiceRenameFlagHandler.ServeHTTP(w, r)
 		case AdminServiceListSubmissionsProcedure:
 			adminServiceListSubmissionsHandler.ServeHTTP(w, r)
 		case AdminServiceApproveSubmissionProcedure:
@@ -378,6 +410,10 @@ func (UnimplementedAdminServiceHandler) AddTime(context.Context, *connect.Reques
 
 func (UnimplementedAdminServiceHandler) CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.CloseFlag is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.RenameFlag is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error) {

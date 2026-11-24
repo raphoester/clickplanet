@@ -11,7 +11,7 @@ service FlagService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+  // Each flag opened, closed or renamed while the stream is open, as it is now, and a heartbeat at once and every
   // httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream FlagEvent);
 
@@ -46,7 +46,7 @@ message FlagEvent {
   oneof event {
     Heartbeat heartbeat = 1;
 
-    // A flag opened or closed, as the catalog holds it now.
+    // A flag opened, closed or renamed, as the catalog holds it now.
     Flag flag_changed = 2;
   }
 }

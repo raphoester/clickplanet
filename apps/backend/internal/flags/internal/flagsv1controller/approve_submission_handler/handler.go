@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
@@ -33,7 +34,7 @@ func (h ApproveSubmissionHandler) ApproveSubmission(
 	switch {
 	case errors.Is(err, submissions.ErrUnknownSubmission):
 		return nil, connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, submissions.ErrDecided):
+	case errors.Is(err, submissions.ErrDecided), errors.Is(err, catalog.ErrNameTaken):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, pictures.ErrOff):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, pictures.ErrOff)

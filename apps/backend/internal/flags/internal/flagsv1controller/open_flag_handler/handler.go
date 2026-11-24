@@ -38,7 +38,8 @@ func (h OpenFlagHandler) OpenFlag(
 		Longitude: req.Msg.GetPin().GetLongitude(), EndsAt: req.Msg.GetEndsAt().AsTime(),
 	})
 	switch {
-	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrEnded), errors.Is(err, catalog.ErrInvalidPin),
+	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrNameTaken), errors.Is(err, catalog.ErrEnded),
+		errors.Is(err, catalog.ErrInvalidPin),
 		errors.Is(err, pictures.ErrUnknownUpload), errors.Is(err, pictures.ErrTooLarge),
 		errors.Is(err, pictures.ErrNotAPicture), errors.Is(err, pictures.ErrMoves),
 		errors.Is(err, pictures.ErrShape), errors.Is(err, pictures.ErrTooSmall):

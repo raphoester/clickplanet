@@ -11,6 +11,7 @@ import (
 )
 
 type Flags interface {
+	Flags(ctx context.Context) ([]catalog.Flag, error)
 	Save(ctx context.Context, flags ...catalog.Flag) error
 }
 
@@ -42,7 +43,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 	if err != nil {
 		return catalog.Snapshot{}, fmt.Errorf("failed to read the submission: %w", err)
 	}
-	opened, flag, err := approved.Open(u.opening, in.EndsAt)
+	flags, err := u.flags.Flags(ctx)
+	if err != nil {
+		return catalog.Snapshot{}, fmt.Errorf("failed to read the flags' names: %w", err)
+	}
+	opened, flag, err := approved.Open(u.opening, catalog.NamesOf(flags), in.EndsAt)
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the rule names it.
 	}

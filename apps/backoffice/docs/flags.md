@@ -4,8 +4,8 @@
 game does not ship with** (Brittany shipped with it until 2026-11-24 and is sold since, under its code `xb`), opened for
 every player until its end (step 2 of the regional flags: the owner opens one by hand, for free). The flags players
 submit are judged on another page (see [Flag submissions](flag-submissions.md)). `flags.v1.AdminService` keeps them
-(`ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`,
-`CloseFlag`; the backend's flags module). The game's own flags are not on this page: they never end.
+(`ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`, `CloseFlag`, `RenameFlag`; the backend's flags module). The
+game's own flags are not on this page: they never end.
 
 ## Opening one
 
@@ -25,9 +25,9 @@ submit are judged on another page (see [Flag submissions](flag-submissions.md)).
   server draws the picture again and makes it public. The page says "Opened Rennes (r-…), until …", empties the form
   and reads the list again.
 - **A refused step says why**: `CreateFlagUpload`'s and `OpenFlag`'s `failed_precondition` is "The flags' pictures are
-  off on the server"; `invalid_argument` (a picture that moves, narrower than square or wider than 2 by 1, a name, an
-  end) quotes the server; a failed `PUT` quotes the bucket. A try again sends the picture again: an upload link is
-  cheap.
+  off on the server"; `invalid_argument` (a picture that moves, narrower than square or wider than 2 by 1, a name too
+  long or another flag's, built-in or sold, whatever its case, an end) quotes the server; a failed `PUT` quotes the
+  bucket. A try again sends the picture again: an upload link is cheap.
 
 ## The list
 
@@ -51,6 +51,14 @@ submit are judged on another page (see [Flag submissions](flag-submissions.md)).
   in a battle that locks the flags it plays on until the lock lifts; time added within 30 days opens it again. Then it
   says until when, and reads the list again. Its `failed_precondition` is "It is closed already".
 
+## Renaming
+
+- **Rename**, on every card, open or closed: the name in a field, counted as it is typed as in the form (1 to 40
+  characters, too long in red), and Rename disabled until it differs from the flag's own. It asks first ("Rename Bavaria
+  to Bayern?", every player sees the new name at once), then says "Renamed to Bayern." and reads the list again. Its
+  `invalid_argument` quotes the server: a name another flag has, built-in or sold, whatever its case, is refused there,
+  not on the page. Its code, picture and land stay.
+
 ## Hosts
 
 The upload goes to the R2 endpoint already in `connect-src`, and the pictures load from `https://media.clickplanet.lol`,
@@ -61,6 +69,8 @@ already in `img-src` (see [Deploy](deploy.md)): nothing to change in `public/_he
 `npm run demo`: Bavaria and Cornwall open (Cornwall in its last day), Savoy closed 3 days ago, Tyrol closed 41 days
 ago, each picture drawn in the page (SVG) and pinned on its capital, and a few made-up players for Bavaria, so the
 other pages show its picture. The made-up bucket takes a picture in two seconds; `OpenFlag` refuses a picture it does
-not hold, a name of more than 40 characters, an end gone by and a pin off the globe, and the flag shows its picture
-from the page's memory until a reload. The tests drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps
-Bavaria (pinned on Munich) and Savoy (on Chambéry) the same way, at `AT`.
+not hold, a name of more than 40 characters or another flag's, an end gone by and a pin off the globe, and the flag
+shows its picture from the page's memory until a reload. `OpenFlag` and `RenameFlag` check a name as the server does
+(`nameRefusalOf`): against the flags the fake lists, and every built-in flag by its region name (`GAME_FLAG_NAMES`),
+whatever its case. The tests drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps Bavaria (pinned on Munich)
+and Savoy (on Chambéry) the same way, at `AT`.

@@ -105,11 +105,12 @@ export class FlagClosed extends Message<FlagClosed> {
 }
 
 /**
- * A flag's name or picture changed, once the operator approved its founder's change. Only the flags module listens.
+ * The flag's name from renamed_at: the operator's rename, or its founder's change approved, which may bring a new picture
+ * too. Its code stays. Only the flags module listens.
  *
- * @generated from message flags.v1.FlagUpdated
+ * @generated from message flags.v1.FlagRenamed
  */
-export class FlagUpdated extends Message<FlagUpdated> {
+export class FlagRenamed extends Message<FlagRenamed> {
   /**
    * @generated from field: string flag = 1;
    */
@@ -123,37 +124,37 @@ export class FlagUpdated extends Message<FlagUpdated> {
   name = "";
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 3;
+   * @generated from field: google.protobuf.Timestamp renamed_at = 3;
    */
-  updatedAt?: Timestamp;
+  renamedAt?: Timestamp;
 
-  constructor(data?: PartialMessage<FlagUpdated>) {
+  constructor(data?: PartialMessage<FlagRenamed>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "flags.v1.FlagUpdated";
+  static readonly typeName = "flags.v1.FlagRenamed";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "updated_at", kind: "message", T: Timestamp },
+    { no: 3, name: "renamed_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagUpdated {
-    return new FlagUpdated().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagUpdated {
-    return new FlagUpdated().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagUpdated {
-    return new FlagUpdated().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagRenamed {
+    return new FlagRenamed().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FlagUpdated | PlainMessage<FlagUpdated> | undefined, b: FlagUpdated | PlainMessage<FlagUpdated> | undefined): boolean {
-    return proto3.util.equals(FlagUpdated, a, b);
+  static equals(a: FlagRenamed | PlainMessage<FlagRenamed> | undefined, b: FlagRenamed | PlainMessage<FlagRenamed> | undefined): boolean {
+    return proto3.util.equals(FlagRenamed, a, b);
   }
 }
 

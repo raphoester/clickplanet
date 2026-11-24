@@ -247,6 +247,8 @@ import {
     OpenSubmittedFlagResponse,
     RejectSubmissionRequest,
     RejectSubmissionResponse,
+    RenameFlagRequest,
+    RenameFlagResponse,
 } from "./gen/grpc/flags/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
@@ -842,6 +844,29 @@ export function keptSubmission(
     })
 }
 
+// The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
+const GAME_FLAG_NAMES: readonly string[] = (() => {
+    const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const names = ["England", "Scotland", "Wales"]
+    for (const first of letters) {
+        for (const second of letters) {
+            const name = regions.of(first + second)
+            if (name !== undefined) names.push(name)
+        }
+    }
+    return names
+})()
+
+// What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
+export function nameRefusalOf(name: string, others: readonly Flag[]): string | undefined {
+    if (name === "" || [...name].length > 40) return "a name of 1 to 40 characters"
+    const taken = others.find(other => other.name.toLowerCase() === name.toLowerCase())
+    if (taken !== undefined) return `the flag ${taken.code} is named ${taken.name}`
+    const game = GAME_FLAG_NAMES.find(other => other.toLowerCase() === name.toLowerCase())
+    return game === undefined ? undefined : `a flag the game ships with is named ${game}`
+}
+
 // flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, then the ones opened
 // since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it; and the submissions, the
 // waiting ones oldest first, then the decided ones latest first. Each change is kept as the server keeps it, at the
@@ -902,7 +927,10 @@ export class FakeFlags implements FlagsAdmin {
         if (pin === undefined || !(Math.abs(pin.latitude ?? 0) <= 90 && Math.abs(pin.longitude ?? 0) <= 180)) {
             return this.refused("openFlag", request, "a pin from -90 to 90 and -180 to 180", Code.InvalidArgument)
         }
-        const flag = soldFlag(this.nextCode(), (request.name ?? "").trim(), new Timestamp(request.endsAt).toDate(), undefined,
+        const name = (request.name ?? "").trim()
+        const taken = nameRefusalOf(name, this.listed)
+        if (taken !== undefined) return this.refused("openFlag", request, taken, Code.InvalidArgument)
+        const flag = soldFlag(this.nextCode(), name, new Timestamp(request.endsAt).toDate(), undefined,
             undefined, {latitude: pin.latitude ?? 0, longitude: pin.longitude ?? 0})
         const answer = this.admin.answer("openFlag", request, new OpenFlagResponse({flag}))
         if (!this.admin.refusals.has("openFlag")) this.add(flag)
@@ -948,6 +976,8 @@ export class FakeFlags implements FlagsAdmin {
         if (submission.state !== SubmissionState.WAITING) {
             return this.refused("approveSubmission", request, "the submission is decided already", Code.FailedPrecondition)
         }
+        const taken = nameRefusalOf(submission.name, this.listed.filter(each => !submission.change || each.code !== submission.flag))
+        if (taken !== undefined) return this.refused("approveSubmission", request, taken, Code.FailedPrecondition)
         const approved = this.decided(submission, {state: SubmissionState.APPROVED})
         const answer = this.admin.answer("approveSubmission", request, new ApproveSubmissionResponse({submission: approved}))
         if (!this.admin.refusals.has("approveSubmission")) {
@@ -987,6 +1017,8 @@ export class FakeFlags implements FlagsAdmin {
         if (submission.state !== SubmissionState.APPROVED || submission.change) {
             return this.refused("openSubmittedFlag", request, "the submission is no approved new flag", Code.FailedPrecondition)
         }
+        const taken = nameRefusalOf(submission.name, this.listed)
+        if (taken !== undefined) return this.refused("openSubmittedFlag", request, taken, Code.FailedPrecondition)
         const endsAt = new Timestamp(request.endsAt).toDate()
         if (endsAt.getTime() <= Date.now()) return this.refused("openSubmittedFlag", request, "an end to come", Code.InvalidArgument)
         const flag = soldFlag(this.nextCode(), submission.name, endsAt, undefined, submission.picture?.url, submission.pin)
@@ -1014,6 +1046,17 @@ export class FakeFlags implements FlagsAdmin {
     private add(flag: Flag) {
         const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
         this.listed = [...this.listed.filter(each => each.sold === undefined), ...sold]
+    }
+
+    // Open or closed, its code, picture and land kept.
+    renameFlag(request: PartialMessage<RenameFlagRequest>): Promise<RenameFlagResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("renameFlag", request, "no flag opened under this code", Code.NotFound)
+        const name = (request.name ?? "").trim()
+        const refused = nameRefusalOf(name, this.listed.filter(each => each.code !== flag.code))
+        if (refused !== undefined) return this.refused("renameFlag", request, refused, Code.InvalidArgument)
+        const renamed = new Flag({...flag, name})
+        return this.replaced("renameFlag", request, renamed, new RenameFlagResponse({flag: renamed}))
     }
 
     private replaced<T>(method: string, request: unknown, flag: Flag, response: T): Promise<T> {

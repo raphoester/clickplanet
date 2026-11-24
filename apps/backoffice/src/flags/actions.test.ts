@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {AT} from "../fakeAdmin.ts"
-import {daysOf, leftOf} from "./actions.ts"
+import {daysOf, leftOf, renamedOf} from "./actions.ts"
 
 const HOUR = 3_600_000
 
@@ -25,5 +25,16 @@ describe("daysOf", () => {
         expect(daysOf("3661")).toBeUndefined()
         expect(daysOf("1.5")).toBeUndefined()
         expect(daysOf("")).toBeUndefined()
+    })
+})
+
+describe("renamedOf", () => {
+    it("takes a new name of 1 to 40 characters, trimmed", () => {
+        expect(renamedOf(" Bayern ", "Bavaria")).toBe("Bayern")
+        expect(renamedOf("bavaria", "Bavaria")).toBe("bavaria")
+        expect(renamedOf("B".repeat(40), "Bavaria")).toBe("B".repeat(40))
+        expect(renamedOf(" Bavaria", "Bavaria")).toBeUndefined()
+        expect(renamedOf("  ", "Bavaria")).toBeUndefined()
+        expect(renamedOf("B".repeat(41), "Bavaria")).toBeUndefined()
     })
 })

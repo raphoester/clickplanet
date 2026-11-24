@@ -1,5 +1,5 @@
--- Every flag opened since the game shipped starts somewhere in Capital Siege. Production held two test flags of
--- Corsica when this ran; Brittany may have left the flags the game ships with by then.
+-- Every flag opened since the game shipped starts somewhere in Capital Siege. Production held a test flag of Corsica
+-- and Brittany, which left the flags the game ships with, when this ran.
 ALTER TABLE flags
     ADD COLUMN pin_latitude  double precision,
     ADD COLUMN pin_longitude double precision;
@@ -65,5 +65,3 @@ CREATE TABLE rejections (
     reason        rejection_reason NOT NULL,
     note          text             NOT NULL
 );
-
-ALTER TYPE outbox_event ADD VALUE IF NOT EXISTS 'flags.v1.FlagUpdated';

@@ -116,10 +116,11 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         const kept = this.kept.find(({submission}) => submission.state === "approved" && !submission.change)
         if (!kept) return "no new flag is approved: approveSubmission() approves the one that waits"
         const {name, pin, picture} = kept.submission
-        const code = await this.flags.open(name, days, {picture, pin})
-        this.decide(kept, {state: "opened", flag: code})
+        const opened = await this.flags.open(name, days, {picture, pin})
+        if ("refused" in opened) return `${name} cannot open: ${opened.refused}`
+        this.decide(kept, {state: "opened", flag: opened.code})
         this.flags.reopen()
-        return `${name} is open as ${code} for ${days} days`
+        return `${name} is open as ${opened.code} for ${days} days`
     }
 
     private submissions(): Submission[] {

@@ -36,7 +36,7 @@ func (h OpenSubmittedFlagHandler) OpenSubmittedFlag(
 	switch {
 	case errors.Is(err, submissions.ErrUnknownSubmission):
 		return nil, connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, submissions.ErrNotApproved):
+	case errors.Is(err, submissions.ErrNotApproved), errors.Is(err, catalog.ErrNameTaken):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, catalog.ErrEnded):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

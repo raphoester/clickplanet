@@ -22,6 +22,7 @@ var (
 	first  = submissions.SubmissionID{15: 1}
 	second = submissions.SubmissionID{15: 2}
 	rennes = submissions.Draft{Name: "Rennes", Pin: catalog.TestPin}
+	none   = catalog.NamesOf(nil)
 )
 
 func submitted(t *testing.T, draft submissions.Draft, earlier ...submissions.Submission) submissions.Submission {
@@ -33,9 +34,9 @@ func submitted(t *testing.T, draft submissions.Draft, earlier ...submissions.Sub
 
 func opened(t *testing.T) submissions.Submission {
 	t.Helper()
-	approved, err := submissions.Restored(submissions.TestWaiting(first, ada, at)).Approved(at)
+	approved, err := submissions.Restored(submissions.TestWaiting(first, ada, at)).Approved(none, at)
 	require.NoError(t, err)
-	opened, _, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), at.Add(time.Hour))
+	opened, _, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), none, at.Add(time.Hour))
 	require.NoError(t, err)
 	return opened
 }
@@ -107,12 +108,12 @@ func TestOnlyTheAccountThatFoundedAFlagSubmitsItsChange(t *testing.T) {
 
 func TestASubmissionIsDecidedOnce(t *testing.T) {
 	waiting := submitted(t, rennes)
-	approved, err := waiting.Approved(at.Add(time.Hour))
+	approved, err := waiting.Approved(none, at.Add(time.Hour))
 	require.NoError(t, err)
 	assert.False(t, approved.TakeSnapshot().Held, "public, so no longer held in private")
 	assert.Equal(t, at.Add(time.Hour), approved.TakeSnapshot().DecidedAt)
 
-	_, err = approved.Approved(at)
+	_, err = approved.Approved(none, at)
 	require.ErrorIs(t, err, submissions.ErrDecided)
 	_, err = approved.Rejected(submissions.Rejection{Reason: submissions.Hateful}, at)
 	require.ErrorIs(t, err, submissions.ErrDecided)
@@ -120,7 +121,7 @@ func TestASubmissionIsDecidedOnce(t *testing.T) {
 	rejected, err := waiting.Rejected(submissions.Rejection{Reason: submissions.Hateful}, at)
 	require.NoError(t, err)
 	assert.True(t, rejected.TakeSnapshot().Held, "held until it is deleted")
-	_, err = rejected.Approved(at)
+	_, err = rejected.Approved(none, at)
 	require.ErrorIs(t, err, submissions.ErrDecided)
 }
 
@@ -143,10 +144,10 @@ func TestARejectionHasAReasonAndOtherNeedsANote(t *testing.T) {
 }
 
 func TestAnApprovedNewSubmissionOpensItsFlagAtItsPin(t *testing.T) {
-	approved, err := submissions.Restored(submissions.TestWaiting(first, ada, at)).Approved(at)
+	approved, err := submissions.Restored(submissions.TestWaiting(first, ada, at)).Approved(none, at)
 	require.NoError(t, err)
 
-	opened, flag, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at.Add(time.Hour))),
+	opened, flag, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at.Add(time.Hour))), none,
 		at.Add(30*24*time.Hour))
 	require.NoError(t, err)
 
@@ -157,31 +158,31 @@ func TestAnApprovedNewSubmissionOpensItsFlagAtItsPin(t *testing.T) {
 	assert.Equal(t, submissions.Opened, opened.TakeSnapshot().State)
 	assert.Equal(t, catalog.FlagID("r-0000000001"), opened.TakeSnapshot().Flag)
 
-	_, _, err = opened.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), at.Add(time.Hour))
+	_, _, err = opened.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), none, at.Add(time.Hour))
 	require.ErrorIs(t, err, submissions.ErrNotApproved, "once")
 }
 
 func TestOnlyAnApprovedNewSubmissionOpensAFlag(t *testing.T) {
 	opening := catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at))
 	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
-	_, _, err := waiting.Open(opening, at.Add(time.Hour))
+	_, _, err := waiting.Open(opening, none, at.Add(time.Hour))
 	require.ErrorIs(t, err, submissions.ErrNotApproved)
 
 	change, err := submitted(t, submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000001"}, opened(t)).
-		Approved(at)
+		Approved(none, at)
 	require.NoError(t, err)
-	_, _, err = change.Open(opening, at.Add(time.Hour))
+	_, _, err = change.Open(opening, none, at.Add(time.Hour))
 	require.ErrorIs(t, err, submissions.ErrNotApproved, "a change opens nothing")
 
-	approved, err := waiting.Approved(at)
+	approved, err := waiting.Approved(none, at)
 	require.NoError(t, err)
-	_, _, err = approved.Open(opening, at)
+	_, _, err = approved.Open(opening, none, at)
 	require.ErrorIs(t, err, catalog.ErrEnded)
 }
 
 func TestAnApprovedChangeRestylesItsFlagAndTellsIt(t *testing.T) {
 	change, err := submitted(t, submissions.Draft{Name: "Breizh", Pin: catalog.TestPin, Flag: "r-0000000001"}, opened(t)).
-		Approved(at.Add(time.Hour))
+		Approved(none, at.Add(time.Hour))
 	require.NoError(t, err)
 	flag := catalog.OpenFlag("r-0000000001", "Rennes", at)
 
@@ -190,8 +191,8 @@ func TestAnApprovedChangeRestylesItsFlagAndTellsIt(t *testing.T) {
 
 	assert.Equal(t, catalog.Name("Breizh"), restyled.TakeSnapshot().Name)
 	assert.Equal(t, flag.TakeSnapshot().DecidedAt, restyled.TakeSnapshot().DecidedAt, "the same flag, open as it was")
-	assert.True(t, proto.Equal(&flagsv1.FlagUpdated{
-		Flag: "r-0000000001", Name: "Breizh", UpdatedAt: timestamppb.New(at.Add(time.Hour)),
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
+		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(at.Add(time.Hour)),
 	}, fact), "%v", fact)
 
 	_, _, err = submissions.Restored(submissions.TestWaiting(first, ada, at)).Restyle(flag, at)
@@ -233,4 +234,26 @@ func TestASubmissionKeptInAStateItCannotBeInIsRefused(t *testing.T) {
 		_, err := snapshot.Restore()
 		require.Error(t, err, name)
 	}
+}
+
+func TestTwoFlagsNeverShareAName(t *testing.T) {
+	taken := catalog.NamesOf([]catalog.Flag{catalog.OpenFlag("r-0000000001", "Rennes", at)})
+	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
+
+	_, err := waiting.Approved(taken, at)
+	require.ErrorIs(t, err, catalog.ErrNameTaken, "another flag's name")
+	builtIn := submissions.TestWaiting(first, ada, at)
+	builtIn.Name = "germany"
+	_, err = submissions.Restored(builtIn).Approved(none, at)
+	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag the game ships with, whatever its case")
+
+	change := submissions.TestWaiting(second, ada, at)
+	change.Kind, change.Flag = submissions.Change, "r-0000000001"
+	_, err = submissions.Restored(change).Approved(taken, at)
+	require.NoError(t, err, "a change keeps its own flag's name")
+
+	approved, err := waiting.Approved(none, at)
+	require.NoError(t, err)
+	_, _, err = approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at)), taken, at.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag took its name since")
 }

@@ -85,6 +85,12 @@ loaded.
   (a Cloudflare rule). The game's pages send no Content-Security-Policy; one that is added must allow that origin in
   `img-src` and `connect-src`.
 
+## A flag renamed
+
+**A rename** comes as `flag_changed` with the new name, open or closed: the catalog takes it (`withFlags`), and the
+picker and every name the translator reads from the catalog show it. Its code, picture and land stay. A name already on
+screen keeps the old one until its component draws again, as a code does until the list names it.
+
 ## A held flag closed
 
 - **`GetAllegiance` answers `closed`** (`Allegiance.closed`) when the flag held is closed and no lock of the rules holds
@@ -129,17 +135,22 @@ Each place that looks up a flag by its code survives a code it does not know.
 The fake lists Brittany sold, as the server does, open for 30 days from the page's load, its picture at its address in
 the bucket (the blank until the file is there). `openFlag("Bavaria", days)` on the console opens a sold flag for that many days (30 by default), with a picture drawn
 in the page from its name (three bands and a disc, 3:2, 2:1 or square, a blob URL, `paintFakeFlag`). `addTime(code,
-days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it. Each is told as the
-flags stream tells it, and the fake planet hears the closes (`FakeBackend.closeFlags`): it answers `closed` for a closed
-flag held, unless `lockFlags()` locks the flags, and refuses a click or a pledge for one. Nothing closes a flag when its
-time runs out: `closeFlag` does. `openFlag` gives a flag no pin.
+days)` ends it later, or opens it again within 30 days of its close; `closeFlag(code)` closes it; `renameFlag(code,
+name)` renames it, open or closed. Each is told as the flags stream tells it, and the fake planet hears the closes
+(`FakeBackend.closeFlags`): it answers `closed` for a closed flag held, unless `lockFlags()` locks the flags, and refuses
+a click or a pledge for one. Nothing closes a flag when its time runs out: `closeFlag` does. `openFlag` gives a flag no
+pin.
+
+The fake keeps the server's rules on a name: `openFlag` and `renameFlag` refuse one of no character or over 40, or one
+another flag has, built-in or sold, whatever its case.
 
 A flag sent from the picker is opened by `openSubmission()`, with the upload's picture and its pin, after
 `approveSubmission()`; `rejectSubmission(reason, note)` rejects it (see [Flag submissions](flag-submissions.md#in-fake-mode)).
 
 To see the whole flow: `openFlag("Bavaria")`, pick Bavaria in the picker (its picture beside its name), take tiles and
 zoom out (its picture on the tiles, then painted over the land), `closeFlag("<code>")` (the window asks for another flag,
-the tiles keep the picture), then `addTime("<code>", 7)` (Bavaria is in the picker again).
+the tiles keep the picture), then `addTime("<code>", 7)` (Bavaria is in the picker again), and `renameFlag("<code>",
+"Bayern")` (the picker names it Bayern).
 
 ## Not built yet
 

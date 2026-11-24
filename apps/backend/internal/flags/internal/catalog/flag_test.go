@@ -174,7 +174,7 @@ func TestAPinIsAPointOnTheGlobe(t *testing.T) {
 	}
 }
 
-func TestARestyledFlagWearsItsNewNameAndPictureAndTellsIt(t *testing.T) {
+func TestARestyledFlagWearsItsNewNameAndPictureAndTellsItRenamed(t *testing.T) {
 	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
 	require.NoError(t, err)
 	picture, err := pictures.Snapshot{Hash: strings.Repeat("cd", 32), Width: 400, Height: 200}.Restore()
@@ -185,7 +185,16 @@ func TestARestyledFlagWearsItsNewNameAndPictureAndTellsIt(t *testing.T) {
 	want := closed.TakeSnapshot()
 	want.Name, want.Picture = "Breizh", picture.TakeSnapshot()
 	assert.Equal(t, want, restyled.TakeSnapshot(), "closed as it was")
-	assert.True(t, proto.Equal(&flagsv1.FlagUpdated{
-		Flag: "r-0000000001", Name: "Breizh", UpdatedAt: timestamppb.New(closedAt.Add(time.Hour)),
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
+		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(closedAt.Add(time.Hour)),
 	}, fact), "%v", fact)
+}
+
+func TestARenamedFlagKeepsItsCodeAndTellsItsNewName(t *testing.T) {
+	renamed, fact := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Renamed("Roazhon", closedAt)
+
+	assert.Equal(t, catalog.Name("Roazhon"), renamed.TakeSnapshot().Name)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), renamed.TakeSnapshot().ID)
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{Flag: "r-0000000001", Name: "Roazhon", RenamedAt: timestamppb.New(closedAt)},
+		fact), "%v", fact)
 }

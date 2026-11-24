@@ -81,7 +81,7 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 // Restyled wears the name and the picture a review approved, whether the flag is open or closed: history names it too.
 func (f Flag) Restyled(name Name, picture pictures.Picture, at time.Time) (Flag, proto.Message) {
 	f.name, f.picture = name, picture
-	return f, &flagsv1.FlagUpdated{Flag: f.id.String(), Name: f.name.String(), UpdatedAt: timestamppb.New(at)}
+	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: f.name.String(), RenamedAt: timestamppb.New(at)}
 }
 
 func (f Flag) TimeAdded(days Days, now time.Time) (Flag, error) {
@@ -105,6 +105,11 @@ func (f Flag) Closed(at time.Time) (Flag, error) {
 	}
 	f.state, f.decidedAt = Closed, at
 	return f, nil
+}
+
+func (f Flag) Renamed(name Name, at time.Time) (Flag, *flagsv1.FlagRenamed) {
+	f.name = name
+	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}
 }
 
 // Expired is false while the flag has time left, or is closed already.

@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/expire_flags_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/restate_flags_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/listen_for_events_usecase"
@@ -41,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
@@ -125,12 +127,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagClosed: %w", err)
 	}
-	updated, err := cpredis.Subscribe(ctx, redis, "flags-streams-updated",
-		log_subscriber.New(told_subscriber.NewUpdated(tell), props.Logger))
+	renamed, err := cpredis.Subscribe(ctx, redis, "flags-streams-renamed",
+		log_subscriber.New(told_subscriber.NewRenamed(tell), props.Logger))
 	if err != nil {
 		_ = redis.Close()
 		_ = db.Close()
-		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagUpdated: %w", err)
+		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagRenamed: %w", err)
 	}
 
 	// Each module keeps what it heard: one that subscribed after a flag was told hears it at the next boot.
@@ -152,7 +154,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger),
 		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
 			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, updated,
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed,
 			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger))))
 
 	list := list_flags_handler.New(flags_query.NewPostgresQuery(db, messages))
@@ -189,6 +191,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			), messages),
 			AddTimeHandler:         add_time_handler.New(add_time_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			CloseFlagHandler:       close_flag_handler.New(close_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
+			RenameFlagHandler:      rename_flag_handler.New(rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)), messages),
 			ListSubmissionsHandler: list_submissions_handler.New(submittedQuery),
 			ApproveSubmissionHandler: approve_submission_handler.New(approve_submission_usecase.New(
 				clock, gallery, db, submitted, store, cpoutbox.New(db),

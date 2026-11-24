@@ -44,9 +44,9 @@ func TestASubmittedFlagOpensAndItsApprovedChangeReachesTheOpenPages(t *testing.T
 	tell := tell_streams_usecase.New(feed.NewsSince(clock.Now()), flags, board)
 	opened, err := cpredis.Subscribe(t.Context(), streams, "flags-streams-opened", told_subscriber.NewOpened(tell))
 	require.NoError(t, err)
-	updated, err := cpredis.Subscribe(t.Context(), streams, "flags-streams-updated", told_subscriber.NewUpdated(tell))
+	renamed, err := cpredis.Subscribe(t.Context(), streams, "flags-streams-renamed", told_subscriber.NewRenamed(tell))
 	require.NoError(t, err)
-	running(t, opened, updated, cpoutbox.NewRelay("flags-outbox", db, streams, slog.New(slog.DiscardHandler)))
+	running(t, opened, renamed, cpoutbox.NewRelay("flags-outbox", db, streams, slog.New(slog.DiscardHandler)))
 
 	bucket := pictures.NewMemoryBucket()
 	gallery := pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20})

@@ -55,9 +55,9 @@ src/
   lab/              The Lab: LabPage over readout.ts (each post at 7 days, each experiment against its control, the
                     arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
-  flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days and
-                    Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a pin as typed,
-                    in words, as a globe link, and the great-circle distance)
+  flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days,
+                    Rename and Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a pin
+                    as typed, in words, as a globe link, and the great-circle distance)
   submissions/      Flag submissions: SubmissionsView (the inbox), SubmissionList, SubmissionDetail (one, as it is
                     judged), FlagFigure (a picture as drawn and on a tile), PinMap (the land around a pin),
                     SubmissionVerdict (Approve or Reject), OpenSubmittedPanel (an approved new flag opened), actions.ts

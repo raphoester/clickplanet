@@ -98,3 +98,14 @@ func (s *StoreContractSuite) TestEndingIsTheOpenFlagsWhoseEndPassed() {
 	s.Require().NoError(err)
 	s.Empty(none)
 }
+
+func (s *StoreContractSuite) TestTwoFlagsNeverShareANameWhateverItsCase() {
+	s.opened("r-0000000001", "Rennes")
+
+	err := s.store.Save(s.T().Context(), OpenFlag("r-0000000002", "RENNES", openedAt))
+
+	s.Require().ErrorIs(err, ErrNameTaken)
+	flags, err := s.store.Flags(s.T().Context())
+	s.Require().NoError(err)
+	s.Len(flags, 1)
+}

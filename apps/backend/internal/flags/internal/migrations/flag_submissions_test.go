@@ -13,7 +13,7 @@ import (
 
 const (
 	soldFlags       = 20261123163738
-	flagSubmissions = 20261124083632
+	flagSubmissions = 20261124101101
 )
 
 func migratedTo(t *testing.T, version uint) *cppg.Postgres {
@@ -35,12 +35,10 @@ func seed(t *testing.T, db *cppg.Postgres, id, name string) {
 	require.NoError(t, err)
 }
 
-// Production held two flags of Corsica when the pins came: each gets Ajaccio's, and Brittany Rennes'.
+// Production held a flag of Corsica and Brittany when the pins came: Corsica gets Ajaccio's, Brittany Rennes'.
 func TestTheFlagsOpenedBeforeThePinsGetTheirsByName(t *testing.T) {
 	db := migratedTo(t, soldFlags)
 	seed(t, db, "r-6k0qh1902z", "corsica")
-	seed(t, db, "r-vscrt0jglu", "Corsica")
-	seed(t, db, "r-0000000001", "Brittany")
 
 	require.NoError(t, db.MigrateTo(t.Context(), migrations.FS, flagSubmissions))
 
@@ -56,10 +54,8 @@ func TestTheFlagsOpenedBeforeThePinsGetTheirsByName(t *testing.T) {
 		pins[id] = pin
 	}
 	require.NoError(t, rows.Err())
-	assert.Equal(t, map[string][2]float64{
-		"r-6k0qh1902z": {41.9192, 8.7386}, "r-vscrt0jglu": {41.9192, 8.7386}, "r-0000000001": {48.1173, -1.6778},
-		"xb": {48.1173, -1.6778},
-	}, pins, "Brittany left the build in the migration before")
+	assert.Equal(t, map[string][2]float64{"r-6k0qh1902z": {41.9192, 8.7386}, "xb": {48.1173, -1.6778}}, pins,
+		"Brittany left the build in a migration before")
 }
 
 func TestAFlagWithNoKnownPinStopsTheMigration(t *testing.T) {

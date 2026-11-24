@@ -78,8 +78,8 @@ func TestAnApprovedChangeIsOnItsFlagForEveryPlayer(t *testing.T) {
 	assert.Equal(t, catalog.Name("Breizh"), flag.TakeSnapshot().Name)
 	assert.Equal(t, f.drawn.Picture.TakeSnapshot(), flag.TakeSnapshot().Picture)
 	require.Len(t, f.outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&flagsv1.FlagUpdated{
-		Flag: "r-0000000001", Name: "Breizh", UpdatedAt: timestamppb.New(now),
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{
+		Flag: "r-0000000001", Name: "Breizh", RenamedAt: timestamppb.New(now),
 	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
@@ -101,4 +101,15 @@ func TestAnUnknownSubmissionIsNotApproved(t *testing.T) {
 	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
 	_, err = f.useCase.Execute(t.Context(), "Rennes")
 	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
+}
+
+func TestANewFlagWithAnotherFlagsNameIsNotApproved(t *testing.T) {
+	f := newFixture(t, submissions.TestWaiting(id, ada, now.Add(-time.Hour)))
+	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "rennes", now.Add(-24*time.Hour))))
+
+	_, err := f.useCase.Execute(t.Context(), id.String())
+
+	require.ErrorIs(t, err, catalog.ErrNameTaken)
+	assert.Empty(t, f.bucket.Published())
+	assert.Equal(t, submissions.Waiting, f.store.Kept()[0].State)
 }

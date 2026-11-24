@@ -74,9 +74,9 @@ func (s *StoreContractSuite) TestARejectionIsKeptWithItsReasonAndNote() {
 
 func (s *StoreContractSuite) TestASubmissionKeptAgainKeepsWhatChanged() {
 	waiting := s.kept(TestWaiting(SubmissionID{15: 1}, ada, submittedAt))[0]
-	approved, err := waiting.Approved(submittedAt.Add(time.Hour))
+	approved, err := waiting.Approved(catalog.NamesOf(nil), submittedAt.Add(time.Hour))
 	s.Require().NoError(err)
-	opened, _, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, fixed(submittedAt.Add(2*time.Hour))),
+	opened, _, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, fixed(submittedAt.Add(2*time.Hour))), catalog.NamesOf(nil),
 		submittedAt.Add(30*24*time.Hour))
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Save(s.T().Context(), opened))

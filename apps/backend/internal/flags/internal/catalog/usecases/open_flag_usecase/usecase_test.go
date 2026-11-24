@@ -94,3 +94,17 @@ func TestAFlagWithNoNameNoPinOrNoPictureIsNotOpened(t *testing.T) {
 	assert.Empty(t, flags)
 	assert.Empty(t, f.outbox.Recorded())
 }
+
+func TestAFlagIsNotOpenedUnderANameAnotherFlagHas(t *testing.T) {
+	f := newFixture()
+	require.NoError(t, f.store.Save(t.Context(), catalog.OpenFlag("r-0000000009", "Bavaria", now)))
+	ends := now.Add(time.Hour)
+
+	_, err := f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "BAVARIA", Upload: upload.String(), EndsAt: ends})
+	require.ErrorIs(t, err, catalog.ErrNameTaken)
+	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "germany", Upload: upload.String(), EndsAt: ends})
+	require.ErrorIs(t, err, catalog.ErrNameTaken, "a flag the game ships with")
+
+	assert.Equal(t, 1, f.bucket.Uploads(), "the operator may try again with another name")
+	assert.Empty(t, f.outbox.Recorded())
+}

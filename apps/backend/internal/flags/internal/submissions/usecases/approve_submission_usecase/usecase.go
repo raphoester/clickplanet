@@ -19,6 +19,7 @@ type Gallery interface {
 
 type Flags interface {
 	Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, error)
+	Flags(ctx context.Context) ([]catalog.Flag, error)
 	Save(ctx context.Context, flags ...catalog.Flag) error
 }
 
@@ -52,8 +53,12 @@ func (u *UseCase) Execute(ctx context.Context, submission string) (submissions.S
 	if err != nil {
 		return submissions.Snapshot{}, fmt.Errorf("failed to read the submission: %w", err)
 	}
+	flags, err := u.flags.Flags(ctx)
+	if err != nil {
+		return submissions.Snapshot{}, fmt.Errorf("failed to read the flags' names: %w", err)
+	}
 	now := u.clock.Now()
-	approved, err := waiting.Approved(now)
+	approved, err := waiting.Approved(catalog.NamesOf(flags), now)
 	if err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the rule names it.
 	}

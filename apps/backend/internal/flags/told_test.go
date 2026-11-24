@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
@@ -105,7 +106,10 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 	require.NoError(t, err)
 	streamsClosed, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-closed", told_subscriber.NewClosed(tell))
 	require.NoError(t, err)
-	running(t, opened, closed, streamsOpened, streamsClosed, cpoutbox.NewRelay("flags-outbox", db, teller, logger))
+	streamsRenamed, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-renamed", told_subscriber.NewRenamed(tell))
+	require.NoError(t, err)
+	running(t, opened, closed, streamsOpened, streamsClosed, streamsRenamed,
+		cpoutbox.NewRelay("flags-outbox", db, teller, logger))
 
 	bucket, upload := pictures.NewMemoryBucket(), pictures.UploadID{1}
 	bucket.Upload(upload, pictures.TestPNG(300, 200))
@@ -122,6 +126,11 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 2 }, 10*time.Second, 20*time.Millisecond)
 	assert.Equal(t, catalog.Closed, (<-page).State, "the page hears it closed")
+
+	_, err = rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
+		Execute(t.Context(), rename_flag_usecase.In{Flag: out.ID.String(), Name: "Roazhon"})
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Name("Roazhon"), (<-page).Name, "the page hears it renamed")
 
 	assert.Equal(t, []string{"opened " + out.ID.String() + " Rennes", "closed " + out.ID.String()}, planet.all())
 }
