@@ -32,6 +32,7 @@ answer that names tiles names their board, and the page places them on that boar
 | --- | --- |
 | Home, the heatmap ([home.md](home.md)) | `GetLedgerResponse.board`, the board the world plays |
 | Graffiti ([graffiti.md](graffiti.md)) | each `Graffiti.board`, each board read once |
+| Flag submissions ([flag-submissions.md](flag-submissions.md)) | `GetTerritoriesResponse.board`, the board the world plays: a pin is in degrees, on no board |
 | Download a replay ([map-tools.md](map-tools.md)) | none: it draws nothing, and the file keeps `eras`, each era's board |
 | Game rules ([ops.md](ops.md)) | none: it lists `BOARDS`' names for `arena.board` |
 

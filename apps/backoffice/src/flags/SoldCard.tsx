@@ -10,12 +10,13 @@ import {
     addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, MAX_DAYS,
     Sold,
 } from "./actions.ts"
+import {globeLinkOf, placeWords} from "./pin.ts"
 
 const FIRST_DAYS = "30"
 
 // One sold flag: its picture, its name and code, open or closed and until when, and the two things done to it.
 export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sold, onChanged: () => void}) {
-    const {flag, picture, endsAt, closedAt} = sold
+    const {flag, picture, endsAt, closedAt, pin} = sold
     const now = new Date()
     const comeback = closedAt === undefined ? undefined : comebackUntil(closedAt)
 
@@ -30,6 +31,11 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
             </div>
             <dl className="facts">
                 <Fact label="Code"><Copyable text={flag.code}/></Fact>
+                <Fact label="Pin">
+                    {pin === undefined
+                        ? <span className="muted">none</span>
+                        : <a href={globeLinkOf(pin)} target="_blank" rel="noreferrer">{placeWords(pin)}</a>}
+                </Fact>
                 {closedAt === undefined
                     ? <Fact label="Ends"><When at={endsAt}/> · {leftOf(endsAt, now)}</Fact>
                     : (

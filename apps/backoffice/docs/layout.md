@@ -45,7 +45,8 @@ src/
                     caller.ts (an account or a scope, from what was typed), charges.ts (a grant and what is held, in
                     words), durations.ts (the mute and ban choices, a span in words)
   graffiti/         Graffiti: GraffitiView (the inbox), GraffitiDetail (one, with its painter's Ban and Revert),
-                    GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell), graffiti.ts
+                    GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell, and groundOf,
+                    the land around a place, which Flag submissions draws a pin on), graffiti.ts
                     (the list, the painters' names and standings, the boards' places, a graffiti's key); testPlaces.ts
                     (a patch of a board's lattice, for the tests)
   map/              Download a replay, actions.ts (the file, and the eras it is on); download.ts (a file saved from
@@ -55,7 +56,13 @@ src/
                     arrivals' days)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days and
-                    Close), actions.ts (the open's steps, the refusals, days left, the order)
+                    Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a pin as typed,
+                    in words, as a globe link, and the great-circle distance)
+  submissions/      Flag submissions: SubmissionsView (the inbox), SubmissionList, SubmissionDetail (one, as it is
+                    judged), FlagFigure (a picture as drawn and on a tile), PinMap (the land around a pin),
+                    SubmissionVerdict (Approve or Reject), OpenSubmittedPanel (an approved new flag opened), actions.ts
+                    (the calls and their refusals), submissions.ts (the lists, the filters, the next one, the flags near
+                    a pin and of the same name, the photo warning)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)

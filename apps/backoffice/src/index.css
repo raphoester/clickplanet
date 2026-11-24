@@ -2414,3 +2414,167 @@ a.button {
 .sold-add > .action-refused, .sold-add > .confirm {
     flex-basis: 100%;
 }
+
+/* Flag submissions: each flag a player submitted, judged as it will show. */
+.submission-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.submission-row-text {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.submission-thumb {
+    flex: none;
+    display: block;
+    width: 56px;
+    height: 37px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--map-land);
+}
+
+.submission-detail, .submission-card {
+    display: grid;
+    gap: 12px;
+}
+
+.photo-warning {
+    margin: 0;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: var(--bug);
+    border: 1px solid currentColor;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--bug) 8%, transparent);
+}
+
+.submission-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 16px;
+}
+
+.submission-figure {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.submission-picture {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px var(--line);
+}
+
+.submission-figures .submission-figure {
+    flex: 1 1 280px;
+}
+
+.on-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* A tile's disc: the middle of the flag, its height whole. */
+.on-tile {
+    display: block;
+    flex: none;
+    object-fit: cover;
+    border-radius: 50%;
+    background: var(--map-land);
+}
+
+.submission-name {
+    margin: 0;
+    font-size: 22px;
+    overflow-wrap: anywhere;
+}
+
+.pin-figure {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+}
+
+.pin-map {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    background: var(--map-sea);
+}
+
+.pin-mark {
+    fill: var(--bug);
+}
+
+.pin-ring {
+    fill: none;
+    stroke: var(--bug);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+}
+
+.pin-other {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+}
+
+.near-title {
+    margin: 4px 0 0;
+    font-size: 16px;
+}
+
+.near-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.near-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
+    overflow-wrap: anywhere;
+}
+
+.near-km {
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.reject {
+    display: grid;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.reject select {
+    justify-self: start;
+}
+
+.open-end {
+    justify-self: start;
+}

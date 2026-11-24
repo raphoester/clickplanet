@@ -10,8 +10,10 @@ burger menu (see [The menu](menu.md)), by group:
   [Answering a note](notes.md)), each with who sent it (see [Who sent a note](note-sender.md)) and its photos and
   videos (see [A note's photos and videos](note-media.md)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](reports.md)),
-  Players, who played and every tool on one player (see [The player page](player-page.md)), and Graffiti, the
-  swastikas the vandal squad flagged, drawn, with their painter's ban and revert (see [Graffiti](graffiti.md)).
+  Players, who played and every tool on one player (see [The player page](player-page.md)), Graffiti, the
+  swastikas the vandal squad flagged, drawn, with their painter's ban and revert (see [Graffiti](graffiti.md)), and
+  Flag submissions, the flags players submit, approved or rejected, then opened once paid for (see
+  [Flag submissions](flag-submissions.md)).
 - **Map**: Download a replay (see [The map tools](map-tools.md)).
 - **Clips**: Clip stats, the daily numbers of every post the game made, the clips' among them, and a CSV of them (see
   [Clip stats](clip-stats.md)), the Lab, each experiment of the video lab against the control of the same days, and

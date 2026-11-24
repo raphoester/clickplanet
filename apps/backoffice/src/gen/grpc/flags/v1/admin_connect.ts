@@ -5,7 +5,7 @@
 
 import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, OpenFlagRequest, OpenFlagResponse } from "./admin_pb.js";
+import { AddTimeRequest, AddTimeResponse, ApproveSubmissionRequest, ApproveSubmissionResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, ListSubmissionsRequest, ListSubmissionsResponse, OpenFlagRequest, OpenFlagResponse, OpenSubmittedFlagRequest, OpenSubmittedFlagResponse, RejectSubmissionRequest, RejectSubmissionResponse } from "./admin_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -81,6 +81,58 @@ export const AdminService = {
       name: "CloseFlag",
       I: CloseFlagRequest,
       O: CloseFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
+     * submitted, its picture as the server drew it, and the verdict.
+     *
+     * @generated from rpc flags.v1.AdminService.ListSubmissions
+     */
+    listSubmissions: {
+      name: "ListSubmissions",
+      I: ListSubmissionsRequest,
+      O: ListSubmissionsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
+     * OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+     * FailedPrecondition for one decided already, or while the flags' pictures are off.
+     *
+     * @generated from rpc flags.v1.AdminService.ApproveSubmission
+     */
+    approveSubmission: {
+      name: "ApproveSubmission",
+      I: ApproveSubmissionRequest,
+      O: ApproveSubmissionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
+     * later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+     * reason, or OTHER with no note.
+     *
+     * @generated from rpc flags.v1.AdminService.RejectSubmission
+     */
+    rejectSubmission: {
+      name: "RejectSubmission",
+      I: RejectSubmissionRequest,
+      O: RejectSubmissionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
+     * by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
+     * InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+     *
+     * @generated from rpc flags.v1.AdminService.OpenSubmittedFlag
+     */
+    openSubmittedFlag: {
+      name: "OpenSubmittedFlag",
+      I: OpenSubmittedFlagRequest,
+      O: OpenSubmittedFlagResponse,
       kind: MethodKind.Unary,
     },
   }
