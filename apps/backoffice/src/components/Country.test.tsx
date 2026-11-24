@@ -45,9 +45,16 @@ describe("Country", () => {
         expect(container.querySelector(".flag-blank")).toBeNull()
     })
 
-    it("draws Brittany with no flag at all, as Unicode has none", () => {
-        const {container} = render(<Country id="xb"/>)
-        expect(container.querySelector(".flag")).toBeNull()
-        expect(container.textContent).toBe("Brittany")
+    it("draws Brittany, sold since it left the build, as the list draws it, and never as Intl's test region", () => {
+        const {container} = render(<Page id="xb"/>)
+        expect(container.querySelector(".flag-blank")).not.toBeNull()
+        expect(container.textContent).toBe(" XB")
+
+        act(() => learnFlags([{
+            code: "xb", name: "Brittany", closed: false, picture: "https://media.test/flags/pictures/brittany.png",
+        }]))
+
+        expect(container.textContent).toBe(" Brittany")
+        expect(container.querySelector("img.flag-picture")?.getAttribute("src")).toBe("https://media.test/flags/pictures/brittany.png")
     })
 })

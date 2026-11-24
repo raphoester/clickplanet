@@ -12,10 +12,12 @@ export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number,
 
 export type ListedFlag = {code: string, name: string, closed: boolean, sold?: SoldFlag}
 
-const OPENED_CODE = /^r-[a-z0-9]{10}$/
+// Two letters or gb- and three, as the build's, or r- and ten drawn for a flag opened since.
+const FLAG_CODE = /^([a-z]{2}(-[a-z]{3})?|r-[a-z0-9]{10})$/
 
+// A flag the build does not ship: one opened since, or one sold since it left the build (Brittany, xb).
 export function isOpenedCode(code: string): boolean {
-    return OPENED_CODE.test(code)
+    return FLAG_CODE.test(code) && !Countries.has(code)
 }
 
 // A closed flag stays known, since history names it, but no player may play for it.

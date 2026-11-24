@@ -875,6 +875,7 @@ function flagSvgOf(width: number, height: number, shapes: string): string {
 const MUNICH = {latitude: 48.1374, longitude: 11.5755}
 const TRURO = {latitude: 50.2632, longitude: -5.051}
 const INNSBRUCK = {latitude: 47.2692, longitude: 11.4041}
+const RENNES = {latitude: 48.1173, longitude: -1.6778}
 
 const LOZENGES = `<defs><pattern id="l" width="1" height="1" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">` +
     `<rect width="1" height="1" fill="#fff"/><rect width=".5" height=".5" fill="#0098d4"/><rect x=".5" y=".5" width=".5" height=".5" fill="#0098d4"/>` +
@@ -882,6 +883,11 @@ const LOZENGES = `<defs><pattern id="l" width="1" height="1" patternUnits="userS
 
 const DEMO_FLAGS = [
     soldFlag(BAVARIA, "Bavaria", new Date(NOW + 12 * DAY), undefined, flagSvgOf(5, 3, LOZENGES), MUNICH),
+    soldFlag("xb", "Brittany", new Date(NOW + 27 * DAY), undefined, flagSvgOf(27, 18,
+        `<rect width="27" height="18" fill="#fff"/>` +
+        [0, 4, 8, 12, 16].map(y => `<rect x="${y < 10 ? 12 : 0}" y="${y}" width="27" height="2" fill="#000"/>`).join("") +
+        [[2, 2], [5, 2], [8, 2], [3.5, 5], [6.5, 5], [2, 8], [5, 8], [8, 8]]
+            .map(([x, y]) => `<path d="M${x} ${y}l-.8 1.6h1.6z" fill="#000"/>`).join("")), RENNES),
     soldFlag("r-democornw1", "Cornwall", new Date(NOW + 20 * HOUR), undefined, flagSvgOf(5, 3,
         `<rect width="5" height="3" fill="#000"/><rect x="2" width="1" height="3" fill="#fff"/><rect y="1" width="5" height="1" fill="#fff"/>`), TRURO),
     soldFlag("r-demosavoy1", "Savoy", new Date(NOW + 9 * DAY), new Date(NOW - 3 * DAY), flagSvgOf(1, 1,

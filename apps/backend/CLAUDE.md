@@ -190,7 +190,8 @@ and says what is in it. Read the doc before you change its area.
   each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
   (`cpflags`); the operator's calls (open with a picture and an end, add days, close), the close at the end date and
   the comeback within 30 days; a closed flag's players changing at once, its land kept, its room read-only, a battle's
-  lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page; each
+  lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
+  Brittany, moved from the build to the sold flags under its code `xb`, and the production steps of that move; each
   sold flag's pin (a point, never a tile); a signed-in player's submission (one waiting at a time, its picture held in
   private), the operator's approval (public, a change on its flag at once) or rejection with a reason (the picture
   deleted 30 days later), and the opening of an approved one by hand.

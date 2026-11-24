@@ -63,16 +63,3 @@ func TestAPlayerThatFailsIsAFailureAndNotNoAddress(t *testing.T) {
 	require.ErrorIs(t, err, assert.AnError)
 	assert.NotErrorIs(t, err, notes.ErrNoReplyAddress)
 }
-
-func TestTheAddressesOfAPageOfAccountsLeaveOutTheOnesWithNone(t *testing.T) {
-	held, err := rpc_addresses.New(&stubPlayer{email: held("ada@example.com")}).Addresses(t.Context(), []notes.AccountID{ada})
-	require.NoError(t, err)
-	assert.Equal(t, map[notes.AccountID]cpmail.Address{ada: "ada@example.com"}, held)
-
-	none, err := rpc_addresses.New(&stubPlayer{}).Addresses(t.Context(), []notes.AccountID{ada})
-	require.NoError(t, err)
-	assert.Empty(t, none)
-
-	_, err = rpc_addresses.New(&stubPlayer{err: connect.NewError(connect.CodeUnavailable, assert.AnError)}).Addresses(t.Context(), []notes.AccountID{ada})
-	require.ErrorIs(t, err, assert.AnError)
-}

@@ -1,8 +1,10 @@
 # Flags: the sold flags
 
 `src/flags/`, one page (`FlagsPage`), in the menu under Ops, at `#/flags`. **A sold flag is a real region's flag the
-game did not ship with**, opened for every player until its end (step 2 of the regional flags: the owner opens one by
-hand, for free). The flags players submit are judged on another page (see [Flag submissions](flag-submissions.md)). `flags.v1.AdminService` keeps them (`ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`,
+game does not ship with** (Brittany shipped with it until 2026-11-24 and is sold since, under its code `xb`), opened for
+every player until its end (step 2 of the regional flags: the owner opens one by hand, for free). The flags players
+submit are judged on another page (see [Flag submissions](flag-submissions.md)). `flags.v1.AdminService` keeps them
+(`ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`,
 `CloseFlag`; the backend's flags module). The game's own flags are not on this page: they never end.
 
 ## Opening one

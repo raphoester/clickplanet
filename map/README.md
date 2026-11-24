@@ -125,8 +125,9 @@ before it that keeps it, and this one takes the nearest vertex the other did not
 Virgin Islands beside the US ones, on `siege-1`).
 
 A seat for a country that has ground of its own, an island seat that would land on a country's ground, or two seats on
-one vertex that no `beside` names refuse the generation. **The audit fails on a flag with no ground**, except the four flags of a region
-inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which share it.
+one vertex that no `beside` names refuse the generation. **The audit fails on a flag with no ground**, except the three flags of a region
+inside a country's ground (England, Scotland, Wales: `REGIONS`), which share it. Brittany was the fourth until it left
+the build to be sold (2026-11-24).
 
 **Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
 They are not a budget that creeps: the runs and the borders are cut from one `groundOf` call, so a tile on open sea

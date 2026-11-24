@@ -58,7 +58,8 @@ func TestTheFlagsOpenedBeforeThePinsGetTheirsByName(t *testing.T) {
 	require.NoError(t, rows.Err())
 	assert.Equal(t, map[string][2]float64{
 		"r-6k0qh1902z": {41.9192, 8.7386}, "r-vscrt0jglu": {41.9192, 8.7386}, "r-0000000001": {48.1173, -1.6778},
-	}, pins)
+		"xb": {48.1173, -1.6778},
+	}, pins, "Brittany left the build in the migration before")
 }
 
 func TestAFlagWithNoKnownPinStopsTheMigration(t *testing.T) {

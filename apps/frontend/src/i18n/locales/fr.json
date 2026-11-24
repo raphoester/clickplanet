@@ -1,6 +1,5 @@
 {
   "format.ordinal": "{rank, selectordinal, one {#er} other {#e}}",
-  "country.xb": "Bretagne",
   "country.xk": "Kosovo",
   "country.gb-eng": "Angleterre",
   "country.gb-sct": "Écosse",
