@@ -71,13 +71,30 @@ func TestClickMapsTheBudget(t *testing.T) {
 		assert.Nil(t, res.Msg.GetBudget())
 	})
 
-	t.Run("clamps a spent bucket at zero rather than showing it negative", func(t *testing.T) {
-		useCase := &stubUseCase{out: click_usecase.Out{Budget: clicks.Budget{State: cpratelimit.State{Tokens: -3}}, Limited: true}}
+	t.Run("shows a bank a trap left in debt below zero", func(t *testing.T) {
+		useCase := &stubUseCase{out: click_usecase.Out{Budget: clicks.Budget{State: cpratelimit.State{Tokens: -7.5, Capacity: 60}}, Limited: true}}
 
 		res, err := clickOn(t, useCase, &planetv1.ClickRequest{})
 
 		require.NoError(t, err)
-		assert.InDelta(t, float64(0), res.Msg.GetBudget().GetTokens(), 1e-9)
+		assert.InDelta(t, -7.5, res.Msg.GetBudget().GetTokens(), 1e-9)
+	})
+
+	t.Run("a click refused for a debt carries the debt", func(t *testing.T) {
+		state := clicks.Budget{State: cpratelimit.State{Tokens: -7.5, Capacity: 60, PerSecond: 0.2}}
+		useCase := &stubUseCase{err: clicks.ErrThrottled, out: click_usecase.Out{Budget: state, Limited: true}}
+
+		_, err := clickOn(t, useCase, &planetv1.ClickRequest{})
+
+		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
+		require.Len(t, connectErr.Details(), 1)
+		value, valueErr := connectErr.Details()[0].Value()
+		require.NoError(t, valueErr)
+		budget, ok := value.(*planetv1.ClickBudget)
+		require.True(t, ok)
+		assert.InDelta(t, -7.5, budget.GetTokens(), 1e-9)
 	})
 }
 

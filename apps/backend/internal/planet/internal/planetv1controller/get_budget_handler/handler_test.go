@@ -57,6 +57,16 @@ func TestGetBudgetMapsTheReading(t *testing.T) {
 	assert.InDelta(t, 1.5, budget.GetNextSlowdown(), 1e-9)
 }
 
+func TestGetBudgetShowsABankInDebt(t *testing.T) {
+	budget := getBudget(t, stubUseCase{
+		state:   clicks.Budget{State: cpratelimit.State{Tokens: -42, Capacity: 60, PerSecond: 0.2}},
+		limited: true,
+	})
+
+	require.NotNil(t, budget)
+	assert.InDelta(t, -42, budget.GetTokens(), 1e-9, "a trap's debt reaches the page")
+}
+
 func TestGetBudgetPricesTheCountryAskedAbout(t *testing.T) {
 	var country string
 	getBudget(t, stubUseCase{limited: true, country: &country})
