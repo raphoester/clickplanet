@@ -75,11 +75,11 @@ type AdminServiceClient interface {
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// Gives each tile of the map in play back to what it would show had the caller never played, when it still shows
-	// what the caller's takes made of it, then forgets the caller's takes, so every history shows none of them. An
-	// account reaches every take since the last reset, from every scope and on every board (a take a switch of board
-	// carried over too); a scope reaches the ledger's last 72 hours, since older takes keep no address. touched counts
-	// the tiles of the map in play the caller's takes changed, held those that still show it. Run again, it gives back
-	// nothing more.
+	// what the caller's takes made of it: its owner, and the shields the caller struck on it. Then forgets the caller's
+	// takes, so every history shows none of them. An account reaches every take since the last reset, from every scope
+	// and on every board (a take a switch of board carried over too); a scope reaches the ledger's last 72 hours, since
+	// older takes keep no address. touched counts the tiles of the map in play the caller's takes changed, held those
+	// that still show it, shields the shields held gives back. Run again, it gives back nothing more.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
 	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
@@ -274,11 +274,11 @@ type AdminServiceHandler interface {
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// Gives each tile of the map in play back to what it would show had the caller never played, when it still shows
-	// what the caller's takes made of it, then forgets the caller's takes, so every history shows none of them. An
-	// account reaches every take since the last reset, from every scope and on every board (a take a switch of board
-	// carried over too); a scope reaches the ledger's last 72 hours, since older takes keep no address. touched counts
-	// the tiles of the map in play the caller's takes changed, held those that still show it. Run again, it gives back
-	// nothing more.
+	// what the caller's takes made of it: its owner, and the shields the caller struck on it. Then forgets the caller's
+	// takes, so every history shows none of them. An account reaches every take since the last reset, from every scope
+	// and on every board (a take a switch of board carried over too); a scope reaches the ledger's last 72 hours, since
+	// older takes keep no address. touched counts the tiles of the map in play the caller's takes changed, held those
+	// that still show it, shields the shields held gives back. Run again, it gives back nothing more.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
 	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.

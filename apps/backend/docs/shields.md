@@ -13,7 +13,8 @@ to the jury.
   its holder, kept by `inmemory_tile_storage` in one `tileState` per tile, under one lock.
   **Every change of owner sets them to 0** — a click, a spread, an enclose, a bomb,
   `RevertPlayer` — so no shield ever stands on a
-  tile for a flag that lost it.
+  tile for a flag that lost it. A revert gives a tile back with the shields its caller struck, to the flag they stood
+  for (see [A revert gives back the shields it struck](revert-erasure.md#a-revert-gives-back-the-shields-its-caller-struck)).
 - **The rule is `clicks.Tile.Claimed(flag, by)`**, pure and tested in the `clicks` root,
   over `clicks.OutcomeOf(owner, flag, shields)`: `Unchanged` when the tile wears the flag,
   `Shielded` when a shield stands (one struck, the flag and the holder kept), `Taken`

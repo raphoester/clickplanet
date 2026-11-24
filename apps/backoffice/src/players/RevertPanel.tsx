@@ -35,7 +35,7 @@ export function RevertPanel({planet, caller, who}: Props) {
                 {counted !== undefined && (
                     <p className="action-said" role="status">
                         It took {countOf(counted.touched, "tile")} in the last 72 hours and still holds {counted.held}.
-                        Only those change.
+                        Only those change{counted.shields > 0 && `, with the ${countOf(counted.shields, "shield")} it struck`}.
                     </p>
                 )}
             </div>

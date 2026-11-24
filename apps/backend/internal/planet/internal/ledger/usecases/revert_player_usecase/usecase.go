@@ -25,6 +25,7 @@ var ErrArenaPlays = errors.New("a revert waits for the world's map: an arena's p
 type Map interface {
 	Stage() clicks.Stage
 	Owner(tile uint32) (string, bool)
+	Shields(tile uint32) int
 	Restore(ctx context.Context, restorations []clicks.Restoration) (int, error)
 }
 
@@ -40,6 +41,7 @@ type Out struct {
 	Touched  int
 	Held     int
 	Restored int
+	Shields  int
 }
 
 func New(ledger Ledger, world World, tiles Map, pace clicks.Pacing) *UseCase {
@@ -78,6 +80,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 	restorations := undoing.Restorations(u.tiles, playing)
 	out := Out{Scope: caller.Scope, Account: caller.Account, Touched: undoing.Touched(), Held: len(restorations)}
+	for _, restoration := range restorations {
+		out.Shields += restoration.ShieldsBack()
+	}
 
 	if in.DryRun {
 		return out, nil

@@ -39,7 +39,7 @@ func revert(t *testing.T, useCase *stubUseCase) (*planetv1.RevertPlayerResponse,
 }
 
 func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
-	useCase := &stubUseCase{out: revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 40, Held: 31, Restored: 30}}
+	useCase := &stubUseCase{out: revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 40, Held: 31, Restored: 30, Shields: 12}}
 
 	res, err := revert(t, useCase)
 	require.NoError(t, err)
@@ -49,6 +49,7 @@ func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
 	assert.Equal(t, uint32(40), res.GetTouched())
 	assert.Equal(t, uint32(31), res.GetHeld())
 	assert.Equal(t, uint32(30), res.GetRestored())
+	assert.Equal(t, uint32(12), res.GetShields())
 }
 
 func TestAnInvalidScopeIsInvalidArgument(t *testing.T) {

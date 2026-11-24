@@ -20,6 +20,7 @@ type stubMap struct {
 	// The world's on earth-1 when unset.
 	playing clicks.Stage
 	owners  map[uint32]string
+	shields map[uint32]int
 	batches []int
 	err     error
 }
@@ -33,6 +34,18 @@ func (m *stubMap) Stage() clicks.Stage {
 
 func (m *stubMap) Owner(tile uint32) (string, bool) { return m.owners[tile], true }
 
+func (m *stubMap) Shields(tile uint32) int { return m.shields[tile] }
+
+func (m *stubMap) arm(tile uint32, shields int) {
+	if m.shields == nil {
+		m.shields = map[uint32]int{}
+	}
+	m.shields[tile] = shields
+	if shields == 0 {
+		delete(m.shields, tile)
+	}
+}
+
 func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) (int, error) {
 	m.batches = append(m.batches, len(restorations))
 	if m.err != nil {
@@ -41,10 +54,12 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 
 	restored := 0
 	for _, r := range restorations {
-		if m.owners[r.Tile] == r.From {
-			m.owners[r.Tile] = r.To
-			restored++
+		if m.owners[r.Tile] != r.From || r.From == r.To && (m.shields[r.Tile] != r.Was || r.Shields <= r.Was) {
+			continue
 		}
+		m.owners[r.Tile] = r.To
+		m.arm(r.Tile, r.Shields)
+		restored++
 	}
 	return restored, nil
 }
@@ -104,6 +119,19 @@ func (w *world) seed(tiles *stubMap) {
 func (w *world) take(tiles *stubMap, tile uint32, scope, country string) {
 	w.record(tiles.Stage(), ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: tiles.owners[tile]})
 	tiles.owners[tile] = country
+	tiles.arm(tile, 0)
+}
+
+func (w *world) shield(tiles *stubMap, tile uint32, scope string) {
+	tiles.arm(tile, tiles.shields[tile]+1)
+	w.record(tiles.Stage(), ledger.Shielding{Tile: tile, Scope: scope, Country: tiles.owners[tile], Shields: tiles.shields[tile]})
+}
+
+func (w *world) strike(tiles *stubMap, tile uint32, scope, country string) {
+	tiles.arm(tile, tiles.shields[tile]-1)
+	w.record(tiles.Stage(), ledger.Striking{
+		Tile: tile, Scope: scope, Country: country, Owner: tiles.owners[tile], Shields: tiles.shields[tile],
+	})
 }
 
 func (w *world) kept(scope string) int {
@@ -336,4 +364,35 @@ func TestARevertRunAgainGivesBackTheTakesTheOneBeforeCouldNotReach(t *testing.T)
 	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 2, Held: 1, Restored: 1}, out)
 	assert.Equal(t, map[uint32]string{1: "se", 2: "se"}, tiles.owners,
 		"a revert of the ledger's last 72 hours forgot the take of tile 1 and left it on the map: run again, it goes")
+}
+
+func TestItGivesBackTheShieldsTheScopeStruckOnce(t *testing.T) {
+	book := newWorld(t)
+	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "il"}}
+	book.seed(tiles)
+	for range 3 {
+		book.shield(tiles, 1, "1.1.1.1")
+	}
+	book.shield(tiles, 2, "1.1.1.1")
+	book.shield(tiles, 2, "1.1.1.1")
+	book.strike(tiles, 1, "9.9.9.9", "ps")
+	book.strike(tiles, 1, "9.9.9.9", "ps")
+	book.strike(tiles, 2, "9.9.9.9", "ps")
+	book.strike(tiles, 2, "9.9.9.9", "ps")
+	book.take(tiles, 2, "9.9.9.9", "ps")
+
+	dry, err := revert(book, tiles, 10).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9", DryRun: true})
+	require.NoError(t, err)
+	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 2, Held: 2, Shields: 4}, dry)
+
+	out, err := revert(book, tiles, 10).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	require.NoError(t, err)
+	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 2, Held: 2, Restored: 2, Shields: 4}, out)
+	assert.Equal(t, map[uint32]string{1: "il", 2: "il"}, tiles.owners)
+	assert.Equal(t, map[uint32]int{1: 3, 2: 2}, tiles.shields)
+
+	again, err := revert(book, tiles, 10).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	require.NoError(t, err)
+	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 2}, again, "the shields stand again")
+	assert.Equal(t, map[uint32]int{1: 3, 2: 2}, tiles.shields)
 }

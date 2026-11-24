@@ -425,7 +425,7 @@ describe("one player", () => {
         expect(revert().disabled).toBe(true)
 
         fireEvent.click(screen.getByRole("button", {name: "Dry run"}))
-        expect(await screen.findByText(/took 900 tiles in the last 72 hours and still holds 120/)).toBeTruthy()
+        expect(await screen.findByText(/took 900 tiles in the last 72 hours and still holds 120\. Only those change, with the 40 shields it struck\./)).toBeTruthy()
 
         fireEvent.click(revert())
         expect(screen.getByText("Give back the 120 tiles BraveFox42 holds?")).toBeTruthy()

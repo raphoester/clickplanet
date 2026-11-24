@@ -166,8 +166,8 @@ describe("revert", () => {
     it("counts on a dry run and restores on the real one", async () => {
         const admin = new FakeAdmin()
 
-        expect(await revert(admin, account, true)).toEqual({touched: 900, held: 120, restored: 0})
-        expect(await revert(admin, account, false)).toEqual({touched: 900, held: 120, restored: 118})
+        expect(await revert(admin, account, true)).toEqual({touched: 900, held: 120, restored: 0, shields: 40})
+        expect(await revert(admin, account, false)).toEqual({touched: 900, held: 120, restored: 118, shields: 40})
         expect(admin.askedFor("revertPlayer")).toEqual([
             {accountId: "account-reported", dryRun: true},
             {accountId: "account-reported", dryRun: false},

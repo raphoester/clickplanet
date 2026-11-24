@@ -1031,6 +1031,11 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
    */
   restored = 0;
 
+  /**
+   * @generated from field: uint32 shields = 6;
+   */
+  shields = 0;
+
   constructor(data?: PartialMessage<RevertPlayerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1044,6 +1049,7 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
     { no: 2, name: "touched", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "restored", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevertPlayerResponse {

@@ -684,7 +684,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {
         const restored = request.dryRun === true ? 0 : 118
-        return this.answer("revertPlayer", request, new RevertPlayerResponse({touched: 900, held: 120, restored}))
+        return this.answer("revertPlayer", request, new RevertPlayerResponse({touched: 900, held: 120, restored, shields: 40}))
     }
 
     grantCharges(request: PartialMessage<GrantChargesRequest>): Promise<GrantChargesResponse> {

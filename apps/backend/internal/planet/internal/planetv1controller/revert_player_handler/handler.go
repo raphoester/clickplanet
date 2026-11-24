@@ -41,6 +41,7 @@ func (h RevertPlayerHandler) RevertPlayer(
 			Touched:   uint32(out.Touched),  //nolint:gosec // a tile count, bounded by the map.
 			Held:      uint32(out.Held),     //nolint:gosec // a tile count, bounded by the map.
 			Restored:  uint32(out.Restored), //nolint:gosec // a tile count, bounded by the map.
+			Shields:   uint32(out.Shields),  //nolint:gosec // a shield count, bounded by the map.
 		}), nil
 	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

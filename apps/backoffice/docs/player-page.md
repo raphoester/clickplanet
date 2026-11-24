@@ -77,7 +77,7 @@ address>`), so Back goes to the list, as it was.
   module of its own. A ban reaches planet a moment after its answer.
 - **The tools, one at a time behind tabs**, so the page stays short: Ban (`BanPlayer`, the ladder's next step by
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
-  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Warn (`WarnPlayer`, the
+  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first, with the shields it gives back), and for an account alone Warn (`WarnPlayer`, the
   jury's "One account per player" warning given by hand, which the player sees at once: `Warned …`, or, for an account
   warned before, `Already warned …` with whether it confirmed it, and nothing changed; `failed_precondition` is the bans
   not enforced on this server, so nobody is warned; see the backend's

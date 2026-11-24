@@ -33,7 +33,7 @@ export type Banned = {until: Date, offence: number, enforced: boolean}
 export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
 // `already`: the account was warned before, at `at`, and nothing changed.
 export type Warned = {at: Date, already: boolean, acknowledgedAt: Date | undefined}
-export type Reverted = {touched: number, held: number, restored: number}
+export type Reverted = {touched: number, held: number, restored: number, shields: number}
 // Each kind a count, as GrantChargesRequest takes it: the server keeps what a hand holds of it under the rules in force.
 export type Grant = {
     refills: number, bombs: number, enclosures: number, spreadClicks: number, shields: number, viruses: number, mines: number,
@@ -133,7 +133,7 @@ export async function warn(antibot: AntibotAdmin, accountId: string): Promise<Wa
 // Paced on the server, a tile at a time on the live stream: a big revert takes seconds.
 export async function revert(planet: PlanetAdmin, caller: Caller, dryRun: boolean): Promise<Reverted> {
     const answer = await planet.revertPlayer({...caller, dryRun}, {timeoutMs: LONG_CALL_MS})
-    return {touched: answer.touched, held: answer.held, restored: answer.restored}
+    return {touched: answer.touched, held: answer.held, restored: answer.restored, shields: answer.shields}
 }
 
 export async function inspect(antibot: AntibotAdmin, caller: Caller, signal?: AbortSignal): Promise<InspectPlayerResponse> {
