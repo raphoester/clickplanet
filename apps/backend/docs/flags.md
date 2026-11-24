@@ -30,12 +30,9 @@ opens when the owner says so.
   the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
-  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)).
-- **The regions the game ships with have pins too**: England, Scotland and Wales, in `generated/flags/pins.json`,
-  embedded beside `countries.json` (`cpflags.Pins`). `make flag-pins` (`cmd/flagpins`) writes it from Natural Earth at
-  the map's tag (`v5.1.2`), as the map's capitals are chosen: for each flag `xx-yyy`, the populated place inside the map
-  subunit `YYY` of country `XX` that is its country's main capital, else another capital, else the biggest: London,
-  Edinburgh, Cardiff. Never edited by hand. The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
+  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)). The
+  game's own flags have no pin: England, Scotland and Wales move to the sold flags, with theirs (the owner,
+  2026-11-24). The migration that brought the pins (`20261124101101_flag_submissions`) gave production's test flag of
   Corsica Ajaccio's pin and Brittany Rennes', by name, and stops on any other flag, so none is left with no pin.
 
 ## What it tells
