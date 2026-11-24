@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
@@ -50,7 +50,7 @@ jobs:
             -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json" -history "$GITHUB_WORKSPACE/history.json" \
             -flag-list "$GITHUB_WORKSPACE/flag-list.json"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: replay
           path: |
@@ -67,9 +67,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -78,7 +78,7 @@ jobs:
       - run: npm ci
         working-directory: apps/frontend
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: replay
           path: apps/frontend
@@ -95,7 +95,7 @@ jobs:
           flaglist=$([ -f flag-list.json ] && echo "--flag-list flag-list.json" || true)
           npm run clip -- --replay replay.json $race $season $cast $history $flaglist --findings findings.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: findings
           path: apps/frontend/findings.json
@@ -110,14 +110,14 @@ jobs:
     outputs:
       picks: ${{ steps.choose.outputs.picks }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: findings
 
@@ -164,9 +164,9 @@ jobs:
       run:
         working-directory: apps/frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -180,7 +180,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends ffmpeg fonts-noto-cjk
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: replay
           path: apps/frontend
@@ -200,7 +200,7 @@ jobs:
           flaglist=$([ -f flag-list.json ] && echo "--flag-list flag-list.json" || true)
           npm run clip -- --replay replay.json $race $season $cast $history $flaglist --pick "$PICK" --story "$STORY" --recorders 1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: clip-${{ matrix.clip.pick }}
           path: |
@@ -217,14 +217,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: clip-*
           path: clips
