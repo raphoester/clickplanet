@@ -28,11 +28,15 @@ card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/s
 | a flag paid, in review | its name, the Waiting chip | the steps at 3, "Paid! We check your flag, then it opens.", **Your flag** |
 | a flag paid and approved, the moment before it opens | its picture and name, the Approved chip | every step done, "Approved! It opens now.", **Your flag** |
 | a flag approved and not paid (refunded while it waited, or approved before pay first) | its picture and name, the Approved chip | the plans, the consent and Pay, with no steps |
-| a flag founded, open or closed less than 30 days ago, or its renewal stopping | its flag, "Ends on …" or "Closed on …" | the plans, the consent and Pay, for the flag |
-| a flag founded whose renewal runs | its flag, "Renews on …" | **Your flag**: no second plan, it would charge twice |
+| a flag founded, open or closed less than 30 days ago, or its renewal stopping | its flag, "Ends on …" or "Closed on …" | the plans, the consent and Pay, for the flag; **New flag** under them |
+| a flag founded whose renewal runs | its flag, "Renews on …" | **Your flag**: no second plan, it would charge twice; **New flag** under it |
 
 - **The steps** ("Send your flag", "Pay", "We check it"): three coins on a line, gold up to where the flag is, a check
   on each one done. Only on the way to a new flag.
+- **New flag** for a founder (the modal's footer, secondary: Pay stays the one thing to press): it closes the shop and
+  opens the flag form empty (`useFlagForm.compose`), as the footer's New flag in the flag's place. Without it, a founder
+  whose flag closed found no way to a second flag in the shop for 30 days. The server takes a new flag whenever none
+  waits, and `offerOf` gives these two offers only then.
 - **The plans side by side** (`PlanCards`): three cards, a radio group. Each has its name, its price large (the sign in
   Rubik: Luckiest Guy's euro reads as a "<"), "Paid once" or "Every month", its price by the day ("€0.17 / day",
   rounded up so it is never told cheaper), and what it saves by the day against the dearest plan, rounded down ("-42%",
