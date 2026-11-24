@@ -115,3 +115,13 @@ func chunk(kind string, data []byte) []byte {
 	out = append(out, data...)
 	return binary.BigEndian.AppendUint32(out, crc32.ChecksumIEEE(append([]byte(kind), data...)))
 }
+
+func TestAFlagHoldsFewColoursAndAPhotoMany(t *testing.T) {
+	bands, err := pictures.Redraw(pictures.TestPNG(600, 400))
+	require.NoError(t, err)
+	assert.Equal(t, pictures.OtherColors(0), bands.OtherColors)
+
+	photo, err := pictures.Redraw(pictures.TestNoisePNG(600, 400))
+	require.NoError(t, err)
+	assert.Greater(t, photo.OtherColors, pictures.OtherColors(50))
+}

@@ -44,6 +44,18 @@ const (
 	AdminServiceAddTimeProcedure = "/flags.v1.AdminService/AddTime"
 	// AdminServiceCloseFlagProcedure is the fully-qualified name of the AdminService's CloseFlag RPC.
 	AdminServiceCloseFlagProcedure = "/flags.v1.AdminService/CloseFlag"
+	// AdminServiceListSubmissionsProcedure is the fully-qualified name of the AdminService's
+	// ListSubmissions RPC.
+	AdminServiceListSubmissionsProcedure = "/flags.v1.AdminService/ListSubmissions"
+	// AdminServiceApproveSubmissionProcedure is the fully-qualified name of the AdminService's
+	// ApproveSubmission RPC.
+	AdminServiceApproveSubmissionProcedure = "/flags.v1.AdminService/ApproveSubmission"
+	// AdminServiceRejectSubmissionProcedure is the fully-qualified name of the AdminService's
+	// RejectSubmission RPC.
+	AdminServiceRejectSubmissionProcedure = "/flags.v1.AdminService/RejectSubmission"
+	// AdminServiceOpenSubmittedFlagProcedure is the fully-qualified name of the AdminService's
+	// OpenSubmittedFlag RPC.
+	AdminServiceOpenSubmittedFlagProcedure = "/flags.v1.AdminService/OpenSubmittedFlag"
 )
 
 // AdminServiceClient is a client for the flags.v1.AdminService service.
@@ -70,6 +82,21 @@ type AdminServiceClient interface {
 	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
 	// lifts. FailedPrecondition for a flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
+	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
+	// submitted, its picture as the server drew it, and the verdict.
+	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
+	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
+	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+	// FailedPrecondition for one decided already, or while the flags' pictures are off.
+	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
+	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
+	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+	// reason, or OTHER with no note.
+	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
+	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
+	// InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the flags.v1.AdminService service. By default, it
@@ -114,16 +141,45 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
 			connect.WithClientOptions(opts...),
 		),
+		listSubmissions: connect.NewClient[v1.ListSubmissionsRequest, v1.ListSubmissionsResponse](
+			httpClient,
+			baseURL+AdminServiceListSubmissionsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListSubmissions")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		approveSubmission: connect.NewClient[v1.ApproveSubmissionRequest, v1.ApproveSubmissionResponse](
+			httpClient,
+			baseURL+AdminServiceApproveSubmissionProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ApproveSubmission")),
+			connect.WithClientOptions(opts...),
+		),
+		rejectSubmission: connect.NewClient[v1.RejectSubmissionRequest, v1.RejectSubmissionResponse](
+			httpClient,
+			baseURL+AdminServiceRejectSubmissionProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RejectSubmission")),
+			connect.WithClientOptions(opts...),
+		),
+		openSubmittedFlag: connect.NewClient[v1.OpenSubmittedFlagRequest, v1.OpenSubmittedFlagResponse](
+			httpClient,
+			baseURL+AdminServiceOpenSubmittedFlagProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("OpenSubmittedFlag")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listFlags        *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
-	createFlagUpload *connect.Client[v1.CreateFlagUploadRequest, v1.CreateFlagUploadResponse]
-	openFlag         *connect.Client[v1.OpenFlagRequest, v1.OpenFlagResponse]
-	addTime          *connect.Client[v1.AddTimeRequest, v1.AddTimeResponse]
-	closeFlag        *connect.Client[v1.CloseFlagRequest, v1.CloseFlagResponse]
+	listFlags         *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	createFlagUpload  *connect.Client[v1.CreateFlagUploadRequest, v1.CreateFlagUploadResponse]
+	openFlag          *connect.Client[v1.OpenFlagRequest, v1.OpenFlagResponse]
+	addTime           *connect.Client[v1.AddTimeRequest, v1.AddTimeResponse]
+	closeFlag         *connect.Client[v1.CloseFlagRequest, v1.CloseFlagResponse]
+	listSubmissions   *connect.Client[v1.ListSubmissionsRequest, v1.ListSubmissionsResponse]
+	approveSubmission *connect.Client[v1.ApproveSubmissionRequest, v1.ApproveSubmissionResponse]
+	rejectSubmission  *connect.Client[v1.RejectSubmissionRequest, v1.RejectSubmissionResponse]
+	openSubmittedFlag *connect.Client[v1.OpenSubmittedFlagRequest, v1.OpenSubmittedFlagResponse]
 }
 
 // ListFlags calls flags.v1.AdminService.ListFlags.
@@ -151,6 +207,26 @@ func (c *adminServiceClient) CloseFlag(ctx context.Context, req *connect.Request
 	return c.closeFlag.CallUnary(ctx, req)
 }
 
+// ListSubmissions calls flags.v1.AdminService.ListSubmissions.
+func (c *adminServiceClient) ListSubmissions(ctx context.Context, req *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error) {
+	return c.listSubmissions.CallUnary(ctx, req)
+}
+
+// ApproveSubmission calls flags.v1.AdminService.ApproveSubmission.
+func (c *adminServiceClient) ApproveSubmission(ctx context.Context, req *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error) {
+	return c.approveSubmission.CallUnary(ctx, req)
+}
+
+// RejectSubmission calls flags.v1.AdminService.RejectSubmission.
+func (c *adminServiceClient) RejectSubmission(ctx context.Context, req *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error) {
+	return c.rejectSubmission.CallUnary(ctx, req)
+}
+
+// OpenSubmittedFlag calls flags.v1.AdminService.OpenSubmittedFlag.
+func (c *adminServiceClient) OpenSubmittedFlag(ctx context.Context, req *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error) {
+	return c.openSubmittedFlag.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the flags.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Every flag a player may play for or once played for: the ones the game ships with, in their order, then the ones
@@ -175,6 +251,21 @@ type AdminServiceHandler interface {
 	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
 	// lifts. FailedPrecondition for a flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
+	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
+	// submitted, its picture as the server drew it, and the verdict.
+	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
+	// Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
+	// OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+	// FailedPrecondition for one decided already, or while the flags' pictures are off.
+	ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error)
+	// Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
+	// later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+	// reason, or OTHER with no note.
+	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
+	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
+	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
+	// InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+	OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -215,6 +306,31 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("CloseFlag")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListSubmissionsHandler := connect.NewUnaryHandler(
+		AdminServiceListSubmissionsProcedure,
+		svc.ListSubmissions,
+		connect.WithSchema(adminServiceMethods.ByName("ListSubmissions")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceApproveSubmissionHandler := connect.NewUnaryHandler(
+		AdminServiceApproveSubmissionProcedure,
+		svc.ApproveSubmission,
+		connect.WithSchema(adminServiceMethods.ByName("ApproveSubmission")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceRejectSubmissionHandler := connect.NewUnaryHandler(
+		AdminServiceRejectSubmissionProcedure,
+		svc.RejectSubmission,
+		connect.WithSchema(adminServiceMethods.ByName("RejectSubmission")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceOpenSubmittedFlagHandler := connect.NewUnaryHandler(
+		AdminServiceOpenSubmittedFlagProcedure,
+		svc.OpenSubmittedFlag,
+		connect.WithSchema(adminServiceMethods.ByName("OpenSubmittedFlag")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListFlagsProcedure:
@@ -227,6 +343,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceAddTimeHandler.ServeHTTP(w, r)
 		case AdminServiceCloseFlagProcedure:
 			adminServiceCloseFlagHandler.ServeHTTP(w, r)
+		case AdminServiceListSubmissionsProcedure:
+			adminServiceListSubmissionsHandler.ServeHTTP(w, r)
+		case AdminServiceApproveSubmissionProcedure:
+			adminServiceApproveSubmissionHandler.ServeHTTP(w, r)
+		case AdminServiceRejectSubmissionProcedure:
+			adminServiceRejectSubmissionHandler.ServeHTTP(w, r)
+		case AdminServiceOpenSubmittedFlagProcedure:
+			adminServiceOpenSubmittedFlagHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -254,4 +378,20 @@ func (UnimplementedAdminServiceHandler) AddTime(context.Context, *connect.Reques
 
 func (UnimplementedAdminServiceHandler) CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.CloseFlag is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.ListSubmissions is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ApproveSubmission(context.Context, *connect.Request[v1.ApproveSubmissionRequest]) (*connect.Response[v1.ApproveSubmissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.ApproveSubmission is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.RejectSubmission is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.OpenSubmittedFlag is not implemented"))
 }

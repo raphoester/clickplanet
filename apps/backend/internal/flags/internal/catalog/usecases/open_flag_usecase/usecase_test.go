@@ -34,19 +34,23 @@ func newFixture() fixture {
 	bucket.Upload(upload, pictures.TestPNG(300, 200))
 	return fixture{store: store, bucket: bucket, outbox: outbox, useCase: open_flag_usecase.New(
 		catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(now)),
-		pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20}), cpatomic.FakeTransactioner{}, store, outbox)}
+		pictures.NewGallery(bucket, pictures.Rules{MaxBytes: 5 << 20}), cpatomic.FakeTransactioner{}, store, outbox,
+	)}
 }
 
 func TestAFlagOpenedIsKeptWithItsPictureAndToldAndItsUploadGoes(t *testing.T) {
 	f := newFixture()
 
 	opened, err := f.useCase.Execute(t.Context(),
-		open_flag_usecase.In{Name: " Rennes ", Upload: upload.String(), EndsAt: now.Add(7 * 24 * time.Hour)})
+		open_flag_usecase.In{
+			Name: " Rennes ", Upload: upload.String(), Latitude: 48.1173, Longitude: -1.6778, EndsAt: now.Add(7 * 24 * time.Hour),
+		})
 	require.NoError(t, err)
 
 	assert.Equal(t, catalog.FlagID("r-0000000001"), opened.ID)
 	assert.Equal(t, catalog.Name("Rennes"), opened.Name)
 	assert.Equal(t, catalog.Open, opened.State)
+	assert.Equal(t, catalog.Pin{Latitude: 48.1173, Longitude: -1.6778}, opened.Pin)
 	assert.Equal(t, now.Add(7*24*time.Hour), opened.EndsAt)
 	assert.Equal(t, [2]uint32{300, 200}, [2]uint32{opened.Picture.Width, opened.Picture.Height})
 	assert.Contains(t, f.bucket.Published(), opened.Picture.Key(), "public")
@@ -57,7 +61,8 @@ func TestAFlagOpenedIsKeptWithItsPictureAndToldAndItsUploadGoes(t *testing.T) {
 	require.Len(t, f.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(
 		&flagsv1.FlagOpened{Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now)},
-		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
+		f.outbox.Recorded()[0],
+	), "%v", f.outbox.Recorded()[0])
 }
 
 func TestAFlagThatEndsBeforeNowIsNotOpenedAndItsUploadStays(t *testing.T) {
@@ -70,7 +75,7 @@ func TestAFlagThatEndsBeforeNowIsNotOpenedAndItsUploadStays(t *testing.T) {
 	assert.Empty(t, f.outbox.Recorded())
 }
 
-func TestAFlagWithNoNameOrNoPictureIsNotOpened(t *testing.T) {
+func TestAFlagWithNoNameNoPinOrNoPictureIsNotOpened(t *testing.T) {
 	f := newFixture()
 	ends := now.Add(time.Hour)
 
@@ -78,6 +83,8 @@ func TestAFlagWithNoNameOrNoPictureIsNotOpened(t *testing.T) {
 	require.ErrorIs(t, err, catalog.ErrInvalidName)
 	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: pictures.UploadID{2}.String(), EndsAt: ends})
 	require.ErrorIs(t, err, pictures.ErrUnknownUpload)
+	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), Latitude: 91, EndsAt: ends})
+	require.ErrorIs(t, err, catalog.ErrInvalidPin)
 	f.bucket.Upload(upload, pictures.TestPNG(500, 200))
 	_, err = f.useCase.Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), EndsAt: ends})
 	require.ErrorIs(t, err, pictures.ErrShape)

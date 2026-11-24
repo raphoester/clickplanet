@@ -35,6 +35,8 @@ const (
 type Drawn struct {
 	PNG     []byte
 	Picture Picture
+	// What a reviewer reads to tell a photo from a flag.
+	OtherColors OtherColors
 }
 
 // Redraw draws a file uploaded again, so what is made public is a picture the server wrote and nothing it was sent.
@@ -67,7 +69,7 @@ func Redraw(file []byte) (Drawn, error) {
 		width:  uint32(fitted.Bounds().Dx()), //nolint:gosec // at most 768.
 		height: uint32(fitted.Bounds().Dy()), //nolint:gosec // at most 512.
 		fit:    fitOf(small),
-	}}, nil
+	}, OtherColors: otherColorsOf(fitted)}, nil
 }
 
 func fittedSize(width, height int) image.Point {

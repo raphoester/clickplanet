@@ -14,6 +14,23 @@ service FlagService {
   // Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
   // httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream FlagEvent);
+
+  // A link to upload the picture of a flag to submit, good for 10 minutes: PUT the file there with its Content-Type.
+  // PNG, JPEG or WebP, at most 5 MB; the file stays private. For a signed-in account alone: PermissionDenied for a
+  // guest. FailedPrecondition while the flags' pictures are off, ResourceExhausted past the uploads of a day.
+  rpc CreateSubmissionUpload(CreateSubmissionUploadRequest) returns (CreateSubmissionUploadResponse);
+
+  // Submits a flag for the operator's review: a place's name, the picture uploaded with CreateSubmissionUpload, and a
+  // pin on the globe. With flag, a new name or picture for a flag the account founded: the flag keeps its own until
+  // the operator approves the change. The picture is drawn again (as AdminService/OpenFlag draws it) and kept private
+  // until its approval. PermissionDenied for a guest, or for a flag another account founded; AlreadyExists while one
+  // of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
+  // flags' pictures are off.
+  rpc SubmitFlag(SubmitFlagRequest) returns (SubmitFlagResponse);
+
+  // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
+  // guest.
+  rpc ListMySubmissions(ListMySubmissionsRequest) returns (ListMySubmissionsResponse);
 }
 
 message ListFlagsRequest {}
@@ -55,6 +72,96 @@ message Sold {
   google.protobuf.Timestamp ends_at = 2;
   // Unset while the flag is open. Time added within 30 days of it opens the flag again.
   google.protobuf.Timestamp closed_at = 3;
+  // Where the flag starts in Capital Siege, as a country starts on its capital.
+  Pin pin = 4;
+}
+
+// A point on the globe, in degrees. Never a tile: each board numbers its tiles its own way.
+message Pin {
+  // -90 to 90.
+  double latitude = 1;
+  // -180 to 180.
+  double longitude = 2;
+}
+
+message CreateSubmissionUploadRequest {
+  // image/png, image/jpeg or image/webp.
+  string content_type = 1;
+  uint64 size_bytes = 2;
+}
+
+message CreateSubmissionUploadResponse {
+  // What SubmitFlag takes.
+  string upload_id = 1;
+  string upload_url = 2;
+}
+
+message SubmitFlagRequest {
+  // 1 to 40 characters, in English: the place's name.
+  string name = 1;
+  string upload_id = 2;
+  // Required.
+  Pin pin = 3;
+  // Empty for a new flag; the code of a flag the account founded, for its new name or picture.
+  string flag = 4;
+}
+
+message SubmitFlagResponse {
+  Submission submission = 1;
+}
+
+message ListMySubmissionsRequest {}
+
+message ListMySubmissionsResponse {
+  repeated Submission submissions = 1;
+}
+
+// A flag a player submitted, as its player reads it.
+message Submission {
+  string id = 1;
+  string name = 2;
+  Pin pin = 3;
+  // A new name or picture for a flag already opened, in place of a new flag.
+  bool change = 4;
+  // The flag a change is for, or the flag opened from a new one; empty until then.
+  string flag = 5;
+  SubmissionState state = 6;
+  google.protobuf.Timestamp submitted_at = 7;
+  // When it took its state: its submission, while it waits.
+  google.protobuf.Timestamp decided_at = 8;
+  // Only for a rejected one.
+  Rejection rejection = 9;
+  // Public from its approval; unset before, and for a rejected one.
+  Picture picture = 10;
+}
+
+enum SubmissionState {
+  SUBMISSION_STATE_UNSPECIFIED = 0;
+  SUBMISSION_STATE_WAITING = 1;
+  // A new flag waits to be paid for; a change is on its flag.
+  SUBMISSION_STATE_APPROVED = 2;
+  SUBMISSION_STATE_REJECTED = 3;
+  // A flag was opened from it.
+  SUBMISSION_STATE_OPENED = 4;
+}
+
+// Why the operator refused a submission: the player reads it, as the EU's rules for online platforms ask.
+message Rejection {
+  RejectionReason reason = 1;
+  // The operator's own words, which the player reads too: required for OTHER, 500 characters at most.
+  string note = 2;
+}
+
+enum RejectionReason {
+  REJECTION_REASON_UNSPECIFIED = 0;
+  // Not the flag a place is known by: a cause, a party, a brand, a person, a meme or a photo.
+  REJECTION_REASON_NOT_A_PLACE = 1;
+  // The place has a flag in the game already.
+  REJECTION_REASON_EXISTS = 2;
+  // Unreadable at the size of a tile.
+  REJECTION_REASON_UNREADABLE = 3;
+  REJECTION_REASON_HATEFUL = 4;
+  REJECTION_REASON_OTHER = 5;
 }
 
 // A flag's picture as the server drew it again: a PNG at most 768 wide and 512 high, between square and 2 wide by 1

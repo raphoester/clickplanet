@@ -20,9 +20,11 @@ type Flags interface {
 }
 
 type In struct {
-	Name   string
-	Upload string
-	EndsAt time.Time
+	Name      string
+	Upload    string
+	Latitude  float64
+	Longitude float64
+	EndsAt    time.Time
 }
 
 const timeout = 30 * time.Second
@@ -49,6 +51,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
+	pin, err := catalog.ParsePin(in.Latitude, in.Longitude)
+	if err != nil {
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+	}
 	upload, err := pictures.ParseUploadID(in.Upload)
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
@@ -57,7 +63,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 	if err != nil {
 		return catalog.Snapshot{}, fmt.Errorf("failed to draw the flag's picture: %w", err)
 	}
-	flag, err := u.opening.Open(name, picture, in.EndsAt)
+	flag, err := u.opening.Open(name, picture, pin, in.EndsAt)
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the opening names it.
 	}

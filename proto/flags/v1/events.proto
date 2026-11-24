@@ -20,3 +20,11 @@ message FlagClosed {
   string flag = 1;
   google.protobuf.Timestamp closed_at = 2;
 }
+
+// A flag's name or picture changed, once the operator approved its founder's change. Only the flags module listens.
+message FlagUpdated {
+  string flag = 1;
+  // In English.
+  string name = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}

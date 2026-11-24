@@ -47,7 +47,12 @@
   then the ones opened since, the closed ones too, each `Flag{code, name, closed}`, and for one opened since `sold`: its
   `Picture` (public URL, size, `stretch` and focus), `ends_at` and `closed_at`). A flag opened since is `r-` and ten
   letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet keeps in its catalog, and
-  `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime` and `CloseFlag` (`flags_*`).
+  `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime` and `CloseFlag` (`flags_*`), and
+  since 2026-11-24 the review of the players' submissions: `ListSubmissions` (`KeptSubmission`), `ApproveSubmission`,
+  `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note) and `OpenSubmittedFlag`. A sold flag has a `Pin`
+  (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also takes a signed-in player's
+  `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (`Submission`, its `SubmissionState`), and
+  `events.proto` has `FlagUpdated`, a flag's name or picture changed, which only the flags module hears.
   Planet's `Allegiance.closed` says the flag held is closed: its account picks another at once.
   `FlagService/ListenForEvents` is its stream: a heartbeat, and each flag opened or closed while it is open
   (`flag_changed`), and a page reads `ListFlags` as it opens (see the backend's

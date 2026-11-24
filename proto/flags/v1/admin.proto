@@ -35,6 +35,27 @@ service AdminService {
   // may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
   // lifts. FailedPrecondition for a flag closed already.
   rpc CloseFlag(CloseFlagRequest) returns (CloseFlagResponse);
+
+  // Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
+  // submitted, its picture as the server drew it, and the verdict.
+  rpc ListSubmissions(ListSubmissionsRequest) returns (ListSubmissionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Approves a submission: its picture is made public. A new flag then waits to be paid for, and opens with
+  // OpenSubmittedFlag; a change is on its flag at once, for every player. NotFound for an unknown submission;
+  // FailedPrecondition for one decided already, or while the flags' pictures are off.
+  rpc ApproveSubmission(ApproveSubmissionRequest) returns (ApproveSubmissionResponse);
+
+  // Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
+  // later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+  // reason, or OTHER with no note.
+  rpc RejectSubmission(RejectSubmissionRequest) returns (RejectSubmissionResponse);
+
+  // Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
+  // by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change;
+  // InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+  rpc OpenSubmittedFlag(OpenSubmittedFlagRequest) returns (OpenSubmittedFlagResponse);
 }
 
 message CreateFlagUploadRequest {
@@ -55,6 +76,8 @@ message OpenFlagRequest {
   string upload_id = 2;
   // In the future.
   google.protobuf.Timestamp ends_at = 3;
+  // Required: where the flag starts in Capital Siege, the place's capital or its middle.
+  Pin pin = 4;
 }
 
 message OpenFlagResponse {
@@ -77,5 +100,63 @@ message CloseFlagRequest {
 }
 
 message CloseFlagResponse {
+  Flag flag = 1;
+}
+
+message ListSubmissionsRequest {}
+
+message ListSubmissionsResponse {
+  repeated KeptSubmission submissions = 1;
+}
+
+// A submission as the operator reviews it.
+message KeptSubmission {
+  string id = 1;
+  // The founder's account.
+  string account_id = 2;
+  string name = 3;
+  Pin pin = 4;
+  // A new name or picture for a flag already opened, in place of a new flag.
+  bool change = 5;
+  // The flag a change is for, or the flag opened from a new one; empty until then.
+  string flag = 6;
+  SubmissionState state = 7;
+  google.protobuf.Timestamp submitted_at = 8;
+  // When it took its state: its submission, while it waits.
+  google.protobuf.Timestamp decided_at = 9;
+  // Only for a rejected one.
+  Rejection rejection = 10;
+  // The picture as the server drew it: public from its approval, before it a private link good for an hour. Unset
+  // once a rejected picture was deleted.
+  Picture picture = 11;
+  // The share of the picture, in percent, in colours other than its 8 most common, each channel in 16 steps: the
+  // game's flags hold 0 to 10, a photo 20 or more.
+  uint32 other_colors_percent = 12;
+}
+
+message ApproveSubmissionRequest {
+  string submission_id = 1;
+}
+
+message ApproveSubmissionResponse {
+  KeptSubmission submission = 1;
+}
+
+message RejectSubmissionRequest {
+  string submission_id = 1;
+  Rejection rejection = 2;
+}
+
+message RejectSubmissionResponse {
+  KeptSubmission submission = 1;
+}
+
+message OpenSubmittedFlagRequest {
+  string submission_id = 1;
+  // In the future.
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+message OpenSubmittedFlagResponse {
   Flag flag = 1;
 }

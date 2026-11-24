@@ -45,3 +45,20 @@ func (s Closed) Handle(ctx context.Context, event *flagsv1.FlagClosed) error {
 		Flag: event.GetFlag(), DecidedAt: event.GetClosedAt().AsTime(),
 	})
 }
+
+func NewUpdated(useCase UseCase) Updated {
+	return Updated{useCase: useCase}
+}
+
+// Updated hears the module's own flags.v1.FlagUpdated, for the open streams.
+type Updated struct {
+	useCase UseCase
+}
+
+var _ cpredis.Handler[*flagsv1.FlagUpdated] = Updated{}
+
+func (s Updated) Handle(ctx context.Context, event *flagsv1.FlagUpdated) error {
+	return s.useCase.Execute(ctx, tell_streams_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Flag: event.GetFlag(), DecidedAt: event.GetUpdatedAt().AsTime(),
+	})
+}

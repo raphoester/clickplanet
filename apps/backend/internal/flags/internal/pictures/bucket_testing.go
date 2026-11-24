@@ -16,10 +16,44 @@ type MemoryBucket struct {
 	mu        sync.Mutex
 	uploads   map[UploadID][]byte
 	published map[string][]byte
+	held      map[string][]byte
 }
 
 func NewMemoryBucket() *MemoryBucket {
-	return &MemoryBucket{uploads: map[UploadID][]byte{}, published: map[string][]byte{}}
+	return &MemoryBucket{uploads: map[UploadID][]byte{}, published: map[string][]byte{}, held: map[string][]byte{}}
+}
+
+func (m *MemoryBucket) Hold(_ context.Context, key string, png []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.held[key] = png
+	return nil
+}
+
+func (m *MemoryBucket) Held(_ context.Context, key string, most int64) ([]byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	file, ok := m.held[key]
+	switch {
+	case !ok:
+		return nil, fmt.Errorf("%w: %s", ErrUnknownHeld, key)
+	case int64(len(file)) > most:
+		return nil, ErrTooLarge
+	}
+	return file, nil
+}
+
+func (m *MemoryBucket) Drop(_ context.Context, key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.held, key)
+	return nil
+}
+
+func (m *MemoryBucket) HeldPictures() map[string][]byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return maps.Clone(m.held)
 }
 
 // Upload is what the page sends to the link.

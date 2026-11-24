@@ -38,6 +38,14 @@ const (
 	// FlagServiceListenForEventsProcedure is the fully-qualified name of the FlagService's
 	// ListenForEvents RPC.
 	FlagServiceListenForEventsProcedure = "/flags.v1.FlagService/ListenForEvents"
+	// FlagServiceCreateSubmissionUploadProcedure is the fully-qualified name of the FlagService's
+	// CreateSubmissionUpload RPC.
+	FlagServiceCreateSubmissionUploadProcedure = "/flags.v1.FlagService/CreateSubmissionUpload"
+	// FlagServiceSubmitFlagProcedure is the fully-qualified name of the FlagService's SubmitFlag RPC.
+	FlagServiceSubmitFlagProcedure = "/flags.v1.FlagService/SubmitFlag"
+	// FlagServiceListMySubmissionsProcedure is the fully-qualified name of the FlagService's
+	// ListMySubmissions RPC.
+	FlagServiceListMySubmissionsProcedure = "/flags.v1.FlagService/ListMySubmissions"
 )
 
 // FlagServiceClient is a client for the flags.v1.FlagService service.
@@ -47,6 +55,20 @@ type FlagServiceClient interface {
 	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
 	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.FlagEvent], error)
+	// A link to upload the picture of a flag to submit, good for 10 minutes: PUT the file there with its Content-Type.
+	// PNG, JPEG or WebP, at most 5 MB; the file stays private. For a signed-in account alone: PermissionDenied for a
+	// guest. FailedPrecondition while the flags' pictures are off, ResourceExhausted past the uploads of a day.
+	CreateSubmissionUpload(context.Context, *connect.Request[v1.CreateSubmissionUploadRequest]) (*connect.Response[v1.CreateSubmissionUploadResponse], error)
+	// Submits a flag for the operator's review: a place's name, the picture uploaded with CreateSubmissionUpload, and a
+	// pin on the globe. With flag, a new name or picture for a flag the account founded: the flag keeps its own until
+	// the operator approves the change. The picture is drawn again (as AdminService/OpenFlag draws it) and kept private
+	// until its approval. PermissionDenied for a guest, or for a flag another account founded; AlreadyExists while one
+	// of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
+	// flags' pictures are off.
+	SubmitFlag(context.Context, *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error)
+	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
+	// guest.
+	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
 }
 
 // NewFlagServiceClient constructs a client for the flags.v1.FlagService service. By default, it
@@ -73,13 +95,34 @@ func NewFlagServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(flagServiceMethods.ByName("ListenForEvents")),
 			connect.WithClientOptions(opts...),
 		),
+		createSubmissionUpload: connect.NewClient[v1.CreateSubmissionUploadRequest, v1.CreateSubmissionUploadResponse](
+			httpClient,
+			baseURL+FlagServiceCreateSubmissionUploadProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("CreateSubmissionUpload")),
+			connect.WithClientOptions(opts...),
+		),
+		submitFlag: connect.NewClient[v1.SubmitFlagRequest, v1.SubmitFlagResponse](
+			httpClient,
+			baseURL+FlagServiceSubmitFlagProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("SubmitFlag")),
+			connect.WithClientOptions(opts...),
+		),
+		listMySubmissions: connect.NewClient[v1.ListMySubmissionsRequest, v1.ListMySubmissionsResponse](
+			httpClient,
+			baseURL+FlagServiceListMySubmissionsProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("ListMySubmissions")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // flagServiceClient implements FlagServiceClient.
 type flagServiceClient struct {
-	listFlags       *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
-	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.FlagEvent]
+	listFlags              *connect.Client[v1.ListFlagsRequest, v1.ListFlagsResponse]
+	listenForEvents        *connect.Client[v1.ListenForEventsRequest, v1.FlagEvent]
+	createSubmissionUpload *connect.Client[v1.CreateSubmissionUploadRequest, v1.CreateSubmissionUploadResponse]
+	submitFlag             *connect.Client[v1.SubmitFlagRequest, v1.SubmitFlagResponse]
+	listMySubmissions      *connect.Client[v1.ListMySubmissionsRequest, v1.ListMySubmissionsResponse]
 }
 
 // ListFlags calls flags.v1.FlagService.ListFlags.
@@ -92,6 +135,21 @@ func (c *flagServiceClient) ListenForEvents(ctx context.Context, req *connect.Re
 	return c.listenForEvents.CallServerStream(ctx, req)
 }
 
+// CreateSubmissionUpload calls flags.v1.FlagService.CreateSubmissionUpload.
+func (c *flagServiceClient) CreateSubmissionUpload(ctx context.Context, req *connect.Request[v1.CreateSubmissionUploadRequest]) (*connect.Response[v1.CreateSubmissionUploadResponse], error) {
+	return c.createSubmissionUpload.CallUnary(ctx, req)
+}
+
+// SubmitFlag calls flags.v1.FlagService.SubmitFlag.
+func (c *flagServiceClient) SubmitFlag(ctx context.Context, req *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error) {
+	return c.submitFlag.CallUnary(ctx, req)
+}
+
+// ListMySubmissions calls flags.v1.FlagService.ListMySubmissions.
+func (c *flagServiceClient) ListMySubmissions(ctx context.Context, req *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error) {
+	return c.listMySubmissions.CallUnary(ctx, req)
+}
+
 // FlagServiceHandler is an implementation of the flags.v1.FlagService service.
 type FlagServiceHandler interface {
 	// Every flag of the catalog, the closed ones too: history still names them. A GET.
@@ -99,6 +157,20 @@ type FlagServiceHandler interface {
 	// Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
 	// httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.FlagEvent]) error
+	// A link to upload the picture of a flag to submit, good for 10 minutes: PUT the file there with its Content-Type.
+	// PNG, JPEG or WebP, at most 5 MB; the file stays private. For a signed-in account alone: PermissionDenied for a
+	// guest. FailedPrecondition while the flags' pictures are off, ResourceExhausted past the uploads of a day.
+	CreateSubmissionUpload(context.Context, *connect.Request[v1.CreateSubmissionUploadRequest]) (*connect.Response[v1.CreateSubmissionUploadResponse], error)
+	// Submits a flag for the operator's review: a place's name, the picture uploaded with CreateSubmissionUpload, and a
+	// pin on the globe. With flag, a new name or picture for a flag the account founded: the flag keeps its own until
+	// the operator approves the change. The picture is drawn again (as AdminService/OpenFlag draws it) and kept private
+	// until its approval. PermissionDenied for a guest, or for a flag another account founded; AlreadyExists while one
+	// of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
+	// flags' pictures are off.
+	SubmitFlag(context.Context, *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error)
+	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
+	// guest.
+	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
 }
 
 // NewFlagServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -121,12 +193,36 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(flagServiceMethods.ByName("ListenForEvents")),
 		connect.WithHandlerOptions(opts...),
 	)
+	flagServiceCreateSubmissionUploadHandler := connect.NewUnaryHandler(
+		FlagServiceCreateSubmissionUploadProcedure,
+		svc.CreateSubmissionUpload,
+		connect.WithSchema(flagServiceMethods.ByName("CreateSubmissionUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flagServiceSubmitFlagHandler := connect.NewUnaryHandler(
+		FlagServiceSubmitFlagProcedure,
+		svc.SubmitFlag,
+		connect.WithSchema(flagServiceMethods.ByName("SubmitFlag")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flagServiceListMySubmissionsHandler := connect.NewUnaryHandler(
+		FlagServiceListMySubmissionsProcedure,
+		svc.ListMySubmissions,
+		connect.WithSchema(flagServiceMethods.ByName("ListMySubmissions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.FlagService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlagServiceListFlagsProcedure:
 			flagServiceListFlagsHandler.ServeHTTP(w, r)
 		case FlagServiceListenForEventsProcedure:
 			flagServiceListenForEventsHandler.ServeHTTP(w, r)
+		case FlagServiceCreateSubmissionUploadProcedure:
+			flagServiceCreateSubmissionUploadHandler.ServeHTTP(w, r)
+		case FlagServiceSubmitFlagProcedure:
+			flagServiceSubmitFlagHandler.ServeHTTP(w, r)
+		case FlagServiceListMySubmissionsProcedure:
+			flagServiceListMySubmissionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -142,4 +238,16 @@ func (UnimplementedFlagServiceHandler) ListFlags(context.Context, *connect.Reque
 
 func (UnimplementedFlagServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.FlagEvent]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.ListenForEvents is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) CreateSubmissionUpload(context.Context, *connect.Request[v1.CreateSubmissionUploadRequest]) (*connect.Response[v1.CreateSubmissionUploadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.CreateSubmissionUpload is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) SubmitFlag(context.Context, *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.SubmitFlag is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.ListMySubmissions is not implemented"))
 }
