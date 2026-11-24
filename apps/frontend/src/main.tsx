@@ -85,7 +85,7 @@ import {FakeShownNames} from "./backends/fakeShownNames.ts"
 import {languageInterceptor} from "./backends/language.ts"
 import {speakChosenLanguage} from "./i18n/start.ts"
 import {ConnectFlagsBackend, newFlagServiceClient} from "./backends/flagsBackend.ts"
-import {FakeFlagsBackend} from "./backends/fakeFlagsBackend.ts"
+import {FakeFlagsBackend, NameRefusal} from "./backends/fakeFlagsBackend.ts"
 import {paintFakeFlag} from "./backends/fakeFlagPictures.ts"
 import {afterFirstRead} from "./app/flags/flagsStore.ts"
 import {isOpenedCode} from "./domain/flags.ts"
@@ -172,6 +172,16 @@ function chooseOnceListed(code: string | undefined) {
     })
 }
 
+function nameRefusedWords(name: string, refused: NameRefusal): string {
+    switch (refused) {
+        case "empty":
+        case "too long":
+            return "a flag's name is 1 to 40 characters"
+        case "taken":
+            return `another flag is named ${name.trim()}, whatever its case`
+    }
+}
+
 function start(backends: Backends) {
     void speaking.then(() => root.render(
         <StrictMode>
@@ -212,6 +222,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeClips = new FakeClipsBackend()
     const fakeFlags = new FakeFlagsBackend(paintFakeFlag)
     fakeFlags.listenForClosed((closed) => fake.closeFlags(closed))
+    // The fake planet holds a flag only once it was pledged or clicked for.
+    fake.listenForAllegiance((held) => {
+        if (held) fakeFlags.markPlayed(held.countryId)
+    })
     const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
@@ -273,8 +287,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.lockFlags(false)
             return "the flags may change again"
         },
-        openFlag: async (name = "Bavaria", days = 30) =>
-            `${name} is open as ${await fakeFlags.open(name, days)} for ${days} days: pick it, and its tiles wear its picture`,
+        openFlag: async (name = "Bavaria", days = 30) => {
+            const opened = await fakeFlags.open(name, days)
+            return "code" in opened
+                ? `${name} is open as ${opened.code} for ${days} days: pick it, and its tiles wear its picture`
+                : nameRefusedWords(name, opened.refused)
+        },
         addTime: (code: string, days = 30) => {
             switch (fakeFlags.addTime(code, days)) {
                 case "longer":
@@ -290,6 +308,33 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         closeFlag: (code: string) => fakeFlags.close(code)
             ? `${code} is closed: its players pick another flag, its land stays, and addTime(code) brings it back`
             : `no open flag ${code}: openFlag(name) answers one`,
+        renameFlag: (code: string, name: string) => {
+            const renamed = fakeFlags.rename(code, name)
+            switch (renamed) {
+                case "renamed":
+                    return `${code} is ${name.trim()} now, on every page`
+                case "unknown":
+                    return `no flag ${code}: openFlag(name) answers one`
+                case "empty":
+                case "too long":
+                case "taken":
+                    return nameRefusedWords(name, renamed)
+            }
+        },
+        deleteFlag: (code: string) => {
+            switch (fakeFlags.delete(code)) {
+                case "deleted":
+                    return `${code} is gone for good`
+                case "unknown":
+                    return `no flag ${code}: openFlag(name) answers one`
+                case "open":
+                    return `${code} is open: closeFlag(code) first`
+                case "played":
+                    return `${code} was played for: it is never deleted`
+                case "too soon":
+                    return `${code} closed under a minute ago: try again in a minute`
+            }
+        },
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"

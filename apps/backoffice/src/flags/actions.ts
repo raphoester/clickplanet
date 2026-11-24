@@ -20,7 +20,7 @@ const DAY_MS = 24 * HOUR_MS
 export type Order = "end" | "name"
 
 // A sold flag as the page shows it.
-export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined}
+export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined, played: boolean}
 
 export function soldOf(flags: readonly Flag[]): Sold[] {
     return flags.flatMap(flag => flag.sold === undefined ? [] : [{
@@ -28,7 +28,13 @@ export function soldOf(flags: readonly Flag[]): Sold[] {
         picture: flag.sold.picture?.url ?? "",
         endsAt: flag.sold.endsAt?.toDate() ?? new Date(0),
         closedAt: flag.sold.closedAt?.toDate(),
+        played: flag.sold.played,
     }])
+}
+
+// The server deletes only a closed flag nobody played for, and refuses one closed under a minute ago.
+export function deletable(sold: Sold): boolean {
+    return sold.closedAt !== undefined && !sold.played
 }
 
 // By end: the open ones first, the soonest to end first, then the closed ones, the last closed first.
@@ -72,10 +78,21 @@ export function lengthOf(name: string): number {
     return [...name.trim()].length
 }
 
+export function nameProblem(name: string): string | undefined {
+    return lengthOf(name) > MAX_NAME ? `A name of ${MAX_NAME} characters at most.` : undefined
+}
+
+// A name the server may take as typed, other than the flag's own: undefined for none.
+export function renamedOf(typed: string, current: string): string | undefined {
+    const name = typed.trim()
+    return name === "" || name === current || nameProblem(name) !== undefined ? undefined : name
+}
+
 // What the server would refuse of a flag to open, as it is typed. A field left empty is not one: Open waits for it.
 export function draftProblems(draft: Draft, now: Date): string[] {
     const problems: string[] = []
-    if (lengthOf(draft.name) > MAX_NAME) problems.push(`A name of ${MAX_NAME} characters at most.`)
+    const name = nameProblem(draft.name)
+    if (name !== undefined) problems.push(name)
     if (draft.file !== undefined && !ACCEPTED.split(",").includes(draft.file.type)) problems.push("A PNG, a JPEG or a WebP.")
     if (draft.file !== undefined && draft.file.size > MAX_BYTES) problems.push("A picture of 5 MB at most.")
     const end = endOf(draft.endsAt)
@@ -118,7 +135,22 @@ export async function closeFlag(flags: FlagsAdmin, code: string): Promise<Flag> 
     return answered((await flags.closeFlag({code})).flag)
 }
 
+export async function renameFlag(flags: FlagsAdmin, code: string, name: string): Promise<Flag> {
+    return answered((await flags.renameFlag({code, name})).flag)
+}
+
+export async function deleteFlag(flags: FlagsAdmin, code: string): Promise<void> {
+    await flags.deleteFlag({code})
+}
+
 export const openRefusalOf = refusalWith({failedPrecondition: PICTURES_OFF})
+
+export const renameRefusalOf = refusalWith({notFound: NO_SUCH_FLAG})
+
+export const deleteRefusalOf = refusalWith({
+    failedPrecondition: "The server keeps it: closed under a minute ago, or opened or played for since the list was read.",
+    notFound: NO_SUCH_FLAG,
+})
 
 export const addTimeRefusalOf = refusalWith({
     failedPrecondition: `Closed over ${COMEBACK_DAYS} days ago: time added no longer opens it.`,

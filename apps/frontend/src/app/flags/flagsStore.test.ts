@@ -1,14 +1,30 @@
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, assert, describe, expect, it, vi} from "vitest"
 import {flagCatalog, knowsFlag, useFlags} from "./flagsStore.ts"
 import type {FlagPicture, ListedFlag} from "../../domain/flags.ts"
 import {ENGLISH_TRANSLATOR} from "../../i18n/translator.ts"
-import {FakeFlagsBackend} from "../../backends/fakeFlagsBackend.ts"
+import {FakeFlagsBackend, NameRefusal} from "../../backends/fakeFlagsBackend.ts"
 
 const BAVARIA: ListedFlag = {code: "r-k3p9x2ma0b", name: "Bavaria", closed: false}
 const PICTURE: FlagPicture = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
+const SAVOY: ListedFlag = {code: "r-0a1b2c3d4e", name: "Savoy", closed: true, sold: {picture: PICTURE, endsAt: 1, closedAt: 2}}
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+function codeOf(opened: {code: string} | {refused: NameRefusal}): string {
+    assert("code" in opened, `refused: ${JSON.stringify(opened)}`)
+    return opened.code
+}
+
+// Serves the fake as useFlagsFeed does, and waits for its two reads: the load's and the stream's.
+async function serveFake(fake: FakeFlagsBackend) {
+    const listFlags = vi.spyOn(fake, "listFlags")
+    const {serve, changed, told, gone} = useFlags.getState()
+    serve(fake)
+    const stop = fake.listenForFlags({onOpened: changed, onChanged: told, onDeleted: gone})
+    await vi.waitFor(() => expect(listFlags.mock.calls).toEqual([[false], [true]]))
+    return {listFlags, stop}
+}
 
 // A list the test answers by hand, one read at a time.
 function listOnHold() {
@@ -153,16 +169,66 @@ describe("the flags store", () => {
         expect(flagCatalog().playable(BAVARIA.code)).toBe(false)
     })
 
+    it("takes a rename the stream tells with no read, wherever the page names the flag", async () => {
+        const lister = listOnHold()
+        useFlags.getState().serve(lister)
+        await lister.answer([BAVARIA, SAVOY])
+
+        useFlags.getState().told({...BAVARIA, name: "Bayern"})
+        useFlags.getState().told({...SAVOY, name: "Savoie"})
+
+        expect(flagCatalog().openedName(BAVARIA.code)).toBe("Bayern")
+        expect(ENGLISH_TRANSLATOR.country(BAVARIA.code)).toBe("Bayern")
+        expect(ENGLISH_TRANSLATOR.countryInText(BAVARIA.code)).toBe("Bayern")
+        expect(ENGLISH_TRANSLATOR.country(SAVOY.code)).toBe("Savoie")
+        expect(flagCatalog().playableCodes().filter((code) => code === BAVARIA.code)).toHaveLength(1)
+        expect(flagCatalog().closedFlag(SAVOY.code)).toBe(true)
+        expect(flagCatalog().pictureOf(SAVOY.code)).toEqual(PICTURE)
+        expect(lister.listFlags).toHaveBeenCalledTimes(1)
+    })
+
+    it("drops a flag the stream deletes with no read; its code then reads once, as any code it does not know", async () => {
+        const lister = listOnHold()
+        useFlags.getState().serve(lister)
+        await lister.answer([BAVARIA, SAVOY])
+
+        useFlags.getState().gone(SAVOY.code)
+
+        expect(flagCatalog().knows(SAVOY.code)).toBe(false)
+        expect(flagCatalog().soldOf(SAVOY.code)).toBeUndefined()
+        expect(flagCatalog().pictures().has(SAVOY.code)).toBe(false)
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
+        expect(lister.listFlags).toHaveBeenCalledTimes(1)
+
+        expect(ENGLISH_TRANSLATOR.country(SAVOY.code)).toBe(SAVOY.code)
+        expect(lister.listFlags.mock.calls).toEqual([[false], [true]])
+        await lister.answer([BAVARIA])
+        for (let i = 0; i < 50; i++) expect(knowsFlag(SAVOY.code)).toBe(false)
+        await settled()
+
+        expect(lister.listFlags).toHaveBeenCalledTimes(2)
+    })
+
+    it("keeps a delete the stream told during a read over that read's answer, which may predate it", async () => {
+        const lister = listOnHold()
+        useFlags.getState().serve(lister)
+        await lister.answer([SAVOY])
+
+        useFlags.getState().changed()
+        useFlags.getState().gone(SAVOY.code)
+        useFlags.getState().told(BAVARIA)
+        await lister.answer([SAVOY])
+
+        expect(flagCatalog().knows(SAVOY.code)).toBe(false)
+        expect(flagCatalog().playable(BAVARIA.code)).toBe(true)
+    })
+
     it("follows the fake's flags as the flags' stream would tell them, reading once more as it opens", async () => {
         let now = 0
         const fake = new FakeFlagsBackend(async () => PICTURE, () => now)
-        const listFlags = vi.spyOn(fake, "listFlags")
-        const {serve, changed, told} = useFlags.getState()
-        serve(fake)
-        const stop = fake.listenForFlags({onOpened: changed, onChanged: told})
-        await vi.waitFor(() => expect(listFlags.mock.calls).toEqual([[false], [true]]))
+        const {listFlags, stop} = await serveFake(fake)
 
-        const code = await fake.open("Bavaria", 7)
+        const code = codeOf(await fake.open("Bavaria", 7))
         expect(flagCatalog().playable(code)).toBe(true)
         expect(flagCatalog().pictureOf(code)).toEqual(PICTURE)
         expect(flagCatalog().soldOf(code)?.endsAt).toBe(7 * DAY_MS)
@@ -185,6 +251,58 @@ describe("the flags store", () => {
         now = 60 * DAY_MS
         expect(fake.addTime(code, 5)).toBe("too late")
         expect(listFlags).toHaveBeenCalledTimes(2)
+        stop()
+    })
+
+    it("renames the fake's flags by the server's rules, as the stream would tell it", async () => {
+        const fake = new FakeFlagsBackend(async () => PICTURE, () => 0)
+        const {listFlags, stop} = await serveFake(fake)
+        const bavaria = codeOf(await fake.open("Bavaria"))
+        const savoy = codeOf(await fake.open("Savoy"))
+
+        expect(await fake.open("bavaria")).toEqual({refused: "taken"})
+        expect(await fake.open("FRANCE")).toEqual({refused: "taken"})
+        expect(fake.rename(bavaria, "savoy")).toBe("taken")
+        expect(fake.rename(bavaria, "France")).toBe("taken")
+        expect(fake.rename(bavaria, " ")).toBe("empty")
+        expect(fake.rename(bavaria, "B".repeat(41))).toBe("too long")
+        expect(fake.rename("r-0000000000", "Tyrol")).toBe("unknown")
+        expect(ENGLISH_TRANSLATOR.country(bavaria)).toBe("Bavaria")
+
+        expect(fake.rename(bavaria, " Bayern ")).toBe("renamed")
+        expect(ENGLISH_TRANSLATOR.country(bavaria)).toBe("Bayern")
+        fake.close(savoy)
+        expect(fake.rename(savoy, "savoy")).toBe("renamed")
+        expect(ENGLISH_TRANSLATOR.country(savoy)).toBe("savoy")
+        expect(listFlags).toHaveBeenCalledTimes(2)
+        stop()
+    })
+
+    it("deletes a fake's flag by the server's rules: closed a minute ago or more, and never played", async () => {
+        let now = 0
+        const fake = new FakeFlagsBackend(async () => PICTURE, () => now)
+        const closings: ReadonlySet<string>[] = []
+        fake.listenForClosed((closed) => closings.push(closed))
+        const {listFlags, stop} = await serveFake(fake)
+        const bavaria = codeOf(await fake.open("Bavaria"))
+        const savoy = codeOf(await fake.open("Savoy"))
+        fake.markPlayed(bavaria)
+
+        expect(fake.delete(savoy)).toBe("open")
+        fake.close(bavaria)
+        fake.close(savoy)
+        now = 59_999
+        expect(fake.delete(savoy)).toBe("too soon")
+        now = 60_000
+        expect(fake.delete(bavaria)).toBe("played")
+
+        expect(fake.delete(savoy)).toBe("deleted")
+        expect(flagCatalog().knows(savoy)).toBe(false)
+        expect(flagCatalog().knows(bavaria)).toBe(true)
+        expect((await fake.listFlags()).map((flag) => flag.code)).not.toContain(savoy)
+        expect(closings.at(-1)).toEqual(new Set([bavaria]))
+        expect(fake.delete(savoy)).toBe("unknown")
+        expect(listFlags).toHaveBeenCalledTimes(3)
         stop()
     })
 })

@@ -420,6 +420,183 @@ func (x *CloseFlagResponse) GetFlag() *Flag {
 	return nil
 }
 
+type RenameFlagRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// 1 to 40 characters, in English.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFlagRequest) Reset() {
+	*x = RenameFlagRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFlagRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFlagRequest) ProtoMessage() {}
+
+func (x *RenameFlagRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFlagRequest.ProtoReflect.Descriptor instead.
+func (*RenameFlagRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RenameFlagRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *RenameFlagRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RenameFlagResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          *Flag                  `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFlagResponse) Reset() {
+	*x = RenameFlagResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFlagResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFlagResponse) ProtoMessage() {}
+
+func (x *RenameFlagResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFlagResponse.ProtoReflect.Descriptor instead.
+func (*RenameFlagResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RenameFlagResponse) GetFlag() *Flag {
+	if x != nil {
+		return x.Flag
+	}
+	return nil
+}
+
+type DeleteFlagRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFlagRequest) Reset() {
+	*x = DeleteFlagRequest{}
+	mi := &file_flags_v1_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFlagRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFlagRequest) ProtoMessage() {}
+
+func (x *DeleteFlagRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFlagRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFlagRequest) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeleteFlagRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+type DeleteFlagResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFlagResponse) Reset() {
+	*x = DeleteFlagResponse{}
+	mi := &file_flags_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFlagResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFlagResponse) ProtoMessage() {}
+
+func (x *DeleteFlagResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFlagResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFlagResponse) Descriptor() ([]byte, []int) {
+	return file_flags_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
 var File_flags_v1_admin_proto protoreflect.FileDescriptor
 
 const file_flags_v1_admin_proto_rawDesc = "" +
@@ -447,13 +624,25 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\x10CloseFlagRequest\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\"7\n" +
 	"\x11CloseFlagResponse\x12\"\n" +
-	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag2\xfd\x02\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\";\n" +
+	"\x11RenameFlagRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"8\n" +
+	"\x12RenameFlagResponse\x12\"\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"'\n" +
+	"\x11DeleteFlagRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\"\x14\n" +
+	"\x12DeleteFlagResponse2\x8f\x04\n" +
 	"\fAdminService\x12I\n" +
 	"\tListFlags\x12\x1a.flags.v1.ListFlagsRequest\x1a\x1b.flags.v1.ListFlagsResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\x10CreateFlagUpload\x12!.flags.v1.CreateFlagUploadRequest\x1a\".flags.v1.CreateFlagUploadResponse\x12A\n" +
 	"\bOpenFlag\x12\x19.flags.v1.OpenFlagRequest\x1a\x1a.flags.v1.OpenFlagResponse\x12>\n" +
 	"\aAddTime\x12\x18.flags.v1.AddTimeRequest\x1a\x19.flags.v1.AddTimeResponse\x12D\n" +
-	"\tCloseFlag\x12\x1a.flags.v1.CloseFlagRequest\x1a\x1b.flags.v1.CloseFlagResponseB\xab\x01\n" +
+	"\tCloseFlag\x12\x1a.flags.v1.CloseFlagRequest\x1a\x1b.flags.v1.CloseFlagResponse\x12G\n" +
+	"\n" +
+	"RenameFlag\x12\x1b.flags.v1.RenameFlagRequest\x1a\x1c.flags.v1.RenameFlagResponse\x12G\n" +
+	"\n" +
+	"DeleteFlag\x12\x1b.flags.v1.DeleteFlagRequest\x1a\x1c.flags.v1.DeleteFlagResponseB\xab\x01\n" +
 	"\fcom.flags.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
@@ -469,7 +658,7 @@ func file_flags_v1_admin_proto_rawDescGZIP() []byte {
 	return file_flags_v1_admin_proto_rawDescData
 }
 
-var file_flags_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_flags_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_flags_v1_admin_proto_goTypes = []any{
 	(*CreateFlagUploadRequest)(nil),  // 0: flags.v1.CreateFlagUploadRequest
 	(*CreateFlagUploadResponse)(nil), // 1: flags.v1.CreateFlagUploadResponse
@@ -479,31 +668,40 @@ var file_flags_v1_admin_proto_goTypes = []any{
 	(*AddTimeResponse)(nil),          // 5: flags.v1.AddTimeResponse
 	(*CloseFlagRequest)(nil),         // 6: flags.v1.CloseFlagRequest
 	(*CloseFlagResponse)(nil),        // 7: flags.v1.CloseFlagResponse
-	(*timestamppb.Timestamp)(nil),    // 8: google.protobuf.Timestamp
-	(*Flag)(nil),                     // 9: flags.v1.Flag
-	(*ListFlagsRequest)(nil),         // 10: flags.v1.ListFlagsRequest
-	(*ListFlagsResponse)(nil),        // 11: flags.v1.ListFlagsResponse
+	(*RenameFlagRequest)(nil),        // 8: flags.v1.RenameFlagRequest
+	(*RenameFlagResponse)(nil),       // 9: flags.v1.RenameFlagResponse
+	(*DeleteFlagRequest)(nil),        // 10: flags.v1.DeleteFlagRequest
+	(*DeleteFlagResponse)(nil),       // 11: flags.v1.DeleteFlagResponse
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(*Flag)(nil),                     // 13: flags.v1.Flag
+	(*ListFlagsRequest)(nil),         // 14: flags.v1.ListFlagsRequest
+	(*ListFlagsResponse)(nil),        // 15: flags.v1.ListFlagsResponse
 }
 var file_flags_v1_admin_proto_depIdxs = []int32{
-	8,  // 0: flags.v1.OpenFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: flags.v1.OpenFlagResponse.flag:type_name -> flags.v1.Flag
-	9,  // 2: flags.v1.AddTimeResponse.flag:type_name -> flags.v1.Flag
-	9,  // 3: flags.v1.CloseFlagResponse.flag:type_name -> flags.v1.Flag
-	10, // 4: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	0,  // 5: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
-	2,  // 6: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
-	4,  // 7: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
-	6,  // 8: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
-	11, // 9: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	1,  // 10: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
-	3,  // 11: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
-	5,  // 12: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
-	7,  // 13: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	12, // 0: flags.v1.OpenFlagRequest.ends_at:type_name -> google.protobuf.Timestamp
+	13, // 1: flags.v1.OpenFlagResponse.flag:type_name -> flags.v1.Flag
+	13, // 2: flags.v1.AddTimeResponse.flag:type_name -> flags.v1.Flag
+	13, // 3: flags.v1.CloseFlagResponse.flag:type_name -> flags.v1.Flag
+	13, // 4: flags.v1.RenameFlagResponse.flag:type_name -> flags.v1.Flag
+	14, // 5: flags.v1.AdminService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	0,  // 6: flags.v1.AdminService.CreateFlagUpload:input_type -> flags.v1.CreateFlagUploadRequest
+	2,  // 7: flags.v1.AdminService.OpenFlag:input_type -> flags.v1.OpenFlagRequest
+	4,  // 8: flags.v1.AdminService.AddTime:input_type -> flags.v1.AddTimeRequest
+	6,  // 9: flags.v1.AdminService.CloseFlag:input_type -> flags.v1.CloseFlagRequest
+	8,  // 10: flags.v1.AdminService.RenameFlag:input_type -> flags.v1.RenameFlagRequest
+	10, // 11: flags.v1.AdminService.DeleteFlag:input_type -> flags.v1.DeleteFlagRequest
+	15, // 12: flags.v1.AdminService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	1,  // 13: flags.v1.AdminService.CreateFlagUpload:output_type -> flags.v1.CreateFlagUploadResponse
+	3,  // 14: flags.v1.AdminService.OpenFlag:output_type -> flags.v1.OpenFlagResponse
+	5,  // 15: flags.v1.AdminService.AddTime:output_type -> flags.v1.AddTimeResponse
+	7,  // 16: flags.v1.AdminService.CloseFlag:output_type -> flags.v1.CloseFlagResponse
+	9,  // 17: flags.v1.AdminService.RenameFlag:output_type -> flags.v1.RenameFlagResponse
+	11, // 18: flags.v1.AdminService.DeleteFlag:output_type -> flags.v1.DeleteFlagResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_admin_proto_init() }
@@ -518,7 +716,7 @@ func file_flags_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_admin_proto_rawDesc), len(file_flags_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

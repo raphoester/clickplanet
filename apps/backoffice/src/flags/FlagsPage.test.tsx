@@ -101,7 +101,7 @@ describe("FlagsPage", () => {
         const question = within(form).getByRole("group", {name: "Open"})
         expect(question.textContent).toContain(`Open Rennes until ${timeOf(later(20))} (20 days left)?`)
         expect(question.textContent).toContain("Every player sees it at once")
-        expect(question.textContent).toContain("A flag is never deleted")
+        expect(question.textContent).toContain("Once one does, it is never deleted")
         expect(admin.askedFor("createFlagUpload")).toEqual([])
 
         fireEvent.click(within(form).getByRole("button", {name: "Yes, open"}))
@@ -140,6 +140,19 @@ describe("FlagsPage", () => {
 
         expect(await within(form).findByText("The server refused it: refused")).toBeTruthy()
         expect(screen.queryByRole("heading", {name: "Rennes"})).toBeNull()
+    })
+
+    it("says the server's refusal of a name another flag has", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        await card("Bavaria")
+
+        const form = fill("bavaria", later(20))
+        fireEvent.click(within(form).getByRole("button", {name: "Open"}))
+        fireEvent.click(within(form).getByRole("button", {name: "Yes, open"}))
+
+        expect(await within(form).findByText("The server refused it: the flag r-k3p9x2ma0b is named Bavaria")).toBeTruthy()
+        expect(screen.getAllByRole("heading", {name: "Bavaria"})).toHaveLength(1)
     })
 
     it("sends no picture when the server has the pictures off", async () => {
@@ -227,6 +240,110 @@ describe("FlagsPage", () => {
         fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
 
         expect(await within(bavaria).findByText("It is closed already.")).toBeTruthy()
+        expect(admin.askedFor("listFlags")).toHaveLength(1)
+    })
+
+    it("renames a flag once asked, open or closed, and reads the list again", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        const field = within(bavaria).getByLabelText(/^Name/) as HTMLInputElement
+        expect(field.value).toBe("Bavaria")
+        expect(within(bavaria).getByText("Name · 7/40")).toBeTruthy()
+        expect((within(bavaria).getByRole("button", {name: "Rename"}) as HTMLButtonElement).disabled).toBe(true)
+
+        fireEvent.change(field, {target: {value: " Bayern "}})
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Rename"}))
+        const question = within(bavaria).getByRole("group", {name: "Rename"}).textContent
+        expect(question).toContain("Rename Bavaria to Bayern?")
+        expect(question).toContain("Every player sees the new name at once.")
+        expect(admin.askedFor("renameFlag")).toEqual([])
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, rename"}))
+
+        expect(await within(bavaria).findByText("Renamed to Bayern.")).toBeTruthy()
+        expect(admin.askedFor("renameFlag")).toEqual([{code: "r-k3p9x2ma0b", name: "Bayern"}])
+        expect(await card("Bayern")).toBe(bavaria)
+        expect(admin.askedFor("listFlags")).toHaveLength(2)
+
+        const savoy = await card("Savoy")
+        fireEvent.change(within(savoy).getByLabelText(/^Name/), {target: {value: "Savoie"}})
+        fireEvent.click(within(savoy).getByRole("button", {name: "Rename"}))
+        fireEvent.click(within(savoy).getByRole("button", {name: "Yes, rename"}))
+
+        expect(await within(savoy).findByText("Renamed to Savoie.")).toBeTruthy()
+        expect(await card("Savoie")).toBe(savoy)
+    })
+
+    it("counts the new name as it is typed, and renames nothing too long", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        fireEvent.change(within(bavaria).getByLabelText(/^Name/), {target: {value: "B".repeat(41)}})
+
+        expect(within(bavaria).getByText("Name · 41/40")).toBeTruthy()
+        expect(within(bavaria).getByText("A name of 40 characters at most.")).toBeTruthy()
+        expect((within(bavaria).getByRole("button", {name: "Rename"}) as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it("says the server's refusal of a name another flag has, built-in or sold, whatever its case", async () => {
+        const admin = new FakeAdmin()
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const bavaria = await card("Bavaria")
+
+        for (const [name, words] of [
+            ["savoy", "The server refused it: the flag r-0a1b2c3d4e is named Savoy"],
+            ["FRANCE", "The server refused it: the flag fr is named France"],
+        ]) {
+            fireEvent.change(within(bavaria).getByLabelText(/^Name/), {target: {value: name}})
+            fireEvent.click(within(bavaria).getByRole("button", {name: "Rename"}))
+            fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, rename"}))
+            expect(await within(bavaria).findByText(words)).toBeTruthy()
+        }
+        expect(screen.getByRole("heading", {name: "Bavaria"})).toBeTruthy()
+        expect(admin.askedFor("listFlags")).toHaveLength(1)
+    })
+
+    it("deletes a closed flag nobody played for once asked, and it leaves the list", async () => {
+        const admin = new FakeAdmin()
+        admin.flags.listed = [...admin.flags.listed, soldFlag("r-tyrol00001", "Tyrol", later(-40), later(-40))]
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const tyrol = await card("Tyrol")
+
+        const savoy = await card("Savoy")
+        expect(within(savoy).getByText("Played", {selector: ".status"})).toBeTruthy()
+        expect(within(savoy).queryByRole("button", {name: "Delete"})).toBeNull()
+        expect(within(await card("Bavaria")).queryByRole("button", {name: "Delete"})).toBeNull()
+        expect(within(tyrol).queryByText("Played", {selector: ".status"})).toBeNull()
+
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Delete"}))
+        const question = within(tyrol).getByRole("group", {name: "Delete"}).textContent
+        expect(question).toContain("Delete Tyrol for good?")
+        expect(question).toContain("Nothing brings it back.")
+        expect(admin.askedFor("deleteFlag")).toEqual([])
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Yes, delete"}))
+
+        expect(await screen.findByText("Deleted Tyrol (r-tyrol00001) for good.")).toBeTruthy()
+        expect(screen.queryByRole("heading", {name: "Tyrol"})).toBeNull()
+        expect(admin.askedFor("deleteFlag")).toEqual([{code: "r-tyrol00001"}])
+        await vi.waitFor(() => expect(admin.askedFor("listFlags")).toHaveLength(2))
+        expect(screen.getByText("2 sold flags, 1 open")).toBeTruthy()
+        expect(admin.flags.listed.map(flag => flag.code)).not.toContain("r-tyrol00001")
+    })
+
+    it("says the server's refusal of a delete, and keeps the flag", async () => {
+        const admin = new FakeAdmin()
+        admin.flags.listed = [...admin.flags.listed, soldFlag("r-tyrol00001", "Tyrol", later(-40), new Date(AT.getTime() - 30_000))]
+        render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
+        const tyrol = await card("Tyrol")
+
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Delete"}))
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Yes, delete"}))
+
+        expect(await within(tyrol).findByText(
+            "The server keeps it: closed under a minute ago, or opened or played for since the list was read.")).toBeTruthy()
+        expect(screen.getByRole("heading", {name: "Tyrol"})).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(1)
     })
 

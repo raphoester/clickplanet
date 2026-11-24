@@ -22,6 +22,10 @@ export function flagChangedOf(event: FlagEvent): ListedFlag | undefined {
     return event.event.case === "flagChanged" ? listedOf(event.event.value) : undefined
 }
 
+export function flagDeletedOf(event: FlagEvent): string | undefined {
+    return event.event.case === "flagDeleted" ? event.event.value.code : undefined
+}
+
 // A sold flag with no picture, which no server sends, is listed as an opened flag with none: the blank.
 export function listedOf({code, name, closed, sold}: Flag): ListedFlag {
     const picture = sold?.picture
@@ -60,7 +64,7 @@ export class ConnectFlagsBackend implements FlagLister, FlagStream {
         }
     }
 
-    public listenForFlags({onOpened, onChanged}: FlagHandlers): () => void {
+    public listenForFlags({onOpened, onChanged, onDeleted}: FlagHandlers): () => void {
         let opening = false
         return openStream(
             (signal) => {
@@ -74,6 +78,8 @@ export class ConnectFlagsBackend implements FlagLister, FlagStream {
                 }
                 const flag = flagChangedOf(event)
                 if (flag) onChanged(flag)
+                const deleted = flagDeletedOf(event)
+                if (deleted !== undefined) onDeleted(deleted)
             },
             "flag events",
             {stopsOn: unimplemented},

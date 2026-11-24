@@ -98,3 +98,39 @@ func (s *StoreContractSuite) TestEndingIsTheOpenFlagsWhoseEndPassed() {
 	s.Require().NoError(err)
 	s.Empty(none)
 }
+
+func (s *StoreContractSuite) TestTwoFlagsNeverShareANameWhateverItsCase() {
+	s.opened("r-0000000001", "Rennes")
+
+	err := s.store.Save(s.T().Context(), OpenFlag("r-0000000002", "RENNES", openedAt))
+
+	s.Require().ErrorIs(err, ErrNameTaken)
+	flags, err := s.store.Flags(s.T().Context())
+	s.Require().NoError(err)
+	s.Len(flags, 1)
+}
+
+func (s *StoreContractSuite) TestAFlagPlayedIsKeptPlayed() {
+	played, changed := s.opened("r-0000000001", "Rennes").Played()
+	s.Require().True(changed)
+	s.Require().NoError(s.store.Save(s.T().Context(), played))
+
+	kept, err := s.store.Flag(s.T().Context(), "r-0000000001")
+	s.Require().NoError(err)
+	s.True(kept.TakeSnapshot().Played)
+}
+
+func (s *StoreContractSuite) TestAFlagDeletedIsGoneAndItsNameFree() {
+	s.opened("r-0000000001", "Rennes")
+	s.opened("r-0000000002", "Bavaria")
+
+	s.Require().NoError(s.store.Delete(s.T().Context(), "r-0000000001"))
+	s.Require().NoError(s.store.Delete(s.T().Context(), "r-0000000009"), "a flag never opened is no error")
+
+	_, err := s.store.Flag(s.T().Context(), "r-0000000001")
+	s.Require().ErrorIs(err, ErrUnknownFlag)
+	flags, err := s.store.Flags(s.T().Context())
+	s.Require().NoError(err)
+	s.Len(flags, 1)
+	s.Require().NoError(s.store.Save(s.T().Context(), OpenFlag("r-0000000003", "Rennes", openedAt)))
+}

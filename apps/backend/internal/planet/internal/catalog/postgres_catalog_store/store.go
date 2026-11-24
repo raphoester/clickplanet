@@ -54,9 +54,9 @@ func (s *Store) Change(ctx context.Context, flag string, change func(catalog.Hea
 			return nil
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO heard_flags (flag, state, decided_at) VALUES ($1, $2::heard_flag_state, $3)
-			ON CONFLICT (flag) DO UPDATE SET state = EXCLUDED.state, decided_at = EXCLUDED.decided_at
-		`, flag, string(after.State), after.DecidedAt.UTC()); err != nil {
+			INSERT INTO heard_flags (flag, state, decided_at, kept) VALUES ($1, $2::heard_flag_state, $3, $4)
+			ON CONFLICT (flag) DO UPDATE SET state = EXCLUDED.state, decided_at = EXCLUDED.decided_at, kept = EXCLUDED.kept
+		`, flag, string(after.State), after.DecidedAt.UTC(), after.Kept); err != nil {
 			return fmt.Errorf("failed to keep the flag heard: %w", err)
 		}
 		return nil
@@ -66,13 +66,13 @@ func (s *Store) Change(ctx context.Context, flag string, change func(catalog.Hea
 func keptOf(ctx context.Context, db cppg.Querier, flag string) (catalog.HeardSnapshot, error) {
 	var state string
 	var kept catalog.HeardSnapshot
-	err := db.QueryRowContext(ctx, `SELECT state::text, decided_at FROM heard_flags WHERE flag = $1`, flag).
-		Scan(&state, &kept.DecidedAt)
+	err := db.QueryRowContext(ctx, `SELECT state::text, decided_at, kept FROM heard_flags WHERE flag = $1`, flag).
+		Scan(&state, &kept.DecidedAt, &kept.Kept)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return catalog.HeardSnapshot{}, nil
 	case err != nil:
 		return catalog.HeardSnapshot{}, fmt.Errorf("failed to read the flag heard: %w", err)
 	}
-	return catalog.HeardSnapshot{State: catalog.State(state), DecidedAt: kept.DecidedAt.UTC()}, nil
+	return catalog.HeardSnapshot{State: catalog.State(state), DecidedAt: kept.DecidedAt.UTC(), Kept: kept.Kept}, nil
 }

@@ -46,11 +46,13 @@
 - `proto/flags/v1/flags.proto` — the catalog of flags (`FlagService/ListFlags`, public: every flag the game ships with,
   then the ones opened since, the closed ones too, each `Flag{code, name, closed}`, and for one opened since `sold`: its
   `Picture` (public URL, size, `stretch` and focus), `ends_at` and `closed_at`). A flag opened since is `r-` and ten
-  letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet keeps in its catalog, and
-  `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime` and `CloseFlag` (`flags_*`).
-  Planet's `Allegiance.closed` says the flag held is closed: its account picks another at once.
-  `FlagService/ListenForEvents` is its stream: a heartbeat, and each flag opened or closed while it is open
-  (`flag_changed`), and a page reads `ListFlags` as it opens (see the backend's
+  letters or digits, and `sold.played` says a player played for it. Beside it, `events.proto` is `FlagOpened`,
+  `FlagClosed`, `FlagRenamed` and `FlagDeleted`, which planet keeps in its catalog, `commands.proto` planet's `KeepFlag`
+  (a player played for it: never delete it), and `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`,
+  `OpenFlag`, `AddTime`, `CloseFlag`, `RenameFlag` and `DeleteFlag` (`flags_*`). Planet's `Allegiance.closed` says the
+  flag held is closed: its account picks another at once. `FlagService/ListenForEvents` is its stream: a heartbeat, each
+  flag opened, closed or renamed while it is open (`flag_changed`) and each deleted (`flag_deleted`), and a page reads
+  `ListFlags` as it opens (see the backend's
   [The flags module](../apps/backend/docs/flags.md))
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`

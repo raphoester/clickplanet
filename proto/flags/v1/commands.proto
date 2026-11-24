@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flags.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What another module asks of the flags module, in its words, over Redis Streams.
+
+// Keeps a flag opened since the game shipped for good: a player pledged it or took a tile for it, so history names it
+// and it may never be deleted. Sent twice, or for a flag deleted or never opened, it changes nothing.
+message KeepFlag {
+  string flag = 1;
+  google.protobuf.Timestamp played_at = 2;
+}

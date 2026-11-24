@@ -60,6 +60,20 @@ func (m *MemoryBucket) Discard(_ context.Context, id UploadID) error {
 	return nil
 }
 
+func (m *MemoryBucket) Unpublish(_ context.Context, picture Snapshot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.published, picture.Key())
+	return nil
+}
+
+// Publishes a file as if a flag had opened with it.
+func (m *MemoryBucket) Show(picture Snapshot) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.published[picture.Key()] = []byte("png")
+}
+
 func (m *MemoryBucket) Published() map[string][]byte {
 	m.mu.Lock()
 	defer m.mu.Unlock()

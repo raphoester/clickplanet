@@ -234,8 +234,12 @@ import {
     CloseFlagResponse,
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
+    DeleteFlagRequest,
+    DeleteFlagResponse,
     OpenFlagRequest,
     OpenFlagResponse,
+    RenameFlagRequest,
+    RenameFlagResponse,
 } from "./gen/grpc/flags/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
@@ -798,6 +802,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 }
 
 const DAY_MS = 86_400_000
+const MINUTE_MS = 60_000
 
 // A flag opened since the game shipped, as the server lists it; closed when it has a close.
 export function soldFlag(code: string, name: string, endsAt: Date, closedAt?: Date, url = `https://media.test/flags/pictures/${code}.png`): Flag {
@@ -811,17 +816,47 @@ export function soldFlag(code: string, name: string, endsAt: Date, closedAt?: Da
     })
 }
 
+// The same flag once a player pledged it or took a tile for it.
+export function playedFlag(flag: Flag): Flag {
+    return new Flag({...flag, sold: new Sold({...flag.sold, played: true})})
+}
+
+// The server checks all 239 flags the game ships with, where the fake lists a few: the rest by their region names.
+const GAME_FLAG_NAMES: readonly string[] = (() => {
+    const regions = new Intl.DisplayNames(["en"], {type: "region", fallback: "none"})
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const names = ["England", "Scotland", "Wales", "Brittany"]
+    for (const first of letters) {
+        for (const second of letters) {
+            const name = regions.of(first + second)
+            if (name !== undefined) names.push(name)
+        }
+    }
+    return names
+})()
+
+// What the server refuses of a flag's name: 1 to 40 characters, and no other flag's, built-in or sold, whatever its case.
+export function nameRefusalOf(name: string, others: readonly Flag[]): string | undefined {
+    if (name === "" || [...name].length > 40) return "a name of 1 to 40 characters"
+    const taken = others.find(other => other.name.toLowerCase() === name.toLowerCase())
+    if (taken !== undefined) return `the flag ${taken.code} is named ${taken.name}`
+    const game = GAME_FLAG_NAMES.find(other => other.toLowerCase() === name.toLowerCase())
+    return game === undefined ? undefined : `a flag the game ships with is named ${game}`
+}
+
 // flags.v1's calls, asked of the same fake: the game's own flags the made-up players play for, then the ones opened
-// since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it. Each change is kept as the
-// server keeps it, at the time of the call.
+// since, by name: Bavaria, open 12 days more after AT, and Savoy, closed 3 days before it, both played. Each change is
+// kept as the server keeps it, at the time of the call.
 export class FakeFlags implements FlagsAdmin {
     listed = [
         ...[["fr", "France"], ["dz", "Algeria"], ["de", "Germany"], ["it", "Italy"], ["gb-sct", "Scotland"]]
             .map(([code, name]) => new Flag({code, name})),
-        soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS)),
-        soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS)),
+        playedFlag(soldFlag("r-k3p9x2ma0b", "Bavaria", new Date(AT.getTime() + 12 * DAY_MS))),
+        playedFlag(soldFlag("r-0a1b2c3d4e", "Savoy", new Date(AT.getTime() + 4 * DAY_MS), new Date(AT.getTime() - 3 * DAY_MS))),
     ]
     private readonly uploads = new Map<string, PartialMessage<CreateFlagUploadRequest>>()
+    // A deleted flag's code is never given again.
+    private deleted = 0
 
     constructor(private readonly admin: FakeAdmin) {}
 
@@ -843,8 +878,11 @@ export class FakeFlags implements FlagsAdmin {
         if (!this.uploads.has(request.uploadId ?? "")) {
             return this.refused("openFlag", request, "no picture uploaded under this id", Code.InvalidArgument)
         }
-        const code = `r-${this.listed.length.toString(36).padStart(10, "0")}`
-        const flag = soldFlag(code, (request.name ?? "").trim(), new Timestamp(request.endsAt).toDate())
+        const name = (request.name ?? "").trim()
+        const taken = nameRefusalOf(name, this.listed)
+        if (taken !== undefined) return this.refused("openFlag", request, taken, Code.InvalidArgument)
+        const code = `r-${(this.listed.length + this.deleted).toString(36).padStart(10, "0")}`
+        const flag = soldFlag(code, name, new Timestamp(request.endsAt).toDate())
         const answer = this.admin.answer("openFlag", request, new OpenFlagResponse({flag}))
         if (!this.admin.refusals.has("openFlag")) {
             const sold = [...this.listed.filter(each => each.sold !== undefined), flag].sort((a, b) => a.name.localeCompare(b.name))
@@ -863,8 +901,10 @@ export class FakeFlags implements FlagsAdmin {
             return this.refused("addTime", request, "closed over 30 days ago", Code.FailedPrecondition)
         }
         const from = closedAt === undefined ? flag.sold?.endsAt?.toDate() ?? now : now
-        const added = soldFlag(flag.code, flag.name, new Date(from.getTime() + (request.days ?? 0) * DAY_MS), undefined,
-            flag.sold?.picture?.url)
+        const added = new Flag({
+            ...flag, closed: false,
+            sold: new Sold({...flag.sold, endsAt: Timestamp.fromDate(new Date(from.getTime() + (request.days ?? 0) * DAY_MS)), closedAt: undefined}),
+        })
         return this.replaced("addTime", request, added, new AddTimeResponse({flag: added}))
     }
 
@@ -872,9 +912,36 @@ export class FakeFlags implements FlagsAdmin {
         const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
         if (flag === undefined) return this.refused("closeFlag", request, "no flag opened under this code", Code.NotFound)
         if (flag.closed) return this.refused("closeFlag", request, "the flag is closed already", Code.FailedPrecondition)
-        const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
-            flag.sold?.picture?.url)
+        const closed = new Flag({...flag, closed: true, sold: new Sold({...flag.sold, closedAt: Timestamp.fromDate(new Date())})})
         return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))
+    }
+
+    // Open or closed, its code, picture and land kept.
+    renameFlag(request: PartialMessage<RenameFlagRequest>): Promise<RenameFlagResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("renameFlag", request, "no flag opened under this code", Code.NotFound)
+        const name = (request.name ?? "").trim()
+        const refused = nameRefusalOf(name, this.listed.filter(each => each.code !== flag.code))
+        if (refused !== undefined) return this.refused("renameFlag", request, refused, Code.InvalidArgument)
+        const renamed = new Flag({...flag, name})
+        return this.replaced("renameFlag", request, renamed, new RenameFlagResponse({flag: renamed}))
+    }
+
+    // Only a closed flag nobody played for, closed a minute ago or more.
+    deleteFlag(request: PartialMessage<DeleteFlagRequest>): Promise<DeleteFlagResponse> {
+        const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
+        if (flag === undefined) return this.refused("deleteFlag", request, "no flag opened under this code", Code.NotFound)
+        const closedAt = flag.sold?.closedAt?.toDate()
+        const why = closedAt === undefined ? "the flag is open"
+            : flag.sold?.played === true ? "a player played for the flag"
+                : Date.now() - closedAt.getTime() < MINUTE_MS ? "the flag closed under a minute ago" : undefined
+        if (why !== undefined) return this.refused("deleteFlag", request, why, Code.FailedPrecondition)
+        const answer = this.admin.answer("deleteFlag", request, new DeleteFlagResponse())
+        if (!this.admin.refusals.has("deleteFlag")) {
+            this.listed = this.listed.filter(each => each.code !== flag.code)
+            this.deleted += 1
+        }
+        return answer
     }
 
     private replaced<T>(method: string, request: unknown, flag: Flag, response: T): Promise<T> {

@@ -358,22 +358,23 @@ construction through `openStream`, as the boxes'.
 ## The flags stream
 
 **The flags come on a stream of the flags module's** (2026-11-23): `flags.v1.FlagService/ListenForEvents`, which sends
-`FlagEvent`: a heartbeat at once and every 30 s, and `flag_changed`, a flag opened or closed while the stream is open, as
-the catalog holds it now. `ConnectFlagsBackend.listenForFlags` opens it through `openStream` while the flags store
+`FlagEvent`: a heartbeat at once and every 30 s, `flag_changed`, a flag opened, closed or renamed while the stream is
+open, as the catalog holds it now, and `flag_deleted`, the code of a flag nobody played for, gone from the catalog. `ConnectFlagsBackend.listenForFlags` opens it through `openStream` while the flags store
 listens (`useFlagsFeed`). It carries no token: it is the same for every page.
 
 - **Each connection's first message says the stream opened** (`onOpened`), the first connection's included. The store
   then reads `ListFlags` again past the cache: nothing told before the stream opened is sent again, so a read covers
   what changed while it was closed, and the race between the load read and the stream's opening.
-- **`flag_changed` goes into the catalog with no read** (`flagChangedOf`, `onChanged`). Any other case is a heartbeat, or
-  one this build does not know, and is dropped.
+- **`flag_changed` goes into the catalog with no read** (`flagChangedOf`, `onChanged`), **and `flag_deleted` out of it**
+  (`flagDeletedOf`, `onDeleted`). Any other case is a heartbeat, or one this build does not know, and is dropped.
 - **A server with no flags module** answers `Unimplemented`: the stream stops for good (`stopsOn`), and `ListFlags`
   lists none.
 - **One more stream on the page: seven for a guest.** Fine in production on HTTP/2. Locally, on plain HTTP/1.1, a guest
   page already held six, which fill Chrome's six connections to a host: the flags stream waits for one, and so does
   every unary call.
-- **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, and tells each `openFlag(name)` and
-  `closeFlag(code)` as `flag_changed`. The archive page opens no stream: it reads the list once.
+- **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, tells each `openFlag(name)`,
+  `addTime(code)`, `closeFlag(code)` and `renameFlag(code, name)` as `flag_changed`, and each `deleteFlag(code)` as
+  `flag_deleted`. The archive page opens no stream: it reads the list once.
 
 See [The list of flags](flag-catalog.md).
 

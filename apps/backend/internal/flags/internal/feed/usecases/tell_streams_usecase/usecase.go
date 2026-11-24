@@ -14,7 +14,7 @@ type Flags interface {
 }
 
 type Streams interface {
-	Publish(flag catalog.Snapshot)
+	Publish(flag feed.Told)
 }
 
 type In struct {
@@ -50,6 +50,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 	if err != nil {
 		return fmt.Errorf("failed to read the flag to tell: %w", err)
 	}
-	u.streams.Publish(flag.TakeSnapshot())
+	u.streams.Publish(feed.ToldAsItIs(flag.TakeSnapshot()))
 	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase/log_open_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog/postgres_catalog_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/catalog/usecases/keep_played_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
@@ -184,7 +185,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_opened_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_played_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/traps"
@@ -368,12 +371,33 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
 			}
+			flagsDeleted, err := cpredis.Subscribe(ctx, streams, "planet-flags-deleted",
+				log_subscriber.New(flag_deleted_subscriber.New(flagCatalog), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagDeleted: %w", err)
+			}
+			// A take or a pledge plays for its flag: planet tells the flags module once, so a flag played is never deleted.
+			keeping := keep_played_flag_usecase.New(flagCatalog, streams.Commands())
+			flagsTaken, err := cpredis.SubscribeBatch(ctx, streams, "planet-flags-played-taken",
+				log_subscriber.NewBatch(flag_played_subscriber.NewTaken(keeping), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to planet.v1.TilesTaken: %w", err)
+			}
+			flagsPledged, err := cpredis.Subscribe(ctx, streams, "planet-flags-played-pledged",
+				log_subscriber.New(flag_played_subscriber.NewPledged(keeping), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the catalog to planet.v1.AllegiancePledged: %w", err)
+			}
 
 			told := facts.NewLog(clock)
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
 				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed,
+					flagsDeleted, flagsTaken, flagsPledged,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 

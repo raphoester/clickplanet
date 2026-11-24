@@ -100,3 +100,30 @@ func TestAStoreThatCannotBeReadAnswersNothing(t *testing.T) {
 	require.NoError(t, err, "a flag the game ships with is never read")
 	assert.True(t, playable)
 }
+
+func TestAFlagDeletedIsUnknownEvenWhileALockHolds(t *testing.T) {
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), func() bool { return true })
+	require.NoError(t, flags.Open(t.Context(), brittanyCity, opened))
+	require.NoError(t, flags.Close(t.Context(), brittanyCity, closed))
+
+	require.NoError(t, flags.Delete(t.Context(), brittanyCity, closed.Add(time.Hour)))
+
+	assert.Equal(t, answers{}, answersOf(t, flags, brittanyCity))
+}
+
+func TestAFlagOpenedSinceIsUnkeptUntilKept(t *testing.T) {
+	flags := catalog.NewCatalog(catalog.NewMemoryStore(), catalog.Unlocked)
+	unkept := func(flag string) bool {
+		t.Helper()
+		unkept, err := flags.Unkept(t.Context(), flag)
+		require.NoError(t, err)
+		return unkept
+	}
+	assert.False(t, unkept("fr"), "a flag the game ships with is never deleted")
+	assert.False(t, unkept(brittanyCity), "nobody plays a flag never heard")
+
+	require.NoError(t, flags.Open(t.Context(), brittanyCity, opened))
+	assert.True(t, unkept(brittanyCity))
+	require.NoError(t, flags.Keep(t.Context(), brittanyCity))
+	assert.False(t, unkept(brittanyCity))
+}

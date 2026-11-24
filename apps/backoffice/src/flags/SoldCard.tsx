@@ -5,17 +5,21 @@ import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {When} from "../components/When.tsx"
 import {timeOf} from "../components/time.ts"
+import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {countOf} from "../support/labels.ts"
 import {
-    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, MAX_DAYS,
-    Sold,
+    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, deletable,
+    deleteFlag, deleteRefusalOf, leftOf, lengthOf, MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag,
+    renameRefusalOf, Sold,
 } from "./actions.ts"
 
 const FIRST_DAYS = "30"
 
-// One sold flag: its picture, its name and code, open or closed and until when, and the two things done to it.
-export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sold, onChanged: () => void}) {
-    const {flag, picture, endsAt, closedAt} = sold
+type Props = {flags: FlagsAdmin, sold: Sold, onChanged: () => void, onDeleted: (flag: Flag) => void}
+
+// One sold flag: its picture, its name and code, open or closed and until when, and what is done to it.
+export function SoldCard({flags, sold, onChanged, onDeleted}: Props) {
+    const {flag, picture, endsAt, closedAt, played} = sold
     const now = new Date()
     const comeback = closedAt === undefined ? undefined : comebackUntil(closedAt)
 
@@ -24,9 +28,12 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
             <img className="flag-picture-large" src={picture} alt={`The flag of ${flag.name}`}/>
             <div className="card-head">
                 <h3 className="sold-name">{flag.name}</h3>
-                {closedAt === undefined
-                    ? <span className="status status-good">Open</span>
-                    : <span className="status">Closed</span>}
+                <span className="sold-states">
+                    {closedAt === undefined
+                        ? <span className="status status-good">Open</span>
+                        : <span className="status">Closed</span>}
+                    {played && <span className="status">Played</span>}
+                </span>
             </div>
             <dl className="facts">
                 <Fact label="Code"><Copyable text={flag.code}/></Fact>
@@ -51,6 +58,7 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                     late={comeback !== undefined && comeback <= now}
                     onChanged={onChanged}
                 />
+                <Rename flags={flags} flag={flag} onChanged={onChanged}/>
                 <ConfirmAction
                     label="Close"
                     tone="danger"
@@ -75,8 +83,54 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                     refusal={closeRefusalOf}
                     onDone={onChanged}
                 />
+                {deletable(sold) && (
+                    <ConfirmAction
+                        label="Delete"
+                        tone="danger"
+                        question={
+                            <>
+                                <p>Delete <strong>{flag.name}</strong> for good?</p>
+                                <p>It leaves every list and its picture is removed. Nothing brings it back.</p>
+                            </>
+                        }
+                        run={() => deleteFlag(flags, flag.code)}
+                        said={() => "Deleted."}
+                        refusal={deleteRefusalOf}
+                        onDone={() => onDeleted(flag)}
+                    />
+                )}
             </div>
         </li>
+    )
+}
+
+function Rename({flags, flag, onChanged}: {flags: FlagsAdmin, flag: Flag, onChanged: () => void}) {
+    const [typed, setTyped] = useState(flag.name)
+    const name = renamedOf(typed, flag.name)
+    const problem = nameProblem(typed)
+
+    return (
+        <div className="sold-rename">
+            <label className="field">
+                <span className="muted">Name · {lengthOf(typed)}/{MAX_NAME}</span>
+                <input value={typed} onChange={event => setTyped(event.target.value)}/>
+            </label>
+            {problem !== undefined && <p className="action-refused" role="alert">{problem}</p>}
+            <ConfirmAction
+                label="Rename"
+                disabled={name === undefined}
+                question={
+                    <>
+                        <p>Rename <strong>{flag.name}</strong> to <strong>{name}</strong>?</p>
+                        <p>Every player sees the new name at once.</p>
+                    </>
+                }
+                run={() => renameFlag(flags, flag.code, name ?? "")}
+                said={renamed => `Renamed to ${renamed.name}.`}
+                refusal={renameRefusalOf}
+                onDone={onChanged}
+            />
+        </div>
     )
 }
 

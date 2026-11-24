@@ -18,8 +18,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/delete_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_gone_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
@@ -105,7 +108,13 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 	require.NoError(t, err)
 	streamsClosed, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-closed", told_subscriber.NewClosed(tell))
 	require.NoError(t, err)
-	running(t, opened, closed, streamsOpened, streamsClosed, cpoutbox.NewRelay("flags-outbox", db, teller, logger))
+	streamsRenamed, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-renamed", told_subscriber.NewRenamed(tell))
+	require.NoError(t, err)
+	streamsDeleted, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-deleted",
+		told_subscriber.NewDeleted(tell_gone_usecase.New(feed.NewsSince(clock.Now()), board)))
+	require.NoError(t, err)
+	running(t, opened, closed, streamsOpened, streamsClosed, streamsRenamed, streamsDeleted,
+		cpoutbox.NewRelay("flags-outbox", db, teller, logger))
 
 	bucket, upload := pictures.NewMemoryBucket(), pictures.UploadID{1}
 	bucket.Upload(upload, pictures.TestPNG(300, 200))
@@ -114,14 +123,26 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 		Execute(t.Context(), open_flag_usecase.In{Name: "Rennes", Upload: upload.String(), EndsAt: clock.Now().Add(time.Hour)})
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 1 }, 10*time.Second, 20*time.Millisecond)
-	assert.Equal(t, catalog.Open, (<-page).State, "the page hears it opened")
+	assert.Equal(t, catalog.Open, (<-page).Flag.State, "the page hears it opened")
 
 	clock.Advance(time.Hour)
 	_, err = close_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
 		Execute(t.Context(), close_flag_usecase.In{Flag: out.ID.String()})
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 2 }, 10*time.Second, 20*time.Millisecond)
-	assert.Equal(t, catalog.Closed, (<-page).State, "the page hears it closed")
+	assert.Equal(t, catalog.Closed, (<-page).Flag.State, "the page hears it closed")
+
+	_, err = rename_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
+		Execute(t.Context(), rename_flag_usecase.In{Flag: out.ID.String(), Name: "Roazhon"})
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Name("Roazhon"), (<-page).Flag.Name, "the page hears it renamed")
+
+	clock.Advance(time.Minute)
+	require.NoError(t, delete_flag_usecase.New(clock, db, store, cpoutbox.New(db), pictures.NewGallery(bucket,
+		pictures.Rules{MaxBytes: 5 << 20})).Execute(t.Context(), delete_flag_usecase.In{Flag: out.ID.String()}))
+	gone := <-page
+	require.NotNil(t, gone.Gone)
+	assert.Equal(t, out.ID, *gone.Gone, "the page hears it gone")
 
 	assert.Equal(t, []string{"opened " + out.ID.String() + " Rennes", "closed " + out.ID.String()}, planet.all())
 }

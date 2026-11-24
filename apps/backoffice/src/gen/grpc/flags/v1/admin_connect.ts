@@ -5,7 +5,7 @@
 
 import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, OpenFlagRequest, OpenFlagResponse } from "./admin_pb.js";
+import { AddTimeRequest, AddTimeResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, DeleteFlagRequest, DeleteFlagResponse, OpenFlagRequest, OpenFlagResponse, RenameFlagRequest, RenameFlagResponse } from "./admin_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -46,8 +46,9 @@ export const AdminService = {
      * Opens a flag for every player, with no land, until its end: its name, the picture uploaded with
      * CreateFlagUpload, and when its time runs out. The picture is drawn again (PNG, fitted inside 768 x 512, no hidden
      * data) and made public; a picture that is no PNG, JPEG or WebP, moves, or is narrower than square or wider than 2
-     * wide by 1 high is InvalidArgument. Every player sees the flag at once, and a closed flag is never deleted: open
-     * one only when the owner says so.
+     * wide by 1 high is InvalidArgument, as is a name another flag has, built-in or sold, whatever its case. Every
+     * player sees the flag at once, and once a player plays for it, it is never deleted: open one only when the owner
+     * says so.
      *
      * @generated from rpc flags.v1.AdminService.OpenFlag
      */
@@ -81,6 +82,33 @@ export const AdminService = {
       name: "CloseFlag",
       I: CloseFlagRequest,
       O: CloseFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
+     * picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
+     * InvalidArgument, as is an empty one or one over 40 characters.
+     *
+     * @generated from rpc flags.v1.AdminService.RenameFlag
+     */
+    renameFlag: {
+      name: "RenameFlag",
+      I: RenameFlagRequest,
+      O: RenameFlagResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes a flag opened since the game shipped, for good: it leaves every list and its picture is removed. Only a
+     * closed flag nobody ever played for (sold.played false), closed a minute ago or more, so a flag opened by mistake;
+     * FailedPrecondition for an open flag, one closed under a minute ago or one a player played for: close it and let
+     * it be.
+     *
+     * @generated from rpc flags.v1.AdminService.DeleteFlag
+     */
+    deleteFlag: {
+      name: "DeleteFlag",
+      I: DeleteFlagRequest,
+      O: DeleteFlagResponse,
       kind: MethodKind.Unary,
     },
   }

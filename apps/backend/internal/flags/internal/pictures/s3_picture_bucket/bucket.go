@@ -59,3 +59,7 @@ func (b *Bucket) Publish(ctx context.Context, drawn pictures.Drawn) error {
 func (b *Bucket) Discard(ctx context.Context, id pictures.UploadID) error {
 	return off(b.files.Delete(ctx, id.Key()))
 }
+
+func (b *Bucket) Unpublish(ctx context.Context, picture pictures.Snapshot) error {
+	return off(b.files.Delete(ctx, picture.Key()))
+}

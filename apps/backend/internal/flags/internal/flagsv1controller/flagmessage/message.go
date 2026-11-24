@@ -27,17 +27,18 @@ func (m Messages) Flag(flag catalog.Snapshot) *flagsv1.Flag {
 	}
 	return &flagsv1.Flag{
 		Code: flag.ID.String(), Name: flag.Name.String(), Closed: flag.State == catalog.Closed,
-		Sold: m.Sold(flag.Picture, flag.EndsAt, closedAt),
+		Sold: m.Sold(flag.Picture, flag.EndsAt, closedAt, flag.Played),
 	}
 }
 
-func (m Messages) Sold(picture pictures.Snapshot, endsAt time.Time, closedAt *time.Time) *flagsv1.Sold {
+func (m Messages) Sold(picture pictures.Snapshot, endsAt time.Time, closedAt *time.Time, played bool) *flagsv1.Sold {
 	sold := &flagsv1.Sold{
 		Picture: &flagsv1.Picture{
 			Url: m.base + "/" + picture.Key(), Width: picture.Width, Height: picture.Height,
 			Stretch: picture.Fit.Stretch, FocusX: float32(picture.Fit.FocusX), FocusY: float32(picture.Fit.FocusY),
 		},
 		EndsAt: timestamppb.New(endsAt),
+		Played: played,
 	}
 	if closedAt != nil {
 		sold.ClosedAt = timestamppb.New(*closedAt)

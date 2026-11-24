@@ -159,3 +159,45 @@ func TestAFlagEndingNowOrBeforeIsNotOpened(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, catalog.FlagID("r-0000000001"), flag.TakeSnapshot().ID)
 }
+
+func TestARenamedFlagKeepsItsCodeAndTellsItsNewName(t *testing.T) {
+	renamed, fact := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Renamed("Roazhon", closedAt)
+
+	assert.Equal(t, catalog.Name("Roazhon"), renamed.TakeSnapshot().Name)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), renamed.TakeSnapshot().ID)
+	assert.True(t, proto.Equal(&flagsv1.FlagRenamed{Flag: "r-0000000001", Name: "Roazhon", RenamedAt: timestamppb.New(closedAt)},
+		fact), "%v", fact)
+}
+
+func TestAFlagIsPlayedOnce(t *testing.T) {
+	played, changed := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Played()
+	require.True(t, changed)
+	assert.True(t, played.TakeSnapshot().Played)
+
+	_, changed = played.Played()
+	assert.False(t, changed)
+}
+
+func TestOnlyAFlagClosedAMinuteAgoThatNobodyPlayedIsDeleted(t *testing.T) {
+	open := catalog.OpenFlag("r-0000000001", "Rennes", openedAt)
+	closed, err := open.Closed(closedAt)
+	require.NoError(t, err)
+
+	_, err = open.Deleted(closedAt)
+	require.ErrorIs(t, err, catalog.ErrOpen)
+	_, err = closed.Deleted(closedAt.Add(59 * time.Second))
+	require.ErrorIs(t, err, catalog.ErrJustClosed)
+	played, _ := closed.Played()
+	_, err = played.Deleted(closedAt.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrPlayed)
+
+	fact, err := closed.Deleted(closedAt.Add(time.Minute))
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(&flagsv1.FlagDeleted{Flag: "r-0000000001", DeletedAt: timestamppb.New(closedAt.Add(time.Minute))},
+		fact), "%v", fact)
+}
+
+func TestAPictureIsWornWhileAFlagWearsIt(t *testing.T) {
+	assert.True(t, catalog.WornBy([]catalog.Flag{catalog.OpenFlag("r-0000000001", "Rennes", openedAt)}, catalog.TestPicture))
+	assert.False(t, catalog.WornBy(nil, catalog.TestPicture))
+}

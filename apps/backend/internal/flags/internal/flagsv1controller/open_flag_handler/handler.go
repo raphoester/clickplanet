@@ -34,7 +34,7 @@ func (h OpenFlagHandler) OpenFlag(
 		Name: req.Msg.GetName(), Upload: req.Msg.GetUploadId(), EndsAt: req.Msg.GetEndsAt().AsTime(),
 	})
 	switch {
-	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrEnded),
+	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrNameTaken), errors.Is(err, catalog.ErrEnded),
 		errors.Is(err, pictures.ErrUnknownUpload), errors.Is(err, pictures.ErrTooLarge),
 		errors.Is(err, pictures.ErrNotAPicture), errors.Is(err, pictures.ErrMoves),
 		errors.Is(err, pictures.ErrShape), errors.Is(err, pictures.ErrTooSmall):

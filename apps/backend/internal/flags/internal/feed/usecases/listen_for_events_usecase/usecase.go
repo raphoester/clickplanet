@@ -5,19 +5,21 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
-// Event is one frame of a stream: a flag opened or closed, or a heartbeat.
+// Event is one frame of a stream: a flag as it is now, a flag gone, or a heartbeat.
 type Event struct {
 	Heartbeat bool
 	Flag      *catalog.Snapshot
+	Gone      *catalog.FlagID
 }
 
 type Flags interface {
-	Attend() (<-chan catalog.Snapshot, func())
+	Attend() (<-chan feed.Told, func())
 }
 
 type Sink interface {
@@ -60,7 +62,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			if !open {
 				return nil
 			}
-			if err := sink.Send(Event{Flag: &flag}); err != nil {
+			if err := sink.Send(Event{Flag: flag.Flag, Gone: flag.Gone}); err != nil {
 				return err
 			}
 		}

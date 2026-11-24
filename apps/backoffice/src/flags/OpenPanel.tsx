@@ -61,8 +61,8 @@ export function OpenPanel({flags, put, onOpened}: {flags: FlagsAdmin, put: Put, 
                     <>
                         <p>Open <strong>{draft.name.trim()}</strong> until {timeOf(end)} ({leftOf(end, now)})?</p>
                         <p>
-                            Every player sees it at once and may play for it. A flag is never deleted: closed, it stays in
-                            this list for good.
+                            Every player sees it at once and may play for it. Once one does, it is never deleted: closed,
+                            it stays in this list for good.
                         </p>
                     </>
                 )}

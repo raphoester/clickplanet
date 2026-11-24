@@ -19,12 +19,18 @@ var (
 	ErrEnded       = errors.New("a flag's end is in the future")
 	ErrTooLate     = errors.New("a flag closed 30 days ago or more cannot come back")
 	ErrInvalidDays = errors.New("a flag gets 1 to 3660 days at a time")
+	ErrOpen        = errors.New("an open flag is not deleted: close it first")
+	ErrPlayed      = errors.New("a flag a player played for is never deleted: history names it")
+	ErrJustClosed  = errors.New("a flag closed under a minute ago is not deleted yet")
 )
 
 // A flag closed less long ago comes back with the time added to it.
 const comeback = 30 * 24 * time.Hour
 
 const maxDays = 3660
+
+// What planet tells of a flag's last plays may still be on its way after the close.
+const settle = time.Minute
 
 type State string
 
@@ -46,7 +52,8 @@ func (d Days) duration() time.Duration {
 	return time.Duration(d) * 24 * time.Hour
 }
 
-// Flag is a flag opened since the game shipped. It is closed, never deleted: history still names it.
+// Flag is a flag opened since the game shipped. Once a player played for it, it is closed, never deleted: history
+// names it.
 type Flag struct {
 	id        FlagID
 	name      Name
@@ -54,6 +61,7 @@ type Flag struct {
 	state     State
 	decidedAt time.Time
 	endsAt    time.Time
+	played    bool
 }
 
 func NewOpening(ids IDProvider, clock cptime.Clock) Opening {
@@ -100,6 +108,42 @@ func (f Flag) Closed(at time.Time) (Flag, error) {
 	return f, nil
 }
 
+func (f Flag) Renamed(name Name, at time.Time) (Flag, *flagsv1.FlagRenamed) {
+	f.name = name
+	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}
+}
+
+// Played is false when a player had played for it already.
+func (f Flag) Played() (Flag, bool) {
+	if f.played {
+		return f, false
+	}
+	f.played = true
+	return f, true
+}
+
+func (f Flag) Deleted(at time.Time) (*flagsv1.FlagDeleted, error) {
+	switch {
+	case f.state == Open:
+		return nil, fmt.Errorf("%s: %w", f.id, ErrOpen)
+	case f.played:
+		return nil, fmt.Errorf("%s: %w", f.id, ErrPlayed)
+	case at.Sub(f.decidedAt) < settle:
+		return nil, fmt.Errorf("%s closed %s: %w", f.id, f.decidedAt.Format(time.RFC3339), ErrJustClosed)
+	}
+	return &flagsv1.FlagDeleted{Flag: f.id.String(), DeletedAt: timestamppb.New(at)}, nil
+}
+
+// WornBy is true while one of the flags wears the picture: two flags opened with one file share it.
+func WornBy(flags []Flag, picture pictures.Snapshot) bool {
+	for _, flag := range flags {
+		if flag.picture.TakeSnapshot().Hash == picture.Hash {
+			return true
+		}
+	}
+	return false
+}
+
 // Expired is false while the flag has time left, or is closed already.
 func (f Flag) Expired(now time.Time) (Flag, bool) {
 	if f.state != Open || f.endsAt.After(now) {
@@ -125,6 +169,7 @@ func (f Flag) Facts() []proto.Message {
 func (f Flag) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), State: f.state, DecidedAt: f.decidedAt, EndsAt: f.endsAt,
+		Played: f.played,
 	}
 }
 
@@ -135,6 +180,7 @@ type Snapshot struct {
 	State     State
 	DecidedAt time.Time
 	EndsAt    time.Time
+	Played    bool
 }
 
 func (s Snapshot) Restore() (Flag, error) {
@@ -146,6 +192,7 @@ func (s Snapshot) Restore() (Flag, error) {
 	case Open, Closed:
 		return Flag{
 			id: s.ID, name: s.Name, picture: picture, state: s.State, decidedAt: s.DecidedAt, endsAt: s.EndsAt,
+			played: s.Played,
 		}, nil
 	}
 	return Flag{}, fmt.Errorf("the flag %s is %q, which is no state", s.ID, s.State)

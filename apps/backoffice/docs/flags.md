@@ -3,7 +3,8 @@
 `src/flags/`, one page (`FlagsPage`), in the menu under Ops, at `#/flags`. **A sold flag is a real region's flag the
 game did not ship with**, opened for every player until its end (step 2 of the regional flags: the owner opens one by
 hand, for free). `flags.v1.AdminService` keeps them (`ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`,
-`CloseFlag`; the backend's flags module). The game's own flags are not on this page: they never end.
+`CloseFlag`, `RenameFlag`, `DeleteFlag`; the backend's flags module). The game's own flags are not on this page: they
+never end.
 
 ## Opening one
 
@@ -13,21 +14,21 @@ hand, for free). `flags.v1.AdminService` keeps them (`ListFlags`, `CreateFlagUpl
   in red as it is typed (a name too long, another type, a file too big, an end gone by), and **Open** stays disabled
   until the three are there and none is refused.
 - **Open asks first**, and the question says what it costs: every player sees the flag at once and may play for it,
-  and a flag is never deleted: closed, it stays in the list for good. Only Yes uploads anything.
+  and once one does, it is never deleted: closed, it stays in the list for good. Only Yes uploads anything.
 - **Then three steps** (`openFlag` in `actions.ts`): `CreateFlagUpload` with the file's type and size, which answers an
   upload id and a signed link; one `PUT` of the file to that link with the same `Content-Type` (`putFile`, as a
   video's, see [Videos](videos.md)), with a progress bar; then `OpenFlag` with the name, the upload id and the end. The
   server draws the picture again and makes it public. The page says "Opened Rennes (r-…), until …", empties the form
   and reads the list again.
 - **A refused step says why**: `CreateFlagUpload`'s and `OpenFlag`'s `failed_precondition` is "The flags' pictures are
-  off on the server"; `invalid_argument` (a picture that moves, narrower than square or wider than 2 by 1, a name, an
-  end) quotes the server; a failed `PUT` quotes the bucket. A try again sends the picture again: an upload link is
+  off on the server"; `invalid_argument` (a picture that moves, narrower than square or wider than 2 by 1, a name too
+  long or another flag's, built-in or sold, whatever its case, an end) quotes the server; a failed `PUT` quotes the bucket. A try again sends the picture again: an upload link is
   cheap.
 
 ## The list
 
 - **Every sold flag** (`ListFlags`, the game's own left out), each a card: its picture as the server drew it, its
-  name, its code with Copy, and Open or Closed. **An open flag** shows its end and the days left (to the nearest day,
+  name, its code with Copy, Open or Closed, and Played once a player pledged it or took a tile for it (`sold.played`). **An open flag** shows its end and the days left (to the nearest day,
   hours in its last two). **A closed one** shows when it closed, and until when time added opens it again (30 days
   after the close), or that it no longer can.
 - **By end** (open first, the soonest to end first, then the closed ones, the last closed first) or **By name**. The
@@ -46,6 +47,19 @@ hand, for free). `flags.v1.AdminService` keeps them (`ListFlags`, `CreateFlagUpl
   in a battle that locks the flags it plays on until the lock lifts; time added within 30 days opens it again. Then it
   says until when, and reads the list again. Its `failed_precondition` is "It is closed already".
 
+## Renaming and deleting
+
+- **Rename**, on every card, open or closed: the name in a field, counted as it is typed as in the form (1 to 40
+  characters, too long in red), and Rename disabled until it differs from the flag's own. It asks first ("Rename Bavaria
+  to Bayern?", every player sees the new name at once), then says "Renamed to Bayern." and reads the list again. Its
+  `invalid_argument` quotes the server: a name another flag has, built-in or sold, whatever its case, is refused there,
+  not on the page.
+- **Delete** shows only on a closed card that is not Played. It asks first: the flag is gone for good, leaves every
+  list and its picture is removed. Then the card leaves the list at once, the page says "Deleted Tyrol (r-…) for good."
+  and reads the list again; a code is never given again, so the page keeps it out whatever a read answers meanwhile.
+  The server also refuses a flag closed under a minute ago: its `failed_precondition` says so, or that the flag was
+  opened again or played for since the list was read.
+
 ## Hosts
 
 The upload goes to the R2 endpoint already in `connect-src`, and the pictures load from `https://media.clickplanet.lol`,
@@ -55,6 +69,9 @@ already in `img-src` (see [Deploy](deploy.md)): nothing to change in `public/_he
 
 `npm run demo`: Bavaria and Cornwall open (Cornwall in its last day), Savoy closed 3 days ago, Tyrol closed 41 days
 ago, each picture drawn in the page (SVG), and a few made-up players for Bavaria, so the other pages show its picture.
-The made-up bucket takes a picture in two seconds; `OpenFlag` refuses a picture it does not hold, a name of more than
-40 characters and an end gone by, and the flag shows its picture from the page's memory until a reload. The tests
-drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps Bavaria and Savoy the same way, at `AT`.
+Bavaria and Savoy are played; Tyrol is not, so it can be deleted, and so can Cornwall a minute after its close. The
+made-up bucket takes a picture in two seconds; `OpenFlag` refuses a picture it does not hold, a name of more than 40
+characters or another flag's and an end gone by, and the flag shows its picture from the page's memory until a reload.
+`RenameFlag` and `DeleteFlag` follow the server's rules (`nameRefusalOf`, and closed, not played, closed a minute ago).
+The tests drive the page on `FakeAdmin.flags` (`FakeFlags`), which keeps Bavaria and Savoy the same way, both played,
+at `AT`.

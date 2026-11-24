@@ -27,7 +27,7 @@ export const FlagService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+     * Each flag opened, closed, renamed or deleted while the stream is open, and a heartbeat at once and every
      * httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
      *
      * @generated from rpc flags.v1.FlagService.ListenForEvents

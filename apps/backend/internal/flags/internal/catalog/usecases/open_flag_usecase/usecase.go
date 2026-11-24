@@ -16,6 +16,7 @@ type Gallery interface {
 }
 
 type Flags interface {
+	Flags(ctx context.Context) ([]catalog.Flag, error)
 	Save(ctx context.Context, flags ...catalog.Flag) error
 }
 
@@ -52,6 +53,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 	upload, err := pictures.ParseUploadID(in.Upload)
 	if err != nil {
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+	}
+	flags, err := u.flags.Flags(ctx)
+	if err != nil {
+		return catalog.Snapshot{}, fmt.Errorf("failed to read the flags' names: %w", err)
+	}
+	if err := catalog.NamesOf(flags).Free(name, ""); err != nil {
+		return catalog.Snapshot{}, err //nolint:wrapcheck // the names say which.
 	}
 	picture, err := u.gallery.Draw(ctx, upload)
 	if err != nil {

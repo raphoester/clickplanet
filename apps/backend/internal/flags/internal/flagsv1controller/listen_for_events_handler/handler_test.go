@@ -37,14 +37,18 @@ func TestAPageHearsAFlagClosedWhileItsStreamIsOpen(t *testing.T) {
 	assert.NotNil(t, stream.Msg().GetHeartbeat(), "live at once")
 
 	closedAt := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
-	board.Publish(catalog.Snapshot{
+	board.Publish(feed.ToldAsItIs(catalog.Snapshot{
 		ID: "r-0000000001", Name: "Rennes", Picture: catalog.TestPicture, State: catalog.Closed,
 		DecidedAt: closedAt, EndsAt: closedAt,
-	})
+	}))
 	require.True(t, stream.Receive(), stream.Err())
 	flag := stream.Msg().GetFlagChanged()
 	assert.Equal(t, "r-0000000001", flag.GetCode())
 	assert.True(t, flag.GetClosed())
 	assert.Equal(t, "https://media.test/"+catalog.TestPicture.Key(), flag.GetSold().GetPicture().GetUrl())
 	assert.Equal(t, closedAt, flag.GetSold().GetClosedAt().AsTime())
+
+	board.Publish(feed.ToldGone("r-0000000001"))
+	require.True(t, stream.Receive(), stream.Err())
+	assert.Equal(t, "r-0000000001", stream.Msg().GetFlagDeleted().GetCode())
 }

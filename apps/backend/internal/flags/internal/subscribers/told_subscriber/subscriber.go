@@ -4,6 +4,7 @@ import (
 	"context"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_gone_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
@@ -43,5 +44,43 @@ var _ cpredis.Handler[*flagsv1.FlagClosed] = Closed{}
 func (s Closed) Handle(ctx context.Context, event *flagsv1.FlagClosed) error {
 	return s.useCase.Execute(ctx, tell_streams_usecase.In{ //nolint:wrapcheck // the use case named it.
 		Flag: event.GetFlag(), DecidedAt: event.GetClosedAt().AsTime(),
+	})
+}
+
+func NewRenamed(useCase UseCase) Renamed {
+	return Renamed{useCase: useCase}
+}
+
+// Renamed hears the module's own flags.v1.FlagRenamed, for the open streams.
+type Renamed struct {
+	useCase UseCase
+}
+
+var _ cpredis.Handler[*flagsv1.FlagRenamed] = Renamed{}
+
+func (s Renamed) Handle(ctx context.Context, event *flagsv1.FlagRenamed) error {
+	return s.useCase.Execute(ctx, tell_streams_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Flag: event.GetFlag(), DecidedAt: event.GetRenamedAt().AsTime(),
+	})
+}
+
+type GoneUseCase interface {
+	Execute(ctx context.Context, in tell_gone_usecase.In) error
+}
+
+func NewDeleted(useCase GoneUseCase) Deleted {
+	return Deleted{useCase: useCase}
+}
+
+// Deleted hears the module's own flags.v1.FlagDeleted, for the open streams.
+type Deleted struct {
+	useCase GoneUseCase
+}
+
+var _ cpredis.Handler[*flagsv1.FlagDeleted] = Deleted{}
+
+func (s Deleted) Handle(ctx context.Context, event *flagsv1.FlagDeleted) error {
+	return s.useCase.Execute(ctx, tell_gone_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Flag: event.GetFlag(), DeletedAt: event.GetDeletedAt().AsTime(),
 	})
 }

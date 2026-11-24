@@ -50,6 +50,10 @@ func (s sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(&flagsv1.FlagEvent{ //nolint:wrapcheck // the stream's own error.
 			Event: &flagsv1.FlagEvent_FlagChanged{FlagChanged: s.messages.Flag(*event.Flag)},
 		})
+	case event.Gone != nil:
+		return s.stream.Send(&flagsv1.FlagEvent{ //nolint:wrapcheck // the stream's own error.
+			Event: &flagsv1.FlagEvent_FlagDeleted{FlagDeleted: &flagsv1.FlagGone{Code: event.Gone.String()}},
+		})
 	}
 	return errEmptyEvent
 }

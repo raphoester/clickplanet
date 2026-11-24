@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {AT} from "../fakeAdmin.ts"
-import {daysOf, leftOf} from "./actions.ts"
+import {AT, playedFlag, soldFlag} from "../fakeAdmin.ts"
+import {daysOf, deletable, leftOf, renamedOf, soldOf} from "./actions.ts"
 
 const HOUR = 3_600_000
 
@@ -25,5 +25,27 @@ describe("daysOf", () => {
         expect(daysOf("3661")).toBeUndefined()
         expect(daysOf("1.5")).toBeUndefined()
         expect(daysOf("")).toBeUndefined()
+    })
+})
+
+describe("renamedOf", () => {
+    it("takes a new name of 1 to 40 characters, trimmed", () => {
+        expect(renamedOf(" Bayern ", "Bavaria")).toBe("Bayern")
+        expect(renamedOf("bavaria", "Bavaria")).toBe("bavaria")
+        expect(renamedOf("B".repeat(40), "Bavaria")).toBe("B".repeat(40))
+        expect(renamedOf(" Bavaria", "Bavaria")).toBeUndefined()
+        expect(renamedOf("  ", "Bavaria")).toBeUndefined()
+        expect(renamedOf("B".repeat(41), "Bavaria")).toBeUndefined()
+    })
+})
+
+describe("deletable", () => {
+    it("is a closed flag nobody played for", () => {
+        const [open, closed, played] = soldOf([
+            soldFlag("r-k3p9x2ma0b", "Bavaria", AT),
+            soldFlag("r-tyrol00001", "Tyrol", AT, AT),
+            playedFlag(soldFlag("r-0a1b2c3d4e", "Savoy", AT, AT)),
+        ])
+        expect([open, closed, played].map(deletable)).toEqual([false, true, false])
     })
 })

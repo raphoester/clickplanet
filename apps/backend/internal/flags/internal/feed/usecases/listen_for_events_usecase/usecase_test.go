@@ -53,7 +53,7 @@ func TestAStreamSaysItIsLiveThenSendsEachFlagTold(t *testing.T) {
 	board := feed.NewBoard(8)
 	out, stop := listening(t, board, time.Hour)
 
-	board.Publish(rennes)
+	board.Publish(feed.ToldAsItIs(rennes))
 	require.Eventually(t, func() bool { return len(out.sent()) == 2 }, time.Second, time.Millisecond)
 	require.NoError(t, stop())
 
@@ -61,6 +61,19 @@ func TestAStreamSaysItIsLiveThenSendsEachFlagTold(t *testing.T) {
 	assert.Equal(t, listen_for_events_usecase.Event{Heartbeat: true}, sent[0])
 	require.NotNil(t, sent[1].Flag)
 	assert.Equal(t, rennes, *sent[1].Flag)
+}
+
+func TestAStreamSendsAFlagGone(t *testing.T) {
+	board := feed.NewBoard(8)
+	out, stop := listening(t, board, time.Hour)
+
+	board.Publish(feed.ToldGone("r-0000000001"))
+	require.Eventually(t, func() bool { return len(out.sent()) == 2 }, time.Second, time.Millisecond)
+	require.NoError(t, stop())
+
+	require.NotNil(t, out.sent()[1].Gone)
+	assert.Equal(t, catalog.FlagID("r-0000000001"), *out.sent()[1].Gone)
+	assert.Nil(t, out.sent()[1].Flag)
 }
 
 func TestAQuietStreamGetsHeartbeats(t *testing.T) {
@@ -76,8 +89,8 @@ func TestAQuietStreamGetsHeartbeats(t *testing.T) {
 // The board closes a stream that falls behind: its page opens it again and reads the list.
 type closing struct{}
 
-func (closing) Attend() (<-chan catalog.Snapshot, func()) {
-	flags := make(chan catalog.Snapshot)
+func (closing) Attend() (<-chan feed.Told, func()) {
+	flags := make(chan feed.Told)
 	close(flags)
 	return flags, func() {}
 }

@@ -11,7 +11,7 @@ service FlagService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Each flag opened or closed while the stream is open, as it is now, and a heartbeat at once and every
+  // Each flag opened, closed, renamed or deleted while the stream is open, and a heartbeat at once and every
   // httpServer.streamHeartbeat. Nothing told before it opened is sent again: a page reads ListFlags as it opens.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream FlagEvent);
 }
@@ -29,9 +29,16 @@ message FlagEvent {
   oneof event {
     Heartbeat heartbeat = 1;
 
-    // A flag opened or closed, as the catalog holds it now.
+    // A flag opened, closed or renamed, as the catalog holds it now.
     Flag flag_changed = 2;
+
+    // A flag nobody ever played for, gone from the catalog.
+    FlagGone flag_deleted = 3;
   }
+}
+
+message FlagGone {
+  string code = 1;
 }
 
 message Heartbeat {}
@@ -55,6 +62,8 @@ message Sold {
   google.protobuf.Timestamp ends_at = 2;
   // Unset while the flag is open. Time added within 30 days of it opens the flag again.
   google.protobuf.Timestamp closed_at = 3;
+  // A player pledged it or took a tile for it: history names it, so it is never deleted.
+  bool played = 4;
 }
 
 // A flag's picture as the server drew it again: a PNG at most 768 wide and 512 high, between square and 2 wide by 1
