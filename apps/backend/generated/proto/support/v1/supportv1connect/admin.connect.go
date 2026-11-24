@@ -45,15 +45,6 @@ const (
 	// AdminServiceDecideReportProcedure is the fully-qualified name of the AdminService's DecideReport
 	// RPC.
 	AdminServiceDecideReportProcedure = "/support.v1.AdminService/DecideReport"
-	// AdminServiceWriteLetterProcedure is the fully-qualified name of the AdminService's WriteLetter
-	// RPC.
-	AdminServiceWriteLetterProcedure = "/support.v1.AdminService/WriteLetter"
-	// AdminServiceListLettersProcedure is the fully-qualified name of the AdminService's ListLetters
-	// RPC.
-	AdminServiceListLettersProcedure = "/support.v1.AdminService/ListLetters"
-	// AdminServiceCloseLetterProcedure is the fully-qualified name of the AdminService's CloseLetter
-	// RPC.
-	AdminServiceCloseLetterProcedure = "/support.v1.AdminService/CloseLetter"
 )
 
 // AdminServiceClient is a client for the support.v1.AdminService service.
@@ -77,20 +68,6 @@ type AdminServiceClient interface {
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
 	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
-	// Writes to a player first, by email, from support@clickplanet.lol: with no letter_id, a new letter to the account's
-	// verified address, under its subject; with a letter_id, one more mail in that letter, in the thread of the earlier
-	// ones. The player's replies come back to the letter. Write it to the player, in their language, in plain words.
-	// FailedPrecondition for an account with no verified address, or a letter past the 90 days; NotFound for a letter no
-	// longer kept; InvalidArgument for no subject, a subject over 200 characters, or a text the rule of an answer
-	// refuses; Unavailable when the mail could not be sent, and then nothing is kept: send again.
-	WriteLetter(context.Context, *connect.Request[v1.WriteLetterRequest]) (*connect.Response[v1.WriteLetterResponse], error)
-	// The letters the operator wrote to players, the latest written or replied to first, each with its mails and the
-	// player's replies. With account_id, the letters to that account alone. open_only lists the letters the player
-	// replied to since the last mail and the last close.
-	ListLetters(context.Context, *connect.Request[v1.ListLettersRequest]) (*connect.Response[v1.ListLettersResponse], error)
-	// Closes a letter with no further mail: it waits for nothing until the player writes again. NotFound for a letter no
-	// longer kept.
-	CloseLetter(context.Context, *connect.Request[v1.CloseLetterRequest]) (*connect.Response[v1.CloseLetterResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the support.v1.AdminService service. By default, it
@@ -136,25 +113,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("DecideReport")),
 			connect.WithClientOptions(opts...),
 		),
-		writeLetter: connect.NewClient[v1.WriteLetterRequest, v1.WriteLetterResponse](
-			httpClient,
-			baseURL+AdminServiceWriteLetterProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("WriteLetter")),
-			connect.WithClientOptions(opts...),
-		),
-		listLetters: connect.NewClient[v1.ListLettersRequest, v1.ListLettersResponse](
-			httpClient,
-			baseURL+AdminServiceListLettersProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("ListLetters")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-		closeLetter: connect.NewClient[v1.CloseLetterRequest, v1.CloseLetterResponse](
-			httpClient,
-			baseURL+AdminServiceCloseLetterProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("CloseLetter")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -165,9 +123,6 @@ type adminServiceClient struct {
 	closeNote    *connect.Client[v1.CloseNoteRequest, v1.CloseNoteResponse]
 	listReports  *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
 	decideReport *connect.Client[v1.DecideReportRequest, v1.DecideReportResponse]
-	writeLetter  *connect.Client[v1.WriteLetterRequest, v1.WriteLetterResponse]
-	listLetters  *connect.Client[v1.ListLettersRequest, v1.ListLettersResponse]
-	closeLetter  *connect.Client[v1.CloseLetterRequest, v1.CloseLetterResponse]
 }
 
 // ListNotes calls support.v1.AdminService.ListNotes.
@@ -195,21 +150,6 @@ func (c *adminServiceClient) DecideReport(ctx context.Context, req *connect.Requ
 	return c.decideReport.CallUnary(ctx, req)
 }
 
-// WriteLetter calls support.v1.AdminService.WriteLetter.
-func (c *adminServiceClient) WriteLetter(ctx context.Context, req *connect.Request[v1.WriteLetterRequest]) (*connect.Response[v1.WriteLetterResponse], error) {
-	return c.writeLetter.CallUnary(ctx, req)
-}
-
-// ListLetters calls support.v1.AdminService.ListLetters.
-func (c *adminServiceClient) ListLetters(ctx context.Context, req *connect.Request[v1.ListLettersRequest]) (*connect.Response[v1.ListLettersResponse], error) {
-	return c.listLetters.CallUnary(ctx, req)
-}
-
-// CloseLetter calls support.v1.AdminService.CloseLetter.
-func (c *adminServiceClient) CloseLetter(ctx context.Context, req *connect.Request[v1.CloseLetterRequest]) (*connect.Response[v1.CloseLetterResponse], error) {
-	return c.closeLetter.CallUnary(ctx, req)
-}
-
 // AdminServiceHandler is an implementation of the support.v1.AdminService service.
 type AdminServiceHandler interface {
 	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself, a
@@ -231,20 +171,6 @@ type AdminServiceHandler interface {
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
 	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
-	// Writes to a player first, by email, from support@clickplanet.lol: with no letter_id, a new letter to the account's
-	// verified address, under its subject; with a letter_id, one more mail in that letter, in the thread of the earlier
-	// ones. The player's replies come back to the letter. Write it to the player, in their language, in plain words.
-	// FailedPrecondition for an account with no verified address, or a letter past the 90 days; NotFound for a letter no
-	// longer kept; InvalidArgument for no subject, a subject over 200 characters, or a text the rule of an answer
-	// refuses; Unavailable when the mail could not be sent, and then nothing is kept: send again.
-	WriteLetter(context.Context, *connect.Request[v1.WriteLetterRequest]) (*connect.Response[v1.WriteLetterResponse], error)
-	// The letters the operator wrote to players, the latest written or replied to first, each with its mails and the
-	// player's replies. With account_id, the letters to that account alone. open_only lists the letters the player
-	// replied to since the last mail and the last close.
-	ListLetters(context.Context, *connect.Request[v1.ListLettersRequest]) (*connect.Response[v1.ListLettersResponse], error)
-	// Closes a letter with no further mail: it waits for nothing until the player writes again. NotFound for a letter no
-	// longer kept.
-	CloseLetter(context.Context, *connect.Request[v1.CloseLetterRequest]) (*connect.Response[v1.CloseLetterResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -286,25 +212,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("DecideReport")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceWriteLetterHandler := connect.NewUnaryHandler(
-		AdminServiceWriteLetterProcedure,
-		svc.WriteLetter,
-		connect.WithSchema(adminServiceMethods.ByName("WriteLetter")),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServiceListLettersHandler := connect.NewUnaryHandler(
-		AdminServiceListLettersProcedure,
-		svc.ListLetters,
-		connect.WithSchema(adminServiceMethods.ByName("ListLetters")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServiceCloseLetterHandler := connect.NewUnaryHandler(
-		AdminServiceCloseLetterProcedure,
-		svc.CloseLetter,
-		connect.WithSchema(adminServiceMethods.ByName("CloseLetter")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/support.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListNotesProcedure:
@@ -317,12 +224,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceListReportsHandler.ServeHTTP(w, r)
 		case AdminServiceDecideReportProcedure:
 			adminServiceDecideReportHandler.ServeHTTP(w, r)
-		case AdminServiceWriteLetterProcedure:
-			adminServiceWriteLetterHandler.ServeHTTP(w, r)
-		case AdminServiceListLettersProcedure:
-			adminServiceListLettersHandler.ServeHTTP(w, r)
-		case AdminServiceCloseLetterProcedure:
-			adminServiceCloseLetterHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -350,16 +251,4 @@ func (UnimplementedAdminServiceHandler) ListReports(context.Context, *connect.Re
 
 func (UnimplementedAdminServiceHandler) DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.DecideReport is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) WriteLetter(context.Context, *connect.Request[v1.WriteLetterRequest]) (*connect.Response[v1.WriteLetterResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.WriteLetter is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) ListLetters(context.Context, *connect.Request[v1.ListLettersRequest]) (*connect.Response[v1.ListLettersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.ListLetters is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) CloseLetter(context.Context, *connect.Request[v1.CloseLetterRequest]) (*connect.Response[v1.CloseLetterResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.CloseLetter is not implemented"))
 }

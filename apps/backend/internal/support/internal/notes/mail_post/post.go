@@ -22,7 +22,7 @@ type Post struct {
 func (p *Post) Send(ctx context.Context, letter notes.Letter) (cpmail.MessageID, error) {
 	id, err := p.mail.Send(ctx, cpmail.Mail{
 		From: p.from, To: letter.To, ReplyTo: p.inbox.Of(letter.Note), Subject: letter.Subject, Text: letter.Text,
-		Headers: Threaded(letter.Thread),
+		Headers: threaded(letter.Thread),
 	})
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", notes.ErrNotSent, err)
@@ -30,7 +30,7 @@ func (p *Post) Send(ctx context.Context, letter notes.Letter) (cpmail.MessageID,
 	return id, nil
 }
 
-func Threaded(thread []cpmail.MessageID) map[string]string {
+func threaded(thread []cpmail.MessageID) map[string]string {
 	if len(thread) == 0 {
 		return nil
 	}

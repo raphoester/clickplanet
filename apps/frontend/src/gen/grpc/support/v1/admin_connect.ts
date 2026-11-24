@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerNoteRequest, AnswerNoteResponse, CloseLetterRequest, CloseLetterResponse, CloseNoteRequest, CloseNoteResponse, DecideReportRequest, DecideReportResponse, ListLettersRequest, ListLettersResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse, WriteLetterRequest, WriteLetterResponse } from "./admin_pb.js";
+import { AnswerNoteRequest, AnswerNoteResponse, CloseNoteRequest, CloseNoteResponse, DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -78,48 +78,6 @@ export const AdminService = {
       name: "DecideReport",
       I: DecideReportRequest,
       O: DecideReportResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Writes to a player first, by email, from support@clickplanet.lol: with no letter_id, a new letter to the account's
-     * verified address, under its subject; with a letter_id, one more mail in that letter, in the thread of the earlier
-     * ones. The player's replies come back to the letter. Write it to the player, in their language, in plain words.
-     * FailedPrecondition for an account with no verified address, or a letter past the 90 days; NotFound for a letter no
-     * longer kept; InvalidArgument for no subject, a subject over 200 characters, or a text the rule of an answer
-     * refuses; Unavailable when the mail could not be sent, and then nothing is kept: send again.
-     *
-     * @generated from rpc support.v1.AdminService.WriteLetter
-     */
-    writeLetter: {
-      name: "WriteLetter",
-      I: WriteLetterRequest,
-      O: WriteLetterResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The letters the operator wrote to players, the latest written or replied to first, each with its mails and the
-     * player's replies. With account_id, the letters to that account alone. open_only lists the letters the player
-     * replied to since the last mail and the last close.
-     *
-     * @generated from rpc support.v1.AdminService.ListLetters
-     */
-    listLetters: {
-      name: "ListLetters",
-      I: ListLettersRequest,
-      O: ListLettersResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * Closes a letter with no further mail: it waits for nothing until the player writes again. NotFound for a letter no
-     * longer kept.
-     *
-     * @generated from rpc support.v1.AdminService.CloseLetter
-     */
-    closeLetter: {
-      name: "CloseLetter",
-      I: CloseLetterRequest,
-      O: CloseLetterResponse,
       kind: MethodKind.Unary,
     },
   }
