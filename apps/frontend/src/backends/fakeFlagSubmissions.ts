@@ -87,7 +87,10 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     public async mySubmissions(): Promise<Submission[]> {
         await this.wait(this.delayMs / 4)
         if (!await this.linked()) return []
-        return this.submissions().map((submission) => ({...submission}))
+        return this.submissions().map((submission) => {
+            const closeNote = submission.state === "opened" ? this.flags.closeNoteOf(submission.flag) : undefined
+            return closeNote === undefined ? {...submission} : {...submission, closeNote}
+        })
     }
 
     public async approve(): Promise<string> {

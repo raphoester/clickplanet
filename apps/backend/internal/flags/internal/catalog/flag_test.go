@@ -57,26 +57,51 @@ func TestAFlagOpenedTellsItIsOpen(t *testing.T) {
 }
 
 func TestAFlagClosedTellsItIsClosed(t *testing.T) {
-	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 
 	assert.Equal(t, catalog.Closed, flag.TakeSnapshot().State)
 	assert.Equal(t, closedAt, flag.TakeSnapshot().DecidedAt)
+	assert.Equal(t, catalog.Note("Broke the rules."), flag.TakeSnapshot().Note, "its founder reads why")
 	assertFacts(t, []proto.Message{
 		&flagsv1.FlagClosed{Flag: "r-0000000001", ClosedAt: timestamppb.New(closedAt)},
 	}, flag.Facts())
 }
 
 func TestAFlagIsClosedOnce(t *testing.T) {
-	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 
-	_, err = flag.Closed(closedAt.Add(time.Hour))
+	_, err = flag.Closed("Broke the rules.", closedAt.Add(time.Hour))
 	require.ErrorIs(t, err, catalog.ErrClosed)
+}
+
+func TestAFlagIsNotClosedWithNoNote(t *testing.T) {
+	_, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("", closedAt)
+	require.ErrorIs(t, err, catalog.ErrInvalidNote)
+}
+
+func TestANoteIsOneTo500CharactersWithTheSpacesAtItsEndsCut(t *testing.T) {
+	note, err := catalog.ParseNote(" A club's crest.\nNot a place. ")
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Note("A club's crest.\nNot a place."), note)
+	_, err = catalog.ParseNote(strings.Repeat("é", 500))
+	require.NoError(t, err)
+	_, err = catalog.ParseNote(strings.Repeat("é", 501))
+	require.ErrorIs(t, err, catalog.ErrInvalidNote)
+	_, err = catalog.ParseNote(" \n ")
+	require.ErrorIs(t, err, catalog.ErrInvalidNote)
 }
 
 func TestASnapshotOfNoStateDoesNotRestore(t *testing.T) {
 	_, err := catalog.Snapshot{ID: "r-0000000001", Name: "Rennes", State: "sold", DecidedAt: openedAt}.Restore()
+	require.Error(t, err)
+}
+
+func TestASnapshotOfAnOpenFlagWithANoteDoesNotRestore(t *testing.T) {
+	kept := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).TakeSnapshot()
+	kept.Note = "Broke the rules."
+	_, err := kept.Restore()
 	require.Error(t, err)
 }
 
@@ -102,7 +127,7 @@ func TestTimeAddedToAnOpenFlagEndsItLater(t *testing.T) {
 }
 
 func TestAFlagClosedComesBackWithinThirtyDaysAndNotAfter(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	days, err := catalog.ParseDays(30)
 	require.NoError(t, err)
@@ -117,6 +142,7 @@ func TestAFlagClosedComesBackWithinThirtyDaysAndNotAfter(t *testing.T) {
 	assert.Equal(t, closed.TakeSnapshot().ID, kept.ID, "the same code")
 	assert.Equal(t, closed.TakeSnapshot().Name, kept.Name, "the same name")
 	assert.Equal(t, closed.TakeSnapshot().Picture, kept.Picture, "the same picture")
+	assert.Empty(t, kept.Note, "the close it came back from is over")
 
 	_, err = closed.TimeAdded(days, closedAt.Add(30*24*time.Hour))
 	require.ErrorIs(t, err, catalog.ErrTooLate)
@@ -175,7 +201,7 @@ func TestAPinIsAPointOnTheGlobe(t *testing.T) {
 }
 
 func TestARestyledFlagWearsItsNewNameAndPictureAndTellsItRenamed(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	picture, err := pictures.Snapshot{Hash: strings.Repeat("cd", 32), Width: 400, Height: 200}.Restore()
 	require.NoError(t, err)

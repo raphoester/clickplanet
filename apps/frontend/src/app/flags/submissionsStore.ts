@@ -1,7 +1,8 @@
 import {useEffect} from "react"
 import {create} from "zustand"
 import {FlagSubmitter} from "../../backends/flags.ts"
-import {latestOf, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
+import {FlagCatalog} from "../../domain/flags.ts"
+import {foundedFlags, latestOf, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
 import {useNews} from "../news/newsStore.ts"
 import {useFlags} from "./flagsStore.ts"
 import {keepTold, toldSubmissions} from "./toldSubmissions.ts"
@@ -94,7 +95,7 @@ export function useFlagSubmissionsFeed(submitter: FlagSubmitter, who: Who): void
         const {serve, refresh} = useFlagSubmissions.getState()
         serve(submitter)
         const stopOpenings = useFlags.subscribe((flags, was) => {
-            if (flags.openings !== was.openings) refresh()
+            if (flags.openings !== was.openings || foundedClosedOrBack(flags.catalog, was.catalog)) refresh()
         })
         return () => {
             stopOpenings()
@@ -102,13 +103,35 @@ export function useFlagSubmissionsFeed(submitter: FlagSubmitter, who: Who): void
         }
     }, [submitter, signedIn])
 
-    useEffect(() => useFlagSubmissions.subscribe(({submissions}, was) => {
-        if (submissions === was.submissions) return
-        const told = toldSubmissions()
-        if (told === undefined) return
-        const fresh = untold(submissions, told)
-        if (fresh.length === 0) return
-        keepTold(withTold(told, fresh))
-        useNews.getState().tellSubmission(fresh[0])
-    }), [])
+    useEffect(() => {
+        const stopSubmissions = useFlagSubmissions.subscribe(({submissions}, was) => {
+            if (submissions !== was.submissions) tellDecisions()
+        })
+        const stopFlags = useFlags.subscribe(({catalog, read}, was) => {
+            if (catalog !== was.catalog || read !== was.read) tellDecisions()
+        })
+        return () => {
+            stopSubmissions()
+            stopFlags()
+        }
+    }, [])
+}
+
+// The operator's note of a close is read with the submissions.
+function foundedClosedOrBack(catalog: FlagCatalog, was: FlagCatalog): boolean {
+    if (catalog === was) return false
+    return foundedFlags(useFlagSubmissions.getState().submissions)
+        .some((flag) => catalog.closedFlag(flag) !== was.closedFlag(flag))
+}
+
+// Not before the list of flags is read: an opened flag would be told open, then closed.
+function tellDecisions(): void {
+    const {catalog, read} = useFlags.getState()
+    if (!read) return
+    const told = toldSubmissions()
+    if (told === undefined) return
+    const fresh = untold(useFlagSubmissions.getState().submissions, told, catalog)
+    if (fresh.length === 0) return
+    keepTold(withTold(told, fresh))
+    useNews.getState().tellSubmission(fresh[0])
 }

@@ -22,7 +22,7 @@ var (
 
 func TestEveryFlagIsToldAgainAsItIsNow(t *testing.T) {
 	store, outbox := catalog.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	closed, err := catalog.OpenFlag("r-0000000002", "Bavaria", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000002", "Bavaria", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	require.NoError(t, store.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", openedAt), closed))
 

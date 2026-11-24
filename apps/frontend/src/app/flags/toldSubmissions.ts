@@ -1,8 +1,8 @@
-import {SubmissionState, Told} from "../../domain/flagSubmissions.ts"
+import {ShownState, Told} from "../../domain/flagSubmissions.ts"
 
 const TOLD_KEY = "clickplanet-flag-submissions-told"
 
-const STATES: readonly SubmissionState[] = ["waiting", "approved", "rejected", "opened"]
+const STATES: readonly ShownState[] = ["waiting", "approved", "rejected", "opened", "closed"]
 
 // None where the browser keeps nothing: a decision it cannot remember telling is not told at each load.
 export function toldSubmissions(): Told | undefined {
@@ -10,7 +10,7 @@ export function toldSubmissions(): Told | undefined {
         const stored: unknown = JSON.parse(window.localStorage.getItem(TOLD_KEY) ?? "{}")
         if (typeof stored !== "object" || stored === null) return {}
         return Object.fromEntries(Object.entries(stored)
-            .filter((entry): entry is [string, SubmissionState] => STATES.includes(entry[1] as SubmissionState)))
+            .filter((entry): entry is [string, ShownState] => STATES.includes(entry[1] as ShownState)))
     } catch {
         return undefined
     }

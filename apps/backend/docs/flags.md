@@ -145,8 +145,15 @@ at its end keeps it closed).
   **A flag closed less than 30 days ago comes back** (`Flag.TimeAdded`): the same code, name and picture, the land it
   still holds, open from now until that many days from now, told as `FlagOpened`. Past the 30 days,
   `catalog.ErrTooLate` (`FailedPrecondition`): the place is free for a new flag.
-- **`CloseFlag(code)`** (`close_flag_usecase`): now, as a flag that broke the rules. `catalog.ErrClosed` for one closed
-  already.
+- **`CloseFlag(code, note)`** (`close_flag_usecase`): now, as a flag that broke the rules, **with a note its founder
+  reads** (the owner, 2026-11-24: a free note, no list of reasons; every close by hand, a flag with no founder too).
+  `catalog.Note`: 1 to 500 characters once the spaces at its ends are cut, `ErrInvalidNote` (`InvalidArgument`) for
+  none. The EU's rules for online platforms ask for this statement of reasons, as for a rejection. `catalog.ErrClosed`
+  for one closed already. The note is a row of `flags.closures` (`flag`, `note`), which only a flag the operator closed
+  has (`20261124133507_flag_closures`): the flag store writes it from the flag's snapshot, and deletes it when the flag
+  comes back (`Flag.TimeAdded`). A flag closed at its end has none, and so has each flag closed before the note
+  existed (no backfill: production's Bavaria was the owner's test). It is told to nobody: `FlagClosed` carries no
+  note, and planet and the pages need none.
 - **`RenameFlag(code, name)`** (`rename_flag_usecase`): open or closed; `catalog.ErrNameTaken` or `ErrInvalidName`
   (`InvalidArgument`) for a name another flag has or no name. Told as `FlagRenamed`: the pages show it at once, and the
   code, the picture, the land and the players stay.
@@ -198,7 +205,9 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
   `FailedPrecondition`.
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
   rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
-  for a guest. **The notice is in the game, never by email**: the page reads it (see the frontend's
+  for a guest. Beside them, `closures`: the note of each flag the account founded (opened from one of its
+  submissions) that the operator closed and that has not come back. **Only its founder reads it**: `ListFlags` and the
+  stream, which every page reads, carry none. **The notice is in the game, never by email**: the page reads it (see the frontend's
   [Flag submissions](../../frontend/docs/flag-submissions.md)).
 
 ### The operator's calls

@@ -122,7 +122,7 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 
 	clock.Advance(time.Hour)
 	_, err = close_flag_usecase.New(clock, db, store, cpoutbox.New(db)).
-		Execute(t.Context(), close_flag_usecase.In{Flag: out.ID.String()})
+		Execute(t.Context(), close_flag_usecase.In{Flag: out.ID.String(), Note: "Broke the rules."})
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(planet.all()) == 2 }, 10*time.Second, 20*time.Millisecond)
 	assert.Equal(t, catalog.Closed, (<-page).State, "the page hears it closed")

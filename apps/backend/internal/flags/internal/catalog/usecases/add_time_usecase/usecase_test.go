@@ -49,7 +49,7 @@ func TestTimeAddedToAnOpenFlagTellsNothing(t *testing.T) {
 }
 
 func TestAFlagClosedComesBackOpenedAgainWithinThirtyDays(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	f := newFixture(t, closed)
 	back := closedAt.Add(10 * 24 * time.Hour)
@@ -66,7 +66,7 @@ func TestAFlagClosedComesBackOpenedAgainWithinThirtyDays(t *testing.T) {
 }
 
 func TestAFlagClosedThirtyDaysAgoDoesNotComeBack(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	f := newFixture(t, closed)
 	f.clock.Advance(closedAt.Add(30 * 24 * time.Hour).Sub(openedAt))

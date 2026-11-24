@@ -342,8 +342,12 @@ func (x *AddTimeResponse) GetFlag() *Flag {
 }
 
 type CloseFlagRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// Required, 1 to 500 characters: why the flag closes before its end, in the operator's own words. Its founder reads
+	// it, as the EU's rules for online platforms ask; nobody else does. Time added within 30 days opens the flag again
+	// and drops the note.
+	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +385,13 @@ func (*CloseFlagRequest) Descriptor() ([]byte, []int) {
 func (x *CloseFlagRequest) GetCode() string {
 	if x != nil {
 		return x.Code
+	}
+	return ""
+}
+
+func (x *CloseFlagRequest) GetNote() string {
+	if x != nil {
+		return x.Note
 	}
 	return ""
 }
@@ -1062,9 +1073,10 @@ const file_flags_v1_admin_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04days\x18\x02 \x01(\rR\x04days\"5\n" +
 	"\x0fAddTimeResponse\x12\"\n" +
-	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\"&\n" +
+	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\":\n" +
 	"\x10CloseFlagRequest\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\"7\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\"7\n" +
 	"\x11CloseFlagResponse\x12\"\n" +
 	"\x04flag\x18\x01 \x01(\v2\x0e.flags.v1.FlagR\x04flag\";\n" +
 	"\x11RenameFlagRequest\x12\x12\n" +

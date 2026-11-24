@@ -71,9 +71,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
-     * may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
-     * lifts. FailedPrecondition for a flag closed already.
+     * Closes a flag opened since the game shipped, now, with a note its founder reads: its players must pick another
+     * flag, its land stays, and nobody may click for it. While the rules in force lock the flags (a battle), planet keeps
+     * it playable until the lock lifts. InvalidArgument for no note or one over 500 characters; FailedPrecondition for a
+     * flag closed already.
      *
      * @generated from rpc flags.v1.AdminService.CloseFlag
      */
