@@ -199,8 +199,7 @@ func (x *FlagRenamed) GetRenamedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it. Its code is
-// never given again.
+// The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it.
 type FlagDeleted struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Flag          string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`

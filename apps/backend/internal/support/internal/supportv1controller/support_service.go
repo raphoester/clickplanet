@@ -3,6 +3,7 @@ package supportv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/answer_note_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/backfill_reply_addresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_note_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
@@ -30,6 +31,7 @@ type AdminService struct {
 	decide_report_handler.DecideReportHandler
 	answer_note_handler.AnswerNoteHandler
 	close_note_handler.CloseNoteHandler
+	backfill_reply_addresses_handler.BackfillReplyAddressesHandler
 }
 
 var _ supportv1connect.AdminServiceHandler = AdminService{}

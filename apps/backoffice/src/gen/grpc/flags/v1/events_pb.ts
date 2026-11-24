@@ -158,8 +158,7 @@ export class FlagRenamed extends Message<FlagRenamed> {
 }
 
 /**
- * The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it. Its code is
- * never given again.
+ * The flag is gone from deleted_at: closed, and no player ever played for it, so no history names it.
  *
  * @generated from message flags.v1.FlagDeleted
  */

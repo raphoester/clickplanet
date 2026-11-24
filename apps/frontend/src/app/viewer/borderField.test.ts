@@ -7,6 +7,7 @@ import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {FIXTURE_1} from "../../testdata/boards.ts"
 import {BLANK_REGION, flagNumberOf, flagNumbers, regions, showPicture} from "./atlas.ts"
 import {LandmassSight, type ScreenView} from "./slotNeed.ts"
+import fits from "../../../static/countries/flagFit.json"
 
 const TEXELS = 4
 
@@ -203,6 +204,7 @@ describe("the flags drawn large", () => {
             area: expect.closeTo(200, 3),
             aspect: 100 / 67,
             spriteWidth: 100,
+            detail: fits.fr.detail,
         }]]))
     })
 
