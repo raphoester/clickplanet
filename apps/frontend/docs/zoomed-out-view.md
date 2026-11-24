@@ -215,7 +215,20 @@ its sprite's width. It earns the smallest cell that holds it as wide as it needs
 screen pays for: so many texels per pixel of land, one share for the whole view, the largest of 16, 8, 4, 2, 1, ½ and ¼
 whose cells fit the texture. A frame can be far larger than its land: ranked on width alone, Chile's thin strip and
 Brazil took the whole texture over South America, and Russia half of it over Europe. The room left then raises the
-flags with the most land to the share above. A flag keeps its cell unless it needs clearly more (`EVICTION_MARGIN`,
+flags with the most land to the share above.
+
+**A pixel of land pays as much as its flag's detail** (`worthOf`): its land times its `detail` to the power 2/3.
+`detail` is what the flag loses drawn 4 times as wide as its 100px sprite, the mean difference to itself drawn from
+its SVG, over the median flag's (`npm run flagFit`, in `flagFit.json`): Germany 0.23, Poland 0.35, France 0.45, Mexico
+1.14, Saudi Arabia 2.07, Iran 2.59, the United States 4.34. A sold flag's picture is not measured and counts as 1. The
+power is no knob: a flag's blur grows with how far its cell is stretched, and the cells that leave the least blur over
+all the land are as wide as the flag's detail to the third power. Until 2026-11-24 every pixel of land paid the same,
+and on a full texture a plain flag's land took the texels a flag of fine detail needed: over Arabia on a retina
+screen, some 45 flags in view, Saudi Arabia was drawn from its sprite, its script and its sword a blur (the owner's
+shot). Measured on that view in fake mode, it now has a 512×256 cell for 385 px on screen; Germany, Poland and
+Romania, plain bands, go back to the atlas, and the blur over the land, weighted by detail, is a fifth less. A floor,
+the smallest cell for every flag that needs one, was tried too: the flags with a few pixels of land took cells, the
+share fell, and Saudi Arabia was stretched 1.6 times again. A flag keeps its cell unless it needs clearly more (`EVICTION_MARGIN`,
 1.2 times its width) or two sizes less, so a tile war or a small move of the camera redraws nothing. A flag out of
 view keeps its cell while there is room and is dropped first. When the texture is still full, the flags with the
 most land win and the rest drop a size. `SlotLayout` keeps a flag's cell while its size holds, and places the others
@@ -279,8 +292,8 @@ country flags": a setting saved by it as `"flags"` now reads as the default, Spl
 `npm run flagFit` decides the rest for the leader's flag: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
 cropped, anchored on the part that names it rather than on its middle. The
-result is `static/countries/flagFit.json`. A sold flag's picture carries its own `stretch` and `focus`, which the
-server measured as `npm run flagFit` does.
+result is `static/countries/flagFit.json`, with each flag's `detail` for the slots (above). A sold flag's picture
+carries its own `stretch` and `focus`, which the server measured as `npm run flagFit` does, and no `detail`.
 
 **Every tile is in a country**, because the runs and the borders come from one Natural Earth
 query: a tile exists exactly where `groundOf` answers a code, and that same answer
