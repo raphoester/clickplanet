@@ -111,9 +111,8 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Approves a submission, at its capital or where the operator moved it: its picture is made public. A new flag then
-     * waits to be paid for, and opens with OpenSubmittedFlag; a change is on its flag at once, for every player, its
-     * capital too. NotFound for an unknown submission;
+     * Approves a submission, at its capital or where the operator moved it: its picture is made public. It then waits
+     * to be paid for, and opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
      * FailedPrecondition for one decided already, a name another flag has (whatever its case), or while the flags'
      * pictures are off; InvalidArgument for a capital off the globe.
      *
@@ -127,7 +126,7 @@ export const AdminService = {
     },
     /**
      * Rejects a submission, with the reason its player reads. Its picture never becomes public, and is deleted 30 days
-     * later. NotFound for an unknown submission; FailedPrecondition for one decided already; InvalidArgument for no
+     * later. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
      * reason, or OTHER with no note.
      *
      * @generated from rpc flags.v1.AdminService.RejectSubmission
@@ -140,8 +139,8 @@ export const AdminService = {
     },
     /**
      * Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
-     * by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a change, or a
-     * name another flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
+     * by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a name another
+     * flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
      *
      * @generated from rpc flags.v1.AdminService.OpenSubmittedFlag
      */

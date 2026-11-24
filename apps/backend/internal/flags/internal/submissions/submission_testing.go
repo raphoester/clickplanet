@@ -12,7 +12,7 @@ import (
 // TestWaiting is a new flag of Rennes the account submitted at a time, waiting, with the test picture.
 func TestWaiting(id SubmissionID, account AccountID, at time.Time) Snapshot {
 	return Snapshot{
-		ID: id, Account: account, Kind: New, Name: "Rennes", Pin: catalog.TestPin, Picture: catalog.TestPicture,
+		ID: id, Account: account, Name: "Rennes", Pin: catalog.TestPin, Picture: catalog.TestPicture,
 		OtherColors: 3, Held: true, State: Waiting, SubmittedAt: at, DecidedAt: at,
 	}
 }

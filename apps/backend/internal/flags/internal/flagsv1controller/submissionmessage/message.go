@@ -30,7 +30,7 @@ type Messages struct {
 func (m Messages) Submission(submission submissions.Snapshot) *flagsv1.Submission {
 	message := &flagsv1.Submission{
 		Id: submission.ID.String(), Name: submission.Name.String(), Pin: flagmessage.Pin(submission.Pin),
-		Change: submission.Kind == submissions.Change, Flag: submission.Flag.String(), State: State(submission.State),
+		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
 		Rejection: rejection(submission),
 	}
@@ -43,7 +43,7 @@ func (m Messages) Submission(submission submissions.Snapshot) *flagsv1.Submissio
 func (m Messages) Kept(submission submissions.Snapshot) (*flagsv1.KeptSubmission, error) {
 	message := &flagsv1.KeptSubmission{
 		Id: submission.ID.String(), Name: submission.Name.String(), Pin: flagmessage.Pin(submission.Pin),
-		Change: submission.Kind == submissions.Change, Flag: submission.Flag.String(), State: State(submission.State),
+		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
 		Rejection: rejection(submission), OtherColorsPercent: uint32(submission.OtherColors),
 		AccountId: submission.Account.String(),

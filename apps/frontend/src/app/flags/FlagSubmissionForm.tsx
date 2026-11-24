@@ -17,7 +17,6 @@ import Modal from "../components/Modal.tsx"
 import {CrownIcon, PictureIcon} from "../components/icons.tsx"
 import {useScreen} from "../hud/screenStore.ts"
 import {sizeLine} from "../support/attachmentLines.ts"
-import {useFlags} from "./flagsStore.ts"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 import {coordinatesOf} from "./coordinates.ts"
@@ -37,7 +36,7 @@ type State =
 const FAILURES: Record<Failure, Key> = {
     "no-session": "support.failure.noSession",
     "guest": "flagSubmission.signIn",
-    "not-yours": "flagSubmission.refusal.notYours",
+    "decided": "flagSubmission.refusal.decided",
     "waiting": "flagSubmission.refusal.waiting",
     "invalid": "flagSubmission.refusal.invalid",
     "off": "flagSubmission.refusal.off",
@@ -63,7 +62,7 @@ function pictureLine({refusal, file}: PictureProblem): string {
     }
 }
 
-// A change sends a picture too: the server reviews every flag as the players will see it.
+// A change sends a picture again: the page keeps none, and the server reviews every flag as the players will see it.
 function readyToSend(draft: Draft, problem: PictureProblem | undefined): boolean {
     return isValidFlagName(draft.name) && draft.pinned !== undefined && problem === undefined && draft.file !== undefined
 }
@@ -74,7 +73,6 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
     const aim = useFlagForm((form) => form.aim)
     const close = useFlagForm((form) => form.close)
     const sent = useFlagForm((form) => form.sent)
-    const catalog = useFlags((store) => store.catalog)
     const [state, setState] = useState<State>({kind: "writing"})
     const [problem, setProblem] = useState<PictureProblem>()
     const closing = useRef<AbortController>()
@@ -91,8 +89,7 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
         return () => controller.abort()
     }, [])
 
-    const change = draft.flag !== undefined
-    const currentPicture = draft.flag === undefined ? undefined : catalog.pictureOf(draft.flag)
+    const change = draft.replaces !== undefined
     const busy = state.kind !== "writing"
     const canSend = !busy && readyToSend(draft, problem)
     const length = flagNameLength(draft.name)
@@ -139,7 +136,9 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
             }
             if (signal?.aborted) return
             setState({kind: "sending"})
-            const submission = await submitter.submitFlag({name: flagNameOf(draft.name), uploadId, pin: pinned.pin, flag: draft.flag})
+            const submission = await submitter.submitFlag({
+                name: flagNameOf(draft.name), uploadId, pin: pinned.pin, replaces: draft.replaces,
+            })
             if (signal?.aborted) return
             useFlagSubmissions.getState().submitted(submission)
             sent()
@@ -150,7 +149,7 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
         }
     }
 
-    const shown = preview ?? currentPicture?.url
+    const shown = preview
     const sendLabel = state.kind === "uploading"
         ? t("flagSubmission.uploading", {percent: translator().number(state.fraction, {style: "percent"})})
         : state.kind === "sending" ? t("flagSubmission.sending") : t("common.send")

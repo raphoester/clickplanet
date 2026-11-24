@@ -18,7 +18,7 @@ import {useFlagSubmissions} from "./submissionsStore.ts"
 const PIN = {latitude: 48.1, longitude: 11.6}
 
 const submission = (changes: Partial<Submission> = {}): Submission => ({
-    id: "s-1", name: "Bavaria", pin: PIN, change: false, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
+    id: "s-1", name: "Bavaria", pin: PIN, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
 })
 
 async function accountOf(linked: Provider[]) {
@@ -111,7 +111,7 @@ describe("FlagSubmissionPlace", () => {
         expect(screen.getByRole("textbox", {name: "Name"})).not.toBeNull()
     })
 
-    it("shows a submission that waits, with no way to send another", async () => {
+    it("shows a submission that waits, with no way to send another, and changes it from what was sent", async () => {
         const account = await accountOf(["google"])
         read([submission()])
         useFlagForm.getState().show()
@@ -120,7 +120,12 @@ describe("FlagSubmissionPlace", () => {
         expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
         expect(screen.getByText("Waiting")).not.toBeNull()
         expect(screen.queryByRole("button", {name: "New flag"})).toBeNull()
-        expect(document.querySelector(".modal-footer")?.textContent).toBe("Close")
+        expect(document.querySelector(".modal-footer")?.textContent).toBe("Change")
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Change"}))
+        expect(screen.getByRole("dialog", {name: "Change your flag"})).not.toBeNull()
+        expect((screen.getByRole("textbox", {name: "Name"}) as HTMLInputElement).value).toBe("Bavaria")
+        expect(useFlagForm.getState().draft).toEqual({name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"})
     })
 
     it("shows a rejection's reason and the operator's note, and sends again from what was sent", async () => {
@@ -138,19 +143,18 @@ describe("FlagSubmissionPlace", () => {
         expect(useFlagForm.getState().draft.pinned).toEqual({pin: PIN})
     })
 
-    it("says an approval, an opening, and offers a change of the flag the account founded", async () => {
+    it("says an approval and an opening, and offers no change once the operator decided", async () => {
         const account = await accountOf(["google"])
         read([submission({state: "approved"})])
         useFlagForm.getState().show()
         const view = render(<FlagSubmissionPlace account={account} submitter={submitter()}/>)
         expect(screen.getByText("Approved! It opens soon.")).not.toBeNull()
+        expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
 
         act(() => read([submission({state: "opened", flag: "r-k3p9x2ma0b"})]))
         expect(screen.getByRole("status").textContent).toBe("Bavaria is in the game!")
-
-        await userEvent.setup().click(screen.getByRole("button", {name: "Change"}))
-        expect(screen.getByRole("dialog", {name: "Change your flag"})).not.toBeNull()
-        expect(useFlagForm.getState().draft.flag).toBe("r-k3p9x2ma0b")
+        expect(screen.getByText("Your flags")).not.toBeNull()
+        expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
         view.unmount()
     })
 
@@ -176,18 +180,18 @@ describe("FlagSubmissionPlace", () => {
         act(() => flagsAre(true))
         expect(screen.getByRole("status").textContent).toBe("Bavaria closed on Nov 24, 2026.")
         expect(document.querySelector(".flag-entry")?.textContent).toBe("BavariaClosed")
-        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChange")
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosed")
 
         act(() => read([submission({state: "opened", flag: "r-k3p9x2ma0b", closeNote: "A club's crest."})]))
         expect(document.querySelector(".flag-status > .flag-status-note")?.textContent).toBe("A club's crest.")
-        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChange")
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosed")
 
         act(() => read([
             submission({id: "s-2", name: "Swabia"}),
             submission({state: "opened", flag: "r-k3p9x2ma0b", closeNote: "A club's crest."}),
         ]))
         expect(document.querySelector(".flag-status > .flag-status-note")).toBeNull()
-        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedChangeA club's crest.")
+        expect(document.querySelector(".flag-founded")?.textContent).toBe("BavariaClosedA club's crest.")
 
         act(() => flagsAre(false))
         expect(document.querySelector(".flag-status-note")).toBeNull()

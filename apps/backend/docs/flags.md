@@ -38,13 +38,13 @@ opens when the owner says so.
 
 ## What it tells
 
-`flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}`, `FlagRenamed{flag, name,
-renamed_at}` and `FlagMoved{flag, pin, moved_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
-The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`. It
-tells the operator's rename, and a founder's change approved, which may bring a new picture too: the pages read the
-flag from the table as it is now. **`FlagMoved` tells planet a capital moved**: a founder's change approved whose
-capital differs from the flag's (`Flag.Restyled`, after `FlagRenamed`, in one transaction; `20261124125257_moved_flags`).
-`FlagOpened` carries the capital as it is now, at each opening, comeback and restatement.
+`flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name,
+renamed_at}`, through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
+operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
+opening, comeback and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
+approved, and went with it (`20261124145305_no_changes` deleted any left in the outbox; the enum keeps its value, as
+postgres drops none).
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
 (`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
@@ -60,16 +60,16 @@ before the opening it follows; it keeps the later one, and a fact told again cha
 `decided_at`, and the pin: `pin_latitude`, `pin_longitude`, `pinned_at`, all null until a fact names one), because it
 plays the flags: whether one is open is a rule of the click, and where it starts a siege a rule of the arena.
 
-- **Of one flag's pin, the latest fact that named one holds** (`Heard.Moved`): `FlagOpened`'s at its `opened_at`,
-  `FlagMoved`'s at its `moved_at`. A pin told again at the time of the one kept replaces it, so the restatement at each
+- **Of one flag's pin, the latest fact that named one holds** (`Heard.Moved`): `FlagOpened`'s at its `opened_at`. A
+  pin told again at the time of the one kept replaces it, so the restatement at each
   boot puts a wrong pin right, and gave the flags opened before pins their first one (Brittany, Corsica) at the deploy.
   A flag never heard keeps no pin. A `FlagOpened` from a build before pins names none and keeps the pin as it is.
 
 - **`catalog.Catalog`** (`internal/planet/internal/catalog`) answers two questions. `Playable`: a flag the game ships
   with, or one heard open. `Known`: the same, or one heard closed. A flag the game ships with is never read from
   postgres, so today's clicks cost nothing more.
-- **`flag_opened_subscriber`, `flag_closed_subscriber` and `flag_moved_subscriber`** hear the facts
-  (`planet-flags-opened`, `planet-flags-closed`, `planet-flags-moved`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
+- **`flag_opened_subscriber` and `flag_closed_subscriber`** hear the facts (`planet-flags-opened`,
+  `planet-flags-closed`). `postgres_catalog_store` keeps one row per flag under an advisory lock, and only when a fact
   changes it.
 - **Only the map lives in RAM**: the catalog reads postgres, for a flag that is not built in.
 - **Not an RPC to the flags module**: a click for a flag opened since is one read of planet's own postgres, not a call
@@ -182,9 +182,17 @@ rejected flag never costs money, so a rejection never needs a refund. The review
   `ErrGuest`, `PermissionDenied`.
 - **One submission of an account waits at a time** (`submissions.Submit` reads the account's earlier ones):
   `ErrWaiting`, `AlreadyExists`. Once it is decided the account may submit another.
-- **A submission** is a name (`catalog.Name`), a picture, a pin (`catalog.Pin`) and, for a change, the flag it is for.
-  A row of `flags.submissions`: `id`, `account_id`, `kind` (`submission_kind`: `new` or `change`), `flag` (the flag a
-  change is for, or the flag opened from a new one, empty until then), the name, the pin, the picture as drawn
+- **A player changes its submission while it waits, never once the operator decided it** (the owner, 2026-11-24: a
+  founder's change of an approved flag "shouldn't be allowed"). The change is a new submission that `replaces` the one
+  that waits: in one transaction the old row is deleted (`Store.DeleteWaiting`, which refuses one no longer waiting)
+  and the new one kept, then the old picture dropped from the private bucket. It waits at the back of the queue, and
+  the operator's approval of the old id is `NotFound`: the operator never approves a picture it did not see. A
+  replacement of one decided, or of none, is `ErrNotWaiting` (`FailedPrecondition`). Until that day a founder could
+  send a new name or picture for a flag it founded, reviewed again; `20261124145305_no_changes` deleted those rows
+  (an approved one was on its flag already; a waiting or rejected one's picture stays private in the bucket) and the
+  `kind` column.
+- **A submission** is a name (`catalog.Name`), a picture and a pin (`catalog.Pin`). A row of `flags.submissions`:
+  `id`, `account_id`, `flag` (the flag opened from it, empty until then), the name, the pin, the picture as drawn
   (`picture_*`, with `picture_other_colors`), `picture_held`, `state` (`submission_state`: `waiting`, `approved`,
   `rejected`, `opened`), `submitted_at`, and `decided_at`, when it took its state. A rejection's reason and note are a
   row of `flags.rejections`, which only a rejected one has.
@@ -209,11 +217,9 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
 - **`CreateSubmissionUpload(content_type, size_bytes)`**: a one-time link, as the operator's, for a signed-in account
   alone. 20 a day for an account and for its address together (`flags.submissionUploads`, `ResourceExhausted`): each is
   room in the bucket.
-- **`SubmitFlag(name, upload_id, pin, flag)`** (`submit_flag_usecase`): with `flag`, a new name or picture for a flag the
-  account founded, that is a flag opened from one of its own submissions (`ErrNotFounder`, `PermissionDenied`
-  otherwise). Open or closed: a closed flag still shows in history. **The flag keeps its name and picture until the
-  operator approves the change.** The refusals of a bad name, pin or picture are `InvalidArgument`, pictures off
-  `FailedPrecondition`.
+- **`SubmitFlag(name, upload_id, pin, replaces)`** (`submit_flag_usecase`): with `replaces`, the id of the account's
+  submission that waits, which the new one replaces (above). The refusals of a bad name, pin, picture or id are
+  `InvalidArgument`, pictures off or a replacement of one decided `FailedPrecondition`.
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
   rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
   for a guest. Beside them, `closures`: the note of each flag the account founded (opened from one of its
@@ -233,18 +239,17 @@ flag in production unless the owner says so.**
   moved it on the backoffice's map (`Submission.Moved`, a waiting submission alone; unset keeps the player's, never a
   move to 0, 0). Then the picture held is read, checked against the
   hash the submission keeps (`ErrNotThePicture`), and written public at `flags/pictures/<sha256>.png`, as a flag sold by
-  hand; then the approval is kept and the private copy deleted. **A new flag waits to be paid for**: nothing opens.
-  **A change is on its flag at once**: in the same transaction the flag wears the new name, picture and capital
-  (`Submission.Restyle`, `Flag.Restyled`) and `FlagRenamed` is recorded. `ErrDecided` (`FailedPrecondition`) for one
-  decided already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: a change keeps its
-  own flag's name, and the operator rejects the rest as `exists`.
+  hand; then the approval is kept and the private copy deleted. **It waits to be paid for**: nothing opens.
+  `ErrUnknownSubmission` (`NotFound`) for one its player replaced, `ErrDecided` (`FailedPrecondition`) for one decided
+  already, and `catalog.ErrNameTaken` (`FailedPrecondition`) for a name another flag has: the operator rejects those
+  as `exists`.
 - **`RejectSubmission(submission_id, rejection)`** (`reject_submission_usecase`): a reason from a short list
   (`not_a_place`, `exists`, `unreadable` at a tile's size, `hateful`, `other`) and a note of 500 characters at most,
   which `other` needs. The EU's rules for online platforms ask for this statement of reasons. **The picture never
   becomes public, and is deleted 30 days later** (`delete_rejected_pictures_usecase`, every hour: the file first, then
   `picture_held` false, so a row that says so holds none).
 - **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): until payments exist (step 4), the
-  operator opens an approved new submission by hand, as a pilot sold by hand. A name another flag took since the approval is
+  operator opens an approved submission by hand, as a pilot sold by hand. A name another flag took since the approval is
   `ErrNameTaken`. The flag takes the submission's name,
   picture and pin (`Submission.Open`), and the submission is `opened` with the flag's code, in one transaction with
   `FlagOpened`. `ErrNotApproved` (`FailedPrecondition`) for any other submission.
@@ -275,7 +280,8 @@ pictures of the flags there are.
 
 `internal/flags/told_test.go` opens a flag through the module with a real postgres and Redis, and shows the fact reach
 another module's subscriber and an open page's stream with no restart, then the close and a rename. `submitted_test.go`
-takes a player's flag from its submission to an open page, then its founder's new name, approved, to the same page.
+takes a player's flag from its submission, changed while it waits, to an open page, the old one's approval refused,
+then refuses a change of the flag opened.
 
 ## Brittany, from the build to the sold flags
 

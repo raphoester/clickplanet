@@ -123,7 +123,6 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
                     : (
                         <SubmissionList
                             submissions={shown}
-                            flags={listed.flags}
                             names={listed.names}
                             replied={replied}
                             opened={opened}

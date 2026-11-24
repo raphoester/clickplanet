@@ -10,13 +10,13 @@ import {
     shownOf,
     Submission,
     untold,
-    waits,
+    waitingOf,
     withTold,
 } from "./flagSubmissions.ts"
 import {FlagCatalog} from "./flags.ts"
 
 const submission = (id: string, changes: Partial<Submission> = {}): Submission => ({
-    id, name: "Bavaria", change: false, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
+    id, name: "Bavaria", flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
 })
 
 describe("a flag's name", () => {
@@ -66,19 +66,18 @@ describe("pinAt", () => {
 })
 
 describe("the account's submissions", () => {
-    it("wait while one of them waits", () => {
-        expect(waits([submission("a", {state: "rejected"})])).toBe(false)
-        expect(waits([submission("b"), submission("a", {state: "rejected"})])).toBe(true)
+    it("hold the one that waits", () => {
+        expect(waitingOf([submission("a", {state: "rejected"})])).toBeUndefined()
+        expect(waitingOf([submission("b"), submission("a", {state: "rejected"})])?.id).toBe("b")
     })
 
-    it("name the flags the account founded, the newest first: one opened, or changed by an approved change", () => {
+    it("name the flags the account founded, the newest first: each opened from one of them", () => {
         expect(foundedFlags([
-            submission("d", {change: true, flag: "r-bbbbbbbbbb", state: "waiting"}),
-            submission("c", {change: true, flag: "r-aaaaaaaaaa", state: "approved"}),
+            submission("c", {state: "waiting"}),
             submission("b", {flag: "r-bbbbbbbbbb", state: "opened"}),
             submission("a", {flag: "r-aaaaaaaaaa", state: "opened"}),
             submission("x", {state: "approved"}),
-        ])).toEqual(["r-aaaaaaaaaa", "r-bbbbbbbbbb"])
+        ])).toEqual(["r-bbbbbbbbbb", "r-aaaaaaaaaa"])
     })
 
     it("tell each decision once, and a submission approved, opened, then its flag closed thrice", () => {
@@ -104,7 +103,6 @@ describe("a submission as its player reads it", () => {
         expect(shownOf(opened, catalogOf(false)).state).toBe("opened")
         expect(shownOf(opened, catalogOf(true)).state).toBe("closed")
 
-        const change = submission("b", {change: true, flag: "r-aaaaaaaaaa", state: "approved"})
-        expect(shownOf(change, catalogOf(true)).state).toBe("approved")
+        expect(shownOf(submission("b", {state: "approved"}), catalogOf(true)).state).toBe("approved")
     })
 })

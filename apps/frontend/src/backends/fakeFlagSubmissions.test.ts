@@ -33,7 +33,7 @@ describe("FakeFlagSubmissions", () => {
         const upload = await submissions.uploadPicture(png())
 
         const sent = await submissions.submitFlag({name: " Bavaria ", uploadId: upload, pin: PIN})
-        expect(sent).toMatchObject({name: "Bavaria", state: "waiting", change: false, flag: ""})
+        expect(sent).toMatchObject({name: "Bavaria", state: "waiting", flag: ""})
         expect(await refusalOf(submissions.submitFlag({name: "Tyrol", uploadId: await submissions.uploadPicture(png()), pin: PIN})))
             .toBe("waiting")
         expect((await submissions.mySubmissions()).map(({name}) => name)).toEqual(["Bavaria"])
@@ -71,17 +71,18 @@ describe("FakeFlagSubmissions", () => {
         expect((await submissions.mySubmissions())[0]).toMatchObject({state: "rejected", rejection: {reason: "not-a-place", note: "A club's crest."}})
     })
 
-    it("takes a change of a flag the account founded, with no new picture, and puts it on the flag once approved", async () => {
-        const {submissions, flags} = setup()
-        await submissions.submitFlag({name: "Bavaria", uploadId: await submissions.uploadPicture(png()), pin: PIN})
-        await submissions.approve()
-        await submissions.open()
-        const [{flag}] = await submissions.mySubmissions()
+    it("replaces the submission that waits, and never one the operator decided", async () => {
+        const {submissions} = setup()
+        const first = await submissions.submitFlag({name: "Bavaria", uploadId: await submissions.uploadPicture(png()), pin: PIN})
 
-        expect(await refusalOf(submissions.submitFlag({name: "Bayern", uploadId: "", pin: PIN, flag: "r-0000000000"}))).toBe("not-yours")
-        await submissions.submitFlag({name: "Bayern", uploadId: "", pin: PIN, flag})
-        await submissions.approve()
+        const second = await submissions.submitFlag({
+            name: "Bayern", uploadId: await submissions.uploadPicture(png()), pin: PIN, replaces: first.id,
+        })
+        expect((await submissions.mySubmissions()).map(({id, name}) => [id, name])).toEqual([[second.id, "Bayern"]])
 
-        expect((await flags.listFlags()).find(({code}) => code === flag)?.name).toBe("Bayern")
+        await submissions.approve()
+        expect(await refusalOf(submissions.submitFlag({
+            name: "Bavière", uploadId: await submissions.uploadPicture(png()), pin: PIN, replaces: second.id,
+        }))).toBe("decided")
     })
 })

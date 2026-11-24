@@ -38,17 +38,17 @@ func (h SubmitFlagHandler) SubmitFlag(
 	submission, err := h.useCase.Execute(ctx, submit_flag_usecase.In{
 		Account: cpctx.GetAccount(ctx), Linked: cpctx.GetLinked(ctx), Name: req.Msg.GetName(),
 		Upload: req.Msg.GetUploadId(), Latitude: req.Msg.GetPin().GetLatitude(),
-		Longitude: req.Msg.GetPin().GetLongitude(), Flag: req.Msg.GetFlag(),
+		Longitude: req.Msg.GetPin().GetLongitude(), Replaces: req.Msg.GetReplaces(),
 	})
 	switch {
 	case errors.Is(err, submissions.ErrGuest):
 		return nil, connect.NewError(connect.CodePermissionDenied, submissions.ErrGuest)
-	case errors.Is(err, submissions.ErrNotFounder):
-		return nil, connect.NewError(connect.CodePermissionDenied, submissions.ErrNotFounder)
 	case errors.Is(err, submissions.ErrWaiting):
 		return nil, connect.NewError(connect.CodeAlreadyExists, submissions.ErrWaiting)
+	case errors.Is(err, submissions.ErrNotWaiting):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrNotWaiting)
 	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrInvalidPin),
-		errors.Is(err, catalog.ErrInvalidFlagID), errors.Is(err, pictures.ErrUnknownUpload),
+		errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, pictures.ErrUnknownUpload),
 		errors.Is(err, pictures.ErrTooLarge), errors.Is(err, pictures.ErrNotAPicture),
 		errors.Is(err, pictures.ErrMoves), errors.Is(err, pictures.ErrShape), errors.Is(err, pictures.ErrTooSmall):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

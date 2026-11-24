@@ -24,7 +24,7 @@ type Store struct {
 
 var _ submissions.Store = (*Store)(nil)
 
-const columns = `s.id, s.account_id, s.kind::text, s.flag, s.name, s.pin_latitude, s.pin_longitude,
+const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
 	COALESCE(r.reason::text, ''), COALESCE(r.note, '')`
@@ -74,18 +74,17 @@ func (s *Store) read(ctx context.Context, query string, args ...any) ([]submissi
 func submissionOf(scan func(dest ...any) error) (submissions.Submission, error) {
 	var id uuid.UUID
 	var account uuid.UUID
-	var kind, flag, name, state, reason string
+	var flag, name, state, reason string
 	var kept submissions.Snapshot
 	var picture pictures.Snapshot
 	var focusX, focusY float32
 	var others uint32
-	if err := scan(&id, &account, &kind, &flag, &name, &kept.Pin.Latitude, &kept.Pin.Longitude,
+	if err := scan(&id, &account, &flag, &name, &kept.Pin.Latitude, &kept.Pin.Longitude,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
 		&others, &kept.Held, &state, &kept.SubmittedAt, &kept.DecidedAt, &reason, &kept.Rejection.Note); err != nil {
 		return submissions.Submission{}, fmt.Errorf("failed to read a submission: %w", err)
 	}
-	kept.ID, kept.Kind, kept.Name, kept.State = submissions.SubmissionID(id), submissions.Kind(kind),
-		catalog.Name(name), submissions.State(state)
+	kept.ID, kept.Name, kept.State = submissions.SubmissionID(id), catalog.Name(name), submissions.State(state)
 	kept.Account = submissions.AccountID(account)
 	if flag != "" {
 		flagID, err := catalog.ParseFlagID(flag)
@@ -110,15 +109,14 @@ func (s *Store) Save(ctx context.Context, kept ...submissions.Submission) error 
 		row := submission.TakeSnapshot()
 		picture := row.Picture
 		if _, err := s.db.On(ctx).ExecContext(ctx, `
-			INSERT INTO submissions (id, account_id, kind, flag, name, pin_latitude, pin_longitude,
+			INSERT INTO submissions (id, account_id, flag, name, pin_latitude, pin_longitude,
 				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
 				picture_other_colors, picture_held, state, submitted_at, decided_at)
-			VALUES ($1, $2, $3::submission_kind, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-				$16::submission_state, $17, $18)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::submission_state, $16, $17)
 			ON CONFLICT (id) DO UPDATE SET flag = EXCLUDED.flag,
 				name = EXCLUDED.name, pin_latitude = EXCLUDED.pin_latitude, pin_longitude = EXCLUDED.pin_longitude,
 				picture_held = EXCLUDED.picture_held, state = EXCLUDED.state, decided_at = EXCLUDED.decided_at
-		`, uuid.UUID(row.ID), uuid.UUID(row.Account), string(row.Kind), row.Flag.String(), row.Name.String(), row.Pin.Latitude,
+		`, uuid.UUID(row.ID), uuid.UUID(row.Account), row.Flag.String(), row.Name.String(), row.Pin.Latitude,
 			row.Pin.Longitude, picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch,
 			float32(picture.Fit.FocusX), float32(picture.Fit.FocusY), uint32(row.OtherColors), row.Held,
 			string(row.State), row.SubmittedAt.UTC(), row.DecidedAt.UTC()); err != nil {
@@ -133,6 +131,22 @@ func (s *Store) Save(ctx context.Context, kept ...submissions.Submission) error 
 		`, uuid.UUID(row.ID), string(row.Rejection.Reason), row.Rejection.Note); err != nil {
 			return fmt.Errorf("failed to keep the rejection of %s: %w", row.ID, err)
 		}
+	}
+	return nil
+}
+
+func (s *Store) DeleteWaiting(ctx context.Context, id submissions.SubmissionID) error {
+	result, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM submissions WHERE id = $1 AND state = 'waiting'`,
+		uuid.UUID(id))
+	if err != nil {
+		return fmt.Errorf("failed to delete the submission %s: %w", id, err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read whether the submission %s was deleted: %w", id, err)
+	}
+	if deleted == 0 {
+		return fmt.Errorf("%w: %s", submissions.ErrNotWaiting, id)
 	}
 	return nil
 }

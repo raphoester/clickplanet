@@ -41,7 +41,8 @@ func submit(t *testing.T, useCase *stubUseCase) (*flagsv1.SubmitFlagResponse, er
 	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(t.Context(), "00000000-0000-0000-0000-000000000001"))
 	res, err := submit_flag_handler.New(useCase, submissionmessage.New(flagmessage.New("https://media.test"), noLinks{})).
 		SubmitFlag(ctx, connect.NewRequest(&flagsv1.SubmitFlagRequest{
-			Name: "Rennes", UploadId: "u", Pin: &flagsv1.Pin{Latitude: 48.1, Longitude: -1.6}, Flag: "r-0000000001",
+			Name: "Rennes", UploadId: "u", Pin: &flagsv1.Pin{Latitude: 48.1, Longitude: -1.6},
+			Replaces: "00000000-0000-0000-0000-000000000009",
 		}))
 	if err != nil {
 		return nil, fmt.Errorf("SubmitFlag failed: %w", err)
@@ -58,7 +59,7 @@ func TestTheCallerAndWhatItTypedAreHandedOnAndTheWaitingSubmissionAnswered(t *te
 
 	assert.Equal(t, []submit_flag_usecase.In{{
 		Account: "00000000-0000-0000-0000-000000000001", Linked: true, Name: "Rennes", Upload: "u", Latitude: 48.1,
-		Longitude: -1.6, Flag: "r-0000000001",
+		Longitude: -1.6, Replaces: "00000000-0000-0000-0000-000000000009",
 	}}, useCase.asked)
 	assert.Equal(t, flagsv1.SubmissionState_SUBMISSION_STATE_WAITING, answer.GetSubmission().GetState())
 	assert.Nil(t, answer.GetSubmission().GetPicture(), "its picture is not public before its approval")
@@ -66,17 +67,17 @@ func TestTheCallerAndWhatItTypedAreHandedOnAndTheWaitingSubmissionAnswered(t *te
 
 func TestEachRefusalIsAnsweredWithItsCode(t *testing.T) {
 	for err, code := range map[error]connect.Code{
-		submissions.ErrGuest:        connect.CodePermissionDenied,
-		submissions.ErrNotFounder:   connect.CodePermissionDenied,
-		submissions.ErrWaiting:      connect.CodeAlreadyExists,
-		catalog.ErrInvalidName:      connect.CodeInvalidArgument,
-		catalog.ErrInvalidPin:       connect.CodeInvalidArgument,
-		catalog.ErrInvalidFlagID:    connect.CodeInvalidArgument,
-		pictures.ErrUnknownUpload:   connect.CodeInvalidArgument,
-		pictures.ErrShape:           connect.CodeInvalidArgument,
-		pictures.ErrMoves:           connect.CodeInvalidArgument,
-		pictures.ErrOff:             connect.CodeFailedPrecondition,
-		fmt.Errorf("postgres down"): connect.CodeUnknown,
+		submissions.ErrGuest:             connect.CodePermissionDenied,
+		submissions.ErrWaiting:           connect.CodeAlreadyExists,
+		submissions.ErrNotWaiting:        connect.CodeFailedPrecondition,
+		submissions.ErrUnknownSubmission: connect.CodeInvalidArgument,
+		catalog.ErrInvalidName:           connect.CodeInvalidArgument,
+		catalog.ErrInvalidPin:            connect.CodeInvalidArgument,
+		pictures.ErrUnknownUpload:        connect.CodeInvalidArgument,
+		pictures.ErrShape:                connect.CodeInvalidArgument,
+		pictures.ErrMoves:                connect.CodeInvalidArgument,
+		pictures.ErrOff:                  connect.CodeFailedPrecondition,
+		fmt.Errorf("postgres down"):      connect.CodeUnknown,
 	} {
 		_, got := submit(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", err)})
 		assert.Equal(t, code, connect.CodeOf(got), err.Error())

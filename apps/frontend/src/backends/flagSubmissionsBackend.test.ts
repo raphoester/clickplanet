@@ -42,19 +42,18 @@ describe("submissionOf", () => {
             rejection: new Rejection({reason: RejectionReason.HATEFUL, note: "No."}),
         })
         expect(submissionOf(rejected)).toEqual({
-            id: "s-1", name: "Bavaria", pin: {latitude: 48.1, longitude: 11.6}, change: false, flag: "", state: "rejected",
+            id: "s-1", name: "Bavaria", pin: {latitude: 48.1, longitude: 11.6}, flag: "", state: "rejected",
             submittedAt: 1_000, decidedAt: 2_000, rejection: {reason: "hateful", note: "No."},
         })
     })
 
-    it("reads the picture an approval makes public, and a change's flag", () => {
-        const approved = submissionOf(new Submission({
-            ...waiting(), state: SubmissionState.APPROVED, change: true, flag: "r-k3p9x2ma0b",
+    it("reads the picture an approval makes public, and the flag an opening made", () => {
+        const opened = submissionOf(new Submission({
+            ...waiting(), state: SubmissionState.OPENED, flag: "r-k3p9x2ma0b",
             picture: new Picture({url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512}),
         }))
-        expect(approved?.change).toBe(true)
-        expect(approved?.flag).toBe("r-k3p9x2ma0b")
-        expect(approved?.picture?.url).toBe("https://media.clickplanet.lol/flags/pictures/ab.png")
+        expect(opened?.flag).toBe("r-k3p9x2ma0b")
+        expect(opened?.picture?.url).toBe("https://media.clickplanet.lol/flags/pictures/ab.png")
     })
 
     it("drops a state this build does not know", () => {
@@ -85,7 +84,7 @@ describe("ConnectFlagSubmissions", () => {
         const submission = await new ConnectFlagSubmissions(clientOf({submitFlag}), session("token-1"))
             .submitFlag({name: "Bavaria", uploadId: "u-1", pin: {latitude: 48.1, longitude: 11.6}})
 
-        expect(submitFlag.mock.calls[0][0]).toEqual({name: "Bavaria", uploadId: "u-1", pin: {latitude: 48.1, longitude: 11.6}, flag: ""})
+        expect(submitFlag.mock.calls[0][0]).toEqual({name: "Bavaria", uploadId: "u-1", pin: {latitude: 48.1, longitude: 11.6}, replaces: ""})
         expect(submission.state).toBe("waiting")
     })
 
@@ -108,19 +107,19 @@ describe("ConnectFlagSubmissions", () => {
         expect(refused).toHaveBeenCalledTimes(2)
     })
 
-    it("says each refusal as its reason: a guest's, a flag another account founded, one that waits", async () => {
-        const refusalOf = async (code: Code, flag?: string) => {
+    it("says each refusal as its reason: a guest's, one that waits, one the operator decided while it changed", async () => {
+        const refusalOf = async (code: Code, replaces?: string) => {
             const submitFlag = vi.fn().mockRejectedValue(new ConnectError("refused", code))
             const sent = new ConnectFlagSubmissions(clientOf({submitFlag}), session("t"))
-                .submitFlag({name: "Bavaria", uploadId: "u-1", pin: {latitude: 0, longitude: 0}, flag})
+                .submitFlag({name: "Bavaria", uploadId: "u-1", pin: {latitude: 0, longitude: 0}, replaces})
             return sent.catch((e: unknown) => e instanceof SubmissionRefusedError ? e.refusal : e)
         }
 
         expect(await refusalOf(Code.PermissionDenied)).toBe("guest")
-        expect(await refusalOf(Code.PermissionDenied, "r-k3p9x2ma0b")).toBe("not-yours")
         expect(await refusalOf(Code.AlreadyExists)).toBe("waiting")
         expect(await refusalOf(Code.InvalidArgument)).toBe("invalid")
         expect(await refusalOf(Code.FailedPrecondition)).toBe("off")
+        expect(await refusalOf(Code.FailedPrecondition, "s-1")).toBe("decided")
         expect(await refusalOf(Code.ResourceExhausted)).toBe("too-many")
         expect(await refusalOf(Code.Internal)).toBeInstanceOf(ConnectError)
     })
@@ -139,9 +138,9 @@ describe("ConnectFlagSubmissions", () => {
 
     it("puts the note of a flag's close on the submission that opened it, and on no other", async () => {
         const opened = new Submission({...waiting(), id: "s-1", flag: "r-k3p9x2ma0b", state: SubmissionState.OPENED})
-        const change = new Submission({...waiting(), id: "s-2", flag: "r-k3p9x2ma0b", change: true, state: SubmissionState.APPROVED})
+        const later = new Submission({...waiting(), id: "s-2", state: SubmissionState.APPROVED})
         const listMySubmissions = vi.fn().mockResolvedValue(new ListMySubmissionsResponse({
-            submissions: [change, opened],
+            submissions: [later, opened],
             closures: [new Closure({flag: "r-k3p9x2ma0b", note: "A club's crest."})],
         }))
 

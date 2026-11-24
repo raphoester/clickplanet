@@ -2458,13 +2458,6 @@ a.button {
     background: color-mix(in srgb, var(--bug) 8%, transparent);
 }
 
-.submission-figures {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: start;
-    gap: 16px;
-}
-
 .submission-figure {
     display: grid;
     gap: 8px;
@@ -2479,10 +2472,6 @@ a.button {
     height: auto;
     border-radius: 4px;
     box-shadow: 0 0 0 1px var(--line);
-}
-
-.submission-figures .submission-figure {
-    flex: 1 1 280px;
 }
 
 .on-tiles {

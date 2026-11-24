@@ -184,7 +184,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_closed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_moved_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/flag_opened_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
@@ -369,19 +368,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagClosed: %w", err)
 			}
-			// Where the flag starts the next arena: one open now keeps its seat.
-			flagsMoved, err := cpredis.Subscribe(ctx, streams, "planet-flags-moved",
-				log_subscriber.New(flag_moved_subscriber.New(flagCatalog), props.Logger))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to subscribe the catalog to flags.v1.FlagMoved: %w", err)
-			}
 
 			told := facts.NewLog(clock)
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed, flagsMoved,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, flagsOpened, flagsClosed,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 

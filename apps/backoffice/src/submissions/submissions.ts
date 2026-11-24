@@ -60,9 +60,9 @@ export function waiting(submission: KeptSubmission): boolean {
     return submission.state === SubmissionState.WAITING
 }
 
-// Approved, a new flag: it opens once paid for.
+// Approved: it opens once paid for.
 export function toOpen(submission: KeptSubmission): boolean {
-    return submission.state === SubmissionState.APPROVED && !submission.change
+    return submission.state === SubmissionState.APPROVED
 }
 
 // `replied` holds the submissions whose founder's reply to their letter waits.
@@ -126,12 +126,6 @@ export function founderOf(accountId: string, names: Map<string, string> | undefi
     return first.length < accountId.length ? `${first}…` : accountId
 }
 
-// What a submission is: a new flag, or a change of the flag it names.
-export function kindOf(submission: KeptSubmission, flags: Flag[]): string {
-    if (!submission.change) return "New flag"
-    return `Change of ${flags.find(flag => flag.code === submission.flag)?.name ?? submission.flag}`
-}
-
 // Another flag, sold or the game's own, another submission, or one of the game's countries, as the open one is
 // compared with it.
 export type Other =
@@ -143,8 +137,8 @@ export type Around = {other: Other, place: Place}
 
 export type Near = Around & {km: number}
 
-// The capitals a submission's is compared with: the sold flags' but the one it changes or opened, which is its own; the
-// other new flags submitted but the ones opened, whose flag is listed; and the game's countries'.
+// The capitals a submission's is compared with: the sold flags' but the one it opened, which is its own; the other flags
+// submitted but the ones opened, whose flag is listed; and the game's countries'.
 export function aroundOf(submission: KeptSubmission, flags: Flag[], submissions: KeptSubmission[], capitals: Capital[]): Around[] {
     const around: Around[] = []
     for (const flag of flags) {
@@ -153,7 +147,7 @@ export function aroundOf(submission: KeptSubmission, flags: Flag[], submissions:
         around.push({other: {kind: "flag", flag}, place: {latitude: at.latitude, longitude: at.longitude}})
     }
     for (const other of submissions) {
-        if (other.id === submission.id || other.change || other.state === SubmissionState.OPENED || other.pin === undefined) continue
+        if (other.id === submission.id || other.state === SubmissionState.OPENED || other.pin === undefined) continue
         around.push({other: {kind: "submission", submission: other}, place: {latitude: other.pin.latitude, longitude: other.pin.longitude}})
     }
     for (const {country, latitude, longitude} of capitals) around.push({other: {kind: "country", country}, place: {latitude, longitude}})

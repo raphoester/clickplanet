@@ -1,6 +1,6 @@
 import {ReactNode} from "react"
 import type {FlagCatalog} from "../../domain/flags.ts"
-import {foundedFlags, RejectionReason, Shown, shownOf, Submission, waits} from "../../domain/flagSubmissions.ts"
+import {foundedFlags, RejectionReason, Shown, shownOf, Submission, waitingOf} from "../../domain/flagSubmissions.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
 import {Key} from "../../i18n/translator.ts"
@@ -36,7 +36,7 @@ function lineOf(shown: Shown, catalog: FlagCatalog): ReactNode {
         case "waiting":
             return t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":
-            return shown.change ? t("flagSubmission.status.changed") : t("flagSubmission.status.approved")
+            return t("flagSubmission.status.approved")
         case "rejected":
             return t(REASONS[shown.rejection?.reason ?? "other"])
         case "opened":
@@ -59,13 +59,8 @@ function closeNoteOf(submissions: readonly Submission[], flag: string): string |
 }
 
 // The same submission again: the picture is picked again, since the page keeps none.
-function againOf({name, pin, change, flag}: Submission): Draft {
-    return {name, pinned: pin && {pin}, flag: change && flag !== "" ? flag : undefined}
-}
-
-function changeOf(catalog: FlagCatalog, flag: string): Draft {
-    const pin = catalog.soldOf(flag)?.pin
-    return {name: catalog.openedName(flag) ?? "", pinned: pin && {pin}, flag}
+function againOf({name, pin}: Submission): Draft {
+    return {name, pinned: pin && {pin}}
 }
 
 export default function FlagSubmissionStatus({submissions}: FlagSubmissionStatusProps) {
@@ -74,11 +69,13 @@ export default function FlagSubmissionStatus({submissions}: FlagSubmissionStatus
     const catalog = useFlags((store) => store.catalog)
     const [latest] = submissions
     const shown = shownOf(latest, catalog)
-    const waiting = waits(submissions)
+    const waiting = waitingOf(submissions)
     const founded = foundedFlags(submissions)
 
     const footer = waiting
-        ? <button type="button" className="button support-wide" onClick={close}>{t("common.close")}</button>
+        ? <button type="button" className="button support-wide" onClick={() => compose({...againOf(waiting), replaces: waiting.id})}>
+            {t("flagSubmission.change")}
+        </button>
         : latest.state === "rejected"
             ? <button type="button" className="button button-action support-wide" onClick={() => compose(againOf(latest))}>{t("common.retry")}</button>
             : <button type="button" className="button button-action support-wide" onClick={() => compose()}>{t("flagSubmission.new")}</button>
@@ -109,12 +106,6 @@ export default function FlagSubmissionStatus({submissions}: FlagSubmissionStatus
                             <span className="flag-founded-flag"><CountryFlag code={flag}/></span>
                             <span className="flag-founded-name">{translator().country(flag)}</span>
                             {catalog.closedFlag(flag) && <SubmissionStateChip state="closed"/>}
-                            <button type="button"
-                                    className="button button-mini button-secondary"
-                                    disabled={waiting}
-                                    onClick={() => compose(changeOf(catalog, flag))}>
-                                {t("flagSubmission.change")}
-                            </button>
                             {closeNote && <Note text={closeNote}/>}
                         </li>
                     })}

@@ -13,7 +13,7 @@ const TOLD_KEY = "clickplanet-flag-submissions-told"
 const settled = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
 const submission = (id: string, changes: Partial<Submission> = {}): Submission => ({
-    id, name: "Bavaria", change: false, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
+    id, name: "Bavaria", flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
 })
 
 function submitterOf(...answers: Submission[][]): FlagSubmitter & {mySubmissions: ReturnType<typeof vi.fn>} {

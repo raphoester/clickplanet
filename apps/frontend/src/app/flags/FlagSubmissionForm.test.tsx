@@ -5,21 +5,16 @@ import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {FlagSubmitter, SubmissionRefusedError, SubmittedFlag} from "../../backends/flags.ts"
 import {UploadOptions} from "../../backends/support.ts"
-import {FlagCatalog, FlagPicture} from "../../domain/flags.ts"
 import {Submission} from "../../domain/flagSubmissions.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
-import {useFlags} from "./flagsStore.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 
 const PIN = {latitude: 48.137, longitude: 11.575}
-const BAVARIA = "r-k3p9x2ma0b"
-const PICTURE: FlagPicture = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
 
 const waiting = (sent: SubmittedFlag): Submission => ({
-    id: "s-1", name: sent.name, pin: sent.pin, change: sent.flag !== undefined, flag: sent.flag ?? "", state: "waiting",
-    submittedAt: 1, decidedAt: 1,
+    id: "s-2", name: sent.name, pin: sent.pin, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1,
 })
 
 // An upload the test lands by hand, step by step.
@@ -49,7 +44,6 @@ afterEach(() => {
     vi.restoreAllMocks()
     useFlagForm.setState(useFlagForm.getInitialState(), true)
     useFlagSubmissions.getState().serve(undefined)
-    useFlags.setState({catalog: FlagCatalog.BUILT_IN})
     useScreen.setState({sheet: undefined})
 })
 
@@ -144,10 +138,9 @@ describe("FlagSubmissionForm", () => {
         expect(submitFlag).not.toHaveBeenCalled()
     })
 
-    it("sends a change for a flag the account founded with its picture", async () => {
+    it("sends a change of the submission that waits with a picture picked again", async () => {
         const {submitter, uploads, uploadPicture, submitFlag} = bucket()
-        useFlags.setState({catalog: FlagCatalog.BUILT_IN.withFlags([{code: BAVARIA, name: "Bavaria", closed: false, sold: {picture: PICTURE, endsAt: 0, pin: PIN}}])})
-        useFlagForm.getState().compose({name: "Bavaria", pinned: {pin: PIN}, flag: BAVARIA})
+        useFlagForm.getState().compose({name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"})
         const view = render(<FlagSubmissionForm submitter={submitter}/>)
         const user = userEvent.setup()
 
@@ -157,13 +150,25 @@ describe("FlagSubmissionForm", () => {
         expect(sendButton().disabled).toBe(true)
 
         view.unmount()
-        useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, flag: BAVARIA})
+        useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
         render(<FlagSubmissionForm submitter={submitter}/>)
         await user.click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
 
         expect(uploadPicture).toHaveBeenCalledOnce()
-        expect(submitFlag).toHaveBeenCalledWith({name: "Bayern", uploadId: "upload-1", pin: PIN, flag: BAVARIA})
+        expect(submitFlag).toHaveBeenCalledWith({name: "Bayern", uploadId: "upload-1", pin: PIN, replaces: "s-1"})
+    })
+
+    it("says the operator decided the submission it was changing", async () => {
+        const {submitter, uploads, submitFlag} = bucket()
+        submitFlag.mockRejectedValueOnce(new SubmissionRefusedError("decided"))
+        useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
+        render(<FlagSubmissionForm submitter={submitter}/>)
+
+        await userEvent.setup().click(sendButton())
+        await act(async () => uploads[0].land("upload-1"))
+
+        expect(screen.getByRole("alert").textContent).toBe("Your flag was reviewed already, so it can't change.")
     })
 
     it("calls the upload off when it closes", async () => {

@@ -17,7 +17,7 @@ import {FlagFigure} from "./FlagFigure.tsx"
 import {OpenSubmittedPanel} from "./OpenSubmittedPanel.tsx"
 import {SubmissionVerdict} from "./SubmissionVerdict.tsx"
 import {
-    Around, aroundOf, founderOf, Ground, kindOf, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
+    Around, aroundOf, founderOf, Ground, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf, stateLabel, toOpen,
     waiting,
 } from "./submissions.ts"
 
@@ -43,7 +43,6 @@ type Props = {
 export function SubmissionDetail({
     submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onOpened, onLettersChanged,
 }: Props) {
-    const changed = submission.change ? flags.find(flag => flag.code === submission.flag) : undefined
     const {pin, rejection} = submission
     const [moved, setMoved] = useState<Place>()
     const capital = moved ?? pin
@@ -60,7 +59,6 @@ export function SubmissionDetail({
             <article className="card submission-card">
                 <div className="card-head">
                     <span className={`badge ${badgeOf(submission.state)}`}>{stateLabel(submission.state)}</span>
-                    <span className="muted">{kindOf(submission, flags)}</span>
                 </div>
                 {looksLikePhoto(submission) && (
                     <p className="photo-warning" role="alert">
@@ -68,20 +66,7 @@ export function SubmissionDetail({
                         photo, not a flag.
                     </p>
                 )}
-                <div className="submission-figures">
-                    {submission.change && (
-                        <FlagFigure
-                            picture={changed?.sold?.picture}
-                            name={changed?.name ?? submission.flag}
-                            caption={`Now: ${changed?.name ?? submission.flag}`}
-                        />
-                    )}
-                    <FlagFigure
-                        picture={submission.picture}
-                        name={submission.name}
-                        caption={submission.change ? `Asked: ${submission.name}` : undefined}
-                    />
-                </div>
+                <FlagFigure picture={submission.picture} name={submission.name}/>
                 <h3 className="submission-name">{submission.name}</h3>
                 <dl className="facts">
                     <Fact label="Founder"><Founder accountId={submission.accountId} name={names?.get(submission.accountId) ?? ""}/></Fact>
@@ -173,7 +158,6 @@ export function SubmissionDetail({
                     key={submission.id}
                     flags={clients.flags}
                     submission={submission}
-                    changes={submission.change ? changed?.name ?? submission.flag : undefined}
                     moved={moved}
                     onDecided={onDecided}
                 />

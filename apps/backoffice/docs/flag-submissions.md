@@ -16,11 +16,11 @@ it is where the flag starts in Capital Siege.
   last), `ListFlags` (the catalog, to compare with), `player.v1.AdminService/GetPlayers` (the founders' names),
   `support.v1.AdminService/ListLetters` with `open_only` (the letters a player replied to, 500 at most) and
   `planet.v1.AdminService/GetTerritories` (the board the world plays, for the map). Reload reads all but the board
-  again; an open reads the first three. It filters on the page: **Waiting** (the default), **To open** (approved new
-  flags, which wait to be paid for), **Replies** (any submission whose founder replied to its letter) and **All**, each
+  again; an open reads the first three. It filters on the page: **Waiting** (the default), **To open** (approved flags,
+  which wait to be paid for), **Replies** (any submission whose founder replied to its letter) and **All**, each
   with its count.
 - **A row** is the picture small, the name, "Many colours" for a likely photo, **"Replied" when its founder's reply to
-  its letter waits**, how long ago, "New flag" or "Change of Bavaria", the founder, and the verdict once there is one.
+  its letter waits**, how long ago, the founder, and the verdict once there is one.
 - **After a verdict the next waiting one opens** (the one below, or the first one left), and a green line says what
   was done. A submission picked by hand clears the line.
 
@@ -37,19 +37,17 @@ Top down, as it is judged (`SubmissionDetail`):
   A tile is about 50 CSS px wide at the closest zoom on a phone, 75 on a screen 1,000 px high. Before the approval the
   picture is a private link, good for an hour: a link that ran out says to reload the list. A rejected picture is
   deleted after 30 days: the page says so.
-- **For a change**: the flag it changes, with its picture and name now ("Now: Bavaria"), beside the new ones ("Asked:
-  …").
 - **The name, the founder and the facts**: the founder's name opens the player page, and its account id has Copy. An
   account the player read does not name (a deleted one keeps its id) shows its id alone. Then when it was submitted and
   decided, the share of other colours, the player's capital, with a link that opens the game's globe there
-  (`https://clickplanet.lol/play?lat=…&lon=…&zoom=20`, as a Discord ping does), and the flag it changed or opened.
+  (`https://clickplanet.lol/play?lat=…&lon=…&zoom=20`, as a Discord ping does), and the flag it opened.
   A rejected one shows its reason and its note.
 - **The capital on a planisphere** (`CapitalMap`, see [The map](#the-map) below), with the other capitals around it.
   A waiting one's capital moves on it before the verdict (see [Moving the capital](#moving-the-capital)).
 - **Capitals near it**, measured from the capital where it is now (moved or the player's), by great-circle distance,
-  within 1,000 km (`NEAR_KM`): the 5 nearest (`NEAREST`) of the sold flags' capitals (`Sold.pin`) and the other new
-  flags submitted, and the 5 nearest of the game's countries' capitals, each with its distance. The flag a change is
-  for, a submission opened (its flag is listed) and the changes are left out. A submission is one click away.
+  within 1,000 km (`NEAR_KM`): the 5 nearest (`NEAREST`) of the sold flags' capitals (`Sold.pin`) and the other flags
+  submitted, and the 5 nearest of the game's countries' capitals, each with its distance. A submission opened is left
+  out: its flag is listed. A submission is one click away.
 - **The same name**: any flag, the game's own or sold, and any other submission, whose name is this one's, case and
   accents aside (`foldName`). A submission opened is left out: its flag is listed.
 
@@ -86,16 +84,16 @@ On a waiting submission alone; a decided one's map only reads.
   that moves more pans. The place is rounded to four decimals (about ten metres): what the page shows is what it sends.
 - Under the map: "Moved to 42.3619, 5.0922 · Open on the globe" and **Back to the player's**. Capitals near it are
   measured from there.
-- **Approve sends it** (`ApproveSubmissionRequest.pin`; unset keeps the player's). A change wears it on its flag too.
+- **Approve sends it** (`ApproveSubmissionRequest.pin`; unset keeps the player's).
 
 ## The verdict
 
 `SubmissionVerdict`, on a waiting one alone. Each action asks first (see [Every action](actions.md)).
 
 - **Approve**: "Approve Catalonia? Its picture becomes public, and the flag waits to be opened." With the capital
-  moved: "Approve Catalonia, its capital moved to 42.3619, 5.0922? …". For a change: "Approve the new name, picture and
-  capital of Bavaria? Every player sees them at once." (moved: "Approve the new name and picture of Bavaria, its
-  capital moved to …?").
+  moved: "Approve Catalonia, its capital moved to 42.3619, 5.0922? …". **Nothing changes a flag once approved**: a
+  player changes a submission while it waits, and the change is a new submission in its place, so the one the page
+  showed is gone: `NotFound`, "This submission is no longer kept. Reload the list."
 - **Reject**: a reason from the list (Not a place's flag, Has a flag already, Unreadable on a tile, Hateful, Other)
   and a note of 500 characters at most. Other needs a note. The page says plainly that the player reads the reason and
   the note, and the question says it again.
@@ -129,9 +127,9 @@ the backend's [Writing to a player first](../../backend/docs/support.md#writing-
   submission (another tab): reload; `invalid_argument` is quoted; `not_found` a letter no longer kept. The text typed
   stays.
 
-## Opening an approved new flag
+## Opening an approved flag
 
-`OpenSubmittedPanel`, on an approved new flag alone (state Approved, not a change). The flag waits to be paid for. Then
+`OpenSubmittedPanel`, on an approved flag alone (state Approved). The flag waits to be paid for. Then
 the operator opens it: an end, a `datetime-local` in the operator's own time zone, 30 days from now at first, as the
 Flags page's form. **Open asks first**: every player sees the flag at once and may play for it, and a flag is never
 deleted. `OpenSubmittedFlag` opens it at the submission's capital. The green line says its code and its end, and the page
@@ -147,13 +145,13 @@ an approved one's is on `https://media.clickplanet.lol`, also there (see [Deploy
 
 `npm run demo` holds seven made-up submissions, each picture drawn in the page (SVG): Catalonia (waiting, fine), Tyrol
 (waiting, a name the closed sold flag Tyrol has, its capital beside it, and its letter, its founder's reply in it), Lake Garda
-(waiting, a photo, 41% of other colours, a founder with no verified address), Free State of Bavaria (waiting, a change
-of Bavaria), Sardinia (approved, to open), Brittany (rejected: Has a flag already) and Cornwall (opened). The map is
+(waiting, a photo, 41% of other colours, a founder with no verified address), Free State of Bavaria (waiting, at the
+capital of the sold flag Bavaria), Sardinia (approved, to open), Brittany (rejected: Has a flag already) and Cornwall (opened). The map is
 drawn on `earth-2`, the board the world plays. `FakeAdmin.flags` (`FakeFlags`) keeps six of the same kind for the
 tests, and answers the four calls with the server's refusals: `not_found` for an unknown id, `invalid_argument` for a
-capital off the globe, `failed_precondition` for one decided already, a name another flag has, or not an approved new
+capital off the globe, `failed_precondition` for one decided already, a name another flag has, or not an approved
 flag, `invalid_argument` for no reason, Other with no note, a note past 500 characters, or an end gone by. An approval
-keeps the moved capital on the submission, and on its flag for a change. `FakeAdmin` answers the letters as the server
+keeps the moved capital on the submission. `FakeAdmin` answers the letters as the server
 does: a verified address for BraveFox42 alone (`addresses`), `failed_precondition` for none, `invalid_argument` for no
 submission, a subject or a text out of bounds, `already_exists` for a second letter about a submission, `not_found` for
 an unknown letter. The tests draw the map on a patch of `earth-1`

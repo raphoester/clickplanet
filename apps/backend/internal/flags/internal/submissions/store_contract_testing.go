@@ -111,3 +111,27 @@ func (s *StoreContractSuite) TestRejectedHeldIsEveryRejectionWhosePictureIsStill
 	s.Require().NoError(err)
 	s.Equal([]Snapshot{held}, snapshotsOf(rejected))
 }
+
+func (s *StoreContractSuite) TestASubmissionThatWaitsIsDeleted() {
+	s.kept(TestWaiting(SubmissionID{15: 1}, ada, submittedAt), TestWaiting(SubmissionID{15: 2}, bob, submittedAt))
+
+	s.Require().NoError(s.store.DeleteWaiting(s.T().Context(), SubmissionID{15: 1}))
+
+	_, err := s.store.Submission(s.T().Context(), SubmissionID{15: 1})
+	s.Require().ErrorIs(err, ErrUnknownSubmission)
+	_, err = s.store.Submission(s.T().Context(), SubmissionID{15: 2})
+	s.Require().NoError(err, "another stays")
+}
+
+func (s *StoreContractSuite) TestADecidedSubmissionIsNeverDeleted() {
+	rejected := TestWaiting(SubmissionID{15: 1}, ada, submittedAt)
+	rejected.State, rejected.Rejection = Rejected, Rejection{Reason: Exists}
+	s.kept(rejected)
+
+	s.Require().ErrorIs(s.store.DeleteWaiting(s.T().Context(), SubmissionID{15: 1}), ErrNotWaiting)
+	s.Require().ErrorIs(s.store.DeleteWaiting(s.T().Context(), SubmissionID{15: 3}), ErrNotWaiting, "one never kept")
+
+	kept, err := s.store.Submission(s.T().Context(), SubmissionID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(rejected, kept.TakeSnapshot())
+}
