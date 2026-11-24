@@ -67,7 +67,7 @@ and says what is in it. Read the doc before you change its area.
 - [The capitals' rules](docs/capitals.md) — three knobs: no shield on a capital, the knock-out (a capital taken clears
   its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in), and the cut-off (land
   a take cuts from its capital, over the flag's tiles and bridges, cleared in one event); the seats an arena gives the
-  sold flags, which have no ground, from their pins, played as capitals.
+  sold flags from their pins, played as capitals.
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on
@@ -191,7 +191,7 @@ and says what is in it. Read the doc before you change its area.
   ones opened since (`r-` ids, no two with one name, closed never deleted); `FlagOpened` and `FlagClosed` through its outbox and again at
   each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
   (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename), the close at the end date and
-  the comeback within 30 days; a closed flag's players changing at once, its land kept, its room read-only, a battle's
+  the comeback within 30 days; an early close's note, which the founder alone reads; a closed flag's players changing at once, its land kept, its room read-only, a battle's
   lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
   Brittany, then England, Scotland and Wales, moved from the build to the sold flags under their codes (`xb`,
   `gb-eng`, `gb-sct`, `gb-wls`), and the production steps of each move; each sold flag's pin (a point, never a tile),

@@ -48,9 +48,12 @@ game's own flags are not on this page: they never end.
   ends on … instead of …". For one closed less than 30 days ago: "Open Savoy again for 30 days, until …?", and every
   player sees it again with the land it still holds. Then it says the new end ("Open again. It ends on …") and reads
   the list again. **Past the 30 days it is disabled**; the server's `failed_precondition` says the same.
-- **Close**, on an open flag, asks first: its players must pick another flag, nobody may click for it, its land stays;
-  in a battle that locks the flags it plays on until the lock lifts; time added within 30 days opens it again. Then it
-  says until when, and reads the list again. Its `failed_precondition` is "It is closed already".
+- **Close**, on an open flag, needs a **note to its founder** first ("Note to its founder · 0/500", the server's
+  `CloseFlag.note`, 1 to 500 characters once the spaces at its ends are cut; past 500 it says so in red): the founder
+  reads it on its flag's page in the game, and nobody else does. A closed card shows no note field, and Close stays
+  greyed. It asks first: its players must pick another flag, nobody may click for it, its land stays; in a battle that
+  locks the flags it plays on until the lock lifts; its founder reads your note; time added within 30 days opens it
+  again. Then it says until when, and reads the list again. Its `failed_precondition` is "It is closed already".
 
 ## Renaming
 

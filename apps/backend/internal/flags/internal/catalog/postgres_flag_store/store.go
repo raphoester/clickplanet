@@ -24,9 +24,11 @@ type Store struct {
 
 var _ catalog.Store = (*Store)(nil)
 
-const columns = `id, name, state::text, decided_at, ends_at,
-	picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
-	pin_latitude, pin_longitude`
+const columns = `f.id, f.name, f.state::text, f.decided_at, f.ends_at,
+	f.picture_hash, f.picture_width, f.picture_height, f.picture_stretch, f.picture_focus_x, f.picture_focus_y,
+	f.pin_latitude, f.pin_longitude, COALESCE(c.note, '')`
+
+const from = ` FROM flags f LEFT JOIN closures c ON c.flag = f.id`
 
 const (
 	uniqueViolation = "23505"
@@ -35,7 +37,7 @@ const (
 
 func (s *Store) Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, error) {
 	// Locked to the end of the transaction a change reads it in, so two changes never undo each other.
-	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+` FROM flags WHERE id = $1 FOR UPDATE`, id.String())
+	row := s.db.On(ctx).QueryRowContext(ctx, `SELECT `+columns+from+` WHERE f.id = $1 FOR UPDATE OF f`, id.String())
 	flag, err := flagOf(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return catalog.Flag{}, fmt.Errorf("%s: %w", id, catalog.ErrUnknownFlag)
@@ -44,11 +46,11 @@ func (s *Store) Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, erro
 }
 
 func (s *Store) Flags(ctx context.Context) ([]catalog.Flag, error) {
-	return s.read(ctx, `SELECT `+columns+` FROM flags ORDER BY id`)
+	return s.read(ctx, `SELECT `+columns+from+` ORDER BY f.id`)
 }
 
 func (s *Store) Ending(ctx context.Context, at time.Time) ([]catalog.Flag, error) {
-	return s.read(ctx, `SELECT `+columns+` FROM flags WHERE state = 'open' AND ends_at <= $1 ORDER BY ends_at, id`, at.UTC())
+	return s.read(ctx, `SELECT `+columns+from+` WHERE f.state = 'open' AND f.ends_at <= $1 ORDER BY f.ends_at, f.id`, at.UTC())
 }
 
 func (s *Store) read(ctx context.Context, query string, args ...any) ([]catalog.Flag, error) {
@@ -73,13 +75,13 @@ func (s *Store) read(ctx context.Context, query string, args ...any) ([]catalog.
 }
 
 func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
-	var id, name, state string
+	var id, name, state, note string
 	var kept catalog.Snapshot
 	var picture pictures.Snapshot
 	var focusX, focusY float32
 	if err := scan(&id, &name, &state, &kept.DecidedAt, &kept.EndsAt,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
-		&kept.Pin.Latitude, &kept.Pin.Longitude); err != nil {
+		&kept.Pin.Latitude, &kept.Pin.Longitude, &note); err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to read a flag: %w", err)
 	}
 	flagID, err := catalog.ParseFlagID(id)
@@ -91,7 +93,8 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 		return catalog.Flag{}, fmt.Errorf("the flag %s: %w", flagID, err)
 	}
 	picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
-	kept.ID, kept.Name, kept.State, kept.Picture = flagID, flagName, catalog.State(state), picture
+	kept.ID, kept.Name, kept.State, kept.Picture, kept.Note = flagID, flagName, catalog.State(state), picture,
+		catalog.Note(note)
 	kept.DecidedAt, kept.EndsAt = kept.DecidedAt.UTC(), kept.EndsAt.UTC()
 	flag, err := kept.Restore()
 	if err != nil {
@@ -125,6 +128,25 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 		if err != nil {
 			return fmt.Errorf("failed to keep the flag %s: %w", kept.ID, err)
 		}
+		if err := s.keepNote(ctx, kept); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) keepNote(ctx context.Context, kept catalog.Snapshot) error {
+	var err error
+	if kept.Note == "" {
+		_, err = s.db.On(ctx).ExecContext(ctx, `DELETE FROM closures WHERE flag = $1`, kept.ID.String())
+	} else {
+		_, err = s.db.On(ctx).ExecContext(ctx, `
+			INSERT INTO closures (flag, note) VALUES ($1, $2)
+			ON CONFLICT (flag) DO UPDATE SET note = EXCLUDED.note
+		`, kept.ID.String(), kept.Note.String())
+	}
+	if err != nil {
+		return fmt.Errorf("failed to keep the close's note of %s: %w", kept.ID, err)
 	}
 	return nil
 }

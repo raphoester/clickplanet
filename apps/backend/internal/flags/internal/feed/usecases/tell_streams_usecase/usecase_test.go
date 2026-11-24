@@ -34,7 +34,7 @@ func newFixture(t *testing.T) fixture {
 
 func TestAStreamHearsTheFlagAsTheCatalogHoldsItNow(t *testing.T) {
 	f := newFixture(t)
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed(closedAt)
+	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 	require.NoError(t, f.store.Save(t.Context(), closed))
 

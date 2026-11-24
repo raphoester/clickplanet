@@ -835,8 +835,11 @@ func (*ListMySubmissionsRequest) Descriptor() ([]byte, []int) {
 }
 
 type ListMySubmissionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Submissions   []*Submission          `protobuf:"bytes,1,rep,name=submissions,proto3" json:"submissions,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Submissions []*Submission          `protobuf:"bytes,1,rep,name=submissions,proto3" json:"submissions,omitempty"`
+	// Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
+	// back. A flag closed at its end has none, nor one closed before the operator gave a note.
+	Closures      []*Closure `protobuf:"bytes,2,rep,name=closures,proto3" json:"closures,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -878,6 +881,67 @@ func (x *ListMySubmissionsResponse) GetSubmissions() []*Submission {
 	return nil
 }
 
+func (x *ListMySubmissionsResponse) GetClosures() []*Closure {
+	if x != nil {
+		return x.Closures
+	}
+	return nil
+}
+
+// Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
+// online platforms ask.
+type Closure struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flag          string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	Note          string                 `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Closure) Reset() {
+	*x = Closure{}
+	mi := &file_flags_v1_flags_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Closure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Closure) ProtoMessage() {}
+
+func (x *Closure) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_flags_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Closure.ProtoReflect.Descriptor instead.
+func (*Closure) Descriptor() ([]byte, []int) {
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Closure) GetFlag() string {
+	if x != nil {
+		return x.Flag
+	}
+	return ""
+}
+
+func (x *Closure) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
 // A flag a player submitted, as its player reads it.
 type Submission struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -902,7 +966,7 @@ type Submission struct {
 
 func (x *Submission) Reset() {
 	*x = Submission{}
-	mi := &file_flags_v1_flags_proto_msgTypes[14]
+	mi := &file_flags_v1_flags_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +978,7 @@ func (x *Submission) String() string {
 func (*Submission) ProtoMessage() {}
 
 func (x *Submission) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_flags_proto_msgTypes[14]
+	mi := &file_flags_v1_flags_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +991,7 @@ func (x *Submission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Submission.ProtoReflect.Descriptor instead.
 func (*Submission) Descriptor() ([]byte, []int) {
-	return file_flags_v1_flags_proto_rawDescGZIP(), []int{14}
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Submission) GetId() string {
@@ -1012,7 +1076,7 @@ type Rejection struct {
 
 func (x *Rejection) Reset() {
 	*x = Rejection{}
-	mi := &file_flags_v1_flags_proto_msgTypes[15]
+	mi := &file_flags_v1_flags_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1088,7 @@ func (x *Rejection) String() string {
 func (*Rejection) ProtoMessage() {}
 
 func (x *Rejection) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_flags_proto_msgTypes[15]
+	mi := &file_flags_v1_flags_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1101,7 @@ func (x *Rejection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rejection.ProtoReflect.Descriptor instead.
 func (*Rejection) Descriptor() ([]byte, []int) {
-	return file_flags_v1_flags_proto_rawDescGZIP(), []int{15}
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Rejection) GetReason() RejectionReason {
@@ -1073,7 +1137,7 @@ type Picture struct {
 
 func (x *Picture) Reset() {
 	*x = Picture{}
-	mi := &file_flags_v1_flags_proto_msgTypes[16]
+	mi := &file_flags_v1_flags_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1149,7 @@ func (x *Picture) String() string {
 func (*Picture) ProtoMessage() {}
 
 func (x *Picture) ProtoReflect() protoreflect.Message {
-	mi := &file_flags_v1_flags_proto_msgTypes[16]
+	mi := &file_flags_v1_flags_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1162,7 @@ func (x *Picture) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Picture.ProtoReflect.Descriptor instead.
 func (*Picture) Descriptor() ([]byte, []int) {
-	return file_flags_v1_flags_proto_rawDescGZIP(), []int{16}
+	return file_flags_v1_flags_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Picture) GetUrl() string {
@@ -1187,9 +1251,13 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\n" +
 	"submission\x18\x01 \x01(\v2\x14.flags.v1.SubmissionR\n" +
 	"submission\"\x1a\n" +
-	"\x18ListMySubmissionsRequest\"S\n" +
+	"\x18ListMySubmissionsRequest\"\x82\x01\n" +
 	"\x19ListMySubmissionsResponse\x126\n" +
-	"\vsubmissions\x18\x01 \x03(\v2\x14.flags.v1.SubmissionR\vsubmissions\"\x88\x03\n" +
+	"\vsubmissions\x18\x01 \x03(\v2\x14.flags.v1.SubmissionR\vsubmissions\x12-\n" +
+	"\bclosures\x18\x02 \x03(\v2\x11.flags.v1.ClosureR\bclosures\"1\n" +
+	"\aClosure\x12\x12\n" +
+	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\"\x88\x03\n" +
 	"\n" +
 	"Submission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -1250,7 +1318,7 @@ func file_flags_v1_flags_proto_rawDescGZIP() []byte {
 }
 
 var file_flags_v1_flags_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_flags_v1_flags_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_flags_v1_flags_proto_goTypes = []any{
 	(SubmissionState)(0),                   // 0: flags.v1.SubmissionState
 	(RejectionReason)(0),                   // 1: flags.v1.RejectionReason
@@ -1268,45 +1336,47 @@ var file_flags_v1_flags_proto_goTypes = []any{
 	(*SubmitFlagResponse)(nil),             // 13: flags.v1.SubmitFlagResponse
 	(*ListMySubmissionsRequest)(nil),       // 14: flags.v1.ListMySubmissionsRequest
 	(*ListMySubmissionsResponse)(nil),      // 15: flags.v1.ListMySubmissionsResponse
-	(*Submission)(nil),                     // 16: flags.v1.Submission
-	(*Rejection)(nil),                      // 17: flags.v1.Rejection
-	(*Picture)(nil),                        // 18: flags.v1.Picture
-	(*timestamppb.Timestamp)(nil),          // 19: google.protobuf.Timestamp
+	(*Closure)(nil),                        // 16: flags.v1.Closure
+	(*Submission)(nil),                     // 17: flags.v1.Submission
+	(*Rejection)(nil),                      // 18: flags.v1.Rejection
+	(*Picture)(nil),                        // 19: flags.v1.Picture
+	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
 }
 var file_flags_v1_flags_proto_depIdxs = []int32{
 	7,  // 0: flags.v1.ListFlagsResponse.flags:type_name -> flags.v1.Flag
 	6,  // 1: flags.v1.FlagEvent.heartbeat:type_name -> flags.v1.Heartbeat
 	7,  // 2: flags.v1.FlagEvent.flag_changed:type_name -> flags.v1.Flag
 	8,  // 3: flags.v1.Flag.sold:type_name -> flags.v1.Sold
-	18, // 4: flags.v1.Sold.picture:type_name -> flags.v1.Picture
-	19, // 5: flags.v1.Sold.ends_at:type_name -> google.protobuf.Timestamp
-	19, // 6: flags.v1.Sold.closed_at:type_name -> google.protobuf.Timestamp
+	19, // 4: flags.v1.Sold.picture:type_name -> flags.v1.Picture
+	20, // 5: flags.v1.Sold.ends_at:type_name -> google.protobuf.Timestamp
+	20, // 6: flags.v1.Sold.closed_at:type_name -> google.protobuf.Timestamp
 	9,  // 7: flags.v1.Sold.pin:type_name -> flags.v1.Pin
 	9,  // 8: flags.v1.SubmitFlagRequest.pin:type_name -> flags.v1.Pin
-	16, // 9: flags.v1.SubmitFlagResponse.submission:type_name -> flags.v1.Submission
-	16, // 10: flags.v1.ListMySubmissionsResponse.submissions:type_name -> flags.v1.Submission
-	9,  // 11: flags.v1.Submission.pin:type_name -> flags.v1.Pin
-	0,  // 12: flags.v1.Submission.state:type_name -> flags.v1.SubmissionState
-	19, // 13: flags.v1.Submission.submitted_at:type_name -> google.protobuf.Timestamp
-	19, // 14: flags.v1.Submission.decided_at:type_name -> google.protobuf.Timestamp
-	17, // 15: flags.v1.Submission.rejection:type_name -> flags.v1.Rejection
-	18, // 16: flags.v1.Submission.picture:type_name -> flags.v1.Picture
-	1,  // 17: flags.v1.Rejection.reason:type_name -> flags.v1.RejectionReason
-	2,  // 18: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
-	4,  // 19: flags.v1.FlagService.ListenForEvents:input_type -> flags.v1.ListenForEventsRequest
-	10, // 20: flags.v1.FlagService.CreateSubmissionUpload:input_type -> flags.v1.CreateSubmissionUploadRequest
-	12, // 21: flags.v1.FlagService.SubmitFlag:input_type -> flags.v1.SubmitFlagRequest
-	14, // 22: flags.v1.FlagService.ListMySubmissions:input_type -> flags.v1.ListMySubmissionsRequest
-	3,  // 23: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
-	5,  // 24: flags.v1.FlagService.ListenForEvents:output_type -> flags.v1.FlagEvent
-	11, // 25: flags.v1.FlagService.CreateSubmissionUpload:output_type -> flags.v1.CreateSubmissionUploadResponse
-	13, // 26: flags.v1.FlagService.SubmitFlag:output_type -> flags.v1.SubmitFlagResponse
-	15, // 27: flags.v1.FlagService.ListMySubmissions:output_type -> flags.v1.ListMySubmissionsResponse
-	23, // [23:28] is the sub-list for method output_type
-	18, // [18:23] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	17, // 9: flags.v1.SubmitFlagResponse.submission:type_name -> flags.v1.Submission
+	17, // 10: flags.v1.ListMySubmissionsResponse.submissions:type_name -> flags.v1.Submission
+	16, // 11: flags.v1.ListMySubmissionsResponse.closures:type_name -> flags.v1.Closure
+	9,  // 12: flags.v1.Submission.pin:type_name -> flags.v1.Pin
+	0,  // 13: flags.v1.Submission.state:type_name -> flags.v1.SubmissionState
+	20, // 14: flags.v1.Submission.submitted_at:type_name -> google.protobuf.Timestamp
+	20, // 15: flags.v1.Submission.decided_at:type_name -> google.protobuf.Timestamp
+	18, // 16: flags.v1.Submission.rejection:type_name -> flags.v1.Rejection
+	19, // 17: flags.v1.Submission.picture:type_name -> flags.v1.Picture
+	1,  // 18: flags.v1.Rejection.reason:type_name -> flags.v1.RejectionReason
+	2,  // 19: flags.v1.FlagService.ListFlags:input_type -> flags.v1.ListFlagsRequest
+	4,  // 20: flags.v1.FlagService.ListenForEvents:input_type -> flags.v1.ListenForEventsRequest
+	10, // 21: flags.v1.FlagService.CreateSubmissionUpload:input_type -> flags.v1.CreateSubmissionUploadRequest
+	12, // 22: flags.v1.FlagService.SubmitFlag:input_type -> flags.v1.SubmitFlagRequest
+	14, // 23: flags.v1.FlagService.ListMySubmissions:input_type -> flags.v1.ListMySubmissionsRequest
+	3,  // 24: flags.v1.FlagService.ListFlags:output_type -> flags.v1.ListFlagsResponse
+	5,  // 25: flags.v1.FlagService.ListenForEvents:output_type -> flags.v1.FlagEvent
+	11, // 26: flags.v1.FlagService.CreateSubmissionUpload:output_type -> flags.v1.CreateSubmissionUploadResponse
+	13, // 27: flags.v1.FlagService.SubmitFlag:output_type -> flags.v1.SubmitFlagResponse
+	15, // 28: flags.v1.FlagService.ListMySubmissions:output_type -> flags.v1.ListMySubmissionsResponse
+	24, // [24:29] is the sub-list for method output_type
+	19, // [19:24] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_flags_proto_init() }
@@ -1324,7 +1394,7 @@ func file_flags_v1_flags_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_flags_proto_rawDesc), len(file_flags_v1_flags_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

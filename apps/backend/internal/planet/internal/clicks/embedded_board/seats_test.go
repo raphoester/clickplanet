@@ -11,17 +11,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 )
 
-// England, Scotland and Wales, sold since they left the build, and two sold flags pinned in France, on whose ground
-// each one sits.
+// Flags pinned on London, Edinburgh, Cardiff, Rennes and Ajaccio, and the country whose ground each sits on.
 func pinned() ([]clicks.Pinned, map[string]string) {
-	flags := []clicks.Pinned{
-		{Flag: "gb-eng", Pin: clicks.Pin{Latitude: 51.501941, Longitude: -0.118668}},
-		{Flag: "gb-sct", Pin: clicks.Pin{Latitude: 55.948328, Longitude: -3.219091}},
-		{Flag: "gb-wls", Pin: clicks.Pin{Latitude: 51.499995, Longitude: -3.225008}},
-		{Flag: "xb", Pin: clicks.Pin{Latitude: 48.1173, Longitude: -1.6778}},
-		{Flag: "r-0000000001", Pin: clicks.Pin{Latitude: 41.9192, Longitude: 8.7386}},
-	}
-	return flags, map[string]string{"gb-eng": "gb", "gb-sct": "gb", "gb-wls": "gb", "xb": "fr", "r-0000000001": "fr"}
+	return []clicks.Pinned{
+			{Flag: "gb-eng", Pin: clicks.Pin{Latitude: 51.501941, Longitude: -0.118668}},
+			{Flag: "gb-sct", Pin: clicks.Pin{Latitude: 55.948328, Longitude: -3.219091}},
+			{Flag: "gb-wls", Pin: clicks.Pin{Latitude: 51.499995, Longitude: -3.225008}},
+			{Flag: "xb", Pin: clicks.Pin{Latitude: 48.1173, Longitude: -1.6778}},
+			{Flag: "r-0000000001", Pin: clicks.Pin{Latitude: 41.9192, Longitude: 8.7386}},
+		},
+		map[string]string{"gb-eng": "gb", "gb-sct": "gb", "gb-wls": "gb", "xb": "fr", "r-0000000001": "fr"}
 }
 
 func TestEachBoardSeatsTheFlagsOnAPinNearItOnTheirLandApartFromEveryCapital(t *testing.T) {

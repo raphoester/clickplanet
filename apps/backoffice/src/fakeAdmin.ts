@@ -1036,6 +1036,7 @@ export class FakeFlags implements FlagsAdmin {
         const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
         if (flag === undefined) return this.refused("closeFlag", request, "no flag opened under this code", Code.NotFound)
         if (flag.closed) return this.refused("closeFlag", request, "the flag is closed already", Code.FailedPrecondition)
+        if ((request.note ?? "").trim() === "") return this.refused("closeFlag", request, "an early close has a note", Code.InvalidArgument)
         const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
             flag.sold?.picture?.url, flag.sold?.pin)
         return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))

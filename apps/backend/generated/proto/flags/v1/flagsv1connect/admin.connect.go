@@ -80,9 +80,10 @@ type AdminServiceClient interface {
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
 	// from now; FailedPrecondition past the 30 days.
 	AddTime(context.Context, *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error)
-	// Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
-	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
-	// lifts. FailedPrecondition for a flag closed already.
+	// Closes a flag opened since the game shipped, now, with a note its founder reads: its players must pick another
+	// flag, its land stays, and nobody may click for it. While the rules in force lock the flags (a battle), planet keeps
+	// it playable until the lock lifts. InvalidArgument for no note or one over 500 characters; FailedPrecondition for a
+	// flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
 	// Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
 	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is
@@ -267,9 +268,10 @@ type AdminServiceHandler interface {
 	// days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
 	// from now; FailedPrecondition past the 30 days.
 	AddTime(context.Context, *connect.Request[v1.AddTimeRequest]) (*connect.Response[v1.AddTimeResponse], error)
-	// Closes a flag opened since the game shipped, now: its players must pick another flag, its land stays, and nobody
-	// may click for it. While the rules in force lock the flags (a battle), planet keeps it playable until the lock
-	// lifts. FailedPrecondition for a flag closed already.
+	// Closes a flag opened since the game shipped, now, with a note its founder reads: its players must pick another
+	// flag, its land stays, and nobody may click for it. While the rules in force lock the flags (a battle), planet keeps
+	// it playable until the lock lifts. InvalidArgument for no note or one over 500 characters; FailedPrecondition for a
+	// flag closed already.
 	CloseFlag(context.Context, *connect.Request[v1.CloseFlagRequest]) (*connect.Response[v1.CloseFlagResponse], error)
 	// Renames a flag opened since the game shipped, open or closed: every page shows the new name at once, and its code,
 	// picture, land and players stay. A name another flag has, built-in or sold, whatever its case, is

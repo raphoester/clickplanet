@@ -8,8 +8,8 @@ import {timeOf} from "../components/time.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {countOf} from "../support/labels.ts"
 import {
-    addTime, addTimeRefusalOf, closeFlag, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf, leftOf, lengthOf,
-    MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
+    addTime, addTimeRefusalOf, closeFlag, closeNoteProblem, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf,
+    leftOf, lengthOf, MAX_CLOSE_NOTE, MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
 } from "./actions.ts"
 import {globeLinkOf, placeWords} from "./pin.ts"
 
@@ -59,32 +59,52 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                     onChanged={onChanged}
                 />
                 <Rename flags={flags} flag={flag} onChanged={onChanged}/>
-                <ConfirmAction
-                    label="Close"
-                    tone="danger"
-                    disabled={closedAt !== undefined}
-                    question={
-                        <>
-                            <p>Close <strong>{flag.name}</strong> now?</p>
-                            <p>
-                                Its players must pick another flag and nobody may click for it; its land stays. In a
-                                battle that locks the flags, it plays on until the lock lifts. Time added within{" "}
-                                {COMEBACK_DAYS} days opens it again.
-                            </p>
-                        </>
-                    }
-                    run={() => closeFlag(flags, flag.code)}
-                    said={closed => {
-                        const at = closed.sold?.closedAt?.toDate()
-                        return at === undefined
-                            ? "Closed."
-                            : `Closed. Time added until ${timeOf(comebackUntil(at))} opens it again.`
-                    }}
-                    refusal={closeRefusalOf}
-                    onDone={onChanged}
-                />
+                <Close flags={flags} flag={flag} disabled={closedAt !== undefined} onChanged={onChanged}/>
             </div>
         </li>
+    )
+}
+
+function Close({flags, flag, disabled, onChanged}: {
+    flags: FlagsAdmin, flag: Flag, disabled: boolean, onChanged: () => void,
+}) {
+    const [note, setNote] = useState("")
+    const problem = closeNoteProblem(note)
+
+    return (
+        <div className="sold-close">
+            {!disabled && (
+                <label className="field">
+                    <span className="muted">Note to its founder · {lengthOf(note)}/{MAX_CLOSE_NOTE}</span>
+                    <textarea rows={3} value={note} onChange={event => setNote(event.target.value)}/>
+                </label>
+            )}
+            {problem !== undefined && <p className="action-refused" role="alert">{problem}</p>}
+            <ConfirmAction
+                label="Close"
+                tone="danger"
+                disabled={disabled || lengthOf(note) === 0 || problem !== undefined}
+                question={
+                    <>
+                        <p>Close <strong>{flag.name}</strong> now?</p>
+                        <p>
+                            Its players must pick another flag and nobody may click for it; its land stays. In a
+                            battle that locks the flags, it plays on until the lock lifts. Its founder reads your note.
+                            Time added within {COMEBACK_DAYS} days opens it again.
+                        </p>
+                    </>
+                }
+                run={() => closeFlag(flags, flag.code, note)}
+                said={closed => {
+                    const at = closed.sold?.closedAt?.toDate()
+                    return at === undefined
+                        ? "Closed."
+                        : `Closed. Time added until ${timeOf(comebackUntil(at))} opens it again.`
+                }}
+                refusal={closeRefusalOf}
+                onDone={onChanged}
+            />
+        </div>
     )
 }
 

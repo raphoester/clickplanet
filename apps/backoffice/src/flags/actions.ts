@@ -14,6 +14,7 @@ export const MAX_NAME = 40
 export const MAX_BYTES = 5 * 1024 * 1024
 export const MAX_DAYS = 3660
 export const COMEBACK_DAYS = 30
+export const MAX_CLOSE_NOTE = 500
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -139,8 +140,12 @@ export async function addTime(flags: FlagsAdmin, code: string, days: number): Pr
     return answered((await flags.addTime({code, days})).flag)
 }
 
-export async function closeFlag(flags: FlagsAdmin, code: string): Promise<Flag> {
-    return answered((await flags.closeFlag({code})).flag)
+export async function closeFlag(flags: FlagsAdmin, code: string, note: string): Promise<Flag> {
+    return answered((await flags.closeFlag({code, note: note.trim()})).flag)
+}
+
+export function closeNoteProblem(note: string): string | undefined {
+    return lengthOf(note) > MAX_CLOSE_NOTE ? `A note of ${MAX_CLOSE_NOTE} characters at most.` : undefined
 }
 
 export async function renameFlag(flags: FlagsAdmin, code: string, name: string): Promise<Flag> {

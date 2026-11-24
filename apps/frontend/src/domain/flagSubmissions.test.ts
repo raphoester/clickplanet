@@ -7,11 +7,13 @@ import {
     pictureFileRefusal,
     pictureShapeRefusal,
     pinAt,
+    shownOf,
     Submission,
     untold,
     waits,
     withTold,
 } from "./flagSubmissions.ts"
+import {FlagCatalog} from "./flags.ts"
 
 const submission = (id: string, changes: Partial<Submission> = {}): Submission => ({
     id, name: "Bavaria", change: false, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, ...changes,
@@ -79,14 +81,30 @@ describe("the account's submissions", () => {
         ])).toEqual(["r-aaaaaaaaaa", "r-bbbbbbbbbb"])
     })
 
-    it("tell each decision once, and a submission approved then opened twice", () => {
+    it("tell each decision once, and a submission approved, opened, then its flag closed thrice", () => {
         const approved = [submission("b", {state: "approved"}), submission("a", {state: "rejected"}), submission("w")]
-        expect(untold(approved, {}).map(({id}) => id)).toEqual(["b", "a"])
+        expect(untold(approved, {}, FlagCatalog.BUILT_IN).map(({id}) => id)).toEqual(["b", "a"])
 
-        const told = withTold({}, untold(approved, {}))
-        expect(untold(approved, told)).toEqual([])
+        const told = withTold({}, untold(approved, {}, FlagCatalog.BUILT_IN))
+        expect(untold(approved, told, FlagCatalog.BUILT_IN)).toEqual([])
 
         const opened = [submission("b", {state: "opened", flag: "r-aaaaaaaaaa"}), ...approved.slice(1)]
-        expect(untold(opened, told).map(({id, state}) => [id, state])).toEqual([["b", "opened"]])
+        expect(untold(opened, told, catalogOf(false)).map(({id, state}) => [id, state])).toEqual([["b", "opened"]])
+
+        const toldOpened = withTold(told, untold(opened, told, catalogOf(false)))
+        expect(untold(opened, toldOpened, catalogOf(true)).map(({id, state}) => [id, state])).toEqual([["b", "closed"]])
+    })
+})
+
+const catalogOf = (closed: boolean) => FlagCatalog.BUILT_IN.withFlags([{code: "r-aaaaaaaaaa", name: "Bavaria", closed}])
+
+describe("a submission as its player reads it", () => {
+    it("is its flag's state now once it opened the flag, and its own before", () => {
+        const opened = submission("a", {state: "opened", flag: "r-aaaaaaaaaa"})
+        expect(shownOf(opened, catalogOf(false)).state).toBe("opened")
+        expect(shownOf(opened, catalogOf(true)).state).toBe("closed")
+
+        const change = submission("b", {change: true, flag: "r-aaaaaaaaaa", state: "approved"})
+        expect(shownOf(change, catalogOf(true)).state).toBe("approved")
     })
 })

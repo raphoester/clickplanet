@@ -31,9 +31,10 @@ const REASONS: Record<RejectionReasonPb, RejectionReason> = {
 }
 
 // A state this build does not know is dropped: a new enum value must not break an old tab.
-export function submissionOf(submission: SubmissionPb): Submission | undefined {
+export function submissionOf(submission: SubmissionPb, closeNotes: ReadonlyMap<string, string> = new Map()): Submission | undefined {
     const state = STATES[submission.state]
     if (state === undefined) return undefined
+    const closeNote = state === "opened" ? closeNotes.get(submission.flag) : undefined
     return {
         id: submission.id,
         name: submission.name,
@@ -47,6 +48,7 @@ export function submissionOf(submission: SubmissionPb): Submission | undefined {
             ? {rejection: {reason: REASONS[submission.rejection.reason] ?? "other", note: submission.rejection.note}}
             : {},
         ...submission.picture && submission.picture.url !== "" ? {picture: pictureOf(submission.picture)} : {},
+        ...closeNote !== undefined ? {closeNote} : {},
     }
 }
 
@@ -82,7 +84,8 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
         const headers = new Headers({[SESSION_HEADER]: token})
         try {
             const res = await retrying(() => this.client.listMySubmissions({}, {headers}), "ListMySubmissions")
-            return res.submissions.flatMap((submission) => submissionOf(submission) ?? [])
+            const closeNotes = new Map(res.closures.map(({flag, note}) => [flag, note]))
+            return res.submissions.flatMap((submission) => submissionOf(submission, closeNotes) ?? [])
         } catch (e) {
             if (e instanceof ConnectError && [Code.Unimplemented, Code.Unauthenticated].includes(e.code)) return []
             throw e

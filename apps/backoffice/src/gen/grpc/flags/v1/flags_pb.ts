@@ -687,6 +687,14 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
    */
   submissions: Submission[] = [];
 
+  /**
+   * Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
+   * back. A flag closed at its end has none, nor one closed before the operator gave a note.
+   *
+   * @generated from field: repeated flags.v1.Closure closures = 2;
+   */
+  closures: Closure[] = [];
+
   constructor(data?: PartialMessage<ListMySubmissionsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -696,6 +704,7 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
   static readonly typeName = "flags.v1.ListMySubmissionsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "submissions", kind: "message", T: Submission, repeated: true },
+    { no: 2, name: "closures", kind: "message", T: Closure, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMySubmissionsResponse {
@@ -712,6 +721,52 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
 
   static equals(a: ListMySubmissionsResponse | PlainMessage<ListMySubmissionsResponse> | undefined, b: ListMySubmissionsResponse | PlainMessage<ListMySubmissionsResponse> | undefined): boolean {
     return proto3.util.equals(ListMySubmissionsResponse, a, b);
+  }
+}
+
+/**
+ * Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
+ * online platforms ask.
+ *
+ * @generated from message flags.v1.Closure
+ */
+export class Closure extends Message<Closure> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: string note = 2;
+   */
+  note = "";
+
+  constructor(data?: PartialMessage<Closure>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Closure";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Closure {
+    return new Closure().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Closure {
+    return new Closure().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Closure {
+    return new Closure().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Closure | PlainMessage<Closure> | undefined, b: Closure | PlainMessage<Closure> | undefined): boolean {
+    return proto3.util.equals(Closure, a, b);
   }
 }
 

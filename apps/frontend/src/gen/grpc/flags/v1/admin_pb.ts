@@ -288,6 +288,15 @@ export class CloseFlagRequest extends Message<CloseFlagRequest> {
    */
   code = "";
 
+  /**
+   * Required, 1 to 500 characters: why the flag closes before its end, in the operator's own words. Its founder reads
+   * it, as the EU's rules for online platforms ask; nobody else does. Time added within 30 days opens the flag again
+   * and drops the note.
+   *
+   * @generated from field: string note = 2;
+   */
+  note = "";
+
   constructor(data?: PartialMessage<CloseFlagRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -297,6 +306,7 @@ export class CloseFlagRequest extends Message<CloseFlagRequest> {
   static readonly typeName = "flags.v1.CloseFlagRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseFlagRequest {

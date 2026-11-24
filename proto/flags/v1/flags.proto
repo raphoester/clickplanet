@@ -28,8 +28,8 @@ service FlagService {
   // flags' pictures are off.
   rpc SubmitFlag(SubmitFlagRequest) returns (SubmitFlagResponse);
 
-  // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
-  // guest.
+  // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; and why the
+  // operator closed each flag it founded before its end. None for a guest.
   rpc ListMySubmissions(ListMySubmissionsRequest) returns (ListMySubmissionsResponse);
 }
 
@@ -115,6 +115,16 @@ message ListMySubmissionsRequest {}
 
 message ListMySubmissionsResponse {
   repeated Submission submissions = 1;
+  // Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
+  // back. A flag closed at its end has none, nor one closed before the operator gave a note.
+  repeated Closure closures = 2;
+}
+
+// Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
+// online platforms ask.
+message Closure {
+  string flag = 1;
+  string note = 2;
 }
 
 // A flag a player submitted, as its player reads it.

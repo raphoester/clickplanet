@@ -29,9 +29,9 @@ func (h CloseFlagHandler) CloseFlag(
 	ctx context.Context,
 	req *connect.Request[flagsv1.CloseFlagRequest],
 ) (*connect.Response[flagsv1.CloseFlagResponse], error) {
-	flag, err := h.useCase.Execute(ctx, close_flag_usecase.In{Flag: req.Msg.GetCode()})
+	flag, err := h.useCase.Execute(ctx, close_flag_usecase.In{Flag: req.Msg.GetCode(), Note: req.Msg.GetNote()})
 	switch {
-	case errors.Is(err, catalog.ErrInvalidFlagID):
+	case errors.Is(err, catalog.ErrInvalidFlagID), errors.Is(err, catalog.ErrInvalidNote):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, catalog.ErrUnknownFlag):
 		return nil, connect.NewError(connect.CodeNotFound, err)

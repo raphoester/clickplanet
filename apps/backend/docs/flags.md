@@ -30,10 +30,9 @@ opens when the owner says so.
   the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
   numbers its tiles its own way, and a new board renumbers them all. The operator gives it at `OpenFlag`, a submission
-  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)).
-- **Every flag the game ships with has ground of its own**, so none needs a pin: England, Scotland and Wales, the last
-  that had none, left the build on 2026-11-24 (below), and with them `make flag-pins`, `cmd/flagpins` and
-  `cpflags.Pins`, which held their pins for a day. The migration that brought the pins
+  carries it. Planet seats the flag on it at each Capital Siege's start (see the [seats](capitals.md#the-seats)). The
+  game's own flags have no pin: each has ground of its own since England, Scotland and Wales, the last that had none,
+  moved to the sold flags with their pins (below). The migration that brought the pins
   (`20261124101101_flag_submissions`) gave production's test flag of Corsica Ajaccio's pin and Brittany Rennes', by
   name, and stops on any other flag, so none is left with no pin.
 
@@ -157,8 +156,15 @@ at its end keeps it closed).
   **A flag closed less than 30 days ago comes back** (`Flag.TimeAdded`): the same code, name and picture, the land it
   still holds, open from now until that many days from now, told as `FlagOpened`. Past the 30 days,
   `catalog.ErrTooLate` (`FailedPrecondition`): the place is free for a new flag.
-- **`CloseFlag(code)`** (`close_flag_usecase`): now, as a flag that broke the rules. `catalog.ErrClosed` for one closed
-  already.
+- **`CloseFlag(code, note)`** (`close_flag_usecase`): now, as a flag that broke the rules, **with a note its founder
+  reads** (the owner, 2026-11-24: a free note, no list of reasons; every close by hand, a flag with no founder too).
+  `catalog.Note`: 1 to 500 characters once the spaces at its ends are cut, `ErrInvalidNote` (`InvalidArgument`) for
+  none. The EU's rules for online platforms ask for this statement of reasons, as for a rejection. `catalog.ErrClosed`
+  for one closed already. The note is a row of `flags.closures` (`flag`, `note`), which only a flag the operator closed
+  has (`20261124133507_flag_closures`): the flag store writes it from the flag's snapshot, and deletes it when the flag
+  comes back (`Flag.TimeAdded`). A flag closed at its end has none, and so has each flag closed before the note
+  existed (no backfill: production's Bavaria was the owner's test). It is told to nobody: `FlagClosed` carries no
+  note, and planet and the pages need none.
 - **`RenameFlag(code, name)`** (`rename_flag_usecase`): open or closed; `catalog.ErrNameTaken` or `ErrInvalidName`
   (`InvalidArgument`) for a name another flag has or no name. Told as `FlagRenamed`: the pages show it at once, and the
   code, the picture, the land and the players stay.
@@ -210,7 +216,9 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
   `FailedPrecondition`.
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
   rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
-  for a guest. **The notice is in the game, never by email**: the page reads it (see the frontend's
+  for a guest. Beside them, `closures`: the note of each flag the account founded (opened from one of its
+  submissions) that the operator closed and that has not come back. **Only its founder reads it**: `ListFlags` and the
+  stream, which every page reads, carry none. **The notice is in the game, never by email**: the page reads it (see the frontend's
   [Flag submissions](../../frontend/docs/flag-submissions.md)).
 
 ### The operator's calls
@@ -312,12 +320,12 @@ point of Season 1, England and Scotland none.
 - **The build no longer lists them**, as Brittany: `countries.json` (`make flags`), the atlas, the SVGs, the fit, the
   names in the page's languages, the backoffice's own names and its emoji of the three nations. With them went the
   last built-in flags with no ground: `cpflags.Pins` and its `make flag-pins`, and the map audit's `REGIONS`.
-- **The flags module holds them from the first boot of that build** (`20261124140535_regions_sold`): open, named
+- **The flags module holds them from the first boot of that build** (`20261124143335_regions_sold`): open, named
   "England", "Scotland" and "Wales", ending 30 days after the deploy (the owner's choice), each picture the build's SVG
   rendered at 1500 x 900 with `rsvg-convert` and drawn by `pictures.Redraw`, 768 x 461, each pin its capital as
   `cmd/flagpins` read it from Natural Earth's populated places: London (51.501941, -0.118668), Edinburgh (55.948328,
   -3.219091), Cardiff (51.499995, -3.225008). The restatement at boot tells them to planet, pins and all.
-- **Planet hears them open, on their pins, in the same deploy** (`20261124140536_regions_heard`), so their players are
+- **Planet hears them open, on their pins, in the same deploy** (`20261124143336_regions_heard`), so their players are
   never told their flag closed, and a Capital Siege opened before the restatement arrives still seats them.
 - **Their pictures go into the bucket by hand, once**: until then the page draws them as the blank.
 - **What they lost**: their Discord roles (the alerts' tidy at boot deletes them), their names in other languages, their

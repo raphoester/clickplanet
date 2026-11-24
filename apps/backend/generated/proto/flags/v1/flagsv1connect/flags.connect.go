@@ -66,8 +66,8 @@ type FlagServiceClient interface {
 	// of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
 	// flags' pictures are off.
 	SubmitFlag(context.Context, *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error)
-	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
-	// guest.
+	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; and why the
+	// operator closed each flag it founded before its end. None for a guest.
 	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
 }
 
@@ -168,8 +168,8 @@ type FlagServiceHandler interface {
 	// of the account's submissions waits; InvalidArgument for a name, a pin or a picture; FailedPrecondition while the
 	// flags' pictures are off.
 	SubmitFlag(context.Context, *connect.Request[v1.SubmitFlagRequest]) (*connect.Response[v1.SubmitFlagResponse], error)
-	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why. None for a
-	// guest.
+	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; and why the
+	// operator closed each flag it founded before its end. None for a guest.
 	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
 }
 
