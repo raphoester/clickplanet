@@ -81,12 +81,14 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Writes to a player first, by email, from support@clickplanet.lol: with no letter_id, a new letter to the account's
-     * verified address, under its subject; with a letter_id, one more mail in that letter, in the thread of the earlier
-     * ones. The player's replies come back to the letter. Write it to the player, in their language, in plain words.
-     * FailedPrecondition for an account with no verified address, or a letter past the 90 days; NotFound for a letter no
-     * longer kept; InvalidArgument for no subject, a subject over 200 characters, or a text the rule of an answer
-     * refuses; Unavailable when the mail could not be sent, and then nothing is kept: send again.
+     * Writes to a player first, by email, from support@clickplanet.lol, about a flag they submitted: with no letter_id,
+     * the letter about the submission, to the account's verified address, under its subject; with a letter_id, one more
+     * mail in that letter, in the thread of the earlier ones. A submission has one letter at most. The player's replies
+     * come back to the letter. Write it to the player, in their language, in plain words. FailedPrecondition for an
+     * account with no verified address, or a letter past the 90 days; AlreadyExists for a submission that has its letter
+     * already: write in it; NotFound for a letter no longer kept; InvalidArgument for no submission, no subject, a subject
+     * over 200 characters, or a text the rule of an answer refuses; Unavailable when the mail could not be sent, and then
+     * nothing is kept: send again.
      *
      * @generated from rpc support.v1.AdminService.WriteLetter
      */
@@ -98,8 +100,8 @@ export const AdminService = {
     },
     /**
      * The letters the operator wrote to players, the latest written or replied to first, each with its mails and the
-     * player's replies. With account_id, the letters to that account alone. open_only lists the letters the player
-     * replied to since the last mail and the last close.
+     * player's replies. With account_id, the letters to that account alone; with submission_id, the letter about that
+     * submission alone. open_only lists the letters the player replied to since the last mail and the last close.
      *
      * @generated from rpc support.v1.AdminService.ListLetters
      */

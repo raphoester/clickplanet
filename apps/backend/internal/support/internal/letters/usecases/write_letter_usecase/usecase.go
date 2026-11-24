@@ -17,10 +17,11 @@ type Post interface {
 
 type In struct {
 	// Empty for a new letter.
-	Letter  string
-	Account string
-	Subject string
-	Text    string
+	Letter     string
+	Submission string
+	Account    string
+	Subject    string
+	Text       string
 }
 
 func New(ids letters.IDProvider, book notes.AddressBook, kept letters.Storage, post Post, clock cptime.Clock) *UseCase {
@@ -71,6 +72,14 @@ func (u *UseCase) start(ctx context.Context, in In) (letters.Snapshot, error) {
 	if err != nil {
 		return letters.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
+	about, err := letters.SubmissionIDOf(in.Submission)
+	if err != nil {
+		return letters.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+	}
+	earlier, err := u.letters.About(ctx, about)
+	if err != nil {
+		return letters.Snapshot{}, fmt.Errorf("failed to read the submission's letter: %w", err)
+	}
 	to, err := u.book.Address(ctx, account)
 	if err != nil {
 		return letters.Snapshot{}, fmt.Errorf("failed to read where to write: %w", err)
@@ -79,7 +88,7 @@ func (u *UseCase) start(ctx context.Context, in In) (letters.Snapshot, error) {
 	if err != nil {
 		return letters.Snapshot{}, fmt.Errorf("failed to draw a letter id: %w", err)
 	}
-	draft, err := letters.NewDraft(id, account, to, in.Subject)
+	draft, err := letters.NewDraft(id, about, account, to, in.Subject, earlier)
 	if err != nil {
 		return letters.Snapshot{}, err //nolint:wrapcheck // the rule names it.
 	}

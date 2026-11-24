@@ -10,7 +10,7 @@ import {globeLinkOf, kmWords, Place, placeWords} from "../flags/pin.ts"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
 import {Flag, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
-import {LettersPanel} from "../support/LettersPanel.tsx"
+import {LetterPanel} from "../support/LetterPanel.tsx"
 import {Call} from "../useCall.ts"
 import {CapitalMap, Mark} from "./CapitalMap.tsx"
 import {FlagFigure} from "./FlagFigure.tsx"
@@ -158,8 +158,10 @@ export function SubmissionDetail({
                 </section>
             )}
             {submission.accountId !== "" && (
-                <LettersPanel
+                <LetterPanel
+                    key={`letter-${submission.id}`}
                     support={clients.support}
+                    submissionId={submission.id}
                     accountId={submission.accountId}
                     name={founderOf(submission.accountId, names)}
                     subject={`Your flag ${submission.name}`}

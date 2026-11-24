@@ -47,8 +47,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Flag submissions](docs/flag-submissions.md) — the flags players submit, under Moderation: an inbox, the picture as
   drawn and on a tile, a photo warning, the capital on a planisphere that zooms out to the world with the other capitals,
   moved before Approve, the capitals near it and the flags of the same name, Approve or Reject with the reason the
-  player reads, then the next; an approved new flag opened once paid for; letters to the founder, and their replies
-  marked in the list.
+  player reads, then the next; an approved new flag opened once paid for; one letter to the founder per submission,
+  and its reply marked in the list.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.
 - [The Lab](docs/lab.md) — the video lab's readout: each experiment on each platform against the control of the same
