@@ -44,6 +44,21 @@ internal/support/internal/
     inmemory_upload_storage/        Storage in a slice of snapshots, with Send and Kept for a test — behind the testing tag
     usecases/discard_unsent_usecase/    reads the files no note named in time, deletes them from the bucket, frees their
                                         room — Uploads, Bucket
+  letters/                          Letter (Mail, Sent, Replied, Closed, Anonymized, Thread, TakeSnapshot), Draft (NewDraft,
+                                    Mail, Sent), Snapshot (Restore), Mail, Sent, LetterID, AddressOf and LetterOf (a letter's
+                                    address under the inbox); the Storage and IDProvider ports, the StorageContractSuite
+    postgres_letter_store/          Storage, over support.letters, letter_mails, letter_replies and letter_closings
+    letter_post/                    a letter's mail: from support.email, Reply-To the letter's own address, threaded
+    uuid_letter_ids/                IDProvider: a random UUID per letter
+    usecases/write_letter_usecase/  a new letter to the account's address (AddressBook), or one more mail in a letter:
+                                    mailed, then kept — IDProvider, AddressBook, Storage, Post, Clock
+      audit_write_letter/           logs every letter at Warn
+    usecases/close_letter_usecase/  reads the letter, closes it, saves — Storage
+    usecases/receive_letter_reply_usecase/  the letter the recipient names, the mail read, the reply kept without
+                                    what it quotes, or stray; ErrNotALetter before it reads a note's mail
+      log_receive_letter_reply/     logs each mail
+    usecases/anonymize_letters_usecase/ the letters to an account, anonymized — Storage
+    usecases/prune_letters_usecase/ the letters written past retention that still name their player, anonymized
   reports/                          Report (NewReport, Forgotten, TakeSnapshot), Snapshot (Restore), Complaint, ReportID, Reason,
                                     MessageID; the Storage and IDProvider ports, the StorageContractSuite
                                     and SequentialIDs
@@ -233,6 +248,37 @@ it raw. **All reading is here, in Go.**
 - **The page shows the From when it differs from the note's address**: `ListNotes` gives both.
 - **No secret, no endpoint**: with `support.mailroom.secret` empty, nothing is mounted and no reply is taken. A secret
   of fewer than 32 characters refuses the boot.
+
+## Writing to a player first
+
+**The operator writes to a player first, by email, and the player's replies come back to it** (2026-11-24, for the
+flags players submit: asking more, explaining a verdict). It is a **letter**, a concept of its own (`letters/`, which
+imports `notes` and `conversations`, never the other way), not a kind of note: a note is what a player sent, and its
+account is its sender, where a letter's is the player written to.
+
+- **`AdminService/WriteLetter(letter_id, account_id, subject, text)`** (`write_letter_usecase`): with no `letter_id`, a
+  new letter: the account's verified address (`notes.AddressBook`, player's `GetEmail`; none is
+  `ErrNoReplyAddress`, `FailedPrecondition`), a subject of 1 to 200 characters (`ErrInvalidSubject`), the text by the
+  rule of an answer (`notes.AnswerTextOf`). With one, one more mail in that letter, under "Re: " its subject, in its
+  thread. **Mailed, then kept**, as an answer: a mail that did not go keeps nothing (`Unavailable`), one that went and
+  could not be kept would go twice if sent again. `audit_write_letter` logs each at Warn, with the app that called.
+- **The mail** (`letter_post`): from `support.email`, **Reply-To the letter's own address**,
+  `support+l-<letter id>@clickplanet.lol` (`letters.AddressOf`), and past the first, `In-Reply-To` and `References`
+  (`mail_post.Threaded`, the notes'). The `l-` tag means a letter's address never reads as a note's.
+- **A reply comes in as a note's does**: the mailroom posts it to `/mailroom/replies`, and the handler asks the letters
+  first (`receive_letter_reply_usecase`: `letters.LetterOf` is `ErrNotALetter` before it reads anything for a note's
+  address), then the notes. The reply is kept without what it quotes (`Inbox.Unquoted`), once per Message-ID. A letter
+  not kept or anonymized is stray: the Worker forwards the mail to the operator.
+- **`AdminService/ListLetters(account_id, open_only, limit)`** (`letters_query`): the latest written or replied to
+  first, 100 unless asked, 500 at most, with their mails and replies; `account_id` for one player's. **`open_only`**:
+  a reply after the last mail, and no close after it. **`CloseLetter(letter_id)`**: the letter waits for nothing until
+  the player writes again.
+- **Kept in four tables, one shape each** (migration `20261124103252_letters`): `letters` (`account_id` null and
+  `address` empty once anonymized, `subject`, `written_at`, its first mail's), `letter_mails`, `letter_replies` (with
+  `sender`, empty once anonymized) and `letter_closings`, each keyed by the letter and the mail.
+- **Anonymized as notes are**: `player.v1.PlayerForgotten` (`support-letters-forgotten`) and the prune, past
+  `support.retention` from the first mail (`prune_letters_usecase`, in the prune's runner), blank the account, the
+  address and each reply's sender. What was written stays.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 

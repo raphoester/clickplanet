@@ -23,23 +23,37 @@ func NewInbox(address cpmail.Address) Inbox {
 }
 
 func (i Inbox) Of(note NoteID) cpmail.Address {
-	return cpmail.Address(i.local + "+" + note.String() + "@" + i.domain)
+	return i.Tagged(note.String())
+}
+
+// Tagged is the inbox's address with a tag after its +, which a reply to it comes back to.
+func (i Inbox) Tagged(tag string) cpmail.Address {
+	return cpmail.Address(i.local + "+" + tag + "@" + i.domain)
 }
 
 func (i Inbox) NoteOf(recipient string) (NoteID, error) {
-	address, err := cpmail.AddressOf(recipient)
+	tag, err := i.TagOf(recipient)
 	if err != nil {
-		return NoteID{}, fmt.Errorf("%w: %w", ErrNotANoteAddress, err)
+		return NoteID{}, err
 	}
-	local, detail, tagged := strings.Cut(strings.TrimSuffix(string(address), "@"+i.domain), "+")
-	if !tagged || local != i.local || address.Domain() != i.domain {
-		return NoteID{}, fmt.Errorf("%w: %q is not under %s@%s", ErrNotANoteAddress, recipient, i.local, i.domain)
-	}
-	id, err := NoteIDOf(detail)
+	id, err := NoteIDOf(tag)
 	if err != nil {
 		return NoteID{}, fmt.Errorf("%w: %w", ErrNotANoteAddress, err)
 	}
 	return id, nil
+}
+
+// TagOf is what follows the + of an address under the inbox.
+func (i Inbox) TagOf(recipient string) (string, error) {
+	address, err := cpmail.AddressOf(recipient)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrNotANoteAddress, err)
+	}
+	local, tag, tagged := strings.Cut(strings.TrimSuffix(string(address), "@"+i.domain), "+")
+	if !tagged || local != i.local || address.Domain() != i.domain {
+		return "", fmt.Errorf("%w: %q is not under %s@%s", ErrNotANoteAddress, recipient, i.local, i.domain)
+	}
+	return tag, nil
 }
 
 var outlook = regexp.MustCompile(`(?i)^(-{2,}\s*original message\s*-{2,}|_{10,})$`)

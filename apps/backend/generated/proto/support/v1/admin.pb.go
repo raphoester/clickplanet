@@ -1128,6 +1128,466 @@ func (x *CloseNoteResponse) GetClosedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type WriteLetterRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty for a new letter.
+	LetterId string `protobuf:"bytes,1,opt,name=letter_id,json=letterId,proto3" json:"letter_id,omitempty"`
+	// For a new letter: the player written to.
+	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// For a new letter: 1 to 200 characters, the mail's subject.
+	Subject string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	// Plain text, up to 5,000 characters. Lines are kept.
+	Text          string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteLetterRequest) Reset() {
+	*x = WriteLetterRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteLetterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteLetterRequest) ProtoMessage() {}
+
+func (x *WriteLetterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteLetterRequest.ProtoReflect.Descriptor instead.
+func (*WriteLetterRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *WriteLetterRequest) GetLetterId() string {
+	if x != nil {
+		return x.LetterId
+	}
+	return ""
+}
+
+func (x *WriteLetterRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *WriteLetterRequest) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *WriteLetterRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type WriteLetterResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Letter        *Letter                `protobuf:"bytes,1,opt,name=letter,proto3" json:"letter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteLetterResponse) Reset() {
+	*x = WriteLetterResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteLetterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteLetterResponse) ProtoMessage() {}
+
+func (x *WriteLetterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteLetterResponse.ProtoReflect.Descriptor instead.
+func (*WriteLetterResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WriteLetterResponse) GetLetter() *Letter {
+	if x != nil {
+		return x.Letter
+	}
+	return nil
+}
+
+type ListLettersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty for every account.
+	AccountId string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	OpenOnly  bool   `protobuf:"varint,2,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
+	// 100 unless asked, 500 at most.
+	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLettersRequest) Reset() {
+	*x = ListLettersRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLettersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLettersRequest) ProtoMessage() {}
+
+func (x *ListLettersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLettersRequest.ProtoReflect.Descriptor instead.
+func (*ListLettersRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListLettersRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *ListLettersRequest) GetOpenOnly() bool {
+	if x != nil {
+		return x.OpenOnly
+	}
+	return false
+}
+
+func (x *ListLettersRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListLettersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Letters       []*Letter              `protobuf:"bytes,1,rep,name=letters,proto3" json:"letters,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLettersResponse) Reset() {
+	*x = ListLettersResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLettersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLettersResponse) ProtoMessage() {}
+
+func (x *ListLettersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLettersResponse.ProtoReflect.Descriptor instead.
+func (*ListLettersResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListLettersResponse) GetLetters() []*Letter {
+	if x != nil {
+		return x.Letters
+	}
+	return nil
+}
+
+type CloseLetterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LetterId      string                 `protobuf:"bytes,1,opt,name=letter_id,json=letterId,proto3" json:"letter_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseLetterRequest) Reset() {
+	*x = CloseLetterRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseLetterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseLetterRequest) ProtoMessage() {}
+
+func (x *CloseLetterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseLetterRequest.ProtoReflect.Descriptor instead.
+func (*CloseLetterRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CloseLetterRequest) GetLetterId() string {
+	if x != nil {
+		return x.LetterId
+	}
+	return ""
+}
+
+type CloseLetterResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseLetterResponse) Reset() {
+	*x = CloseLetterResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseLetterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseLetterResponse) ProtoMessage() {}
+
+func (x *CloseLetterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseLetterResponse.ProtoReflect.Descriptor instead.
+func (*CloseLetterResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CloseLetterResponse) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClosedAt
+	}
+	return nil
+}
+
+// What the operator wrote to a player first, and what followed.
+type Letter struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Empty once the letter is anonymized: its account was deleted, or it is past the retention.
+	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Where its mails go. Empty once anonymized.
+	Address string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	Subject string `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	// Oldest first; the first is the letter itself.
+	Mails []*LetterMail `protobuf:"bytes,5,rep,name=mails,proto3" json:"mails,omitempty"`
+	// Oldest first.
+	Replies []*NoteReply `protobuf:"bytes,6,rep,name=replies,proto3" json:"replies,omitempty"`
+	// Unset if never closed.
+	ClosedAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Letter) Reset() {
+	*x = Letter{}
+	mi := &file_support_v1_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Letter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Letter) ProtoMessage() {}
+
+func (x *Letter) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Letter.ProtoReflect.Descriptor instead.
+func (*Letter) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *Letter) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Letter) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *Letter) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Letter) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *Letter) GetMails() []*LetterMail {
+	if x != nil {
+		return x.Mails
+	}
+	return nil
+}
+
+func (x *Letter) GetReplies() []*NoteReply {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+func (x *Letter) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClosedAt
+	}
+	return nil
+}
+
+type LetterMail struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	SentAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LetterMail) Reset() {
+	*x = LetterMail{}
+	mi := &file_support_v1_admin_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LetterMail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LetterMail) ProtoMessage() {}
+
+func (x *LetterMail) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LetterMail.ProtoReflect.Descriptor instead.
+func (*LetterMail) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *LetterMail) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *LetterMail) GetSentAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SentAt
+	}
+	return nil
+}
+
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
@@ -1211,7 +1671,39 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x10CloseNoteRequest\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\"L\n" +
 	"\x11CloseNoteResponse\x127\n" +
-	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*R\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"~\n" +
+	"\x12WriteLetterRequest\x12\x1b\n" +
+	"\tletter_id\x18\x01 \x01(\tR\bletterId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\"A\n" +
+	"\x13WriteLetterResponse\x12*\n" +
+	"\x06letter\x18\x01 \x01(\v2\x12.support.v1.LetterR\x06letter\"f\n" +
+	"\x12ListLettersRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1b\n" +
+	"\topen_only\x18\x02 \x01(\bR\bopenOnly\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\"C\n" +
+	"\x13ListLettersResponse\x12,\n" +
+	"\aletters\x18\x01 \x03(\v2\x12.support.v1.LetterR\aletters\"1\n" +
+	"\x12CloseLetterRequest\x12\x1b\n" +
+	"\tletter_id\x18\x01 \x01(\tR\bletterId\"N\n" +
+	"\x13CloseLetterResponse\x127\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\x83\x02\n" +
+	"\x06Letter\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
+	"\aaddress\x18\x03 \x01(\tR\aaddress\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12,\n" +
+	"\x05mails\x18\x05 \x03(\v2\x16.support.v1.LetterMailR\x05mails\x12/\n" +
+	"\areplies\x18\x06 \x03(\v2\x15.support.v1.NoteReplyR\areplies\x127\n" +
+	"\tclosed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"U\n" +
+	"\n" +
+	"LetterMail\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x123\n" +
+	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
@@ -1219,14 +1711,17 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\rReportOutcome\x12\x1e\n" +
 	"\x1aREPORT_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14REPORT_OUTCOME_ACTED\x10\x01\x12\x1c\n" +
-	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x9c\x03\n" +
+	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x91\x05\n" +
 	"\fAdminService\x12M\n" +
 	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\"\x03\x90\x02\x01\x12K\n" +
 	"\n" +
 	"AnswerNote\x12\x1d.support.v1.AnswerNoteRequest\x1a\x1e.support.v1.AnswerNoteResponse\x12H\n" +
 	"\tCloseNote\x12\x1c.support.v1.CloseNoteRequest\x1a\x1d.support.v1.CloseNoteResponse\x12S\n" +
 	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\"\x03\x90\x02\x01\x12Q\n" +
-	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponseB\xb9\x01\n" +
+	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponse\x12N\n" +
+	"\vWriteLetter\x12\x1e.support.v1.WriteLetterRequest\x1a\x1f.support.v1.WriteLetterResponse\x12S\n" +
+	"\vListLetters\x12\x1e.support.v1.ListLettersRequest\x1a\x1f.support.v1.ListLettersResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\vCloseLetter\x12\x1e.support.v1.CloseLetterRequest\x1a\x1f.support.v1.CloseLetterResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
@@ -1245,7 +1740,7 @@ func file_support_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_support_v1_admin_proto_goTypes = []any{
 	(NoteKind)(0),                 // 0: support.v1.NoteKind
 	(ReportOutcome)(0),            // 1: support.v1.ReportOutcome
@@ -1265,49 +1760,70 @@ var file_support_v1_admin_proto_goTypes = []any{
 	(*AnswerNoteResponse)(nil),    // 15: support.v1.AnswerNoteResponse
 	(*CloseNoteRequest)(nil),      // 16: support.v1.CloseNoteRequest
 	(*CloseNoteResponse)(nil),     // 17: support.v1.CloseNoteResponse
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*PageContext)(nil),           // 19: support.v1.PageContext
-	(ReportReason)(0),             // 20: support.v1.ReportReason
+	(*WriteLetterRequest)(nil),    // 18: support.v1.WriteLetterRequest
+	(*WriteLetterResponse)(nil),   // 19: support.v1.WriteLetterResponse
+	(*ListLettersRequest)(nil),    // 20: support.v1.ListLettersRequest
+	(*ListLettersResponse)(nil),   // 21: support.v1.ListLettersResponse
+	(*CloseLetterRequest)(nil),    // 22: support.v1.CloseLetterRequest
+	(*CloseLetterResponse)(nil),   // 23: support.v1.CloseLetterResponse
+	(*Letter)(nil),                // 24: support.v1.Letter
+	(*LetterMail)(nil),            // 25: support.v1.LetterMail
+	(*timestamppb.Timestamp)(nil), // 26: google.protobuf.Timestamp
+	(*PageContext)(nil),           // 27: support.v1.PageContext
+	(ReportReason)(0),             // 28: support.v1.ReportReason
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
-	18, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
+	26, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
 	0,  // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
 	4,  // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0,  // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	18, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	19, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
+	26, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	27, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
 	7,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
 	5,  // 7: support.v1.Note.answers:type_name -> support.v1.NoteAnswer
 	6,  // 8: support.v1.Note.replies:type_name -> support.v1.NoteReply
-	18, // 9: support.v1.Note.closed_at:type_name -> google.protobuf.Timestamp
-	18, // 10: support.v1.NoteAnswer.sent_at:type_name -> google.protobuf.Timestamp
-	18, // 11: support.v1.NoteReply.received_at:type_name -> google.protobuf.Timestamp
-	18, // 12: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
+	26, // 9: support.v1.Note.closed_at:type_name -> google.protobuf.Timestamp
+	26, // 10: support.v1.NoteAnswer.sent_at:type_name -> google.protobuf.Timestamp
+	26, // 11: support.v1.NoteReply.received_at:type_name -> google.protobuf.Timestamp
+	26, // 12: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
 	10, // 13: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
-	20, // 14: support.v1.Report.reason:type_name -> support.v1.ReportReason
-	18, // 15: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
+	28, // 14: support.v1.Report.reason:type_name -> support.v1.ReportReason
+	26, // 15: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
 	11, // 16: support.v1.Report.decision:type_name -> support.v1.ReportDecision
 	1,  // 17: support.v1.ReportDecision.outcome:type_name -> support.v1.ReportOutcome
-	18, // 18: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
+	26, // 18: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
 	1,  // 19: support.v1.DecideReportRequest.outcome:type_name -> support.v1.ReportOutcome
-	18, // 20: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
-	18, // 21: support.v1.AnswerNoteResponse.sent_at:type_name -> google.protobuf.Timestamp
-	18, // 22: support.v1.CloseNoteResponse.closed_at:type_name -> google.protobuf.Timestamp
-	2,  // 23: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
-	14, // 24: support.v1.AdminService.AnswerNote:input_type -> support.v1.AnswerNoteRequest
-	16, // 25: support.v1.AdminService.CloseNote:input_type -> support.v1.CloseNoteRequest
-	8,  // 26: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
-	12, // 27: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
-	3,  // 28: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	15, // 29: support.v1.AdminService.AnswerNote:output_type -> support.v1.AnswerNoteResponse
-	17, // 30: support.v1.AdminService.CloseNote:output_type -> support.v1.CloseNoteResponse
-	9,  // 31: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
-	13, // 32: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
-	28, // [28:33] is the sub-list for method output_type
-	23, // [23:28] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	26, // 20: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
+	26, // 21: support.v1.AnswerNoteResponse.sent_at:type_name -> google.protobuf.Timestamp
+	26, // 22: support.v1.CloseNoteResponse.closed_at:type_name -> google.protobuf.Timestamp
+	24, // 23: support.v1.WriteLetterResponse.letter:type_name -> support.v1.Letter
+	24, // 24: support.v1.ListLettersResponse.letters:type_name -> support.v1.Letter
+	26, // 25: support.v1.CloseLetterResponse.closed_at:type_name -> google.protobuf.Timestamp
+	25, // 26: support.v1.Letter.mails:type_name -> support.v1.LetterMail
+	6,  // 27: support.v1.Letter.replies:type_name -> support.v1.NoteReply
+	26, // 28: support.v1.Letter.closed_at:type_name -> google.protobuf.Timestamp
+	26, // 29: support.v1.LetterMail.sent_at:type_name -> google.protobuf.Timestamp
+	2,  // 30: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
+	14, // 31: support.v1.AdminService.AnswerNote:input_type -> support.v1.AnswerNoteRequest
+	16, // 32: support.v1.AdminService.CloseNote:input_type -> support.v1.CloseNoteRequest
+	8,  // 33: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
+	12, // 34: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
+	18, // 35: support.v1.AdminService.WriteLetter:input_type -> support.v1.WriteLetterRequest
+	20, // 36: support.v1.AdminService.ListLetters:input_type -> support.v1.ListLettersRequest
+	22, // 37: support.v1.AdminService.CloseLetter:input_type -> support.v1.CloseLetterRequest
+	3,  // 38: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	15, // 39: support.v1.AdminService.AnswerNote:output_type -> support.v1.AnswerNoteResponse
+	17, // 40: support.v1.AdminService.CloseNote:output_type -> support.v1.CloseNoteResponse
+	9,  // 41: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
+	13, // 42: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
+	19, // 43: support.v1.AdminService.WriteLetter:output_type -> support.v1.WriteLetterResponse
+	21, // 44: support.v1.AdminService.ListLetters:output_type -> support.v1.ListLettersResponse
+	23, // 45: support.v1.AdminService.CloseLetter:output_type -> support.v1.CloseLetterResponse
+	38, // [38:46] is the sub-list for method output_type
+	30, // [30:38] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_admin_proto_init() }
@@ -1322,7 +1838,7 @@ func file_support_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_admin_proto_rawDesc), len(file_support_v1_admin_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   16,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

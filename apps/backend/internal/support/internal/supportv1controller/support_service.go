@@ -3,15 +3,18 @@ package supportv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/answer_note_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_letter_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/close_note_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_letters_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/write_letter_handler"
 )
 
 type SupportService struct {
@@ -30,6 +33,9 @@ type AdminService struct {
 	decide_report_handler.DecideReportHandler
 	answer_note_handler.AnswerNoteHandler
 	close_note_handler.CloseNoteHandler
+	write_letter_handler.WriteLetterHandler
+	list_letters_handler.ListLettersHandler
+	close_letter_handler.CloseLetterHandler
 }
 
 var _ supportv1connect.AdminServiceHandler = AdminService{}
