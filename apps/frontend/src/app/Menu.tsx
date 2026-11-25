@@ -140,20 +140,22 @@ export default function Menu(props: MenuProps) {
                     {p.dot && <VideoDot/>}
                 </button>)}
             </div>
-            {selling && <button type="button"
-                                className="menu-rail-item menu-rail-shop"
-                                aria-haspopup="dialog"
-                                onClick={() => setShopOpen(true)}>
-                <ShopIcon/>
-                <span className="menu-rail-label">{t("menu.shop")}</span>
-            </button>}
-            {account.kind === "ready" && <button type="button"
-                                                 className="menu-rail-item menu-rail-you"
-                                                 aria-haspopup="dialog"
-                                                 onClick={() => setProfileOpen(true)}>
-                <UserIcon/>
-                <span className="menu-rail-label">{youLabel(linked)}</span>
-            </button>}
+            {(selling || account.kind === "ready") && <div className="menu-rail-modals">
+                {selling && <button type="button"
+                                    className="menu-rail-item menu-rail-shop shop-shine"
+                                    aria-haspopup="dialog"
+                                    onClick={() => setShopOpen(true)}>
+                    <ShopIcon/>
+                    <span className="menu-rail-label">{t("menu.shop")}</span>
+                </button>}
+                {account.kind === "ready" && <button type="button"
+                                                     className="menu-rail-item"
+                                                     aria-haspopup="dialog"
+                                                     onClick={() => setProfileOpen(true)}>
+                    <UserIcon/>
+                    <span className="menu-rail-label">{youLabel(linked)}</span>
+                </button>}
+            </div>}
         </nav>
 
         {open

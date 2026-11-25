@@ -44,8 +44,10 @@ card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/s
 - **The pick is kept** (`useShop.chosen`) for the session: a plan picked in the shop is the one the flag form picks.
 - **Colors** in their jobs: blue for the plan picked (a toggled button), gold for value (the savings, Best value, the
   steps), red only for the one thing to press.
-- **Its doors**: on a phone, a gold bag at the end of the status bar's lead (`status-bar-shop`), so held sideways it is in
-  the left pill; on the desktop, the rail's Shop, above You (`menu-rail-shop`). Each opens it with
+- **Its doors**: on a phone, a bag at the end of the status bar's lead (`status-bar-shop`), so held sideways it is in
+  the left pill; on the desktop, the rail's Shop, under its line above You (`menu-rail-shop` in `menu-rail-modals`).
+  Each is a gold button, as the money comes from there, and a band of gold light crosses it every
+  5 seconds (`shop-shine`, an endless animation, see [Styling](styling.md)); none under reduced motion. Each opens it with
   `useScreen.setShopOpen(true)` (see [The screen](screen.md)). The shop reads the submissions and the renewals again as it
   opens.
 - **No door while the shop is off**: the plans are read at load for every page, a guest's too (`ListPlans` is a GET,
