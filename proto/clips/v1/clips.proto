@@ -28,6 +28,9 @@ message Findings {
   repeated Path paths = 11;
   // The carousel's lists (docs/video-lab.md, "Photos, not a video"), each ranked by the generator, its first the top.
   Lists lists = 12;
+  // The day of the season in progress, from 1, as the gamemaster's turn says it: what a war report's voice says.
+  // 0 between two seasons, after the season's last cutoff, or when the run fetched no turn.
+  uint32 day = 13;
 }
 
 // Three lists, 5 entries each at most: what a carousel's Pick names by list and tells from the 1st to the 5th.
@@ -329,6 +332,16 @@ message Pick {
   // cover's words in hook, and its ranks from the 1st to the 5th, the list's first 5 in its order.
   string list = 26;
   repeated Rank ranks = 27;
+
+  // A war report's (docs/video-lab.md): what its voice says, which the render job voices before the clip is made.
+  // Unset for a clip with no voice.
+  Script script = 28;
+}
+
+// What a war report's voice says, a sentence a line in the order said, and the post's title.
+message Script {
+  string title = 1;
+  repeated string lines = 2;
 }
 
 // An entry of a carousel's list, and the words under its name; the number beside them is the generator's.
@@ -379,6 +392,19 @@ message ClipRecord {
   reserved "variants";
   // A carousel's, for the format carousel.
   Carousel carousel = 6;
+  // A war report's voice over the globe; unset for a clip with no voice.
+  Narration narration = 7;
+}
+
+// What a war report's voice said, a sentence a line, as it was voiced: the next episodes carry on from it
+// (docs/video-lab.md).
+message Narration {
+  repeated string lines = 1;
+  // Kokoro's voice, "am_adam", and its pace, 1.15 times Kokoro's own.
+  string voice = 2;
+  double speed = 3;
+  // How long it speaks, from its first word to its last.
+  double seconds = 4;
 }
 
 // Photos on TikTok, their slideshow on YouTube (docs/video-lab.md, "Photos, not a video").

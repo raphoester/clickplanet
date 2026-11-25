@@ -21,7 +21,8 @@ type picked struct {
 // A JSON array on one line, `[{"pick":1,"story":{"front":3,...}}]`: the workflow makes one render job of each.
 func Picks(out io.Writer, chosen []clips.Chosen) error {
 	picks := make([]picked, 0, len(chosen))
-	for _, story := range chosen {
+	for i := range chosen {
+		story := &chosen[i]
 		written, err := clips.StoryJSON(story.Story)
 		if err != nil {
 			return fmt.Errorf("failed to write the picks: %w", err)

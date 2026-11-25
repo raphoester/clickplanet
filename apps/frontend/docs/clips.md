@@ -34,7 +34,8 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    corner of Australia while France and Turkey fought the biggest battle in weeks and France took all of India, both
    skipped because a flag was "told already" on that continent or "shown lately" as a bystander in other clips.
 3. **render**: one job per story, side by side, `--pick <n> --story <its JSON> --recorders 1`; a carousel's pick
-   renders its photos and their slideshow in seconds (below, "A carousel").
+   renders its photos and their slideshow in seconds (below, "A carousel"), and a war report's pick is said first, then
+   rendered with `--voice` (below, "A war report").
    The story goes through the environment, never into the script: it is the model's text. A runner has 4 cores and
    no GPU: Chrome draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the
    same 12s clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -54,6 +55,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`--findings <path>`** writes a `Findings` (`src/clip/findings.ts`, `findingsOf`): what the replay holds, measured
   and not judged, for the editor to make the stories from. One page load, no globe, a few seconds. With nothing it is
   `{}`, not an error.
+  - **`day`**: the day of the season in progress, from the gamemaster's turn (`--season`, `timeline.today`), which a
+    war report's voice says; none between two seasons or with no turn.
   - **`fronts`**: where tiles changed hands the most, the busiest first, 30 at most (`MOST_FRONTS`). Each is a
     stretch of time and everything within about 2,900 km of where most changed hands (`window.ts`, `front.ts`, below),
     on the whole map or on one country's ground alone (`scope`: each of the 12 countries whose ground changed hands
@@ -214,7 +217,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     records of the clips made before keep theirs.
   - **Additive only**: a new value is a field at the end of its message. A change that is not is a new message
     under a new name, since the job names the message it writes (the backend's [The clips job](../../backend/docs/clips-job.md)).
+- **A war report's record keeps what its voice said** (`narration`: its lines, Kokoro's voice, its pace and how long it
+  spoke, from the `voices.json` `render.mjs` reads): the job reads the lines back from each post, the episodes its
+  writer goes on from.
 - **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): `editor` for the editor's,
+  `writer` for a war report's title, its one teaser (below, "A war report"),
   and for this app's own the name of its wording, the same for every flag and every language, `takes-the-day` for a
   day won, `can-anyone-stop` for a call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`),
   so the job can say which wording a post opens with and the posts can be compared by it.
@@ -271,7 +278,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   0.33 s in all. It writes `<id>-<voice>.wav` and a `voices.json` with when each line is said (`lines`: its `text`,
   `from` and `to` in seconds), which subtitles are timed from; the workflow turns each into an MP3. Adam (`am_adam`) is the default, the owner's pick by ear. **A package of its own**, with its lock and an
   `.npmrc` that skips onnxruntime's CUDA download, so none of it is in the game's dependencies. Its model comes from
-  Hugging Face on the first call, which the runner reaches.
+  Hugging Face on the first call, which the runner reaches: 310 MB in `node_modules/@huggingface/transformers/.cache`,
+  which the clips' render job keeps in the Actions cache (below, "A war report").
 - **A war report is a clip given a voice** (`--voice <wav>`, built 2026-11-23; the root's [The video
   lab](../../../docs/video-lab.md), "The formats"): any story, played as its clip is, with the voice over the globe and
   every word it says on screen. `render.mjs` reads the voice's lines and their times from the `voices.json` that
@@ -295,7 +303,18 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     centred, two lines at most (`text-wrap: balance`; a piece that would take a third is set smaller by `fit`), the
     spaces widened to 0.22em, since Luckiest Guy's read as none. The headline stays the `Clip`'s title and the
     `.txt`'s. The date, the counters, the address and the call stay as they are.
-  - **Not built yet**: the writer in the clips job, the lab's experiment and the posting, the next PR.
+  - **In the clips' runs** (2026-11-25, the lab's experiment `war-report`): the backend's `choose` hands a war report's
+    pick with its script (`Pick.script`: the writer's title and its lines; the backend's [The clips
+    job](../../backend/docs/clips-job.md), "The war report"). The render job then installs the voice's package,
+    restores Kokoro's model from the Actions cache (keyed on `voice.mjs` and its lock; a miss downloads it from Hugging
+    Face once and saves it, so no run waits on Hugging Face's limits for anonymous downloads), has `jq` write the lines
+    as a bench file of one entry, `clip-<n>`, from the environment, never the shell, says it with `voice.mjs` into
+    `voice/`, and renders with `--voice voice/clip-<n>-am_adam.wav`. A pick with no script skips all of it.
+  - **The post's title is the writer's**: the pick's title is the clip's one teaser, named `writer`, kept even when it
+    says the headline, since the voice is drawn where the headline was; the caption opens on it and YouTube's title is
+    it with the brand. The headline stays the `Clip`'s title and the `.txt`'s.
+  - **Measured on 2026-11-25** on round 2's findings (saga 5, Palau in Russia, a script of 58 words): the voice 17.5 s
+    in 5 s on a laptop's CPU, the clip 20.8 s, 16 subtitles.
 - **A lab story's hook is read alone first** (`.clip-hook`, `HOOK_SECONDS`): big gold words over the first 1.5 s,
   "WHY IS HUNGARY IN INDONESIA?", below where the headline then fades in over half a second as the hook fades out, so
   the two never cross. The map plays under it from the first frame, and the counter shows. A hook in letters Luckiest

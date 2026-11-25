@@ -35,6 +35,8 @@ export type Shown = {
     line: string | undefined
     // The language the editor wrote a lab story in; none is the story's own (languageOf).
     language?: string
+    // A war report's voice: what it said, a sentence a line, Kokoro's voice, its pace and how long it spoke.
+    voice?: {lines: string[], speaker: string, pace: number, seconds: number}
 }
 
 const NONE = "none"
@@ -92,6 +94,11 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             rival: shown.story.rival ?? "",
             placeCountries: "country" in place ? [place.country] : "countries" in place ? place.countries : [],
             placeRegion: "region" in place ? place.region : "",
+        },
+        ...shown.voice === undefined ? {} : {
+            narration: {
+                lines: shown.voice.lines, voice: shown.voice.speaker, speed: shown.voice.pace, seconds: rounded(shown.voice.seconds, 2),
+            },
         },
     })
 }

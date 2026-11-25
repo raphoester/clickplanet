@@ -96,8 +96,8 @@ const historyPath = optionalPath("history")
 const flagListPath = optionalPath("flag-list")
 const voicePath = optionalPath("voice")
 
-// The voice's lines, from the voices.json voice.mjs writes beside each voice it says.
-function linesOf(voice) {
+// The voice's lines, who said them and how fast, from the voices.json voice.mjs writes beside each voice it says.
+function voicedOf(voice) {
     if (voice === undefined) return undefined
     if (has("seconds")) {
         console.error("a war report lasts as long as its voice: --seconds goes with no --voice")
@@ -113,10 +113,10 @@ function linesOf(voice) {
         console.error(`${made} has no lines for ${basename(voice)}`)
         process.exit(1)
     }
-    return entry.lines
+    return entry
 }
 
-const voiceLines = linesOf(voicePath)
+const voiced = voicedOf(voicePath)
 
 const server = await createServer({
     root: APP,
@@ -294,7 +294,11 @@ function pageOf() {
     for (const name of ["flags", "dive", "silent"]) {
         if (has(name)) query.set(name, "")
     }
-    if (voiceLines !== undefined) query.set("voice", JSON.stringify(voiceLines))
+    if (voiced !== undefined) {
+        query.set("voice", JSON.stringify(voiced.lines))
+        query.set("speaker", voiced.voice ?? "")
+        query.set("pace", String(voiced.speed ?? ""))
+    }
     return `${origin}clip.html?${query}`
 }
 

@@ -22,7 +22,7 @@ func Editorial(summaryFile string, choice clips.Choice) error {
 	}
 	defer func() { _ = file.Close() }()
 
-	if _, err := io.WriteString(file, editorialOf(choice.Editorial)+labOf(choice)); err != nil {
+	if _, err := io.WriteString(file, editorialOf(choice.Editorial)+labOf(choice)+narrationOf(choice.Narration)); err != nil {
 		return fmt.Errorf("failed to write the summary: %w", err)
 	}
 	return nil
@@ -42,10 +42,31 @@ func editorialOf(editorial clips.Editorial) string {
 		page.WriteString("**Editor: the model**, with nothing to decide: no call.")
 	}
 	if editorial.Asked {
-		spend := editorial.Spend
-		fmt.Fprintf(&page, " `%s`: %d tokens in (%d written to the cache, %d read from it), %d out, about $%.4f.",
-			spend.Model, spend.InputTokens+spend.CacheWriteTokens+spend.CacheReadTokens, spend.CacheWriteTokens,
-			spend.CacheReadTokens, spend.OutputTokens, spend.USD)
+		page.WriteString(spendOf(editorial.Spend))
+	}
+	page.WriteString("\n\n")
+	return page.String()
+}
+
+func spendOf(spend clips.Spend) string {
+	return fmt.Sprintf(" `%s`: %d tokens in (%d written to the cache, %d read from it), %d out, about $%.4f.",
+		spend.Model, spend.InputTokens+spend.CacheWriteTokens+spend.CacheReadTokens, spend.CacheWriteTokens,
+		spend.CacheReadTokens, spend.OutputTokens, spend.USD)
+}
+
+// The war report's writer's line of the summary; none when the lab told no story with a voice.
+func narrationOf(narration clips.Editorial) string {
+	var page strings.Builder
+	switch {
+	case narration.Failed != "":
+		fmt.Fprintf(&page, "**Writer: no voice, and the lab's pick is the control's.** %s.", oneLine(narration.Failed))
+	case narration.Asked:
+		fmt.Fprintf(&page, "**Writer:** %s.", oneLine(narration.Why))
+	default:
+		return ""
+	}
+	if narration.Asked {
+		page.WriteString(spendOf(narration.Spend))
 	}
 	page.WriteString("\n\n")
 	return page.String()
@@ -84,11 +105,12 @@ func Trial(out io.Writer, trial clips.Trial, promptOnly bool) error {
 		return wrapped(err)
 	}
 
-	page.WriteString(editorialOf(trial.Choice.Editorial) + labOf(trial.Choice))
+	page.WriteString(editorialOf(trial.Choice.Editorial) + labOf(trial.Choice) + narrationOf(trial.Choice.Narration))
 	for _, skipped := range trial.Choice.Skipped {
 		fmt.Fprintf(&page, "skipped %s: %s\n", skipped.Story.Names(), oneLine(skipped.Why))
 	}
-	for _, chosen := range trial.Choice.Chosen {
+	for i := range trial.Choice.Chosen {
+		chosen := &trial.Choice.Chosen[i]
 		story, err := clips.StoryJSON(chosen.Story)
 		if err != nil {
 			return wrapped(err)

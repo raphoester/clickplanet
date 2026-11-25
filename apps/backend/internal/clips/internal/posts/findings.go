@@ -67,6 +67,8 @@ type Findings struct {
 	ContinentTiles map[string]int
 	Anthems        []string
 	Lists          Lists
+	// The day of the season in progress, from 1; 0 when none runs or the run fetched no turn.
+	Day int
 }
 
 type Front struct {
@@ -272,6 +274,8 @@ type Story struct {
 	// A carousel's: the list it tells, its cover in Hook, and its ranks from the 1st.
 	List  ListName
 	Ranks []Rank
+	// A war report's: what its voice says; none for a clip with no voice.
+	Script Script
 }
 
 func (s Story) Names() string {

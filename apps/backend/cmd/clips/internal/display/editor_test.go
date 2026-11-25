@@ -69,6 +69,18 @@ func TestTheSummarySaysWhatTheLabsExperimentGot(t *testing.T) {
 	assert.NotContains(t, summaryOf(t, clips.Editorial{}), "Lab")
 }
 
+func TestTheSummarySaysWhatTheWarReportsWriterWroteOrWhyItGaveNoVoice(t *testing.T) {
+	sonnet := clips.Spend{Model: "claude-sonnet-5-5", InputTokens: 2500, OutputTokens: 900, USD: 0.014}
+	slot := clips.LabSlot{At: 2, Experiment: clips.Experiment{Name: "war-report", Narrated: true}}
+
+	voiced := summaryOfChoice(t, clips.Choice{Lab: slot, LabTold: true, Narration: clips.Editorial{Asked: true, Why: "Palau's reign, day by day.", Spend: sonnet}})
+	unvoiced := summaryOfChoice(t, clips.Choice{Lab: slot, Narration: clips.Editorial{Asked: true, Failed: "the model refused (general_harms)", Spend: sonnet}})
+
+	assert.Contains(t, voiced, "**Writer:** Palau's reign, day by day. `claude-sonnet-5-5`: 2500 tokens in (0 written to the cache, 0 read from it), 900 out, about $0.0140.\n\n")
+	assert.Contains(t, unvoiced, "**Writer: no voice, and the lab's pick is the control's.** the model refused (general_harms). `claude-sonnet-5-5`")
+	assert.NotContains(t, summaryOfChoice(t, clips.Choice{Lab: slot, LabTold: true}), "Writer", "far invasion has no writer")
+}
+
 func TestATrialOfThePromptAlonePrintsItAndNoChoice(t *testing.T) {
 	var out bytes.Buffer
 

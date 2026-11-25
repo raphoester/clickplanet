@@ -30,6 +30,12 @@ const (
 	Opus   Model = "claude-opus-5-5"
 )
 
+// The war report the owner signed off on 2026-11-25, after round 2 of the bench.
+const (
+	ReportTone  ToneName = "storyteller"
+	ReportModel          = Sonnet
+)
+
 var ErrUnknownModel = errors.New("no such writer")
 
 // "haiku", "sonnet" or "opus", or a model's own id.
@@ -57,12 +63,11 @@ type Request struct {
 	Episodes []string
 }
 
-// What the voice says, a sentence a line in the order said, and the post's title. Why is the writer's own note, never
-// said.
+// What the voice says, a sentence a line in the order said, and the post's title, as the writer wrote them.
 type Script struct {
-	Title string
-	Lines []string
-	Why   string
+	posts.Script
+	// The writer's own note on its angle, never said.
+	Why string
 }
 
 // Adam's pace at 1.15 times Kokoro's, his short breaths in: about 200 words a minute, measured 2026-11-23.

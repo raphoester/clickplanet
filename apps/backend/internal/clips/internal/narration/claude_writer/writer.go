@@ -43,6 +43,8 @@ type Writer struct {
 	client *anthropic.Client
 }
 
+var _ narration.Writer = (*Writer)(nil)
+
 func New(client *anthropic.Client) *Writer {
 	return &Writer{client: client}
 }
@@ -168,7 +170,7 @@ func scriptOf(content []anthropic.BetaContentBlockUnion) (narration.Script, erro
 		if err := json.Unmarshal([]byte(text.Text), &answered); err != nil {
 			return narration.Script{}, fmt.Errorf("%w: %w", ErrNoAnswer, err)
 		}
-		script := narration.Script{Title: strings.TrimSpace(answered.Title), Why: strings.TrimSpace(answered.Why)}
+		script := narration.Script{Script: posts.Script{Title: strings.TrimSpace(answered.Title)}, Why: strings.TrimSpace(answered.Why)}
 		for _, line := range answered.Lines {
 			if said := strings.Join(strings.Fields(line), " "); said != "" {
 				script.Lines = append(script.Lines, said)

@@ -56,6 +56,16 @@ describe("what a clip was", () => {
             .toEqual(new Date("2026-10-23T11:42:07.250Z"))
     })
 
+    it("keeps what a war report's voice said, who said it, how fast and how long, and nothing of a voice for a silent clip", () => {
+        const voice = {lines: ["Day twenty five.", "Palau still rules Russia."], speaker: "am_adam", pace: 1.15, seconds: 3.214}
+
+        expect(clipRecordOf({...shown, voice}).toJson()).toMatchObject({
+            format: "globe-replay",
+            narration: {lines: ["Day twenty five.", "Palau still rules Russia."], voice: "am_adam", speed: 1.15, seconds: 3.21},
+        })
+        expect(clipRecordOf(shown).narration).toBeUndefined()
+    })
+
     it("counts the players its end card names", () => {
         expect(clipRecordOf({...shown, fighters: 4}).common?.fighters).toBe(4)
         expect(clipRecordOf(shown).toJson()).not.toHaveProperty("common.fighters")

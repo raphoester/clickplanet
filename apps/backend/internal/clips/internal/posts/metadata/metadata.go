@@ -134,6 +134,11 @@ func FactsOf(metadata map[string]any) posts.TellingFacts {
 	}
 }
 
+// What a war report's voice said, from its record: none for a clip with no voice.
+func SaidOf(metadata map[string]any) []string {
+	return recordIn(metadata).GetClip().GetNarration().GetLines()
+}
+
 func recordIn(metadata map[string]any) *clipsv1.PostRecord {
 	var record clipsv1.PostRecord
 	kept, ok := metadata[recordKey].(map[string]any)

@@ -147,6 +147,21 @@ func TestTheStoriesToldAreThoseOfThePostsWithAKeyAndATime(t *testing.T) {
 	assert.Equal(t, since, asked.GetSince().AsTime())
 }
 
+func TestAWarReportIsToldWithWhatItsVoiceSaid(t *testing.T) {
+	fake := ssh(t, []string{`{"posts":[` +
+		`{"postId":"p-1","title":"DAY 25: PALAU STILL RULES RUSSIA","status":"published","scheduledFor":"2026-11-25T15:00:00Z",` +
+		`"metadata":{"storyFlag":"pw","storyContinent":"Europe","record":{"schema":"clips.v1.PostRecord",` +
+		`"clip":{"format":"globe-replay","narration":{"lines":["Day twenty five.","Palau still rules Russia."],"voice":"am_adam"}},` +
+		`"post":{"experiment":"war-report"}}}}` +
+		`]}`}, "", 0)
+
+	told, err := service(t, fake, nil).Told(t.Context(), at)
+
+	require.NoError(t, err)
+	require.Len(t, told, 1)
+	assert.Equal(t, []string{"Day twenty five.", "Palau still rules Russia."}, told[0].Said)
+}
+
 func TestAHistoryTheBackendDoesNotGiveIsAnErrorThatSaysWhy(t *testing.T) {
 	fake := ssh(t, nil, "wget: server returned error: HTTP/1.1 400 Bad Request", 1)
 

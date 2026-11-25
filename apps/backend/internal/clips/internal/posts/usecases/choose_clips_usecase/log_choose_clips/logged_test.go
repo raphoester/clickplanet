@@ -99,3 +99,25 @@ func TestHowTheEditorsCallWentIsLoggedWithWhatItCost(t *testing.T) {
 	assert.Contains(t, undecided, `msg="the editor had nothing to decide"`)
 	assert.NotContains(t, quiet, "the editor")
 }
+
+func TestTheWarReportsWriterAndWhatItsVoiceSaysAreLogged(t *testing.T) {
+	spend := posts.Spend{Model: "claude-sonnet-5-5", InputTokens: 2500, OutputTokens: 900, USD: 0.014}
+	report := posts.Story{
+		Saga: 5, Attacker: "pw", Headline: "PALAU RULES RUSSIA", Experiment: "war-report", Language: "en",
+		Script: posts.Script{Title: "DAY 25: PALAU STILL RULES RUSSIA", Lines: []string{"Day twenty five.", "Palau still rules Russia."}},
+	}
+	chosen := []posts.Chosen{{Pick: 1, Story: report, Key: posts.StoryKey{Flag: "pw", Continent: "Europe", Angle: posts.Reigning}}}
+
+	voiced, err := run(t, stubExecutor{choice: posts.Choice{Chosen: chosen, Narration: posts.Editorial{Asked: true, Why: "the reign", Spend: spend}}})
+	require.NoError(t, err)
+	unvoiced, err := run(t, stubExecutor{choice: posts.Choice{Chosen: []posts.Chosen{day18}, Narration: posts.Editorial{Asked: true, Failed: "the model refused", Spend: spend}}})
+	require.NoError(t, err)
+	silent, err := run(t, stubExecutor{choice: posts.Choice{Chosen: []posts.Chosen{day18}}})
+	require.NoError(t, err)
+
+	assert.Contains(t, voiced, `msg="the war report's writer wrote its voice" model=claude-sonnet-5-5 input_tokens=2500 `+
+		`cache_write_tokens=0 cache_read_tokens=0 output_tokens=900 usd=0.01400 why="the reign"`)
+	assert.Contains(t, voiced, `title="DAY 25: PALAU STILL RULES RUSSIA" said="Day twenty five. Palau still rules Russia."`)
+	assert.Contains(t, unvoiced, `level=WARN msg="the war report's writer gave no voice, and the lab's pick is the control's" model=claude-sonnet-5-5`)
+	assert.NotContains(t, silent, "writer")
+}

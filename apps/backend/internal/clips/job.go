@@ -64,6 +64,7 @@ type (
 	BenchRound      = narration.Bench
 	BenchEntry      = narration.Entry
 	Script          = narration.Script
+	PostScript      = posts.Script
 	WriterModel     = narration.Model
 	ToneName        = narration.ToneName
 	Spend           = posts.Spend
@@ -212,7 +213,7 @@ func Choose(ctx context.Context, findings string, config Config, logger *slog.Lo
 	if err != nil {
 		return Choice{}, fmt.Errorf("failed to reach the backend's publishing module: %w", err)
 	}
-	editor, err := editorOf(config.Anthropic)
+	editor, narrator, err := writersOf(config.Anthropic)
 	if err != nil {
 		return Choice{}, err
 	}
@@ -224,7 +225,7 @@ func Choose(ctx context.Context, findings string, config Config, logger *slog.Lo
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
 		generator_output.FindingsFile(findings), log_history.New(publishing, logger), publishing, cptime.SystemClock{},
-		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config), Lab: lab}, editor, posts.SystemDice{},
+		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config), Lab: lab}, editor, narrator, posts.SystemDice{},
 	), logger)
 
 	return choose.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
@@ -248,16 +249,22 @@ type editor interface {
 	Count(ctx context.Context, offer posts.Offer) (int64, error)
 }
 
-// The editor on a client of Anthropic's API built here; with no key, one that sends nothing.
-func editorOf(config cpanthropic.Config) (editor, error) {
+// The editor and the war report's writer on one client of Anthropic's API built here; with no key, ones that send
+// nothing. The writer writes in the tone and with the model the owner signed off on.
+func writersOf(config cpanthropic.Config) (editor, narration.Narrator, error) {
+	tone, err := tones.Named(string(narration.ReportTone))
+	if err != nil {
+		return nil, narration.Narrator{}, fmt.Errorf("failed to read the war report's tone: %w", err)
+	}
 	client, err := cpanthropic.NewClient(config)
 	if errors.Is(err, cpanthropic.ErrNoKey) {
-		return claude_editor.Unkeyed{}, nil
+		return claude_editor.Unkeyed{}, narration.NewNarrator(claude_writer.Unkeyed{}, claude_editor.FactsOf, tone[0], narration.ReportModel), nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to build the client of Anthropic's API: %w", err)
+		return nil, narration.Narrator{}, fmt.Errorf("failed to build the client of Anthropic's API: %w", err)
 	}
-	return claude_editor.New(client, claude_editor.DefaultModel), nil
+	return claude_editor.New(client, claude_editor.DefaultModel),
+		narration.NewNarrator(claude_writer.New(client), claude_editor.FactsOf, tone[0], narration.ReportModel), nil
 }
 
 // What the editor would make of saved findings: the prompt it is sent, its size as the model counts it (0 with no
@@ -294,7 +301,7 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 		logger.Warn("no CLICKPLANET_SSH: nothing counts as told")
 	}
 
-	editor, err := editorOf(config.Anthropic)
+	editor, narrator, err := writersOf(config.Anthropic)
 	if err != nil {
 		return Trial{}, err
 	}
@@ -314,7 +321,7 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 		logger.Warn("the prompt is not counted", slog.String("why", err.Error()))
 	}
 	if !promptOnly {
-		trial.Choice = choose_clips_usecase.Edit(ctx, editor, found, config.PerRun, told, now, lab)
+		trial.Choice = choose_clips_usecase.EditNarrated(ctx, editor, narrator, found, config.PerRun, told, now, lab)
 	}
 	return trial, nil
 }

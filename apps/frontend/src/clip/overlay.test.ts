@@ -44,6 +44,16 @@ describe("the words of a story the editor tells", () => {
         expect(wordsOf(rout, written, "CHINA IS OUT").headline).toBe("CHINA IS OUT")
     })
 
+    it("of a war report have its writer's title alone for a teaser, the headline's words or not", () => {
+        const report = wordsOf(rout, {...written, title: "Day 25: China is out"})
+        const same = wordsOf(rout, {...written, title: written.headline})
+
+        expect(report.teasers).toEqual(["DAY 25: CHINA IS OUT"])
+        expect(report.teaserNames).toEqual(["writer"])
+        expect(report.headline).toBe("CHINA GETS KICKED OUT OF FINLAND")
+        expect(same.teasers).toEqual(["CHINA GETS KICKED OUT OF FINLAND"])
+    })
+
     it("are none of the generator's own: with no words of the editor, there is no clip", () => {
         expect(() => wordsOf(rout)).toThrow("a rout is told in the editor's words, and none were given")
         expect(() => wordsOf({...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8})).toThrow("none were given")

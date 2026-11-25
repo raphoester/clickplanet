@@ -170,9 +170,38 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/frontend/package-lock.json
+          cache-dependency-path: |
+            apps/frontend/package-lock.json
+            apps/frontend/scripts/clip/voice/package-lock.json
 
       - run: npm ci
+
+      # A war report's voice (docs/video-lab.md): Kokoro, a package of its own, beside the game's dependencies.
+      - name: install the voice
+        if: matrix.clip.story.script
+        working-directory: apps/frontend/scripts/clip/voice
+        run: npm ci
+
+      # Kokoro's model, 310 MB that Hugging Face serves on the first call: kept, so a war report does not hang on Hugging
+      # Face's limits for anonymous downloads. Restored after npm ci, which empties node_modules.
+      - name: keep Kokoro's model
+        if: matrix.clip.story.script
+        uses: actions/cache@v6
+        with:
+          path: apps/frontend/scripts/clip/voice/node_modules/@huggingface/transformers/.cache
+          key: kokoro-${{ hashFiles('apps/frontend/scripts/clip/voice/voice.mjs', 'apps/frontend/scripts/clip/voice/package-lock.json') }}
+
+      # The writer's lines, said by Adam at 1.15, one sentence at a time, into voice/ with when each is said. The script is
+      # the model's text: jq reads it from the environment, never the shell.
+      - name: say the war report
+        if: matrix.clip.story.script
+        working-directory: apps/frontend/scripts/clip/voice
+        env:
+          PICK: ${{ matrix.clip.pick }}
+          STORY: ${{ toJSON(matrix.clip.story) }}
+        run: |
+          jq -n '{entries: [{id: ("clip-" + env.PICK), lines: (env.STORY | fromjson | .script.lines)}]}' > script.json
+          node voice.mjs script.json "$GITHUB_WORKSPACE/apps/frontend/voice"
 
       # The fighters' names are any script: Rubik draws no CJK.
       - name: install ffmpeg and the CJK fonts
@@ -187,7 +216,7 @@ jobs:
 
       # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The model's story, its
       # headline in it, goes through the environment, never into the script: it is the model's text. A carousel's pick
-      # renders its photos and their slideshow.
+      # renders its photos and their slideshow; a war report's plays its voice and lasts as long, 30 s at most.
       - name: render the clip
         env:
           PICK: ${{ matrix.clip.pick }}
@@ -198,7 +227,9 @@ jobs:
           cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
           history=$([ -f history.json ] && echo "--history history.json" || true)
           flaglist=$([ -f flag-list.json ] && echo "--flag-list flag-list.json" || true)
-          npm run clip -- --replay replay.json $race $season $cast $history $flaglist --pick "$PICK" --story "$STORY" --recorders 1
+          said=$(ls voice/clip-"$PICK"-*.wav 2> /dev/null | head -n 1)
+          voice=$([ -n "$said" ] && echo "--voice $said" || true)
+          npm run clip -- --replay replay.json $race $season $cast $history $flaglist $voice --pick "$PICK" --story "$STORY" --recorders 1
 
       - uses: actions/upload-artifact@v6
         with:

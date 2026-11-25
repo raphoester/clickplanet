@@ -49,9 +49,17 @@ func TestTheCarouselIsDrawnAsPhotosAndTheOthersAsClips(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, posts.Carousel, carousel.Format)
 
-	for _, name := range []string{"far-invasion", "call-to-arms"} {
+	for _, name := range []string{"far-invasion", "call-to-arms", "war-report"} {
 		experiment, err := experiments.Named(name)
 		require.NoError(t, err)
 		assert.Equal(t, posts.GlobeReplay, experiment.Format, name)
+	}
+}
+
+func TestTheWarReportAloneIsToldByAVoice(t *testing.T) {
+	for _, name := range slices.Concat(experiments.On, experiments.Off) {
+		experiment, err := experiments.Named(name)
+		require.NoError(t, err)
+		assert.Equal(t, name == "war-report", experiment.Narrated, name)
 	}
 }

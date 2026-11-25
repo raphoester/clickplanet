@@ -38,6 +38,14 @@ func TestALabHoldsEachExperimentOnceWithItsBrief(t *testing.T) {
 	require.ErrorIs(t, err, posts.ErrInvalidExperiment)
 }
 
+func TestAVoiceTellsAClipOfTheGlobeAndNeverACarousel(t *testing.T) {
+	_, err := posts.LabOf(posts.Experiment{Name: "war-report", Brief: "One thread.", Format: posts.GlobeReplay, Narrated: true})
+	require.NoError(t, err)
+
+	_, err = posts.LabOf(posts.Experiment{Name: "war-report", Brief: "One thread.", Format: posts.Carousel, Narrated: true})
+	require.ErrorIs(t, err, posts.ErrInvalidExperiment)
+}
+
 // LoadedDice(k) rolls k modulo the sides of each roll: the slot's 3 sides first, then the experiments'.
 func TestTheLabsSlotIsTheRunsFirstPickTwoTimesInThreeElseItsSecondAndItsExperimentIsEven(t *testing.T) {
 	lab, err := posts.LabOf(farInvasion, callToArms)
