@@ -790,13 +790,15 @@ describe("Menu", () => {
             return {...view, backend, player, progression, navigate, user, openSettings}
         }
 
-        it("puts the shop above You on the rail while it sells, and opens its modal", async () => {
+        it("puts the shop with You under the places while it sells, and opens its modal", async () => {
             const {user} = withAccount(["google"], {linked: ["google"]}, "ana")
             const you = await screen.findByRole("button", {name: "You"})
             expect(screen.queryByRole("button", {name: "Shop"})).toBeNull()
 
             act(() => useShop.setState({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]}))
             const shop = screen.getByRole("button", {name: "Shop"})
+            expect(shop.parentElement, "the shop opens a modal, as You does").toBe(you.parentElement)
+            expect(screen.getByRole("tablist").contains(shop), "the shop is not a place").toBe(false)
             expect(shop.compareDocumentPosition(you) & Node.DOCUMENT_POSITION_FOLLOWING, "the shop sits above You").toBeTruthy()
 
             await user.click(shop)

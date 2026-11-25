@@ -419,5 +419,38 @@
 /* The status bar's door to the shop, on a phone. */
 .status-bar-shop {
     flex-shrink: 0;
-    color: var(--gold);
+    color: var(--gold-ink);
+    background: var(--gold);
+    box-shadow: var(--drop-s), inset 0 -3px 0 var(--gold-shade);
+}
+
+/* Each door to the shop: a band of light crosses it every few seconds. */
+.shop-shine {
+    position: relative;
+    overflow: hidden;
+}
+
+.shop-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 38%, var(--gold-light) 38% 50%, transparent 50%);
+    pointer-events: none;
+    transform: translateX(-100%);
+    animation: shop-shine 5s ease-in-out infinite var(--endless, running);
+}
+
+@keyframes shop-shine {
+    0%, 76% {
+        transform: translateX(-100%);
+    }
+    90%, 100% {
+        transform: translateX(100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shop-shine::after {
+        animation: none;
+    }
 }

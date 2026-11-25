@@ -45,7 +45,7 @@ nothing closes. Checked with Playwright's devices on their sides (iPhone SE, 14 
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), the shop's bag while it sells (opens the shop's modal), `SeasonChip` at its end (`BattleChip` while a battle plays); sideways, two pills, the bag in the left one | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`, and the player's level and its bar across the dock under them) above the tab bar, the chat's peek above it | the dock at the bottom centre, the same |
-| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet`; sideways, a rail on the left and each sheet a drawer beside it | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, then Shop while it sells, which opens the shop's modal, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet`; sideways, a rail on the left and each sheet a drawer beside it | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, then under a line the buttons that open a modal: Shop while it sells, and Sign in / You) on the left with the open place beside it, the chat on the right |
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
@@ -114,6 +114,8 @@ nothing closes. Checked with Playwright's devices on their sides (iPhone SE, 14 
   [Season standings](season-standings.md)); a chip centred on the screen, 368px wide, left it at most 417px at
   1440px wide (2026-11-11). Centred in the whole room right of the menu, the chips sat right of the globe on a
   wide screen. The 40vw always leaves the chip its room right of the menu from 834px wide.
+- **The rail's line splits what a press opens**: above it, the places, each opened beside the rail; under it
+  (`menu-rail-modals`), the Shop and You, each a modal. A new button goes on the side of what it opens.
 - **You is not a place on a desktop.** It sits at the rail's foot and opens
   `account/ProfileModal`, the player's own card at up to 1200px wide (the
   screen less 64px), read at a glance:

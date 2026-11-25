@@ -42,7 +42,7 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
                 <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
             </button>
             {selling && <button type="button"
-                                className="icon-button status-bar-shop"
+                                className="icon-button status-bar-shop shop-shine"
                                 aria-label={t("menu.shop")}
                                 aria-haspopup="dialog"
                                 onClick={() => setShopOpen(true)}>
