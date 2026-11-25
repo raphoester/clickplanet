@@ -58,6 +58,7 @@ const found: Found = {
         biggestEmpires: [{flag: "pw", tiles: 74000, share: 0.28456, country: "ru"}],
     },
     foughtSince: Date.UTC(2026, 9, 23, 20),
+    day: 25,
 }
 
 describe("the findings", () => {
@@ -149,6 +150,26 @@ describe("the carousel's lists", () => {
 
     it("say how each code of them is said", () => {
         expect(json.names).toMatchObject({hu: "Hungary", id: "Indonesia", sy: "Syria", ru: "Russia"})
+    })
+
+    it("say the day of the season in progress, and none between two seasons", () => {
+        expect(json.day).toBe(25)
+        expect((findingsOf({...found, day: 0}).toJson() as Record<string, unknown>).day).toBeUndefined()
+    })
+})
+
+describe("a war report's pick", () => {
+    it("carries its writer's title among the words, which its voice says", () => {
+        const {written, experiment} = toldOf(`{"saga":5,"since":"2026-11-18T00:00:00Z","attacker":"pw","headline":"PALAU RULES RUSSIA",`
+            + `"teasers":["RUSSIA IS PALAU'S"],"call":"TAKE RUSSIA BACK","experiment":"war-report",`
+            + `"script":{"title":"DAY 25: PALAU STILL RULES RUSSIA","lines":["Day twenty five.","Palau still rules Russia."]}}`)
+
+        expect(written?.title).toBe("DAY 25: PALAU STILL RULES RUSSIA")
+        expect(experiment).toBe("war-report")
+    })
+
+    it("has no title with no script", () => {
+        expect(toldOf(`{"tour":1,"headline":"FRANCE IS EVERYWHERE","call":"FIGHT BACK"}`).written?.title).toBeUndefined()
     })
 })
 

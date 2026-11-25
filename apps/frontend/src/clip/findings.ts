@@ -53,6 +53,8 @@ export type Found = {
     lists: Lists
     // When the stretch fight-the-most counts starts.
     foughtSince: number
+    // The day of the season in progress, from the gamemaster's turn; 0 when none runs or the run fetched no turn.
+    day: number
 }
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
@@ -138,6 +140,7 @@ export function findingsOf(found: Found): Findings {
             biggestEmpires: biggestEmpires.map((entry) => ({...entry, share: rounded(entry.share, 3)})),
             foughtSince: at(found.foughtSince),
         }),
+        day: found.day,
     })
 }
 
@@ -205,6 +208,7 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
         callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
         ...pick.hook === "" ? {} : {hook: pick.hook},
         ...pick.language === "" ? {} : {language: pick.language},
+        ...pick.script === undefined || pick.script.title === "" ? {} : {title: pick.script.title},
     }
     if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters, experiment}
     if (pick.saga > 0) {

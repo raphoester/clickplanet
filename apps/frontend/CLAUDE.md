@@ -163,7 +163,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video on the board it ends on (its last era
   alone), a lab story's hook over its opening, a carousel's three lists and its 7 photos with their slideshow, what it
   hands to the backend's clips job, the bench's voice (`scripts/clip/voice/`, Kokoro), and a war report: a clip given
-  that voice (`--voice`), its subtitles in place of the headline.
+  that voice (`--voice`), its subtitles in place of the headline, said in the clips' render job from its pick's script,
+  the writer's title its one teaser, what it said kept in its record.
 - [Battle teasers, as posts](docs/teasers.md) — `npm run teaser`: a battle's cards in a frame that says when it
   starts, as the stills of a TikTok carousel and a slideshow for YouTube, which the backend's promo module posts.
 - [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps

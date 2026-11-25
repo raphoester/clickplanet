@@ -51,13 +51,15 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Independence of the apps](docs/app-independence.md) — each app builds from its own directory. No root build
   tooling.
 - [The video lab](docs/video-lab.md) — PRs 1 to 3 built 2026-11-20, PR 6 (the readout: the backoffice's Lab page,
-  auth's `CountArrivals`) 2026-11-23: new video formats beside the clips, on the two
+  auth's `CountArrivals`) 2026-11-23, PR 4 (the war report, on) 2026-11-25: new video formats beside the clips, on the two
   accounts there are (no new TikTok account: 94% of its views are For You's), one pick a run by a coin (2 of TikTok's 3
   a day, half of YouTube's), `post.experiment` on every post, 2 or 3 experiments at once for 10 days each and the
   owner's verdict; the owner's order (the narrated war report, POV, far invasion, rankings, call to arms, satisfying);
   the carousel (a list of countries in photos, on: its three lists and the measures chosen); the war report's bench
   (tones, models, Kokoro's Adam at 1.15, the owner's blind comparison before production, rounds run in a Claude Code
-  session; round 1 won by the storyteller) and its subtitles in place of the headline; the costs.
+  session; round 1 won by the storyteller, round 2 by Sonnet, signed off 2026-11-25) and its subtitles in place of the
+  headline; the war report posted: its brief, Sonnet's script in `choose`, the season's day, the episodes from the
+  posts' records, Adam's voice in the render job; the costs.
 - [Chat moderation](docs/moderation.md) — the three layers (banned phrases at send, raid mode for guests, a Claude Haiku
   judge of reports alone) and the daily Claude audit; the policy the judge sends Claude and the audit reads: what stays,
   what goes, the mute steps capped at 24 hours and counted from the moderation history, usernames, reports, what goes

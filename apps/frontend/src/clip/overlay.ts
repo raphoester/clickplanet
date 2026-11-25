@@ -101,7 +101,12 @@ export type Written = {
     // A lab story's: its words over the opening, and the language they are all in; none is English.
     hook?: string
     language?: string
+    // A war report's: the post's title, its writer's, which the caption opens with in place of the teasers.
+    title?: string
 }
+
+// The name of a war report's title among the teasers: its writer's.
+const WRITER = "writer"
 
 const named = (teasers: [name: string, line: string][]) => ({
     teasers: teasers.map(([, line]) => line.toUpperCase()),
@@ -110,12 +115,12 @@ const named = (teasers: [name: string, line: string][]) => ({
 
 // A story the editor tells is told in its words alone; a day won and a call-up, which no editor writes, in their own.
 // headline: one given by hand, over either. The caption never repeats the clip: a teaser that says the headline is
-// left out.
+// left out, but a war report's title, as its voice is drawn where the headline was.
 export function wordsOf(story: Story, written?: Written, headline?: string): Words {
     const words = story.kind === "callup" ? callUpWordsOf(story, {nameOf, said}, headline)
         : story.kind === "round" ? roundWordsOf(story, headline)
             : editedOf(story, written, headline)
-    const kept = words.teasers.map((_, i) => i).filter((i) => words.teasers[i] !== words.headline)
+    const kept = words.teasers.map((_, i) => i).filter((i) => words.teaserNames[i] === WRITER || words.teasers[i] !== words.headline)
     return {...words, teasers: kept.map((i) => words.teasers[i]), teaserNames: kept.map((i) => words.teaserNames[i])}
 }
 
@@ -127,7 +132,8 @@ function editedOf(story: Story, written: Written | undefined, headline: string |
         line: written.line,
         call: written.call,
         callFlags: written.callFlags,
-        ...named(written.teasers.map((teaser): [string, string] => ["editor", teaser])),
+        ...named(written.title !== undefined ? [[WRITER, written.title]]
+            : written.teasers.map((teaser): [string, string] => ["editor", teaser])),
     }
 }
 

@@ -64,7 +64,8 @@ const (
   ],
   "names": {"fr": "France", "tr": "Turkey"},
   "continents": [{"name": "Europe", "flag": "eu", "tiles": 40225}, {"name": "Middle East", "tiles": 9000}],
-  "anthems": ["eu", "fr", "tr"]
+  "anthems": ["eu", "fr", "tr"],
+  "day": 25
 }
 `
 	writtenClip = `{
@@ -158,6 +159,7 @@ func TestTheFindingsAreEveryFrontTourPlaceSagaAndSeasonalStoryTheGeneratorWrote(
 	assert.Equal(t, map[string]string{"Europe": "eu", "Middle East": ""}, findings.Continents)
 	assert.Equal(t, map[string]int{"Europe": 40225, "Middle East": 9000}, findings.ContinentTiles)
 	assert.Equal(t, []string{"eu", "fr", "tr"}, findings.Anthems)
+	assert.Equal(t, 25, findings.Day)
 }
 
 func TestFindingsWithNothingFoundAreEmpty(t *testing.T) {
@@ -216,6 +218,17 @@ func TestALabStoryIsWrittenWithItsExperimentItsHookAndALanguageOtherThanEnglish(
 
 	assert.JSONEq(t, `{"front":3,"kind":"rout","attacker":"de","takenFrom":["pl"],"countries":["pl"],"headline":"POLSKA TRACI POLSKĘ","teasers":["NIEMCY ZABIERAJĄ POLSKĘ"],"call":"BROŃ POLSKI","callFlags":["pl"],"look":"dive","experiment":"call-to-arms","hook":"POLACY, GDZIE JESTEŚCIE?","language":"pl"}`, string(lab))
 	assert.JSONEq(t, `{"front":3,"kind":"invasion","attacker":"hu","countries":["id"],"headline":"HUNGARY INVADES INDONESIA","teasers":["INDONESIA FALLS TO HUNGARY"],"call":"DEFEND INDONESIA","look":"dive","experiment":"far-invasion","hook":"WHY IS HUNGARY IN INDONESIA?"}`, string(english), "English is left out")
+}
+
+func TestAWarReportIsWrittenWithWhatItsVoiceSays(t *testing.T) {
+	report, err := generator_output.StoryJSON(posts.Story{
+		Saga: 5, Since: time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC), Attacker: "pw", Headline: "PALAU RULES RUSSIA", Teasers: []string{"RUSSIA IS PALAU'S"},
+		Call: "TAKE RUSSIA BACK", Experiment: "war-report", Language: posts.English,
+		Script: posts.Script{Title: "DAY 25: PALAU STILL RULES RUSSIA", Lines: []string{"Day twenty five.", "Palau still rules Russia."}},
+	})
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"saga":5,"since":"2026-11-18T00:00:00Z","attacker":"pw","headline":"PALAU RULES RUSSIA","teasers":["RUSSIA IS PALAU'S"],"call":"TAKE RUSSIA BACK","experiment":"war-report","script":{"title":"DAY 25: PALAU STILL RULES RUSSIA","lines":["Day twenty five.","Palau still rules Russia."]}}`, string(report))
 }
 
 func TestAClipKeepsTheExperimentItWasWrittenFor(t *testing.T) {

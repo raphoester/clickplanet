@@ -199,6 +199,41 @@ shows in the root's [The video lab](../../../docs/video-lab.md), "Photos, not a 
   them as TikTok's media in their order (publishing's `tiktok_photo_urls`, as promo's teasers do): on YouTube the
   slideshow is the post.
 
+**The war report, since 2026-11-25: an experiment a voice tells** (`narration/narrator.go`, `briefs/war-report.md`; why,
+and what it is, in the root's [The video lab](../../../docs/video-lab.md), "The formats").
+
+- **A narrated experiment** (`Experiment.Narrated`, named in `experiments.narrated`): a clip of the globe whose story
+  the editor writes to its brief as any lab story's, then given what its voice says. A voice over a carousel is refused
+  (`LabOf`).
+- **The writer writes it in `choose`, after the editor** (`choose_clips_usecase.EditNarrated`): when the run's lab story
+  is told and its experiment is narrated, `narration.Narrator` asks `claude_writer`, the bench's writer, for one script:
+  the tone `storyteller` on Sonnet 5.5 (`narration.ReportTone`, `ReportModel`: the owner's sign-off of 2026-11-25), the
+  story's facts as the editor read them (`claude_editor.FactsOf`), the findings' `day` (the gamemaster's day in
+  progress, which the generator reads from the turn `fetch -season` saves) and the episodes. Effort `high`, and a
+  refusal served again by Anthropic's fallback, as on the bench.
+- **The episodes are what the voice said in the last 10 war reports posted, oldest first** (`narration.EpisodesOf`):
+  each post's record keeps its clip's `narration.lines`, and the history `choose` reads for the editor gives them back
+  (`metadata.SaidOf`, `Telling.Said`). There and not in a store of the job's: what Zernio holds is what was told, as
+  for every story, so a war report never rendered or never posted is no episode, and the series costs no read more.
+- **Checked before it is rendered** (`posts.ScriptOf`): its title in capitals, 86 letters at most (YouTube's title with
+  the brand), each line on one line, one at least, and 80 words at most, the most a clip of 30 s says at Adam's 3.3
+  words a second, 0.4 s before the voice and 2.9 s after it. **A writer that fails, refuses or writes what cannot be
+  voiced gives no voice**: the run is edited again without the lab's story, so the control's next story takes its
+  pick, and the lab's story is skipped with why (`the lab's war-report has no voice: …`), as a story that does not
+  hold is. The run never fails for it.
+- **The pick carries the script** (`Pick.script`: its title and its lines) to the render job, which says it before the
+  clip is made (the frontend's [Clips](../../frontend/docs/clips.md), "A war report"). The generator writes its title as
+  the clip's one teaser, named `writer`, so the caption opens on it and YouTube's title is it with the brand, and keeps
+  what the voice said in the clip's record (`narration`: the lines, the voice, its pace and its seconds). The post is a
+  lab post like any other, `experiment: war-report` in its record.
+- **What it says**: the log has the writer's call (`the war report's writer wrote its voice`, or `… gave no voice,
+  and the lab's pick is the control's`, with its tokens, its cost and why) and the story's `title` and `said`; the
+  summary a line, `**Writer:** …`, with its cost.
+- **What it costs**: one call a war report, about $0.03 on Sonnet at $2 and $10 a million tokens in and out
+  (`claude_writer.SpendOf`), half of round 1's Opus scripts. Up to 3 a day, about $3 a month.
+- **`clips edit -experiment war-report`** tries the editor and the writer by hand on saved findings: the script is in
+  the story it prints.
+
 **`clips bench` is the war report's bench, since 2026-11-20** (`internal/narration/`; why and how a round goes, in the
 root's [The video lab](../../../docs/video-lab.md), "The war report's bench"). It posts nothing and asks no backend: a
 run's findings, and `ANTHROPIC_API_KEY`.
@@ -357,15 +392,17 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
   tried twice, or more calls a run).
-- **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as the VPS's key.
+- **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), the editor's and the war report's writer's,
+  which runs no npm, as the VPS's key.
   An error never carries the request (`cpanthropic.Redacted`): the SDK's error dumps its headers, and the logs of a
   public repo are public. **The story is the model's text**: the render job passes it through the environment,
   never into the script.
-- **The client is built in `job.go` and handed to the editor** (`editorOf`), as `job.go` builds every other
-  dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client, model)` never
-  makes one of its own. The editor keeps only what is its own on each request: 2 minutes and one retry. **No key is
-  an editor of its own, chosen there**: `claude_editor.Unkeyed` sends nothing and answers `cpanthropic.ErrNoKey`, so
-  every run says why.
+- **The client is built in `job.go` and handed to the editor and the war report's writer** (`writersOf`), as `job.go`
+  builds every other dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client,
+  model)` and `claude_writer.New(client)` never make one of their own. The editor keeps only what is its own on each
+  request: 2 minutes and one retry. **No key is an editor and a writer of their own, chosen there**:
+  `claude_editor.Unkeyed` and `claude_writer.Unkeyed` send nothing and answer `cpanthropic.ErrNoKey`, so every run says
+  why.
 - **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a client pointed at a fake
   Messages API on `httptest` (`cpanthropic.Config.BaseURL`), which pins the request whole: the cached instructions,
   the schema, the prompt.

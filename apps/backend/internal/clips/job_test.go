@@ -217,7 +217,8 @@ func toldBy(t *testing.T, choice clips.Choice) []clips.Story {
 	t.Helper()
 
 	stories := make([]clips.Story, 0, len(choice.Chosen))
-	for i, chosen := range choice.Chosen {
+	for i := range choice.Chosen {
+		chosen := &choice.Chosen[i]
 		assert.Equal(t, clips.Pick(i+1), chosen.Pick)
 		stories = append(stories, chosen.Story)
 	}

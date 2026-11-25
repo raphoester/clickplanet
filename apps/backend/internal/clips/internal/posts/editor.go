@@ -33,6 +33,8 @@ type Telling struct {
 	// A carousel's list, and the codes of its ranks from the 1st; none for a video.
 	List  ListName
 	Ranks []string
+	// What a war report's voice said, a sentence a line; none for a clip with no voice.
+	Said []string
 }
 
 // What a post's clip told: its kind, its sides, where (countries, else a continent or TheWorld), its line, the stretch it
@@ -123,6 +125,10 @@ type Edition struct {
 	Why string
 }
 
+func (e Edition) WithoutLab() Edition {
+	return Edition{Stories: e.Stories, Why: e.Why}
+}
+
 // Zero when nothing was sent; USD is estimated from the model's prices.
 type Spend struct {
 	Model            string
@@ -162,12 +168,40 @@ type Choice struct {
 	// control, and its story is in Skipped with why.
 	Lab     LabSlot
 	LabTold bool
+	// How the war report's writer's call went; zero when the lab told no story with a voice.
+	Narration Editorial
+}
+
+// The lab's story as it is told this run: the one chosen with an experiment.
+func (c Choice) LabStory() (Story, bool) {
+	for i := range c.Chosen {
+		if c.Chosen[i].Story.Experiment != "" {
+			return c.Chosen[i].Story, true
+		}
+	}
+	return Story{}, false
+}
+
+func (c Choice) Voiced(script Script) Choice {
+	chosen := slices.Clone(c.Chosen)
+	for i := range chosen {
+		if chosen[i].Story.Experiment != "" {
+			chosen[i].Story.Script = script
+		}
+	}
+	c.Chosen = chosen
+	return c
+}
+
+func (c Choice) Skip(story Story, why string) Choice {
+	c.Skipped = append(slices.Clone(c.Skipped), Skipped{Story: story, Why: why})
+	return c
 }
 
 func (c Choice) Picks() []Pick {
 	picks := make([]Pick, 0, len(c.Chosen))
-	for _, chosen := range c.Chosen {
-		picks = append(picks, chosen.Pick)
+	for i := range c.Chosen {
+		picks = append(picks, c.Chosen[i].Pick)
 	}
 	return picks
 }

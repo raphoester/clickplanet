@@ -41,6 +41,8 @@ type Experiment struct {
 	Name   ExperimentName
 	Brief  string
 	Format Format
+	// A voice tells its story: the war report's writer writes what it says.
+	Narrated bool
 }
 
 // The experiments on. None is no lab: every run is the control's.
@@ -59,6 +61,9 @@ func LabOf(experiments ...Experiment) (Lab, error) {
 		}
 		if experiment.Format != GlobeReplay && experiment.Format != Carousel {
 			return Lab{}, fmt.Errorf("%w: %s is drawn as %q", ErrInvalidExperiment, experiment.Name, experiment.Format)
+		}
+		if experiment.Narrated && experiment.Format != GlobeReplay {
+			return Lab{}, fmt.Errorf("%w: %s is a voice over %q, not over the globe", ErrInvalidExperiment, experiment.Name, experiment.Format)
 		}
 		if seen.Contains(experiment.Name) {
 			return Lab{}, fmt.Errorf("%w: %s is on twice", ErrInvalidExperiment, experiment.Name)

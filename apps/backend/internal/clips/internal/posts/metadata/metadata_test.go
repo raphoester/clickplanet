@@ -187,3 +187,20 @@ func TestAClipIsNoCarousel(t *testing.T) {
 	assert.Empty(t, list)
 	assert.Empty(t, ranks)
 }
+
+func TestWhatAWarReportsVoiceSaidIsReadBackFromItsRecord(t *testing.T) {
+	record := posts.ClipRecord(`{"format":"globe-replay","globe":{"camera":"saga"},"narration":{"lines":["Day twenty five.",` +
+		`"Palau still rules Russia."],"voice":"am_adam","speed":1.15,"seconds":3.2}}`)
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "pw", Continent: "Europe", Angle: posts.Reigning}, record, "writer"))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"Day twenty five.", "Palau still rules Russia."}, metadata.SaidOf(readBack(t, kept)))
+}
+
+func TestAClipWithNoVoiceSaidNothing(t *testing.T) {
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, nil, ""))
+	require.NoError(t, err)
+
+	assert.Empty(t, metadata.SaidOf(readBack(t, kept)))
+	assert.Empty(t, metadata.SaidOf(nil))
+}

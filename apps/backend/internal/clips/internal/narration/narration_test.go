@@ -7,10 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
 func TestAScriptIsMeasuredAsItIsSaid(t *testing.T) {
-	script := narration.Script{Lines: []string{"Day nine.", "Palau still owns Russia.", "Russia has not commented."}}
+	script := narration.Script{Script: posts.Script{Lines: []string{"Day nine.", "Palau still owns Russia.", "Russia has not commented."}}}
 
 	assert.Equal(t, "Day nine. Palau still owns Russia. Russia has not commented.", script.Said())
 	assert.Equal(t, 10, script.Words())
@@ -19,9 +20,9 @@ func TestAScriptIsMeasuredAsItIsSaid(t *testing.T) {
 }
 
 func TestTheTurnsThatGiveAMachineAwayAreFoundAndSoAreTheSignsAVoiceReadsBadly(t *testing.T) {
-	script := narration.Script{Lines: []string{
+	script := narration.Script{Script: posts.Script{Lines: []string{
 		"In a stunning turn of events, Palau took 68% of Russia — and only time will tell!", "Buckle up!",
-	}}
+	}}}
 
 	assert.Equal(t, []string{"buckle up", "only time will tell", "turn of events", "a dash", "a digit", "exclamation marks"}, script.Tells())
 }

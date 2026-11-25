@@ -89,6 +89,14 @@ export class Findings extends Message<Findings> {
    */
   lists?: Lists;
 
+  /**
+   * The day of the season in progress, from 1, as the gamemaster's turn says it: what a war report's voice says.
+   * 0 between two seasons, after the season's last cutoff, or when the run fetched no turn.
+   *
+   * @generated from field: uint32 day = 13;
+   */
+  day = 0;
+
   constructor(data?: PartialMessage<Findings>) {
     super();
     proto3.util.initPartial(data, this);
@@ -109,6 +117,7 @@ export class Findings extends Message<Findings> {
     { no: 10, name: "sagas", kind: "message", T: Saga, repeated: true },
     { no: 11, name: "paths", kind: "message", T: Path, repeated: true },
     { no: 12, name: "lists", kind: "message", T: Lists },
+    { no: 13, name: "day", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Findings {
@@ -1739,6 +1748,14 @@ export class Pick extends Message<Pick> {
    */
   ranks: Rank[] = [];
 
+  /**
+   * A war report's (docs/video-lab.md): what its voice says, which the render job voices before the clip is made.
+   * Unset for a clip with no voice.
+   *
+   * @generated from field: clips.v1.Script script = 28;
+   */
+  script?: Script;
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1773,6 +1790,7 @@ export class Pick extends Message<Pick> {
     { no: 25, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 26, name: "list", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 27, name: "ranks", kind: "message", T: Rank, repeated: true },
+    { no: 28, name: "script", kind: "message", T: Script },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {
@@ -1789,6 +1807,51 @@ export class Pick extends Message<Pick> {
 
   static equals(a: Pick | PlainMessage<Pick> | undefined, b: Pick | PlainMessage<Pick> | undefined): boolean {
     return proto3.util.equals(Pick, a, b);
+  }
+}
+
+/**
+ * What a war report's voice says, a sentence a line in the order said, and the post's title.
+ *
+ * @generated from message clips.v1.Script
+ */
+export class Script extends Message<Script> {
+  /**
+   * @generated from field: string title = 1;
+   */
+  title = "";
+
+  /**
+   * @generated from field: repeated string lines = 2;
+   */
+  lines: string[] = [];
+
+  constructor(data?: PartialMessage<Script>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Script";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "lines", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Script {
+    return new Script().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Script {
+    return new Script().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Script {
+    return new Script().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Script | PlainMessage<Script> | undefined, b: Script | PlainMessage<Script> | undefined): boolean {
+    return proto3.util.equals(Script, a, b);
   }
 }
 
@@ -2045,6 +2108,13 @@ export class ClipRecord extends Message<ClipRecord> {
    */
   carousel?: Carousel;
 
+  /**
+   * A war report's voice over the globe; unset for a clip with no voice.
+   *
+   * @generated from field: clips.v1.Narration narration = 7;
+   */
+  narration?: Narration;
+
   constructor(data?: PartialMessage<ClipRecord>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2058,6 +2128,7 @@ export class ClipRecord extends Message<ClipRecord> {
     { no: 3, name: "common", kind: "message", T: ClipCommon },
     { no: 4, name: "globe", kind: "message", T: GlobeReplay },
     { no: 6, name: "carousel", kind: "message", T: Carousel },
+    { no: 7, name: "narration", kind: "message", T: Narration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipRecord {
@@ -2074,6 +2145,68 @@ export class ClipRecord extends Message<ClipRecord> {
 
   static equals(a: ClipRecord | PlainMessage<ClipRecord> | undefined, b: ClipRecord | PlainMessage<ClipRecord> | undefined): boolean {
     return proto3.util.equals(ClipRecord, a, b);
+  }
+}
+
+/**
+ * What a war report's voice said, a sentence a line, as it was voiced: the next episodes carry on from it
+ * (docs/video-lab.md).
+ *
+ * @generated from message clips.v1.Narration
+ */
+export class Narration extends Message<Narration> {
+  /**
+   * @generated from field: repeated string lines = 1;
+   */
+  lines: string[] = [];
+
+  /**
+   * Kokoro's voice, "am_adam", and its pace, 1.15 times Kokoro's own.
+   *
+   * @generated from field: string voice = 2;
+   */
+  voice = "";
+
+  /**
+   * @generated from field: double speed = 3;
+   */
+  speed = 0;
+
+  /**
+   * How long it speaks, from its first word to its last.
+   *
+   * @generated from field: double seconds = 4;
+   */
+  seconds = 0;
+
+  constructor(data?: PartialMessage<Narration>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Narration";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "lines", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "voice", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "speed", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Narration {
+    return new Narration().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Narration {
+    return new Narration().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Narration {
+    return new Narration().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Narration | PlainMessage<Narration> | undefined, b: Narration | PlainMessage<Narration> | undefined): boolean {
+    return proto3.util.equals(Narration, a, b);
   }
 }
 

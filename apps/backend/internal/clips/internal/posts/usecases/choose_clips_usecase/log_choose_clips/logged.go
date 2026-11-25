@@ -34,6 +34,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 		l.logger.Info("no story is told this run")
 	}
 	l.logEditorial(choice)
+	l.logNarration(choice.Narration)
 	switch {
 	case !choice.Lab.On():
 	case choice.LabTold:
@@ -46,7 +47,8 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	for _, skipped := range choice.Skipped {
 		l.logger.Warn("skipped a story of the editor's", append(attributesOf(skipped.Story), slog.String("why", skipped.Why))...)
 	}
-	for _, chosen := range choice.Chosen {
+	for i := range choice.Chosen {
+		chosen := &choice.Chosen[i]
 		attributes := append(attributesOf(chosen.Story), slog.Int("pick", int(chosen.Pick)),
 			slog.String("flag", chosen.Key.Flag), slog.String("continent", chosen.Key.Continent))
 		if chosen.Key.Angle != posts.Deeds {
@@ -66,11 +68,7 @@ func (l *Logged) logEditorial(choice posts.Choice) {
 	editorial := choice.Editorial
 	var attributes []any
 	if editorial.Asked {
-		spend := editorial.Spend
-		attributes = append(attributes,
-			slog.String("model", spend.Model), slog.Int64("input_tokens", spend.InputTokens),
-			slog.Int64("cache_write_tokens", spend.CacheWriteTokens), slog.Int64("cache_read_tokens", spend.CacheReadTokens),
-			slog.Int64("output_tokens", spend.OutputTokens), slog.String("usd", fmt.Sprintf("%.5f", spend.USD)))
+		attributes = spendOf(editorial.Spend)
 	}
 	switch {
 	case editorial.Failed != "":
@@ -79,6 +77,28 @@ func (l *Logged) logEditorial(choice posts.Choice) {
 		l.logger.Info("the editor made the run", append(attributes, slog.String("why", editorial.Why))...)
 	case len(choice.Chosen) > 0:
 		l.logger.Info("the editor had nothing to decide")
+	}
+}
+
+// How the war report's writer's call went; nothing when the lab told no story with a voice.
+func (l *Logged) logNarration(narration posts.Editorial) {
+	var attributes []any
+	if narration.Asked {
+		attributes = spendOf(narration.Spend)
+	}
+	switch {
+	case narration.Failed != "":
+		l.logger.Warn("the war report's writer gave no voice, and the lab's pick is the control's", append(attributes, slog.String("why", narration.Failed))...)
+	case narration.Asked:
+		l.logger.Info("the war report's writer wrote its voice", append(attributes, slog.String("why", narration.Why))...)
+	}
+}
+
+func spendOf(spend posts.Spend) []any {
+	return []any{
+		slog.String("model", spend.Model), slog.Int64("input_tokens", spend.InputTokens),
+		slog.Int64("cache_write_tokens", spend.CacheWriteTokens), slog.Int64("cache_read_tokens", spend.CacheReadTokens),
+		slog.Int64("output_tokens", spend.OutputTokens), slog.String("usd", fmt.Sprintf("%.5f", spend.USD)),
 	}
 }
 
@@ -107,6 +127,9 @@ func attributesOf(story posts.Story) []any {
 	}
 	if story.Hook != "" {
 		attributes = append(attributes, slog.String("hook", story.Hook))
+	}
+	if story.Script.Voiced() {
+		attributes = append(attributes, slog.String("title", story.Script.Title), slog.String("said", strings.Join(story.Script.Lines, " ")))
 	}
 	if story.Front > 0 {
 		place := story.Continent

@@ -39,6 +39,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 	findings := posts.Findings{
 		Since: written.GetSince().AsTime(), Until: written.GetUntil().AsTime(),
 		Names: written.GetNames(), Continents: map[string]string{}, ContinentTiles: map[string]int{}, Anthems: written.GetAnthems(),
+		Day: int(written.GetDay()),
 	}
 	for _, continent := range written.GetContinents() {
 		findings.Continents[continent.GetName()] = continent.GetFlag()
@@ -213,11 +214,20 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 		// The control is no experiment, and speaks English with no hook: none of the three is written.
 		Experiment: string(story.Experiment), Hook: story.Hook, Language: languageOf(story),
 		List: string(story.List), Ranks: ranks,
+		Script: scriptOf(story.Script),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write the story: %w", err)
 	}
 	return written, nil
+}
+
+// None for a clip with no voice, so its pick is written as before the war report.
+func scriptOf(script posts.Script) *clipsv1.Script {
+	if !script.Voiced() {
+		return nil
+	}
+	return &clipsv1.Script{Title: script.Title, Lines: script.Lines}
 }
 
 // English is left out, so a control pick is written as before the lab.

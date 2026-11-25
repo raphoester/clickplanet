@@ -3,8 +3,9 @@
 **Designed 2026-11-20, with the owner. PR 1 is built (2026-11-20): the lab's frame in the clips job and its first two
 experiments, far invasion and call to arms. PR 2 is built (2026-11-20): the owner's order, and the war report's bench. PR 3 is built (2026-11-20): the carousel,
 a list of countries in photos, on from its merge. PR 6 is built (2026-11-23): the readout, the backoffice's Lab page. PR
-4's renderer is built (2026-11-23): the war report's voice and subtitles in the clip.** The clips had one format, and the experiments of October only tuned
-it.
+4's renderer is built (2026-11-23): the war report's voice and subtitles in the clip. PR 4 is built (2026-11-25): the
+war report, signed off by the owner after round 2 of its bench, written in the clips job, voiced in the render job and
+posted, on from its merge.** The clips had one format, and the experiments of October only tuned it.
 The lab runs other formats beside it, on the two accounts the game already has, two or three at once, each post marked
 with the experiment it belongs to, and keeps a format only when its numbers beat the clips' of the same days. How the
 frame works is the backend's [The clips job](../apps/backend/docs/clips-job.md), "The lab", and the hook the
@@ -115,8 +116,8 @@ Then, the same day:
 
 **The owner ranked the experiments on 2026-11-20, and they are tested in that order**, two or three at once:
 
-1. **The war report, narrated.** It goes to production only once the owner has compared its scripts and voices and
-   signed one off (below, "The war report's bench").
+1. **The war report, narrated** (built, on). It went to production once the owner had compared its scripts and voices
+   and signed one off, on 2026-11-25 (below, "The war report's bench").
 2. **POV, the game itself.**
 3. **Far invasion** (built, on).
 4. **Rankings.**
@@ -124,16 +125,18 @@ Then, the same day:
    to 20:00 UTC, are Europe's evening, not Brazil's or Indonesia's, so its turn needs hours per country.
 6. **Satisfying.**
 
-Far invasion and the carousel (below, "Photos, not a video"), on from the merge of PR 3, run until the war report and
-POV join them: the coin draws evenly among the experiments on, so they share every lab slot meanwhile. Call to arms ran
-from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
+Far invasion and the carousel (below, "Photos, not a video"), on from the merge of PR 3, and the war report, on from
+the merge of PR 4, run until POV joins them: the coin draws evenly among the experiments on, so the three share every
+lab slot meanwhile. Call to arms ran from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
 
 ## The formats
 
-- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"**: about 20 s, a voice tells one
-  story's new chapter, one episode a day of the season, ending on what may come next. The editor chooses the story, as
-  for any lab story; a writer of its own writes what the voice says, from that story's facts alone, the tone, and the
-  episodes before it, so the series goes on from where it was. The globe plays the story under the voice, the anthem
+- **The war report, narrated: "DAY 9 OF THE INTERNET FIGHTING OVER A WORLD MAP"** (built, on): about 20 s, a voice
+  tells one story's new chapter, an episode of a series that runs all season, ending on what may come next. The editor
+  chooses the story, as for any lab story, to its brief (`briefs/war-report.md`): one clear thread, a place one flag
+  holds, a saga or an invasion that goes one way, never a front fought back and forth (round 1). A writer of its own
+  writes what the voice says, from that story's facts alone, the tone, the season's day and the episodes before it, so
+  the series goes on from where it was. The globe plays the story under the voice, the anthem
   at 16% beneath it, the voice from 0.4 s in. **The clip lasts as long as the voice**, its last words 0.4 s more, then
   its 2.5 s call: 45 to 65 words at 1.15 run 18.7 to 22.6 s in all (the ten scripts of 2026-11-23), past the clips'
   22 s when the voice needs it, 30 s at most (900 frames, 28 to 47 minutes at 1.9 to 3.1 s a frame, inside the render
@@ -141,9 +144,26 @@ from the merge of PR 1 to the merge of PR 2, the morning of 2026-11-20.
   **Kokoro** (open weights and code under Apache 2.0, its phonemizer too), run in Node with `kokoro-js`, for nothing; a
   paid voice only if every one of Kokoro's sounds made by a machine to the owner. **Every word said is on screen**
   (the owner, 2026-11-23, from two mockups): subtitles in chunks of up to 6 words, cut at the commas first, timed to the
-  voice, in the game's display face, **in place of the headline**, which stays the post's title (layout A). **Its
-  renderer is built** (2026-11-23): `npm run clip -- --voice <wav>`, the frontend's [Clips](../apps/frontend/docs/clips.md),
-  "A war report". Not built yet: its writer in the clips job, its experiment and its posting.
+  voice, in the game's display face, **in place of the headline** (layout A). **The post's title is the writer's**
+  ("DAY 25: PALAU STILL RULES RUSSIA"), the caption's opening and YouTube's title with the brand.
+  - **How it is made** (2026-11-25): the clips job's `choose` has the writer write the script of the lab's story when
+    the coin draws the war report, the storyteller's tone on Sonnet 5.5, as the owner signed off; the render job says it
+    with Kokoro's Adam at 1.15, then renders the clip with `--voice`; `schedule` posts it as any lab clip,
+    `experiment: war-report` in its record. A story the writer gives no script that can be voiced leaves its pick to
+    the control's next story, as a story that does not hold does. How each part works: the backend's [The clips
+    job](../apps/backend/docs/clips-job.md), "The war report", and the frontend's [Clips](../apps/frontend/docs/clips.md),
+    "A war report".
+  - **The episodes are the scripts of the last 10 war reports posted**, read back from each post's record, where the
+    generator keeps what the voice said (`clip.narration.lines`). `choose` already reads the season's posts from the
+    publishing module for the editor, so the series costs no read and no table more, and it holds what was posted:
+    Zernio's list is what was told, as for every story (a run whose clip was never rendered or never posted told
+    nothing). 10 are about 600 words, two or three days of episodes.
+  - **The day is the gamemaster's**: the generator writes the turn's day in progress into the findings (`day`), and the
+    writer says it once, early. 0 between two seasons, and the writer says none.
+  - **Up to 3 episodes a day, not one**: the coin draws the war report a third of the lab's slots while three
+    experiments are on, up to 3 of the 9 runs a day, and every one is the next episode. The writer is told the episodes
+    and the day, so two the same day go on from each other. A cap of one a day is a rule of the lab to add if the
+    owner wants it.
 - **POV, the game itself: "POV: IT'S 3AM AND YOU'RE THE LAST BELGIAN"**: the play screen and not the cinematic globe,
   its bar and counters, a finger tapping, bombs going off. The play page driven by the replay in the recorder, and a
   drawn finger. The biggest build of the list.
@@ -251,10 +271,12 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   **At 1.15 times Kokoro's pace, with 0.33 s between two sentences** (the owner, 2026-11-23: Kokoro's own pace and its
   1.25 s between sentences were too slow, 1.5 times too fast; 1.15 picked from 1.1 to 1.25).
 - **The rounds**: 1. the tones, on Opus, in Adam's voice, 3 stories: 15 scripts, about 8 minutes of listening, done
-  2026-11-23 (the lab's log). 2. the best two tones on the three models, in Adam's voice: not run yet, Opus writes
-  meanwhile. 3. whole videos of the winner on new stories: ten previews on 2026-11-23, the clip renderer with the
-  voice laid over it with ffmpeg, before the renderer played a voice (it does since the same day, `--voice`). **The
-  owner signs one off**, and only then is it an experiment of the lab.
+  2026-11-23 (the lab's log). 2. the best two tones, the storyteller and the commentator, on the three models, in
+  Adam's voice, 3 stories: 18 scripts, done 2026-11-25 (the lab's log). 3. whole videos of the winner on new stories:
+  ten previews on 2026-11-23, the clip renderer with the voice laid over it with ffmpeg, before the renderer played a
+  voice (it does since the same day, `--voice`). **The owner signed one off on 2026-11-25: the storyteller, written by
+  Sonnet 5.5, said by Adam at 1.15**, and the war report is an experiment of the lab since the merge of PR 4. The bench
+  stays, to try a change of tone, model or voice before it posts.
 
 ## What it costs
 
@@ -263,6 +285,7 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 | Zernio | nothing more: the two accounts there are; Instagram is $6 if taken |
 | Rendering | nothing: Actions are free for a public repository |
 | The editor | a brief, one story more a run and the thinking they take: about $0.50, $1.60 at most |
+| The war report's writer | about $0.03 a script on Sonnet, half of Opus's: up to 3 a day, about $3 |
 | The voice | nothing: Kokoro, in the render job |
 | The war report's bench | about $1 a round of 15 scripts on Opus, while it is tuned |
 | The owner | nothing to film; the readout when wanted; a verdict per experiment, every 10 days or so |
@@ -279,8 +302,9 @@ words are tuned on real stories, in several tones, and compared by the owner, be
 3. **The carousel** (built 2026-11-20), on from its merge: the lists in the findings, its brief, the stills and
    the slideshow, the photos to TikTok, `carouselList` in the post's metadata, the replay fetched 72 hours.
 4. **The war report's rounds**, run from the bench and compared by the owner, then its renderer (the voice under the
-   globe, its subtitles timed to it; built 2026-11-23) and its experiment, once signed off: the writer in the clips
-   job, the voice in the render job, the posting.
+   globe, its subtitles timed to it; built 2026-11-23) and its experiment, once signed off (built 2026-11-25, on from
+   its merge): its brief, the writer in the clips job, the day in the findings, the episodes from the posts' records,
+   the voice in the render job with Kokoro's model kept in the cache, the posting.
 5. **POV.**
 6. **The readout** (built 2026-11-23): auth's arrivals counted by source and by day (`auth.v1.AdminService/CountArrivals`,
    the one auth call Claude's connector makes too, `auth_count_arrivals`; see the backend's
@@ -310,4 +334,12 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   holds (Ireland's North America) was the best by far. The correspondent was "too factual, a series of uncorrelated
   facts". Then ten previews on the day's map, which gave the writer one thread, three countries and 45 to 65 words,
   Adam 1.15 times faster with short pauses, and the subtitles in place of the headline. Its renderer built the same
-  day (`--voice`). Not on yet: its writer in the clips job and its experiment.
+  day (`--voice`).
+  Round 2 on 2026-11-25, in a session: the findings of clips run 45594061875 (until 2026-11-25T10:21Z, season 1 day 25),
+  three stories: saga 5 (Palau rules Russia since the new map), front 4 (Egypt's comeback against Poland) and front 3
+  (Mexico invades Afghanistan from Bulgaria), each in the storyteller's and the commentator's tones by Haiku, Sonnet and
+  Opus 5.5, with the writer's instructions of round 1, said by Adam at 1.15: 18 scripts of 47 to 65 words, clips of 14
+  to 21 s. The owner listened blind on a page, in sets of three, one tone a set, and picked the best of each: **Sonnet
+  3, Opus 2, Haiku 1**; in the storyteller's sets Sonnet 2, Haiku 1, Opus 0; in the commentator's Opus 2, Sonnet 1. No
+  notes. **Signed off the same day: the storyteller, written by Sonnet 5.5, said by Adam at 1.15.** On from the merge
+  of PR 4.

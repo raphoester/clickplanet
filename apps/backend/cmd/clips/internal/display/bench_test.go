@@ -23,7 +23,7 @@ func TestTheBenchFileHoldsEachScriptWithItsIDWhatItSaysAndHowItMeasures(t *testi
 		Entries: []clips.BenchEntry{
 			{
 				Story: 1, Tone: "deadpan", Model: clips.Opus, Spend: clips.Spend{USD: 0.05},
-				Script: clips.Script{Title: "DAY 9: PALAU STILL OWNS RUSSIA", Lines: []string{"Day nine.", "Palau still owns Russia!"}},
+				Script: clips.Script{Script: clips.PostScript{Title: "DAY 9: PALAU STILL OWNS RUSSIA", Lines: []string{"Day nine.", "Palau still owns Russia!"}}},
 			},
 			{Story: 1, Tone: "storyteller", Model: clips.Haiku, Failed: "the model refused (general_harms)"},
 		},

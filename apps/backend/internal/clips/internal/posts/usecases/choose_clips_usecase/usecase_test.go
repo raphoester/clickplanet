@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/narration"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -79,8 +80,23 @@ func (e *editor) Edit(_ context.Context, offer posts.Offer) (posts.Edition, post
 	return e.edition, e.spend, e.err
 }
 
+// A fake writer of the war report: what it answers, and each story it was asked to voice.
+type narrator struct {
+	script  narration.Script
+	spend   posts.Spend
+	err     error
+	stories []posts.Story
+	told    [][]posts.Telling
+}
+
+func (n *narrator) Narrate(_ context.Context, _ posts.Findings, story posts.Story, told []posts.Telling) (narration.Script, posts.Spend, error) {
+	n.stories = append(n.stories, story)
+	n.told = append(n.told, told)
+	return n.script, n.spend, n.err
+}
+
 func editedBy(w written, h *history, model *editor) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, model, posts.LoadedDice(0))
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, model, &narrator{}, posts.LoadedDice(0))
 }
 
 func answering(stories ...posts.Story) *editor {
@@ -212,7 +228,8 @@ func TestEachRunRollsTheLabsSlotBeforeTheEditorReadsAnythingAndGivesItItsBrief(t
 	model := &editor{edition: posts.Edition{Lab: []posts.Story{story}}, spend: posts.Spend{Model: "claude-haiku-5-5"}}
 
 	// LoadedDice(2): the second pick, the first the day won takes.
-	choice, err := choose_clips_usecase.New(written{findings: found}, &history{}, &history{}, cptime.NewFixedClock(now), labbed, model, posts.LoadedDice(2)).
+	writer := &narrator{}
+	choice, err := choose_clips_usecase.New(written{findings: found}, &history{}, &history{}, cptime.NewFixedClock(now), labbed, model, writer, posts.LoadedDice(2)).
 		Execute(t.Context())
 
 	require.NoError(t, err)
@@ -221,6 +238,64 @@ func TestEachRunRollsTheLabsSlotBeforeTheEditorReadsAnythingAndGivesItItsBrief(t
 	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, posts.ExperimentName("far-invasion"), choice.Chosen[1].Story.Experiment)
 	assert.True(t, choice.LabTold)
+	assert.Empty(t, writer.stories, "no voice tells far invasion")
+	assert.Equal(t, posts.Editorial{}, choice.Narration)
+}
+
+var (
+	warReport = posts.Experiment{Name: "war-report", Brief: "One clear thread.", Format: posts.GlobeReplay, Narrated: true}
+	turkey    = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "tr", Rival: "fr", TakenFrom: []string{"fr"}, Countries: []string{"tr"}, Headline: "TURKEY VS FRANCE", Teasers: []string{"TURKEY FIGHTS BACK"}, Call: "PICK A SIDE", Look: posts.Dive}
+)
+
+// The war report at the second pick, the first the day won's; the control's story waits for room.
+func reporting(t *testing.T, writer *narrator, told []posts.Telling) (posts.Choice, posts.Story) {
+	t.Helper()
+	lab, err := posts.LabOf(warReport)
+	require.NoError(t, err)
+	labbed := room
+	labbed.Lab = lab
+	story := battle
+	story.Language = "en"
+	model := &editor{edition: posts.Edition{Stories: []posts.Story{turkey}, Lab: []posts.Story{story}}, spend: posts.Spend{Model: "claude-haiku-5-5"}}
+
+	choice, err := choose_clips_usecase.New(written{findings: found}, &history{told: told}, &history{}, cptime.NewFixedClock(now), labbed, model, writer, posts.LoadedDice(2)).
+		Execute(t.Context())
+	require.NoError(t, err)
+	story.Experiment = warReport.Name
+	return choice, story
+}
+
+func TestTheWarReportsStoryIsToldWithWhatItsVoiceSays(t *testing.T) {
+	script := posts.Script{Title: "DAY 25: FRANCE STORMS TURKEY", Lines: []string{"Day twenty five.", "France is in Turkey."}}
+	writer := &narrator{script: narration.Script{Script: script, Why: "the war"}, spend: posts.Spend{Model: "claude-sonnet-5-5", USD: 0.01}}
+	episode := posts.Telling{Key: posts.StoryKey{Flag: "pw", Continent: "Europe"}, Title: "DAY 24", At: now.Add(-20 * time.Hour), Said: []string{"Day twenty four."}}
+
+	choice, story := reporting(t, writer, []posts.Telling{episode})
+
+	require.Len(t, writer.stories, 1)
+	assert.Equal(t, posts.ExperimentName("war-report"), writer.stories[0].Experiment)
+	assert.Equal(t, [][]posts.Telling{{episode}}, writer.told, "the season's posts, its war reports among them")
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, script, choice.Chosen[1].Story.Script)
+	assert.Equal(t, story.Headline, choice.Chosen[1].Story.Headline)
+	assert.Empty(t, choice.Chosen[0].Story.Script, "the day won has no voice")
+	assert.True(t, choice.LabTold)
+	assert.Equal(t, posts.Editorial{Asked: true, Why: "the war", Spend: writer.spend}, choice.Narration)
+}
+
+func TestAWarReportTheWriterGivesNoVoiceLeavesItsPickToTheControlsNextStory(t *testing.T) {
+	refused := errors.New("the model refused (general_harms)")
+	writer := &narrator{err: refused, spend: posts.Spend{Model: "claude-sonnet-5-5", USD: 0.002}}
+
+	choice, story := reporting(t, writer, nil)
+
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, posts.Story{Seasonal: 1}, choice.Chosen[0].Story)
+	assert.Equal(t, turkey, choice.Chosen[1].Story)
+	assert.False(t, choice.LabTold)
+	assert.Equal(t, posts.Editorial{Asked: true, Spend: posts.Spend{Model: "claude-haiku-5-5"}}, choice.Editorial, "the editor's call is kept")
+	assert.Equal(t, posts.Editorial{Asked: true, Failed: refused.Error(), Spend: writer.spend}, choice.Narration)
+	assert.Contains(t, choice.Skipped, posts.Skipped{Story: story, Why: "the lab's war-report has no voice: " + refused.Error()})
 }
 
 func with(story posts.Story, headline, hook string) posts.Story {

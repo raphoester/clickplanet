@@ -77,8 +77,10 @@ func TestTheScriptIsTheModelsLinesWithItsTitleAndWhy(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, narration.Script{
-		Title: "DAY 9: PALAU STILL OWNS RUSSIA", Why: "Say the absurd flat.",
-		Lines: []string{"Day nine.", "Palau still owns Russia.", "Russia has not commented."},
+		Script: posts.Script{
+			Title: "DAY 9: PALAU STILL OWNS RUSSIA", Lines: []string{"Day nine.", "Palau still owns Russia.", "Russia has not commented."},
+		},
+		Why: "Say the absurd flat.",
 	}, script)
 	// 3,000 in at $4, 1,000 written to the cache at $5, 2,000 out at $20, a million each.
 	assert.InDelta(t, 0.012+0.005+0.04, spend.USD, 1e-9)

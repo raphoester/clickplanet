@@ -701,6 +701,12 @@ async function choose(): Promise<Chosen> {
             landmassesFlipped: flips.length, screens, tourStops: stops.length,
             fighters: clipFighters.length, line: words.line,
             ...written?.language === undefined ? {} : {language: written.language},
+            ...said === undefined ? {} : {
+                voice: {
+                    lines: said.map(({text}) => text), speaker: params.get("speaker") ?? "", pace: Number(params.get("pace") ?? 0),
+                    seconds: said.at(-1)?.to ?? 0,
+                },
+            },
         })
 
         return {
@@ -739,7 +745,7 @@ async function choose(): Promise<Chosen> {
     return {
         findings: findingsOf({
             since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, paths,
-            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(), lists, foughtSince,
+            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(), lists, foughtSince, day: turn?.timeline?.today?.number ?? 0,
             continentTiles: Object.fromEntries(tally(Array.from({length: borders.assignment.length}, (_, i) => continentAt(i + 1) ?? []).flat())),
         }).toJson(),
         record,

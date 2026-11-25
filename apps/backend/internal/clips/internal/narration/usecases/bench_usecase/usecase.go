@@ -15,13 +15,6 @@ type Findings interface {
 	Findings(ctx context.Context) (posts.Findings, error)
 }
 
-// What the editor was told of one story, alone, as JSON.
-type Facts func(findings posts.Findings, story posts.Story) (string, error)
-
-type Writer interface {
-	Write(ctx context.Context, model narration.Model, request narration.Request) (narration.Script, posts.Spend, error)
-}
-
 // Stories: how many the editor chooses. Day: the season's day the scripts say, 0 for none.
 type Round struct {
 	Stories int
@@ -34,15 +27,15 @@ type Executor interface {
 	Execute(ctx context.Context) (narration.Bench, error)
 }
 
-func New(findings Findings, editor choose_clips_usecase.Editor, facts Facts, writer Writer, round Round) *UseCase {
+func New(findings Findings, editor choose_clips_usecase.Editor, facts narration.Facts, writer narration.Writer, round Round) *UseCase {
 	return &UseCase{findings: findings, editor: editor, facts: facts, writer: writer, round: round}
 }
 
 type UseCase struct {
 	findings Findings
 	editor   choose_clips_usecase.Editor
-	facts    Facts
-	writer   Writer
+	facts    narration.Facts
+	writer   narration.Writer
 	round    Round
 }
 
@@ -59,7 +52,8 @@ func (u *UseCase) Execute(ctx context.Context) (narration.Bench, error) {
 
 	choice := choose_clips_usecase.Edit(ctx, u.editor, found, u.round.Stories, nil, found.Until, posts.LabSlot{})
 	bench := narration.Bench{At: found.Until, Editorial: choice.Editorial}
-	for _, chosen := range choice.Chosen {
+	for i := range choice.Chosen {
+		chosen := &choice.Chosen[i]
 		facts, err := u.facts(found, chosen.Story)
 		if err != nil {
 			return narration.Bench{}, fmt.Errorf("failed to read what the editor was told of %s: %w", chosen.Story.Names(), err)

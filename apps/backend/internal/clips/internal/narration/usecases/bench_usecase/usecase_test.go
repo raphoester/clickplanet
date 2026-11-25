@@ -65,7 +65,7 @@ func (w *writer) Write(_ context.Context, model narration.Model, request narrati
 	if request.Tone.Name == w.refuse {
 		return narration.Script{}, posts.Spend{Model: string(model), USD: 0.01}, errRefused
 	}
-	return narration.Script{Title: "DAY 9", Lines: []string{string(request.Tone.Name)}}, posts.Spend{Model: string(model), USD: 0.05}, nil
+	return narration.Script{Script: posts.Script{Title: "DAY 9", Lines: []string{string(request.Tone.Name)}}}, posts.Spend{Model: string(model), USD: 0.05}, nil
 }
 
 func facts(posts.Findings, posts.Story) (string, error) {
@@ -88,7 +88,7 @@ func TestEachStoryTheEditorChoseIsWrittenInEachToneByEachModel(t *testing.T) {
 	require.Len(t, bench.Entries, 4)
 	assert.Equal(t, []narration.Model{narration.Opus, narration.Haiku, narration.Opus, narration.Haiku}, scripts.models)
 	assert.Equal(t, narration.Request{Story: bench.Stories[0], Facts: `{"front":{"front":1}}`, Tone: correspondent, Day: 9}, scripts.requests[0])
-	assert.Equal(t, narration.Entry{Story: 1, Tone: "correspondent", Model: narration.Opus, Script: narration.Script{Title: "DAY 9", Lines: []string{"correspondent"}}, Spend: posts.Spend{Model: "claude-opus-5-5", USD: 0.05}}, bench.Entries[0])
+	assert.Equal(t, narration.Entry{Story: 1, Tone: "correspondent", Model: narration.Opus, Script: narration.Script{Script: posts.Script{Title: "DAY 9", Lines: []string{"correspondent"}}}, Spend: posts.Spend{Model: "claude-opus-5-5", USD: 0.05}}, bench.Entries[0])
 	assert.Equal(t, "the model refused", bench.Entries[2].Failed, "one refusal leaves the others to compare")
 	assert.InDelta(t, 0.002+0.05+0.05+0.01+0.01, bench.USD(), 1e-9)
 	assert.Equal(t, "the war", bench.Editorial.Why)
