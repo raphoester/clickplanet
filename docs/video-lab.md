@@ -162,8 +162,8 @@ lab slot meanwhile. Call to arms ran from the merge of PR 1 to the merge of PR 2
     writer says it once, early. 0 between two seasons, and the writer says none.
   - **Up to 3 episodes a day, not one**: the coin draws the war report a third of the lab's slots while three
     experiments are on, up to 3 of the 9 runs a day, and every one is the next episode. The writer is told the episodes
-    and the day, so two the same day go on from each other. A cap of one a day is a rule of the lab to add if the
-    owner wants it.
+    and the day, so two the same day go on from each other. **The owner kept it so on 2026-11-25**, over a cap of one
+    a day: more posts read in the experiment's 10 days.
 - **POV, the game itself: "POV: IT'S 3AM AND YOU'RE THE LAST BELGIAN"**: the play screen and not the cinematic globe,
   its bar and counters, a finger tapping, bombs going off. The play page driven by the replay in the recorder, and a
   drawn finger. The biggest build of the list.
