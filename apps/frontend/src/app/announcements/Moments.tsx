@@ -14,8 +14,10 @@ import ClipNotice from "../clips/ClipNotice.tsx"
 import {useClipNotice} from "../clips/useClipNotice.ts"
 import FlagMissionDone from "../missions/FlagMissionDone.tsx"
 import AskNudge from "../nudges/AskNudge.tsx"
+import SaleNudge from "../nudges/SaleNudge.tsx"
 import {useAsk} from "../nudges/useAsk.ts"
 import {useNudgeLane} from "../nudges/useNudgeLane.ts"
+import {useSaleNudge} from "../nudges/useSaleNudge.ts"
 import RoundReveal from "../season/RoundReveal.tsx"
 import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
@@ -28,6 +30,8 @@ import type {BoardAsset} from "../../domain/board.ts"
 import {wonTheDay} from "../../domain/roundReveal.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useCountry} from "../countryStore.ts"
+import {useFlagForm} from "../flags/flagFormStore.ts"
+import {useShop} from "../shop/shopStore.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 
 export type MomentsProps = {
@@ -68,7 +72,10 @@ export default function Moments(props: MomentsProps) {
     const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
     const worldGrew = useWorldGrew(props.board, props.guided)
-    const asks = useAsk({guided: props.guided, battlePlays: battle !== undefined}, battleTeaser.teased, now)
+    const scene = {guided: props.guided, battlePlays: battle !== undefined}
+    const sale = useSaleNudge(scene, now)
+    const saleRuns = useShop((store) => store.sale !== undefined)
+    const asks = useAsk({...scene, saleRuns}, battleTeaser.teased, now)
     const laneOpen = useNudgeLane(props.shown)
 
     useEffect(() => {
@@ -88,8 +95,9 @@ export default function Moments(props: MomentsProps) {
     useEffect(() => {
         if (!nudgeDue) return
         if (battleTeaser.teaser) announce({kind: "teaser", ...battleTeaser.teaser})
+        else if (sale.due) announce({kind: "sale", sale: sale.due})
         else if (asks.ask) announce({kind: "ask", ask: asks.ask})
-    }, [announce, nudgeDue, battleTeaser.teaser, asks.ask])
+    }, [announce, nudgeDue, battleTeaser.teaser, sale.due, asks.ask])
 
     const video = props.video
     const videoMoment = props.shown && video !== undefined && current !== undefined && (current.kind === "clip" || current.kind === "video"
@@ -182,6 +190,18 @@ export default function Moments(props: MomentsProps) {
                               play={props.play}
                               onClose={() => {
                                   worldGrew.dismiss()
+                                  dismiss()
+                              }}/>
+        case "sale":
+            return <SaleNudge key={key}
+                              sale={current.sale}
+                              onOpen={() => {
+                                  sale.seen(current.sale)
+                                  dismiss()
+                                  useFlagForm.getState().openShop()
+                              }}
+                              onClose={() => {
+                                  sale.seen(current.sale)
                                   dismiss()
                               }}/>
         case "ask":

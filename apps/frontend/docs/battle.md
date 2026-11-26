@@ -237,10 +237,10 @@ and the store `useAnnouncements` (`app/announcements/announcementsStore.ts`, see
 queue: a title unlocked, a battle's start, a battle's teaser, a day closed (the cutoff's reveal), a battle's
 three debrief screens, the season's results, a clip that names the player (see
 [In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)), the world grew (see [The board
-the page draws](board-reload.md#the-world-grew)), an ask (see [Nudges](nudges.md)).
+the page draws](board-reload.md#the-world-grew)), the shop's sale or an ask (see [Nudges](nudges.md)).
 `app/announcements/Moments.tsx` runs the hooks that say what is due (`useRoundReveal`, `useBattleReveal`,
 `useClipNotice`) and announces each; `PlayScreen` announces the title and the flag's mission. The nudges (the teaser,
-`useBattleTeaser`, and the asks, `useAsk`) go in only when the queue is empty (see [Nudges](nudges.md)).
+`useBattleTeaser`, the sale, `useSaleNudge`, and the asks, `useAsk`) go in only when the queue is empty (see [Nudges](nudges.md)).
 `Moments` shows the head of the queue once the map is loaded, tells the hook it came from when the player closes
 it, and the next starts. An
 announcement is queued once, by its key. So a round that closes while the player

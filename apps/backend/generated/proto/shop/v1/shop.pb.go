@@ -166,7 +166,9 @@ func (*ListPlansRequest) Descriptor() ([]byte, []int) {
 type ListPlansResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The week, the month and the year, in that order.
-	Plans         []*PlanPrice `protobuf:"bytes,1,rep,name=plans,proto3" json:"plans,omitempty"`
+	Plans []*PlanPrice `protobuf:"bytes,1,rep,name=plans,proto3" json:"plans,omitempty"`
+	// While a sale runs, by the server's clock: what it takes off every plan. None outside it, or while the shop is off.
+	Sale          *Sale `protobuf:"bytes,2,opt,name=sale,proto3,oneof" json:"sale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,6 +210,69 @@ func (x *ListPlansResponse) GetPlans() []*PlanPrice {
 	return nil
 }
 
+func (x *ListPlansResponse) GetSale() *Sale {
+	if x != nil {
+		return x.Sale
+	}
+	return nil
+}
+
+// A sale over every plan: it takes percent_off off each plan's first payment, the week's one payment, and the first
+// month or year of a plan that renews, which then renews at its full price.
+type Sale struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 50 is half.
+	PercentOff uint32 `protobuf:"varint,1,opt,name=percent_off,json=percentOff,proto3" json:"percent_off,omitempty"`
+	// The sale's end, excluded: a checkout made from then on pays the full price.
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Sale) Reset() {
+	*x = Sale{}
+	mi := &file_shop_v1_shop_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sale) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sale) ProtoMessage() {}
+
+func (x *Sale) ProtoReflect() protoreflect.Message {
+	mi := &file_shop_v1_shop_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sale.ProtoReflect.Descriptor instead.
+func (*Sale) Descriptor() ([]byte, []int) {
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Sale) GetPercentOff() uint32 {
+	if x != nil {
+		return x.PercentOff
+	}
+	return 0
+}
+
+func (x *Sale) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
 type PlanPrice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Plan  Plan                   `protobuf:"varint,1,opt,name=plan,proto3,enum=shop.v1.Plan" json:"plan,omitempty"`
@@ -222,7 +287,7 @@ type PlanPrice struct {
 
 func (x *PlanPrice) Reset() {
 	*x = PlanPrice{}
-	mi := &file_shop_v1_shop_proto_msgTypes[2]
+	mi := &file_shop_v1_shop_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +299,7 @@ func (x *PlanPrice) String() string {
 func (*PlanPrice) ProtoMessage() {}
 
 func (x *PlanPrice) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[2]
+	mi := &file_shop_v1_shop_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +312,7 @@ func (x *PlanPrice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanPrice.ProtoReflect.Descriptor instead.
 func (*PlanPrice) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{2}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PlanPrice) GetPlan() Plan {
@@ -294,7 +359,7 @@ type CreateCheckoutRequest struct {
 
 func (x *CreateCheckoutRequest) Reset() {
 	*x = CreateCheckoutRequest{}
-	mi := &file_shop_v1_shop_proto_msgTypes[3]
+	mi := &file_shop_v1_shop_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -306,7 +371,7 @@ func (x *CreateCheckoutRequest) String() string {
 func (*CreateCheckoutRequest) ProtoMessage() {}
 
 func (x *CreateCheckoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[3]
+	mi := &file_shop_v1_shop_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -319,7 +384,7 @@ func (x *CreateCheckoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCheckoutRequest.ProtoReflect.Descriptor instead.
 func (*CreateCheckoutRequest) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{3}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateCheckoutRequest) GetPlan() Plan {
@@ -389,7 +454,7 @@ type CreateCheckoutResponse struct {
 
 func (x *CreateCheckoutResponse) Reset() {
 	*x = CreateCheckoutResponse{}
-	mi := &file_shop_v1_shop_proto_msgTypes[4]
+	mi := &file_shop_v1_shop_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +466,7 @@ func (x *CreateCheckoutResponse) String() string {
 func (*CreateCheckoutResponse) ProtoMessage() {}
 
 func (x *CreateCheckoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[4]
+	mi := &file_shop_v1_shop_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +479,7 @@ func (x *CreateCheckoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCheckoutResponse.ProtoReflect.Descriptor instead.
 func (*CreateCheckoutResponse) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{4}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateCheckoutResponse) GetUrl() string {
@@ -432,7 +497,7 @@ type ListMyRenewalsRequest struct {
 
 func (x *ListMyRenewalsRequest) Reset() {
 	*x = ListMyRenewalsRequest{}
-	mi := &file_shop_v1_shop_proto_msgTypes[5]
+	mi := &file_shop_v1_shop_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +509,7 @@ func (x *ListMyRenewalsRequest) String() string {
 func (*ListMyRenewalsRequest) ProtoMessage() {}
 
 func (x *ListMyRenewalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[5]
+	mi := &file_shop_v1_shop_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +522,7 @@ func (x *ListMyRenewalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRenewalsRequest.ProtoReflect.Descriptor instead.
 func (*ListMyRenewalsRequest) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{5}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{6}
 }
 
 type ListMyRenewalsResponse struct {
@@ -469,7 +534,7 @@ type ListMyRenewalsResponse struct {
 
 func (x *ListMyRenewalsResponse) Reset() {
 	*x = ListMyRenewalsResponse{}
-	mi := &file_shop_v1_shop_proto_msgTypes[6]
+	mi := &file_shop_v1_shop_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +546,7 @@ func (x *ListMyRenewalsResponse) String() string {
 func (*ListMyRenewalsResponse) ProtoMessage() {}
 
 func (x *ListMyRenewalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[6]
+	mi := &file_shop_v1_shop_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +559,7 @@ func (x *ListMyRenewalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRenewalsResponse.ProtoReflect.Descriptor instead.
 func (*ListMyRenewalsResponse) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{6}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListMyRenewalsResponse) GetRenewals() []*Renewal {
@@ -522,7 +587,7 @@ type Renewal struct {
 
 func (x *Renewal) Reset() {
 	*x = Renewal{}
-	mi := &file_shop_v1_shop_proto_msgTypes[7]
+	mi := &file_shop_v1_shop_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +599,7 @@ func (x *Renewal) String() string {
 func (*Renewal) ProtoMessage() {}
 
 func (x *Renewal) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[7]
+	mi := &file_shop_v1_shop_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +612,7 @@ func (x *Renewal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Renewal.ProtoReflect.Descriptor instead.
 func (*Renewal) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{7}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Renewal) GetId() string {
@@ -628,7 +693,7 @@ type StopRenewalRequest struct {
 
 func (x *StopRenewalRequest) Reset() {
 	*x = StopRenewalRequest{}
-	mi := &file_shop_v1_shop_proto_msgTypes[8]
+	mi := &file_shop_v1_shop_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -640,7 +705,7 @@ func (x *StopRenewalRequest) String() string {
 func (*StopRenewalRequest) ProtoMessage() {}
 
 func (x *StopRenewalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[8]
+	mi := &file_shop_v1_shop_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -653,7 +718,7 @@ func (x *StopRenewalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRenewalRequest.ProtoReflect.Descriptor instead.
 func (*StopRenewalRequest) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{8}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StopRenewalRequest) GetRenewalId() string {
@@ -672,7 +737,7 @@ type StopRenewalResponse struct {
 
 func (x *StopRenewalResponse) Reset() {
 	*x = StopRenewalResponse{}
-	mi := &file_shop_v1_shop_proto_msgTypes[9]
+	mi := &file_shop_v1_shop_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -684,7 +749,7 @@ func (x *StopRenewalResponse) String() string {
 func (*StopRenewalResponse) ProtoMessage() {}
 
 func (x *StopRenewalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shop_v1_shop_proto_msgTypes[9]
+	mi := &file_shop_v1_shop_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -697,7 +762,7 @@ func (x *StopRenewalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRenewalResponse.ProtoReflect.Descriptor instead.
 func (*StopRenewalResponse) Descriptor() ([]byte, []int) {
-	return file_shop_v1_shop_proto_rawDescGZIP(), []int{9}
+	return file_shop_v1_shop_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StopRenewalResponse) GetRenewal() *Renewal {
@@ -712,9 +777,15 @@ var File_shop_v1_shop_proto protoreflect.FileDescriptor
 const file_shop_v1_shop_proto_rawDesc = "" +
 	"\n" +
 	"\x12shop/v1/shop.proto\x12\ashop.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x12\n" +
-	"\x10ListPlansRequest\"=\n" +
+	"\x10ListPlansRequest\"n\n" +
 	"\x11ListPlansResponse\x12(\n" +
-	"\x05plans\x18\x01 \x03(\v2\x12.shop.v1.PlanPriceR\x05plans\"z\n" +
+	"\x05plans\x18\x01 \x03(\v2\x12.shop.v1.PlanPriceR\x05plans\x12&\n" +
+	"\x04sale\x18\x02 \x01(\v2\r.shop.v1.SaleH\x00R\x04sale\x88\x01\x01B\a\n" +
+	"\x05_sale\"\\\n" +
+	"\x04Sale\x12\x1f\n" +
+	"\vpercent_off\x18\x01 \x01(\rR\n" +
+	"percentOff\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"z\n" +
 	"\tPlanPrice\x12!\n" +
 	"\x04plan\x18\x01 \x01(\x0e2\r.shop.v1.PlanR\x04plan\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\rR\x06amount\x12\x1a\n" +
@@ -775,44 +846,47 @@ func file_shop_v1_shop_proto_rawDescGZIP() []byte {
 }
 
 var file_shop_v1_shop_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_shop_v1_shop_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_shop_v1_shop_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_shop_v1_shop_proto_goTypes = []any{
 	(Plan)(0),                      // 0: shop.v1.Plan
 	(RenewalState)(0),              // 1: shop.v1.RenewalState
 	(*ListPlansRequest)(nil),       // 2: shop.v1.ListPlansRequest
 	(*ListPlansResponse)(nil),      // 3: shop.v1.ListPlansResponse
-	(*PlanPrice)(nil),              // 4: shop.v1.PlanPrice
-	(*CreateCheckoutRequest)(nil),  // 5: shop.v1.CreateCheckoutRequest
-	(*CreateCheckoutResponse)(nil), // 6: shop.v1.CreateCheckoutResponse
-	(*ListMyRenewalsRequest)(nil),  // 7: shop.v1.ListMyRenewalsRequest
-	(*ListMyRenewalsResponse)(nil), // 8: shop.v1.ListMyRenewalsResponse
-	(*Renewal)(nil),                // 9: shop.v1.Renewal
-	(*StopRenewalRequest)(nil),     // 10: shop.v1.StopRenewalRequest
-	(*StopRenewalResponse)(nil),    // 11: shop.v1.StopRenewalResponse
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(*Sale)(nil),                   // 4: shop.v1.Sale
+	(*PlanPrice)(nil),              // 5: shop.v1.PlanPrice
+	(*CreateCheckoutRequest)(nil),  // 6: shop.v1.CreateCheckoutRequest
+	(*CreateCheckoutResponse)(nil), // 7: shop.v1.CreateCheckoutResponse
+	(*ListMyRenewalsRequest)(nil),  // 8: shop.v1.ListMyRenewalsRequest
+	(*ListMyRenewalsResponse)(nil), // 9: shop.v1.ListMyRenewalsResponse
+	(*Renewal)(nil),                // 10: shop.v1.Renewal
+	(*StopRenewalRequest)(nil),     // 11: shop.v1.StopRenewalRequest
+	(*StopRenewalResponse)(nil),    // 12: shop.v1.StopRenewalResponse
+	(*timestamppb.Timestamp)(nil),  // 13: google.protobuf.Timestamp
 }
 var file_shop_v1_shop_proto_depIdxs = []int32{
-	4,  // 0: shop.v1.ListPlansResponse.plans:type_name -> shop.v1.PlanPrice
-	0,  // 1: shop.v1.PlanPrice.plan:type_name -> shop.v1.Plan
-	0,  // 2: shop.v1.CreateCheckoutRequest.plan:type_name -> shop.v1.Plan
-	9,  // 3: shop.v1.ListMyRenewalsResponse.renewals:type_name -> shop.v1.Renewal
-	0,  // 4: shop.v1.Renewal.plan:type_name -> shop.v1.Plan
-	1,  // 5: shop.v1.Renewal.state:type_name -> shop.v1.RenewalState
-	12, // 6: shop.v1.Renewal.period_ends_at:type_name -> google.protobuf.Timestamp
-	9,  // 7: shop.v1.StopRenewalResponse.renewal:type_name -> shop.v1.Renewal
-	2,  // 8: shop.v1.ShopService.ListPlans:input_type -> shop.v1.ListPlansRequest
-	5,  // 9: shop.v1.ShopService.CreateCheckout:input_type -> shop.v1.CreateCheckoutRequest
-	7,  // 10: shop.v1.ShopService.ListMyRenewals:input_type -> shop.v1.ListMyRenewalsRequest
-	10, // 11: shop.v1.ShopService.StopRenewal:input_type -> shop.v1.StopRenewalRequest
-	3,  // 12: shop.v1.ShopService.ListPlans:output_type -> shop.v1.ListPlansResponse
-	6,  // 13: shop.v1.ShopService.CreateCheckout:output_type -> shop.v1.CreateCheckoutResponse
-	8,  // 14: shop.v1.ShopService.ListMyRenewals:output_type -> shop.v1.ListMyRenewalsResponse
-	11, // 15: shop.v1.ShopService.StopRenewal:output_type -> shop.v1.StopRenewalResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	5,  // 0: shop.v1.ListPlansResponse.plans:type_name -> shop.v1.PlanPrice
+	4,  // 1: shop.v1.ListPlansResponse.sale:type_name -> shop.v1.Sale
+	13, // 2: shop.v1.Sale.ends_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: shop.v1.PlanPrice.plan:type_name -> shop.v1.Plan
+	0,  // 4: shop.v1.CreateCheckoutRequest.plan:type_name -> shop.v1.Plan
+	10, // 5: shop.v1.ListMyRenewalsResponse.renewals:type_name -> shop.v1.Renewal
+	0,  // 6: shop.v1.Renewal.plan:type_name -> shop.v1.Plan
+	1,  // 7: shop.v1.Renewal.state:type_name -> shop.v1.RenewalState
+	13, // 8: shop.v1.Renewal.period_ends_at:type_name -> google.protobuf.Timestamp
+	10, // 9: shop.v1.StopRenewalResponse.renewal:type_name -> shop.v1.Renewal
+	2,  // 10: shop.v1.ShopService.ListPlans:input_type -> shop.v1.ListPlansRequest
+	6,  // 11: shop.v1.ShopService.CreateCheckout:input_type -> shop.v1.CreateCheckoutRequest
+	8,  // 12: shop.v1.ShopService.ListMyRenewals:input_type -> shop.v1.ListMyRenewalsRequest
+	11, // 13: shop.v1.ShopService.StopRenewal:input_type -> shop.v1.StopRenewalRequest
+	3,  // 14: shop.v1.ShopService.ListPlans:output_type -> shop.v1.ListPlansResponse
+	7,  // 15: shop.v1.ShopService.CreateCheckout:output_type -> shop.v1.CreateCheckoutResponse
+	9,  // 16: shop.v1.ShopService.ListMyRenewals:output_type -> shop.v1.ListMyRenewalsResponse
+	12, // 17: shop.v1.ShopService.StopRenewal:output_type -> shop.v1.StopRenewalResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_shop_v1_shop_proto_init() }
@@ -820,11 +894,12 @@ func file_shop_v1_shop_proto_init() {
 	if File_shop_v1_shop_proto != nil {
 		return
 	}
-	file_shop_v1_shop_proto_msgTypes[3].OneofWrappers = []any{
+	file_shop_v1_shop_proto_msgTypes[1].OneofWrappers = []any{}
+	file_shop_v1_shop_proto_msgTypes[4].OneofWrappers = []any{
 		(*CreateCheckoutRequest_SubmissionId)(nil),
 		(*CreateCheckoutRequest_Flag)(nil),
 	}
-	file_shop_v1_shop_proto_msgTypes[7].OneofWrappers = []any{
+	file_shop_v1_shop_proto_msgTypes[8].OneofWrappers = []any{
 		(*Renewal_SubmissionId)(nil),
 		(*Renewal_Flag)(nil),
 	}
@@ -834,7 +909,7 @@ func file_shop_v1_shop_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shop_v1_shop_proto_rawDesc), len(file_shop_v1_shop_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

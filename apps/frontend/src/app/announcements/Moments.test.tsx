@@ -7,11 +7,13 @@ import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {FlagMission} from "../../backends/missions.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {BATTLE_TEASED_STORAGE_KEY} from "../../domain/battleTeaser.ts"
-import {NUDGE_SETTLE_MS, NUDGES_STORAGE_KEY} from "../../domain/nudges.ts"
+import {NUDGE_SETTLE_MS, NUDGES_STORAGE_KEY, SALE_SEEN_STORAGE_KEY} from "../../domain/nudges.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {NO_SCHEDULE, useSchedule} from "../battle/scheduleStore.ts"
 import {useTeaserCards} from "../battle/teaserCardsStore.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
+import {useFlagForm} from "../flags/flagFormStore.ts"
+import {useShop} from "../shop/shopStore.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 import Moments from "./Moments.tsx"
 import {boardOf} from "../viewer/boards.ts"
@@ -52,8 +54,22 @@ afterEach(() => {
     useAnnouncements.setState({queue: []})
     useSchedule.setState(NO_SCHEDULE)
     useTeaserCards.getState().serve(undefined)
+    useShop.setState(useShop.getInitialState(), true)
+    useFlagForm.getState().close()
     vi.useRealTimers()
 })
+
+const PLANS = [
+    {plan: "week" as const, amount: 400, currency: "eur", renews: false},
+    {plan: "month" as const, amount: 1000, currency: "eur", renews: true},
+    {plan: "year" as const, amount: 6000, currency: "eur", renews: true},
+]
+
+function onSale(): number {
+    const endsAt = Date.now() + 2 * 24 * 60 * 60 * 1000
+    useShop.setState({plans: PLANS, sale: {percentOff: 50, endsAt}})
+    return endsAt
+}
 
 describe("Moments", () => {
     it("shows nothing before the map is loaded, then the first moment queued", () => {
@@ -118,6 +134,51 @@ describe("Moments", () => {
 
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(JSON.parse(window.localStorage.getItem(NUDGES_STORAGE_KEY) ?? "")).toMatchObject({opened: {tiktok: expect.any(Number)}})
+    })
+
+    it("shows the sale in place of any ask, its plans at half price, and its button opens the region's flag", async () => {
+        const endsAt = onSale()
+        render(moments(true))
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
+
+        const shown = screen.getByRole("dialog", {name: "Black Friday"})
+        expect(shown.textContent).toContain("-50%")
+        expect(screen.getAllByRole("listitem").map((plan) => plan.textContent)).toEqual(["1 week€4€2", "1 month€10€5", "1 year€60€30"])
+        await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("button", {name: "Put your region on the map"}))
+
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(useFlagForm.getState().shown).toBe(true)
+        expect(JSON.parse(window.localStorage.getItem(SALE_SEEN_STORAGE_KEY) ?? "")).toMatchObject({key: String(endsAt)})
+        expect(window.localStorage.getItem(NUDGES_STORAGE_KEY), "no ask while the sale runs").toBeNull()
+    })
+
+    it("shows the battle's teaser before the sale, then the sale", async () => {
+        onSale()
+        const startsAt = Date.now() + 3 * 60 * 60 * 1000
+        const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
+        useSchedule.setState({battles: [next]})
+        useTeaserCards.getState().serve(new FakePromoBackend())
+        render(moments(true))
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
+
+        expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()
+        act(() => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))
+        const user = userEvent.setup({advanceTimers: vi.advanceTimersByTime})
+        await user.click(screen.getByRole("button", {name: "To the globe"}))
+
+        expect(await screen.findByRole("dialog", {name: "Black Friday"})).toBeDefined()
+        await user.click(screen.getByRole("button", {name: "Close"}))
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(window.localStorage.getItem(SALE_SEEN_STORAGE_KEY), "close counts as seen").not.toBeNull()
+    })
+
+    it("shows no sale on a first visit", async () => {
+        onSale()
+        render(<Moments shown board={onEarth1} guided clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+                        play={vi.fn()} onWear={vi.fn()}/>)
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
+
+        expect(screen.queryByRole("dialog")).toBeNull()
     })
 
     it("asks nothing on a first visit", async () => {

@@ -1,11 +1,16 @@
 import {useEffect} from "react"
 import {create} from "zustand"
 import {Shop} from "../../backends/shop.ts"
-import type {Plan, PlanPrice, Renewal} from "../../domain/shop.ts"
+import {Plan, PlanPrice, Renewal, Sale, saleRuns} from "../../domain/shop.ts"
+
+// setTimeout's longest wait: a sale that ends later is checked again then.
+const LONGEST_WAIT_MS = 2 ** 31 - 1
 
 type ShopStore = {
     // None while the shop is off, or until a read: then no plan and no pay button shows.
     plans: readonly PlanPrice[]
+    // While a sale runs: dropped at its end with no read.
+    sale?: Sale
     // The plan the player picked last, in the shop or in the flag's place; none shows the best value.
     chosen?: Plan
     choose: (plan: Plan) => void
@@ -22,10 +27,24 @@ export const useShop = create<ShopStore>()((set) => {
     let shop: Shop | undefined
     let signedIn = false
     let served = 0
+    let saleEnds: ReturnType<typeof setTimeout> | undefined
 
-    const readPlans = (from: Shop, generation: number) => from.plans().then(
-        (plans) => {
-            if (generation === served) set({plans})
+    const keepSale = (sale: Sale | undefined) => {
+        clearTimeout(saleEnds)
+        saleEnds = undefined
+        if (!saleRuns(sale, Date.now())) {
+            set({sale: undefined})
+            return
+        }
+        set({sale})
+        saleEnds = setTimeout(() => keepSale(sale), Math.min(sale.endsAt - Date.now(), LONGEST_WAIT_MS))
+    }
+
+    const readPlans = (from: Shop, generation: number) => from.catalog().then(
+        ({plans, sale}) => {
+            if (generation !== served) return
+            set({plans})
+            keepSale(sale)
         },
         (e: unknown) => console.error("could not read the plans on sale", e),
     )
@@ -39,6 +58,7 @@ export const useShop = create<ShopStore>()((set) => {
             signedIn = linked
             served += 1
             set({plans: [], renewals: []})
+            keepSale(undefined)
             if (next !== undefined) void readPlans(next, served)
         },
         refresh: () => {

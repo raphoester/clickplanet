@@ -1,0 +1,223 @@
+/* The sale's screen is black and gold: the title reveal's stage on ink, a gold light behind a gold tag. */
+.sale-nudge {
+    background-color: var(--ink);
+}
+
+.sale-nudge::before {
+    background:
+        radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gold) 24%, transparent), transparent 52%),
+        repeating-linear-gradient(-45deg, color-mix(in srgb, var(--gold) 6%, transparent) 0 14px, transparent 14px 28px);
+}
+
+/* The sale makes no sound: the stage lands with no shake. Wider than a title's, so "Black Friday" holds on one line. */
+.sale-nudge-stage {
+    max-width: 680px;
+    animation: title-reveal-thud 240ms ease-out 420ms;
+}
+
+.sale-nudge-close {
+    position: fixed;
+    top: var(--space-3);
+    right: var(--space-3);
+    z-index: 2;
+}
+
+.sale-nudge-head {
+    font-size: clamp(var(--display-l), min(14vw, 9vh), var(--display-hero));
+    color: var(--gold);
+}
+
+.sale-nudge-burst {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin: var(--space-5) 0 var(--space-4);
+}
+
+.sale-nudge-rays {
+    inset: -70% -45%;
+    z-index: 0;
+    opacity: 0.4;
+}
+
+/* A gold swing tag on its string, the cut on it. */
+.sale-nudge-tag {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-5) 0 calc(var(--space-6) + var(--space-3));
+    background: var(--gold);
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-l) var(--radius-m) var(--radius-m) var(--radius-l);
+    box-shadow: var(--drop-l), inset 0 -6px 0 var(--gold-shade), inset 0 4px 0 var(--gold-light);
+    rotate: 5deg;
+    animation: title-reveal-slam 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) var(--impact) both;
+}
+
+.sale-nudge-tag::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: var(--space-4);
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    background: var(--ink);
+    border-radius: 50%;
+    box-shadow: inset 0 3px 0 var(--gold-shade), 0 0 0 var(--outline-thin) var(--gold-shade);
+}
+
+.sale-nudge-tag::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: calc(var(--space-4) + 7px);
+    width: 64px;
+    height: 3px;
+    margin-top: -1px;
+    background: var(--cream);
+    border-radius: var(--radius-pill);
+    box-shadow: 0 0 0 1px var(--ink);
+    transform-origin: 0 50%;
+    rotate: 200deg;
+}
+
+.sale-nudge-cut {
+    font-family: var(--font-display);
+    font-size: clamp(72px, min(24vw, 16vh), var(--display-hero));
+    line-height: 1;
+    color: var(--gold-ink);
+    text-shadow: 0 4px 0 var(--gold-light);
+    white-space: nowrap;
+}
+
+.sale-nudge-line {
+    position: relative;
+    z-index: 1;
+    margin: var(--space-2) 0 var(--space-4);
+    font-size: var(--text-l);
+    font-weight: 600;
+    color: var(--cream);
+    text-wrap: balance;
+}
+
+.sale-nudge-plans {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    width: min(420px, 100%);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sale-nudge-plan {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: var(--space-2) var(--space-1) var(--space-3);
+    background: color-mix(in srgb, var(--gold) 12%, var(--ink));
+    border: var(--outline-thin) solid color-mix(in srgb, var(--gold) 55%, var(--ink));
+    border-radius: var(--radius-m);
+    box-shadow: var(--drop-s);
+}
+
+.sale-nudge-plan-name {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1.1;
+    color: var(--text-soft);
+    white-space: nowrap;
+}
+
+.sale-nudge-was {
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+.sale-nudge-was .shop-currency {
+    font-size: 0.8em;
+}
+
+.sale-nudge-now {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 2px;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-outline);
+    white-space: nowrap;
+}
+
+.sale-nudge-now .shop-currency {
+    font-size: 0.55em;
+    line-height: 1;
+}
+
+.sale-nudge-clock {
+    position: relative;
+    z-index: 1;
+    margin: var(--space-4) 0 0;
+    padding: 3px var(--space-3) 2px;
+    color: var(--gold-light);
+    background: color-mix(in srgb, var(--gold) 12%, var(--ink));
+    border-radius: var(--radius-m);
+    box-shadow: inset 0 0 0 var(--outline-thin) color-mix(in srgb, var(--gold) 45%, var(--ink));
+    font-weight: 700;
+    font-size: var(--text-l);
+    font-variant-numeric: tabular-nums;
+    text-wrap: balance;
+}
+
+.sale-nudge-actions {
+    justify-content: center;
+    margin-top: var(--space-4);
+}
+
+.sale-nudge-fine {
+    position: relative;
+    z-index: 1;
+    max-width: 360px;
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-wrap: balance;
+}
+
+/* A desktop's screen: the plans as large as the tag. */
+@media (min-width: 769px) and (min-height: 601px) {
+    .sale-nudge-plans {
+        width: min(480px, 100%);
+    }
+
+    .sale-nudge-plan-name {
+        font-size: var(--display-m);
+    }
+
+    .sale-nudge-now {
+        font-size: var(--display-xxl);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sale-nudge-stage {
+        animation: none;
+    }
+
+    .sale-nudge-tag {
+        animation: title-reveal-appear 300ms ease-out both;
+    }
+}

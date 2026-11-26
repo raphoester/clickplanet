@@ -130,8 +130,8 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
 
 **`FlagPaywall` shows the flag sent, its review's verdict as it comes, and the plans once**: the flag card with its
 state's chip, one line, and while the shop sells and the flag is not paid, `PlanOffer`: the plans, the consent and
-Pay (`CreateCheckout{plan, submission_id, starts_now}`, see [The shop](shop.md#the-offer)). **Pay never waits for the
-verdict.** While the flag waits, the page reads `ListMySubmissions` every 3 seconds for 2 minutes at most
+Pay (`CreateCheckout{plan, submission_id, starts_now}`, see [The shop](shop.md#the-offer)), at the sale's prices with
+its clock while a sale runs (see [The shop](shop.md#a-sale)). **Pay never waits for the verdict.** While the flag waits, the page reads `ListMySubmissions` every 3 seconds for 2 minutes at most
 (`useVerdictReads`), and a newer read of the flag wins over the one sent.
 
 - **Waiting, not paid**: "We check it after you pay." (the judge left it unsure, or has not answered yet; the operator

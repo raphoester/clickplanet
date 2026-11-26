@@ -35,6 +35,7 @@ import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import {MenuTab, useScreen} from "./hud/screenStore.ts"
 import {useFlagForm} from "./flags/flagFormStore.ts"
+import SaleTag from "./shop/SaleTag.tsx"
 import {useShop} from "./shop/shopStore.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {t, translator} from "../i18n/page.ts"
@@ -142,13 +143,16 @@ export default function Menu(props: MenuProps) {
                 </button>)}
             </div>
             {(selling || account.kind === "ready") && <div className="menu-rail-modals">
-                {selling && <button type="button"
-                                    className="menu-rail-item menu-rail-shop shop-shine"
-                                    aria-haspopup="dialog"
-                                    onClick={openShop}>
-                    <ShopIcon/>
-                    <span className="menu-rail-label">{t("menu.shop")}</span>
-                </button>}
+                {selling && <span className="shop-door">
+                    <button type="button"
+                            className="menu-rail-item menu-rail-shop shop-shine"
+                            aria-haspopup="dialog"
+                            onClick={openShop}>
+                        <ShopIcon/>
+                        <span className="menu-rail-label">{t("menu.shop")}</span>
+                    </button>
+                    <SaleTag/>
+                </span>}
                 {account.kind === "ready" && <button type="button"
                                                      className="menu-rail-item"
                                                      aria-haspopup="dialog"

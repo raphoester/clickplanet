@@ -52,6 +52,7 @@ import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missio
 import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
+import {useShop} from "./app/shop/shopStore.ts"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
 import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
@@ -327,6 +328,16 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shopOff: () => fakeShop.turn(false),
         shopOn: () => fakeShop.turn(true),
         refuseCheckouts: (refusal?: ShopRefusal) => fakeShop.refuse(refusal),
+        startSale: (minutes = 60, percentOff = 50) => {
+            const said = fakeShop.sell(minutes, percentOff)
+            useShop.getState().refresh()
+            return said
+        },
+        endSale: () => {
+            const said = fakeShop.endSale()
+            useShop.getState().refresh()
+            return said
+        },
         removeFlag: (code: string, note = "It broke the game's rules.") => fakeFlags.remove(code, note)
             ? `${code} is removed: its players pick another flag, its land stays, nobody may pay for it, its holder reads the note, and addTime(code) brings it back`
             : `no flag ${code} to remove, or no note: openFlag(name) answers one`,

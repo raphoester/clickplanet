@@ -36,7 +36,7 @@ const submission = (changes: Partial<Submission> = {}): Submission => ({
 })
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({
-    plans: vi.fn(async () => []),
+    catalog: vi.fn(async () => ({plans: []})),
     checkout: vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1"),
     myRenewals: vi.fn(async () => []),
     stopRenewal: vi.fn(),

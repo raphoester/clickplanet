@@ -149,6 +149,7 @@
     font-weight: 600;
     font-size: var(--text-xs);
     color: var(--text-muted);
+    text-wrap: balance;
 }
 
 /* At the bottom of each card, so the prices by the day line up across the plans. */
@@ -322,4 +323,92 @@
     .shop-shine::after {
         animation: none;
     }
+}
+
+/* A sale: each card's own price crossed out over the sale's. */
+.shop-plan-was {
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+/* The line over a price no longer asked crosses its digits, never the euro's two bars. */
+.shop-struck {
+    text-decoration-line: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--text-soft);
+}
+
+.shop-plan-was .shop-currency {
+    font-size: 0.8em;
+}
+
+.shop-plans--sale .shop-plan-amount {
+    padding-top: 0;
+    color: var(--gold);
+}
+
+/* The sale's name and its clock, over the plans. */
+.shop-sale-clock {
+    align-self: center;
+    margin: 0;
+    padding: 3px var(--space-3) 2px;
+    color: var(--gold);
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    box-shadow: var(--drop-xs), inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
+    font-weight: 700;
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    text-wrap: balance;
+}
+
+/* The time left is never cut in two: a line too long breaks before it. */
+.shop-sale-left {
+    white-space: nowrap;
+}
+
+/* A door to the shop and, while a sale runs, its cut on its corner: outside the button, which clips its shine. */
+.shop-door {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+}
+
+.shop-door > button {
+    flex: 1 1 auto;
+}
+
+.shop-sale-tag {
+    position: absolute;
+    top: -7px;
+    right: -9px;
+    z-index: 1;
+    padding: 1px 4px;
+    color: var(--gold);
+    background: var(--panel-sunk);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--drop-xs);
+    font-size: var(--text-xs);
+    line-height: 1.1;
+    white-space: nowrap;
+    pointer-events: none;
+    rotate: 8deg;
+}
+
+.menu-rail .shop-sale-tag {
+    top: -6px;
+    right: -4px;
+}
+
+/* The status bar has no room over its buttons: the tag hangs from the bag's lower corner. */
+.status-bar .shop-sale-tag {
+    top: auto;
+    bottom: -8px;
+    right: -10px;
+    rotate: -6deg;
 }

@@ -4,6 +4,7 @@ import HomeLogo from "../components/HomeLogo.tsx"
 import {ShopIcon} from "../components/icons.tsx"
 import {useEdge} from "../components/useEdge.ts"
 import {useCountry} from "../countryStore.ts"
+import SaleTag from "../shop/SaleTag.tsx"
 import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "../flags/flagFormStore.ts"
 import {useScreen} from "./screenStore.ts"
@@ -42,13 +43,16 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
                 <span className="status-bar-name">{name}</span>
                 <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
             </button>
-            {selling && <button type="button"
-                                className="icon-button status-bar-shop shop-shine"
-                                aria-label={t("menu.shop")}
-                                aria-haspopup="dialog"
-                                onClick={openShop}>
-                <ShopIcon/>
-            </button>}
+            {selling && <span className="shop-door">
+                <button type="button"
+                        className="icon-button status-bar-shop shop-shine"
+                        aria-label={t("menu.shop")}
+                        aria-haspopup="dialog"
+                        onClick={openShop}>
+                    <ShopIcon/>
+                </button>
+                <SaleTag/>
+            </span>}
         </div>
 
         {trailing}

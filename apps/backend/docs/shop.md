@@ -56,7 +56,11 @@ The flags' side is in [The flags module](flags.md#paid-time).
 `internal/shop/internal/`, one package each:
 
 - **`plans`**: `Plan` (week, month, year; `Renews`), `Price` (its Stripe price id from the config, the amount and the
-  currency the page shows), `Catalog`, all three plans or none (off).
+  currency the page shows), `Catalog`, all three plans or none (off), and the sale over them. `Sale`: a Stripe coupon
+  taken off every plan's first payment from one moment until another (`Runs`, from its start until its end, the end
+  excluded; `CouponsAt`, the sale's coupon while it runs, else none); the zero `Sale` is none. `Catalog.OfferAt(plan,
+  now)` is the `Offer` a checkout sends: the plan's price and the coupons; `Catalog.SaleAt(now)` is what `ListPlans`
+  tells of it. See [A sale](#a-sale).
 - **`orders`**: `AccountID`, `BuyerOf` (a signed-in account alone, as a submission's founder), `Target` (a submission's
   id or a flag's code), `Order`. `Place` refuses an order without `starts_now` (`ErrNoAgreement`). `Metadata` is what
   Stripe keeps of the order (`account_id`, `submission_id` or `flag`, `plan`, `starts_now_agreed_at`), and
@@ -84,7 +88,8 @@ The flags' side is in [The flags module](flags.md#paid-time).
 `shop.v1.ShopService`, behind its own session check (`shop_session_checks`): `ListPlans` reads no token, the three
 others any token that names the account (`Identified`).
 
-- **`ListPlans`**: the three prices from the config, or none while off.
+- **`ListPlans`**: the three prices from the config, or none while off, and while a sale runs by the server's clock its
+  `Sale` (`percent_off`, `ends_at`): raw facts, the page takes the cut off the prices itself.
 - **`CreateCheckout(plan, submission_id | flag, starts_now)`** (`create_checkout_usecase`): the buyer (a guest is
   `PermissionDenied`), the plan's price (`FailedPrecondition` while off), the order (`InvalidArgument` without
   `starts_now`), the flags module's word (`NotFound`, `PermissionDenied`, `FailedPrecondition`), no renewal running
@@ -102,6 +107,7 @@ Elements, no embedded form):
 
 - `managed_payments[enabled]=true`; `line_items[0]` the plan's price, quantity 1;
 - `mode=payment` for the week, `mode=subscription` for the month and the year;
+- while a sale runs, `discounts[0][coupon]` its coupon (see [A sale](#a-sale)), and outside it no `discounts`;
 - `client_reference_id` the account; `metadata` the order, and the same metadata on `payment_intent_data` (a week) or
   `subscription_data` (a month or a year), so each invoice of the subscription names the order
   (`parent.subscription_details.metadata`);
@@ -117,6 +123,27 @@ protection requirements, such as regional cooling off periods where required", a
 standard terms; no page says Stripe asks the buyer to waive the 14 days for content supplied at once (checked
 2026-11-24), and `custom_text` is refused. So the page asks before the redirect (`starts_now`), and the order's
 `starts_now_agreed_at` goes to Stripe with the payment.
+
+## A sale
+
+**A sale takes a Stripe coupon off every plan, from one moment until another** (Black Friday 2026, the owner's call on
+2026-11-26: 50% off from Fri 27 Nov 09:00 UTC until Mon 30 Nov 22:59 UTC, 23:59 in Paris; the shop had made no sale yet,
+so it is also a price test). `shop.stripe.sale` in the config: the coupon's id, its percent off, `from` and `until`.
+None, no sale; a sale given in part refuses the boot.
+
+- **The coupon is made in Stripe**, by the owner, in test and live mode: `percent_off`, `duration: once`, `redeem_by`
+  the sale's end, limited to the three flag products. `once` takes it off the week's one payment, and the first invoice
+  of a month or a year: the renewals are at the full price. The config's percent off is what the page shows: it must be
+  the coupon's own.
+- **`CreateCheckout` sends the coupon only while the sale runs by the server's clock** (`discounts[0][coupon]`, accepted
+  under Managed Payments in `mode=payment`, 400 to 200, and `mode=subscription`, 1000 to 500, tried in test mode on
+  2026-11-26). The sale's end is the coupon's `redeem_by`: from then on the checkout sends none, and Stripe would refuse
+  it.
+- **Nothing else changes**: the time each plan grants, the refunds (of what was paid) and the renewals.
+- **`ListPlans` tells the sale while it runs**: an optional `Sale` beside the plans, which a page of an older build
+  ignores. It answers it from the config at each call, with no deploy at its start or its end.
+
+`BLACKFRIDAY2026` is production's: [deploy/vps/backend.yaml](../../../deploy/vps/backend.yaml).
 
 ## Stripe's events
 
@@ -170,6 +197,7 @@ the accounts keep the payment (the privacy policy says so).
 
 `stripe_gateway`'s tests read signed events (`webhook.GenerateTestSignedPayload`: each kind, a forged one, a stale one,
 another API version, the account's other sales) and send the gateway's calls to a fake Stripe (`httptest`), never the
-real one: the session's form (`managed_payments[enabled]`, the mode, the metadata, the URLs), the stop, an invoice's
-intent. `paid_test.go` posts signed events through the endpoint with postgres and Redis, and sees `GrantTime` and
+real one: the session's form (`managed_payments[enabled]`, the mode, the metadata, the URLs, a sale's coupon or none),
+the stop, an invoice's intent. `plans`' tests and `create_checkout_usecase`'s read a sale's edges (its start in, its end
+out), `list_plans_handler`'s the plans with and without a sale. `paid_test.go` posts signed events through the endpoint with postgres and Redis, and sees `GrantTime` and
 `TakeBackTime` reach the flags' command streams once.

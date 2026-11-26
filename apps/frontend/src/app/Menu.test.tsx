@@ -797,12 +797,23 @@ describe("Menu", () => {
 
             act(() => useShop.setState({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]}))
             const shop = screen.getByRole("button", {name: "Shop"})
-            expect(shop.parentElement, "the shop opens a modal, as You does").toBe(you.parentElement)
+            expect(shop.closest(".menu-rail-modals"), "the shop opens a modal, as You does").toBe(you.parentElement)
             expect(screen.getByRole("tablist").contains(shop), "the shop is not a place").toBe(false)
             expect(shop.compareDocumentPosition(you) & Node.DOCUMENT_POSITION_FOLLOWING, "the shop sits above You").toBeTruthy()
 
             await user.click(shop)
             expect(useFlagForm.getState().shown).toBe(true)
+        })
+
+        it("tags the shop with the sale's cut while one runs", async () => {
+            withAccount(["google"], {linked: ["google"]}, "ana")
+            await screen.findByRole("button", {name: "You"})
+            const plans = [{plan: "week" as const, amount: 400, currency: "eur", renews: false}]
+
+            act(() => useShop.setState({plans}))
+            expect(screen.queryByText("-50%")).toBeNull()
+            act(() => useShop.setState({plans, sale: {percentOff: 50, endsAt: Date.now() + 60_000}}))
+            expect(screen.getByRole("button", {name: "Shop"}).parentElement?.textContent).toContain("-50%")
         })
 
         it("puts the account at the foot of the rail, out of the places", async () => {

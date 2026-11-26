@@ -41,6 +41,17 @@ message ListPlansRequest {}
 message ListPlansResponse {
   // The week, the month and the year, in that order.
   repeated PlanPrice plans = 1;
+  // While a sale runs, by the server's clock: what it takes off every plan. None outside it, or while the shop is off.
+  optional Sale sale = 2;
+}
+
+// A sale over every plan: it takes percent_off off each plan's first payment, the week's one payment, and the first
+// month or year of a plan that renews, which then renews at its full price.
+message Sale {
+  // 50 is half.
+  uint32 percent_off = 1;
+  // The sale's end, excluded: a checkout made from then on pays the full price.
+  google.protobuf.Timestamp ends_at = 2;
 }
 
 message PlanPrice {

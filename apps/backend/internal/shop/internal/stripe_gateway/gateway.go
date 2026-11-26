@@ -34,17 +34,25 @@ type Gateway struct {
 	returnURL *url.URL
 }
 
-// Checkout makes a Stripe Checkout Session under Managed Payments, Stripe being the seller, and answers its page.
-func (g Gateway) Checkout(ctx context.Context, order orders.Order, price plans.Price) (checkouts.Page, error) {
+// Checkout makes a Stripe Checkout Session under Managed Payments, Stripe being the seller, and answers its page. The
+// offer's coupons are taken off its first payment.
+func (g Gateway) Checkout(ctx context.Context, order orders.Order, offer plans.Offer) (checkouts.Page, error) {
 	kept := order.TakeSnapshot()
 	metadata := order.Metadata()
 	params := &stripe.CheckoutSessionCreateParams{
-		LineItems:         []*stripe.CheckoutSessionCreateLineItemParams{{Price: stripe.String(price.ID.String()), Quantity: stripe.Int64(1)}},
+		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{
+			{Price: stripe.String(offer.Price.ID.String()), Quantity: stripe.Int64(1)},
+		},
 		ManagedPayments:   &stripe.CheckoutSessionCreateManagedPaymentsParams{Enabled: stripe.Bool(true)},
 		ClientReferenceID: stripe.String(kept.Buyer.String()),
 		Metadata:          metadata,
 		SuccessURL:        stripe.String(g.back(paidQuery)),
 		CancelURL:         stripe.String(g.back(cancelledQuery)),
+	}
+	for _, coupon := range offer.Coupons {
+		params.Discounts = append(params.Discounts, &stripe.CheckoutSessionCreateDiscountParams{
+			Coupon: stripe.String(coupon.String()),
+		})
 	}
 	if kept.Plan.Renews() {
 		params.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
