@@ -11,6 +11,7 @@ import {useScreen} from "../hud/screenStore.ts"
 import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
+import {FlagShooter} from "./mapShot.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 
 const PIN = {latitude: 48.137, longitude: 11.575}
@@ -36,6 +37,9 @@ const PLANS: PlanPrice[] = [
     {plan: "year", amount: 6000, currency: "eur", renews: true},
 ]
 
+// The globe is in no test: its shot never comes.
+const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
+
 const png = (name = "bavaria.png") => new File(["png"], name, {type: "image/png"})
 const sendButton = () => screen.getByRole("button", {name: /^(Next|Uploading|Sending)/}) as HTMLButtonElement
 const nameField = () => screen.getByRole("textbox") as HTMLInputElement
@@ -60,7 +64,7 @@ describe("FlagSubmissionForm", () => {
     it("uploads the picture with a bar, then sends the name, the upload and the pin, under StrictMode", async () => {
         const {submitter, uploads, submitFlag} = bucket()
         useFlagForm.getState().compose({name: "  Bavaria ", file: png(), pinned: {pin: PIN, place: "Upper Bavaria"}})
-        render(<StrictMode><FlagSubmissionForm submitter={submitter}/></StrictMode>)
+        render(<StrictMode><FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/></StrictMode>)
         const user = userEvent.setup()
 
         await user.click(sendButton())
@@ -79,7 +83,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter, uploads} = bucket()
         const draft = {name: "Bavaria", file: png(), pinned: {pin: PIN, place: "Upper Bavaria"}}
         useFlagForm.getState().compose(draft)
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].land("u-1"))
@@ -93,38 +97,57 @@ describe("FlagSubmissionForm", () => {
     it("shows no price, even while the shop sells", () => {
         useShop.setState({plans: PLANS})
         useFlagForm.getState().compose()
-        render(<FlagSubmissionForm submitter={bucket().submitter}/>)
+        render(<FlagSubmissionForm submitter={bucket().submitter} shooter={NEVER_SHOT}/>)
 
         expect(screen.queryByRole("radio")).toBeNull()
         expect(screen.queryByText(/€/)).toBeNull()
         expect(sendButton().textContent).toBe("Next")
     })
 
-    it("shows the flag as the players will see it: its tiles, its name and its capital", async () => {
-        useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN, place: "Upper Bavaria"}})
-        render(<FlagSubmissionForm submitter={bucket().submitter}/>)
+    it("shows the flag as the players will see it: on the map at its capital, its name and the capital's place", async () => {
+        const file = png()
+        const shooter = vi.fn(async () => ({url: "blob:map", width: 560, height: 280, capital: {x: 4, y: -2}}))
+        useFlagForm.getState().compose({name: "Bavaria", file, pinned: {pin: PIN, place: "Upper Bavaria"}})
+        render(<FlagSubmissionForm submitter={bucket().submitter} shooter={shooter}/>)
 
         const card = document.querySelector(".flag-card") as HTMLElement
-        expect(card.querySelectorAll("image")).toHaveLength(13)
-        expect(card.querySelector("image")?.getAttribute("href")).toBe("blob:preview")
+        expect(card.querySelector("img")?.getAttribute("src"), "the picture alone until the map is shot").toBe("blob:preview")
         expect(card.textContent).toBe("BavariaUpper Bavaria")
+
+        const shot = await vi.waitFor(() => {
+            const shown = card.querySelector<HTMLImageElement>(".flag-card-shot")
+            expect(shown).not.toBeNull()
+            return shown!
+        })
+        expect(shooter).toHaveBeenCalledWith(PIN, file)
+        expect(shot.getAttribute("src")).toBe("blob:map")
+        expect(shot.style.width).toBe("560px")
+        expect(card.querySelector<HTMLElement>(".flag-card-crown")?.style.left).toBe("calc(50% + 4px)")
+    })
+
+    it("shoots no map before the capital is put", () => {
+        const shooter = vi.fn(NEVER_SHOT)
+        useFlagForm.getState().compose({name: "Bavaria", file: png()})
+        render(<FlagSubmissionForm submitter={bucket().submitter} shooter={shooter}/>)
+
+        expect(shooter).not.toHaveBeenCalled()
     })
 
     it("sells the region's flag over a new one, never over a change", () => {
         useFlagForm.getState().compose()
-        const view = render(<FlagSubmissionForm submitter={bucket().submitter}/>)
+        const view = render(<FlagSubmissionForm submitter={bucket().submitter} shooter={NEVER_SHOT}/>)
         expect(screen.getByText("Put your region on the map")).not.toBeNull()
         view.unmount()
 
         useFlagForm.getState().compose({name: "Bavaria", replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={bucket().submitter}/>)
+        render(<FlagSubmissionForm submitter={bucket().submitter} shooter={NEVER_SHOT}/>)
         expect(screen.queryByText("Put your region on the map")).toBeNull()
     })
 
     it("waits for a name, a picture and a pin, and counts the name", async () => {
         const {submitter} = bucket()
         useFlagForm.getState().compose()
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
         const user = userEvent.setup({applyAccept: false})
 
         expect(sendButton().disabled).toBe(true)
@@ -141,7 +164,7 @@ describe("FlagSubmissionForm", () => {
     it("refuses a picture that is not a PNG, a JPEG or a WebP, and keeps none", async () => {
         const {submitter} = bucket()
         useFlagForm.getState().compose({name: "Bavaria"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
         const user = userEvent.setup({applyAccept: false})
 
         await user.upload(fileInput(), new File(["gif"], "wave.gif", {type: "image/gif"}))
@@ -154,7 +177,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter} = bucket()
         useScreen.setState({sheet: "board"})
         useFlagForm.getState().compose({name: "Bavaria"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Put the capital on the globe"}))
 
@@ -167,7 +190,7 @@ describe("FlagSubmissionForm", () => {
         submitFlag.mockRejectedValue(new SubmissionRefusedError("waiting"))
         const file = png()
         useFlagForm.getState().compose({name: "Bavaria", file, pinned: {pin: PIN}})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
         const user = userEvent.setup()
 
         await user.click(sendButton())
@@ -183,7 +206,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter, uploads, submitFlag} = bucket()
         vi.spyOn(console, "error").mockImplementation(() => {})
         useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].fail())
@@ -195,7 +218,7 @@ describe("FlagSubmissionForm", () => {
     it("sends a change of the submission that waits with a picture picked again", async () => {
         const {submitter, uploads, uploadPicture, submitFlag} = bucket()
         useFlagForm.getState().compose({name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"})
-        const view = render(<FlagSubmissionForm submitter={submitter}/>)
+        const view = render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
         const user = userEvent.setup()
 
         expect(screen.getByRole("dialog", {name: "Change your flag"})).not.toBeNull()
@@ -205,7 +228,7 @@ describe("FlagSubmissionForm", () => {
 
         view.unmount()
         useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
         await user.click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
 
@@ -219,7 +242,7 @@ describe("FlagSubmissionForm", () => {
         const sent: Submission = {id: "s-1", name: "Bavaria", pin: PIN, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false}
         act(() => useFlagSubmissions.setState({submissions: [sent], read: true}))
         useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
@@ -232,7 +255,7 @@ describe("FlagSubmissionForm", () => {
         const {submitter, uploads, submitFlag} = bucket()
         submitFlag.mockRejectedValueOnce(new SubmissionRefusedError("decided"))
         useFlagForm.getState().compose({name: "Bayern", file: png(), pinned: {pin: PIN}, replaces: "s-1"})
-        render(<FlagSubmissionForm submitter={submitter}/>)
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(sendButton())
         await act(async () => uploads[0].land("upload-1"))
@@ -243,7 +266,7 @@ describe("FlagSubmissionForm", () => {
     it("calls the upload off when it closes", async () => {
         const {submitter, uploads} = bucket()
         useFlagForm.getState().compose({name: "Bavaria", file: png(), pinned: {pin: PIN}})
-        const view = render(<FlagSubmissionForm submitter={submitter}/>)
+        const view = render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
 
         await userEvent.setup().click(sendButton())
         view.unmount()

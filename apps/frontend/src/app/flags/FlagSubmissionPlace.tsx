@@ -13,6 +13,7 @@ import {useFlagForm} from "./flagFormStore.ts"
 import FlagPaywall from "./FlagPaywall.tsx"
 import FlagPitch from "./FlagPitch.tsx"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
+import {FlagShooter} from "./mapShot.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 import "../account/Account.css"
 import "./FlagSubmission.css"
@@ -20,6 +21,8 @@ import "./FlagSubmission.css"
 export type FlagSubmissionPlaceProps = {
     account: AccountStore
     submitter: FlagSubmitter
+    // The map at the capital with the flag on it.
+    shooter: FlagShooter
     shop: Shop
     // Stripe's page.
     toCheckout: (url: string) => void
@@ -27,7 +30,7 @@ export type FlagSubmissionPlaceProps = {
 
 // The one way to a region's flag, which every door opens: the flag made, then paid for, or a guest's sign-in. Mounted
 // with the game, so what was typed stays while the form is put aside to aim the pin.
-export default function FlagSubmissionPlace({account: store, submitter, shop, toCheckout}: FlagSubmissionPlaceProps) {
+export default function FlagSubmissionPlace({account: store, submitter, shooter, shop, toCheckout}: FlagSubmissionPlaceProps) {
     const shown = useFlagForm((form) => form.shown)
     const step = useFlagForm((form) => form.step)
     const aiming = useFlagForm((form) => form.aiming)
@@ -66,9 +69,9 @@ export default function FlagSubmissionPlace({account: store, submitter, shop, to
                 <p className="flag-status-line" role="status">{t("common.loading")}</p>
             </Modal>
         case "make":
-            return <FlagSubmissionForm submitter={submitter}/>
+            return <FlagSubmissionForm submitter={submitter} shooter={shooter}/>
         case "pay":
-            return <FlagPaywall submission={step.submission} typed={step.typed} shop={shop} toCheckout={toCheckout}/>
+            return <FlagPaywall submission={step.submission} typed={step.typed} shooter={shooter} shop={shop} toCheckout={toCheckout}/>
     }
 }
 

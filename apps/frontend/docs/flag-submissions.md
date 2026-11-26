@@ -65,7 +65,7 @@ Opening it reads the submissions and the shop's plans again.
 - **The capital**: "Put the capital on the globe" puts the form aside and aims the globe (below); once put, the name of
   the place under the pin and its coordinates ("Upper Bavaria", "48.14° N, 11.58° E", each language's compass letters),
   and "Move".
-- **The flag card** (below), as the players will see it, under the fields.
+- **The flag card** (below), the flag on the game's map at its capital, under the fields.
 - **Next**: `CreateSubmissionUpload` with the type and the size, the `PUT` to the link with a bar on the picture and
   "Uploading… 50%" on the button, then `SubmitFlag` (with `replaces` for a change), and no checkout. Its answer goes
   first in the store, in the place of the one it replaced (`submitted`), and step 2 shows it. **Each send uploads the
@@ -81,11 +81,24 @@ Opening it reads the submissions and the shop's plans again.
 
 ### The flag card
 
-**`FlagCard` shows the flag on a few tiles at about the game's tile size** (the owner chose it flat, 2026-11-26; a
-globe preview may come later): 13 tiles in rows of 4, 5 and 4, each a hexagon 22.5 px wide wearing the whole picture as
-a cover, the capital's crown on the middle one; beside them the name ("Your region" until one is typed) and the capital's
-place with a crown, or its coordinates at sea or for a pin the page was given. The picture is the file picked until the
-approval makes one public, then that one; none draws the tiles as bare ground.
+**`FlagCard` shows the flag on the game's own map, at its capital** (the owner, 2026-11-26: "a real screenshot of the map",
+"centered on the capital location", in place of a few hexagons drawn flat on the card). Once the form has a picture and a
+capital, `useMapShot` asks the globe for a shot (`Globe.previewFlag`), the name and the capital's place under it.
+
+- **The globe flies to the capital** at the zoom a fly-down plays at (`flownZoomsOf`'s most, a tile 28 CSS px), behind
+  the modal, and stays there. Once the flight ended and the picture is in the atlas, the capital is the tile under the
+  pin, and it and 3 rings of tiles around it (`groundAround`, about 37 on land) wear the picture for one frame, under a
+  flag code no flag has (`preview-1`, one per picture: each takes a sold flag's number for the page's life). The frame
+  is read (`captureRequests`, as the share's photo) and the tiles go back to what they show at once (`repaint`): paint
+  only, as a ghost, so no count, version or read sees them. A pin at sea shows the sea.
+- **The shot is the drawing buffer cropped around the capital** (`flagShooter`, `cropAround`): 560 x 280 CSS px, the
+  widest card, at most the screen. The card shows it at that size, centred in a box of 2 wide by 1 high, so a tile on
+  the card is a tile's size in the game on every screen; the crown is a DOM crown on the capital's pixel.
+- **One shot per picture and capital for the visit** (`useMapShot`): the paywall shows the one the form took, a
+  capital moved shoots again, and a shot asked for while another runs calls the first off (`AbortError`, no warning).
+  An approved flag found by a door after a reload is shot from its public picture and its pin.
+- **Until the shot**, and when it fails (no globe, a hidden tab), the box holds the picture alone; before a picture,
+  or for a flag found after a reload with none public yet, there is no box.
 
 ## Aiming the capital
 
@@ -196,6 +209,5 @@ flags", and `addTime(code, 7)` brings it back.
 
 ## Not built yet
 
-- **The flag on the globe itself as a preview**, in place of the flat card: the owner may ask for it later.
 - **A decision read while no paywall shows and the stream stays up**: the server tells none on a stream, so the page
   learns it at the next opening of the flags stream, of the flow or the profile, or a load.

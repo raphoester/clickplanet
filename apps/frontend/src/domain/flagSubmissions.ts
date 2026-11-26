@@ -68,6 +68,13 @@ export function pinAt(point: {x: number, y: number, z: number}): Pin {
     return {latitude, longitude}
 }
 
+// The point on the unit sphere a pin is at, as pinAt reads one.
+export function pointOfPin({latitude, longitude}: Pin): {x: number, y: number, z: number} {
+    const phi = latitude * Math.PI / 180
+    const lambda = longitude * Math.PI / 180
+    return {x: -Math.cos(phi) * Math.cos(lambda), y: Math.sin(phi), z: Math.cos(phi) * Math.sin(lambda)}
+}
+
 // The new flag on its way to the globe, the newest first: sent and waiting for its review, or approved and not open yet.
 export function onItsWayOf(submissions: readonly Submission[]): Submission | undefined {
     return submissions.find(({state}) => state === "waiting" || state === "approved")

@@ -124,6 +124,7 @@ import {FlagLister, FlagStream, FlagSubmitter} from "../../backends/flags.ts";
 import {useFlagsFeed} from "../flags/flagsStore.ts";
 import {useFlagSubmissionsFeed} from "../flags/submissionsStore.ts";
 import FlagSubmissionPlace from "../flags/FlagSubmissionPlace.tsx";
+import {flagShooter} from "../flags/mapShot.ts";
 import {Shop} from "../../backends/shop.ts";
 import {useShopFeed} from "../shop/shopStore.ts";
 import {useShopReturn} from "../shop/shopReturn.ts";
@@ -343,6 +344,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         tileDeltas,
         tilesCount,
         capture,
+        previewFlag,
         graphics,
         toggleBomb,
         toggleVirus,
@@ -436,6 +438,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const ownShown = useShownName(backends.shownNames, ownAccountId, username)
     const address = shareAddress(countryState.code, username, ownShown)
     const {shot, taking, take, discard} = useSharePicture(capture, stats, address)
+    const flagShots = useMemo(() => flagShooter(previewFlag), [previewFlag])
 
     const openPitch = guest ? () => {
         closeSheet()
@@ -625,6 +628,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
         {ready && <FlagSubmissionPlace account={backends.account}
                                         submitter={backends.flagSubmissions}
+                                        shooter={flagShots}
                                         shop={backends.shop}
                                         toCheckout={backends.toCheckout}/>}
 
