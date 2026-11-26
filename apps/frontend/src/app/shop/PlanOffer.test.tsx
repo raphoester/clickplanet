@@ -61,6 +61,8 @@ describe("PlanOffer", () => {
         ])
         expect(screen.getByRole("timer").textContent).toMatch(/^Black Friday · ends in 2d 04h 1[12]m \d\ds$/)
         expect(screen.getByRole("button", {name: "Pay €30"})).not.toBeNull()
+        const struck = [...document.querySelectorAll(".shop-plan-was s")].map((line) => line.textContent)
+        expect(struck, "the line crosses the digits, never the euro's bars").toEqual(["4", "10", "60"])
     })
 
     it("asks for the consent before Pay, then sends the plan picked and the target and goes to Stripe's page", async () => {

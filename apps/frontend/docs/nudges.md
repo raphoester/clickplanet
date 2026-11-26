@@ -40,7 +40,7 @@ again, a coffee opened not for 30 days. The browser keeps both times per ask in 
 **`SaleNudge` (`app/nudges/SaleNudge.tsx`) is the shop's sale, black and gold** (Black Friday 2026, the owner's call on
 2026-11-26; see [The shop](shop.md#a-sale)): the title reveal's stage on ink, a gold light behind it and a faint gold
 pinstripe; "Black Friday" slammed in gold; the cut ("-50%") on a gold swing tag on its string, the gold rays turning
-behind it; "On every plan for your region's flag"; the three plans, each its own price crossed out over the sale's in
+behind it; "On every plan for your region's flag"; the three plans, each its own price crossed out (the digits alone, the € clear) over the sale's in
 gold (the sign in Rubik, `Money`); the clock to the second ("Ends in 2d 04h 12m 09s"); one red button, "Put your region
 on the map", which opens what the shop's door opens (`useFlagForm.openShop()`: the account's flags, or a new one when it has none); and under it "Off the first payment. A month or a year
 then renews at its full price." No sound, no shake, no image file. The close button (top right) and Escape close it.

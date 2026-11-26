@@ -94,7 +94,8 @@ starts sees it at its next read of the plans: a load, or the flag's flow or Your
 
 - **The offer** (`PlanCards`, `PlanOffer`, on the paywall and on a flag's pay page): over the cards, the sale's clock
   (`SaleClock`, "Black Friday · ends in 2d 04h 12m 09s", the game's countdown, to the second, never cut in two); each
-  card's own price crossed out over the sale's price, large in gold; "Paid once", or for a plan that renews "Then €10 a
+  card's own price crossed out over the sale's price, large in gold (the line crosses the digits alone and the old price
+  is faint, `Money`'s `struck`: through the euro's two bars it read as "£4"); "Paid once", or for a plan that renews "Then €10 a
   month", as the coupon is taken off the first payment only; the sale's cut ("-50%") in the gold of value, in the
   saving's place; the price by the day of the sale's price. Pay says the sale's price ("Pay €30"). The blue of the plan
   picked and the red of Pay keep their jobs.
