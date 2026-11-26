@@ -1,4 +1,5 @@
 import {Teased} from "./battleTeaser.ts"
+import {Sale, saleRuns} from "./shop.ts"
 
 const HOUR = 60 * 60_000
 const DAY = 24 * HOUR
@@ -25,13 +26,18 @@ export type Asked = {
 
 export const NOTHING_ASKED: Asked = {shown: {}, opened: {}}
 
-export type AskScene = {
+export type NudgeScene = {
     guided: boolean
     battlePlays: boolean
 }
 
+// While a sale runs its nudge takes the asks' turn: no ask.
+export type AskScene = NudgeScene & {
+    saleRuns: boolean
+}
+
 export function askDue(asked: Asked, teased: Teased | null, scene: AskScene, now: number): Ask | undefined {
-    if (scene.guided || scene.battlePlays) return undefined
+    if (scene.guided || scene.battlePlays || scene.saleRuns) return undefined
     const last = Math.max(teased?.at ?? 0, ...ASKS.map((ask) => asked.shown[ask] ?? 0))
     if (now - last < ASK_SPACING_MS) return undefined
     let due: Ask | undefined
@@ -81,4 +87,40 @@ export function askClosed(asked: Asked, ask: Ask, now: number): Asked {
 
 export function askOpened(asked: Asked, ask: Ask, now: number): Asked {
     return {shown: {...asked.shown, [ask]: now}, opened: {...asked.opened, [ask]: now}}
+}
+
+export const SALE_SEEN_STORAGE_KEY = "clickplanet-sale-seen"
+
+// A sale is shown on the first visit while it runs, once a day at most after that, and once more in its last hours.
+export const SALE_NUDGE_EVERY_MS = DAY
+export const SALE_LAST_CALL_MS = 6 * HOUR
+
+// The sale this browser was shown last, by its key, and when.
+export type SaleSeen = {
+    key: string
+    at: number
+}
+
+// A sale is known by its end.
+export function saleKeyOf(sale: Sale): string {
+    return String(sale.endsAt)
+}
+
+export function saleNudgeDue(sale: Sale | undefined, seen: SaleSeen | null, scene: NudgeScene, now: number): sale is Sale {
+    if (!saleRuns(sale, now) || scene.guided || scene.battlePlays) return false
+    if (seen?.key !== saleKeyOf(sale) || now - seen.at >= SALE_NUDGE_EVERY_MS) return true
+    const lastCall = sale.endsAt - SALE_LAST_CALL_MS
+    return now >= lastCall && seen.at < lastCall
+}
+
+export function saleSeenOf(kept: string | null): SaleSeen | null {
+    if (kept === null) return null
+    try {
+        const seen: unknown = JSON.parse(kept)
+        if (typeof seen !== "object" || seen === null) return null
+        const {key, at} = seen as Record<string, unknown>
+        return typeof key === "string" && typeof at === "number" ? {key, at} : null
+    } catch {
+        return null
+    }
 }

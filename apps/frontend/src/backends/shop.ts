@@ -1,12 +1,12 @@
-import type {CheckoutTarget, Plan, PlanPrice, Renewal} from "../domain/shop.ts"
+import type {Catalog, CheckoutTarget, Plan, Renewal} from "../domain/shop.ts"
 
 // startsNow: the buyer asked for the flag to start at once, and knows the right to cancel ends when it starts.
 export type CheckoutRequest = {plan: Plan, target: CheckoutTarget, startsNow: boolean}
 
 // Time for a regional flag, paid on Stripe's own page.
 export interface Shop {
-    // The week, the month and the year; none while the shop is off.
-    plans(): Promise<PlanPrice[]>
+    // The week, the month and the year, none while the shop is off, and the sale while one runs.
+    catalog(): Promise<Catalog>
     // Stripe's page, which sends the buyer back to the game.
     checkout(request: CheckoutRequest): Promise<string>
     // None for a guest.

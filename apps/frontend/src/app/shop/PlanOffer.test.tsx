@@ -14,7 +14,7 @@ const PLANS: PlanPrice[] = [
 ]
 
 const shopOf = (checkout: Shop["checkout"] = vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1")): Shop => ({
-    plans: vi.fn(async () => PLANS),
+    catalog: vi.fn(async () => ({plans: PLANS})),
     checkout,
     myRenewals: vi.fn(async () => []),
     stopRenewal: vi.fn(),
@@ -47,6 +47,20 @@ describe("PlanOffer", () => {
         expect(plan(/1 year/).getAttribute("aria-checked")).toBe("true")
         expect(screen.getByRole("button", {name: "Pay €60.50"})).not.toBeNull()
         expect(screen.getByText("Secure payment by Stripe · Stop anytime")).not.toBeNull()
+    })
+
+    it("crosses out each price during a sale, shows the sale's under it with its cut and its clock, and Pays that", () => {
+        const sold: PlanPrice[] = [PLANS[0], PLANS[1], {...PLANS[2], amount: 6000}]
+        useShop.setState({sale: {percentOff: 50, endsAt: Date.now() + (2 * 24 * 3600 + 4 * 3600 + 12 * 60 + 9) * 1000}})
+        render(<PlanOffer shop={shopOf()} plans={sold} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+
+        expect(screen.getAllByRole("radio").map((card) => card.textContent)).toEqual([
+            "1 week€4€2Paid once-50%€0.29 / day",
+            "1 month€10€5Then €10 a month-50%€0.17 / day",
+            "Best value1 year€60€30Then €60 a year-50%€0.09 / day",
+        ])
+        expect(screen.getByRole("timer").textContent).toMatch(/^Black Friday · ends in 2d 04h 1[12]m \d\ds$/)
+        expect(screen.getByRole("button", {name: "Pay €30"})).not.toBeNull()
     })
 
     it("asks for the consent before Pay, then sends the plan picked and the target and goes to Stripe's page", async () => {

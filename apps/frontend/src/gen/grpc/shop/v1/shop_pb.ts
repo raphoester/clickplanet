@@ -114,6 +114,13 @@ export class ListPlansResponse extends Message<ListPlansResponse> {
    */
   plans: PlanPrice[] = [];
 
+  /**
+   * While a sale runs, by the server's clock: what it takes off every plan. None outside it, or while the shop is off.
+   *
+   * @generated from field: optional shop.v1.Sale sale = 2;
+   */
+  sale?: Sale;
+
   constructor(data?: PartialMessage<ListPlansResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -123,6 +130,7 @@ export class ListPlansResponse extends Message<ListPlansResponse> {
   static readonly typeName = "shop.v1.ListPlansResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "plans", kind: "message", T: PlanPrice, repeated: true },
+    { no: 2, name: "sale", kind: "message", T: Sale, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPlansResponse {
@@ -139,6 +147,56 @@ export class ListPlansResponse extends Message<ListPlansResponse> {
 
   static equals(a: ListPlansResponse | PlainMessage<ListPlansResponse> | undefined, b: ListPlansResponse | PlainMessage<ListPlansResponse> | undefined): boolean {
     return proto3.util.equals(ListPlansResponse, a, b);
+  }
+}
+
+/**
+ * A sale over every plan: it takes percent_off off each plan's first payment, the week's one payment, and the first
+ * month or year of a plan that renews, which then renews at its full price.
+ *
+ * @generated from message shop.v1.Sale
+ */
+export class Sale extends Message<Sale> {
+  /**
+   * 50 is half.
+   *
+   * @generated from field: uint32 percent_off = 1;
+   */
+  percentOff = 0;
+
+  /**
+   * The sale's end, excluded: a checkout made from then on pays the full price.
+   *
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Sale>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "shop.v1.Sale";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "percent_off", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sale {
+    return new Sale().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Sale {
+    return new Sale().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Sale {
+    return new Sale().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Sale | PlainMessage<Sale> | undefined, b: Sale | PlainMessage<Sale> | undefined): boolean {
+    return proto3.util.equals(Sale, a, b);
   }
 }
 

@@ -81,11 +81,19 @@ func order(t *testing.T, plan plans.Plan) orders.Order {
 	return placed
 }
 
+var (
+	week  = plans.Price{Plan: plans.Week, ID: "price_week", Amount: 400, Currency: "eur"}
+	month = plans.Price{Plan: plans.Month, ID: "price_month", Amount: 1000, Currency: "eur"}
+)
+
+func fullPrice(price plans.Price) plans.Offer {
+	return plans.Offer{Price: price, Coupons: []plans.CouponID{}}
+}
+
 func TestAWeekIsSoldOnStripesPageUnderManagedPayments(t *testing.T) {
 	gate, fake := gateway(t, `{"id":"cs_1","object":"checkout.session","url":"https://checkout.stripe.com/c/pay/cs_1"}`)
 
-	page, err := gate.Checkout(t.Context(), order(t, plans.Week),
-		plans.Price{Plan: plans.Week, ID: "price_week", Amount: 400, Currency: "eur"})
+	page, err := gate.Checkout(t.Context(), order(t, plans.Week), fullPrice(week))
 	require.NoError(t, err)
 
 	assert.Equal(t, checkouts.Page{Session: "cs_1", URL: "https://checkout.stripe.com/c/pay/cs_1"}, page)
@@ -109,13 +117,13 @@ func TestAWeekIsSoldOnStripesPageUnderManagedPayments(t *testing.T) {
 		assert.Equal(t, value, sent.form.Get(key), key)
 	}
 	assert.False(t, sent.form.Has("subscription_data[metadata][plan]"))
+	assert.False(t, sent.form.Has("discounts[0][coupon]"), "no sale runs")
 }
 
 func TestAMonthIsSoldAsASubscriptionThatCarriesItsOrder(t *testing.T) {
 	gate, fake := gateway(t, `{"id":"cs_1","object":"checkout.session","url":"https://checkout.stripe.com/c/pay/cs_1"}`)
 
-	_, err := gate.Checkout(t.Context(), order(t, plans.Month),
-		plans.Price{Plan: plans.Month, ID: "price_month", Amount: 1000, Currency: "eur"})
+	_, err := gate.Checkout(t.Context(), order(t, plans.Month), fullPrice(month))
 	require.NoError(t, err)
 
 	sent := fake.last()
@@ -124,6 +132,34 @@ func TestAMonthIsSoldAsASubscriptionThatCarriesItsOrder(t *testing.T) {
 	assert.Equal(t, "month", sent.form.Get("subscription_data[metadata][plan]"))
 	assert.Equal(t, submission, sent.form.Get("subscription_data[metadata][submission_id]"))
 	assert.False(t, sent.form.Has("payment_intent_data[metadata][plan]"))
+	assert.False(t, sent.form.Has("discounts[0][coupon]"), "no sale runs")
+}
+
+func TestASalesCouponIsTakenOffAWeeksPayment(t *testing.T) {
+	gate, fake := gateway(t, `{"id":"cs_1","object":"checkout.session","url":"https://checkout.stripe.com/c/pay/cs_1"}`)
+
+	_, err := gate.Checkout(t.Context(), order(t, plans.Week),
+		plans.Offer{Price: week, Coupons: []plans.CouponID{"BLACKFRIDAY2026"}})
+	require.NoError(t, err)
+
+	sent := fake.last()
+	assert.Equal(t, "payment", sent.form.Get("mode"))
+	assert.Equal(t, "price_week", sent.form.Get("line_items[0][price]"), "the plan's own price, the coupon off it")
+	assert.Equal(t, "BLACKFRIDAY2026", sent.form.Get("discounts[0][coupon]"))
+	assert.Equal(t, "true", sent.form.Get("managed_payments[enabled]"))
+}
+
+func TestASalesCouponIsTakenOffAMonthsFirstInvoice(t *testing.T) {
+	gate, fake := gateway(t, `{"id":"cs_1","object":"checkout.session","url":"https://checkout.stripe.com/c/pay/cs_1"}`)
+
+	_, err := gate.Checkout(t.Context(), order(t, plans.Month),
+		plans.Offer{Price: month, Coupons: []plans.CouponID{"BLACKFRIDAY2026"}})
+	require.NoError(t, err)
+
+	sent := fake.last()
+	assert.Equal(t, "subscription", sent.form.Get("mode"))
+	assert.Equal(t, "BLACKFRIDAY2026", sent.form.Get("discounts[0][coupon]"))
+	assert.False(t, sent.form.Has("subscription_data[coupon]"), "the coupon's duration says which invoices it takes")
 }
 
 func TestARenewalStopsAtTheEndOfItsPeriod(t *testing.T) {

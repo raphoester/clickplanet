@@ -6,8 +6,9 @@ import {
     PlanPrice as PlanPricePb,
     Renewal as RenewalPb,
     RenewalState as RenewalStatePb,
+    Sale as SalePb,
 } from "../gen/grpc/shop/v1/shop_pb.ts"
-import type {CheckoutTarget, Plan, PlanPrice, Renewal, RenewalState} from "../domain/shop.ts"
+import type {Catalog, CheckoutTarget, Plan, PlanPrice, Renewal, RenewalState, Sale} from "../domain/shop.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {CheckoutRequest, Shop, ShopRefusal, ShopRefusedError} from "./shop.ts"
 import {Config, retrying} from "./transport.ts"
@@ -47,6 +48,12 @@ export function planPriceOf({plan, amount, currency, renews}: PlanPricePb): Plan
     return known === undefined ? undefined : {plan: known, amount, currency, renews}
 }
 
+// A sale this build cannot price is no sale: the plans show at their full price.
+export function saleOf(sale: SalePb | undefined): Sale | undefined {
+    if (sale === undefined || sale.endsAt === undefined || sale.percentOff < 1 || sale.percentOff > 99) return undefined
+    return {percentOff: sale.percentOff, endsAt: sale.endsAt.toDate().getTime()}
+}
+
 export function renewalOf(renewal: RenewalPb): Renewal | undefined {
     const plan = PLANS[renewal.plan]
     const state = STATES[renewal.state]
@@ -67,12 +74,14 @@ export class ConnectShop implements Shop {
     ) {
     }
 
-    public async plans(): Promise<PlanPrice[]> {
+    public async catalog(): Promise<Catalog> {
         try {
             const res = await retrying(() => this.client.listPlans({}), "ListPlans")
-            return res.plans.flatMap((plan) => planPriceOf(plan) ?? [])
+            const plans = res.plans.flatMap((plan) => planPriceOf(plan) ?? [])
+            const sale = saleOf(res.sale)
+            return sale === undefined ? {plans} : {plans, sale}
         } catch (e) {
-            if (absent(e)) return []
+            if (absent(e)) return {plans: []}
             throw e
         }
     }

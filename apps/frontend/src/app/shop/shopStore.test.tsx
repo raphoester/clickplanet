@@ -12,7 +12,7 @@ const PLANS: PlanPrice[] = [
 ]
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({
-    plans: vi.fn(async () => PLANS),
+    catalog: vi.fn(async () => ({plans: PLANS})),
     checkout: vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1"),
     myRenewals: vi.fn(async () => []),
     stopRenewal: vi.fn(),
@@ -48,10 +48,36 @@ describe("useShopFeed", () => {
     })
 
     it("shows no plan while the shop is off", async () => {
-        const off = shop({plans: vi.fn(async () => [])})
+        const off = shop({catalog: vi.fn(async () => ({plans: []}))})
         render(<Feed from={off} signedIn={false}/>)
 
-        await vi.waitFor(() => expect(off.plans).toHaveBeenCalled())
+        await vi.waitFor(() => expect(off.catalog).toHaveBeenCalled())
         expect(useShop.getState().plans).toEqual([])
+    })
+
+    it("keeps the sale until its end, and drops it then with no read", async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        try {
+            const endsAt = Date.now() + 90_000
+            const onSale = shop({catalog: vi.fn(async () => ({plans: PLANS, sale: {percentOff: 50, endsAt}}))})
+            render(<Feed from={onSale} signedIn={false}/>)
+            await vi.waitFor(() => expect(useShop.getState().sale).toEqual({percentOff: 50, endsAt}))
+
+            act(() => vi.advanceTimersByTime(endsAt - Date.now() + 1))
+
+            expect(useShop.getState().sale).toBeUndefined()
+            expect(useShop.getState().plans).toEqual(PLANS)
+            expect(onSale.catalog).toHaveBeenCalledTimes(1)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it("drops a sale that ended before it was read", async () => {
+        const ended = shop({catalog: vi.fn(async () => ({plans: PLANS, sale: {percentOff: 50, endsAt: Date.now() - 1}}))})
+        render(<Feed from={ended} signedIn={false}/>)
+
+        await vi.waitFor(() => expect(useShop.getState().plans).toEqual(PLANS))
+        expect(useShop.getState().sale).toBeUndefined()
     })
 })

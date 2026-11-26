@@ -65,7 +65,8 @@
   payer's `account_id` and the order's `ordered_at`: a payment claims a flag whose time ended) and `TakeBackTime`, and
   `internal.proto` `InternalService/GetPayable`, which the shop asks before a checkout, answered with `same_flag`, every
   target whose time goes to that flag
-- `proto/shop/v1/shop.proto` — what a player pays for (`ShopService`): `ListPlans` (none while the shop is off),
+- `proto/shop/v1/shop.proto` — what a player pays for (`ShopService`): `ListPlans` (none while the shop is off; while a
+  sale runs, an optional `Sale`, its `percent_off` and `ends_at`, since 2026-11-26),
   `CreateCheckout` (a plan for a submission of the caller's, a flag it holds or a flag whose time ended, with
   `starts_now`, answered by Stripe's page),
   `ListMyRenewals` and `StopRenewal` (see the backend's [The shop](../apps/backend/docs/shop.md))

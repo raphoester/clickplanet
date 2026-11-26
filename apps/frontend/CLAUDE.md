@@ -104,8 +104,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   battle look: the mood, the chip and its clock, the start moment, the debrief's three screens when the gamemaster
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.
-- [Nudges](docs/nudges.md) — the next battle's teaser and the asks (coffee, TikTok, YouTube) in the announcements
-  queue: moments first, the teaser before any ask, one ask each 12 hours in turn, none on a first visit or in a battle.
+- [Nudges](docs/nudges.md) — the next battle's teaser, the shop's sale and the asks (coffee, TikTok, YouTube) in the
+  announcements queue: moments first, the teaser first, then the sale (black and gold, once a day and in its last 6
+  hours) in the asks' place, else one ask each 12 hours in turn, none on a first visit or in a battle.
 - [The Hall of Fame](docs/hall-of-fame.md) — the board's crown (a gold button on a phone), and the modal's carousel of seasons: each
   ended one's winner flag, then the "?" of the one that runs; View opens a season's slides: the podium and the whole
   table, the race (each flag's points or map share round by round, drawn as a timelapse), players, the Final Battle,
@@ -137,8 +138,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the approval, a flag held or one claimed from its pay page; the shop's door (the status bar's bag on a phone, the
   rail's Shop on the desktop, neither while the shop is off) opens "Your flags", the plans on one page only; the plans
   priced in the page's language, the consent before Pay, the renewals' lines, `?shop=paid` read and dropped and the
-  submissions read again until the flag opens; the fake's `shopOff`, `shopOn`, `refuseCheckouts`,
-  `renewingElsewhere`; the terms of sale and refunds pages.
+  submissions read again until the flag opens; a sale (Black Friday 2026: its clock, the prices crossed out, the doors'
+  "-50%", dropped at its end); the fake's `shopOff`, `shopOn`, `refuseCheckouts`, `renewingElsewhere`, `startSale`,
+  `endSale`; the terms of sale and refunds pages.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

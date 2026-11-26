@@ -1,10 +1,24 @@
 import {describe, expect, it} from "vitest"
-import {ASK_SPACING_MS, askClosed, askDue, askedOf, askOpened, AskScene, NOTHING_ASKED} from "./nudges.ts"
+import {
+    ASK_SPACING_MS,
+    askClosed,
+    askDue,
+    askedOf,
+    askOpened,
+    AskScene,
+    NOTHING_ASKED,
+    SALE_LAST_CALL_MS,
+    SALE_NUDGE_EVERY_MS,
+    saleKeyOf,
+    saleNudgeDue,
+    saleSeenOf,
+} from "./nudges.ts"
+import type {Sale} from "./shop.ts"
 
 const HOUR = 60 * 60_000
 const DAY = 24 * HOUR
 const now = Date.UTC(2026, 10, 12, 18)
-const scene: AskScene = {guided: false, battlePlays: false}
+const scene: AskScene = {guided: false, battlePlays: false, saleRuns: false}
 
 describe("askDue", () => {
     it("asks for a coffee first, then takes turns with the follows", () => {
@@ -34,6 +48,10 @@ describe("askDue", () => {
         expect(askDue(NOTHING_ASKED, null, {...scene, battlePlays: true}, now)).toBeUndefined()
     })
 
+    it("asks nothing while a sale runs: its nudge takes the asks' turn", () => {
+        expect(askDue(NOTHING_ASKED, null, {...scene, saleRuns: true}, now)).toBeUndefined()
+    })
+
     it("never asks for a follow again once its link was opened", () => {
         const followed = askOpened(askOpened(NOTHING_ASKED, "tiktok", now - 2 * DAY), "youtube", now - DAY)
         expect(askDue(followed, null, scene, now)).toBe("coffee")
@@ -52,5 +70,41 @@ describe("askedOf", () => {
         expect(askedOf("coffee")).toEqual(NOTHING_ASKED)
         expect(askedOf("null")).toEqual(NOTHING_ASKED)
         expect(askedOf(JSON.stringify({shown: {coffee: "today", snapchat: now}, opened: 3}))).toEqual(NOTHING_ASKED)
+    })
+})
+
+describe("saleNudgeDue", () => {
+    const sale: Sale = {percentOff: 50, endsAt: now + 3 * DAY}
+    const seenAt = (at: number) => ({key: saleKeyOf(sale), at})
+
+    it("shows the sale on the first visit while it runs, and no sale that ended", () => {
+        expect(saleNudgeDue(sale, null, scene, now)).toBe(true)
+        expect(saleNudgeDue(sale, {key: "an older sale", at: now - HOUR}, scene, now)).toBe(true)
+        expect(saleNudgeDue(sale, null, scene, sale.endsAt)).toBe(false)
+        expect(saleNudgeDue(undefined, null, scene, now)).toBe(false)
+    })
+
+    it("shows it again once a day at most", () => {
+        expect(saleNudgeDue(sale, seenAt(now), scene, now + SALE_NUDGE_EVERY_MS - 1)).toBe(false)
+        expect(saleNudgeDue(sale, seenAt(now), scene, now + SALE_NUDGE_EVERY_MS)).toBe(true)
+    })
+
+    it("shows it once more in its last hours, once", () => {
+        const lastCall = sale.endsAt - SALE_LAST_CALL_MS
+        expect(saleNudgeDue(sale, seenAt(lastCall - HOUR), scene, lastCall - 1)).toBe(false)
+        expect(saleNudgeDue(sale, seenAt(lastCall - HOUR), scene, lastCall)).toBe(true)
+        expect(saleNudgeDue(sale, seenAt(lastCall), scene, lastCall + HOUR)).toBe(false)
+    })
+
+    it("shows nothing on a first visit or in a battle", () => {
+        expect(saleNudgeDue(sale, null, {...scene, guided: true}, now)).toBe(false)
+        expect(saleNudgeDue(sale, null, {...scene, battlePlays: true}, now)).toBe(false)
+    })
+
+    it("reads what the browser kept, and nothing of what it cannot read", () => {
+        expect(saleSeenOf(JSON.stringify(seenAt(now)))).toEqual(seenAt(now))
+        expect(saleSeenOf(null)).toBeNull()
+        expect(saleSeenOf("{")).toBeNull()
+        expect(saleSeenOf(JSON.stringify({key: 3, at: now}))).toBeNull()
     })
 })

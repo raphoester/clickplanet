@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import type {SoldFlag} from "./flags.ts"
 import type {Submission} from "./flagSubmissions.ts"
 import {
-    awaitsPayment, bestValueOf, flagRenewal, flagTimeOf, payable, pickedOf, PlanPrice, Renewal, savingOf, perDayOf,
+    awaitsPayment, bestValueOf, flagRenewal, flagTimeOf, payable, pickedOf, PlanPrice, Renewal, salePriceOf, saleRuns, savingOf, perDayOf,
 } from "./shop.ts"
 
 const PLANS: PlanPrice[] = [
@@ -88,5 +88,25 @@ describe("the plans side by side", () => {
         expect(pickedOf(PLANS, "week")).toBe(WEEK)
         expect(pickedOf([WEEK, MONTH], "year")).toBe(MONTH)
         expect(pickedOf([], "week")).toBeUndefined()
+    })
+})
+
+describe("the sale", () => {
+    const sale = {percentOff: 50, endsAt: NOW + 1000}
+
+    it("takes its cut off each plan's price, whole for half of 400, 1000 and 6000", () => {
+        expect(PLANS.map((price) => salePriceOf(price, sale))).toEqual([
+            {...WEEK, amount: 200},
+            {...MONTH, amount: 500},
+            {...YEAR, amount: 3000},
+        ])
+        expect(salePriceOf({...WEEK, amount: 999}, {percentOff: 30, endsAt: NOW}).amount).toBe(699)
+    })
+
+    it("runs until its end, its end excluded", () => {
+        expect(saleRuns(sale, NOW)).toBe(true)
+        expect(saleRuns(sale, sale.endsAt - 1)).toBe(true)
+        expect(saleRuns(sale, sale.endsAt)).toBe(false)
+        expect(saleRuns(undefined, NOW)).toBe(false)
     })
 })

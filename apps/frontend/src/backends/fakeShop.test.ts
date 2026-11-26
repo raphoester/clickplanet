@@ -41,14 +41,35 @@ afterEach(() => {
 describe("FakeShop", () => {
     it("sells the week, the month and the year in euros, and none while off", async () => {
         const {shop} = await setup()
-        expect(await shop.plans()).toEqual([
+        expect(await shop.catalog()).toEqual({plans: [
             {plan: "week", amount: 400, currency: "eur", renews: false},
             {plan: "month", amount: 1000, currency: "eur", renews: true},
             {plan: "year", amount: 6000, currency: "eur", renews: true},
-        ])
+        ]})
 
         shop.turn(false)
-        expect(await shop.plans()).toEqual([])
+        expect(await shop.catalog()).toEqual({plans: []})
+    })
+
+    it("answers a sale started from the console until it ends, and none once ended or while off", async () => {
+        const {shop} = await setup()
+        const startedAt = Date.now()
+        shop.sell(30)
+
+        const {sale} = await shop.catalog()
+        expect(sale?.percentOff).toBe(50)
+        expect(sale?.endsAt).toBeGreaterThanOrEqual(startedAt + 30 * 60_000)
+        expect(sale?.endsAt).toBeLessThan(startedAt + 31 * 60_000)
+        shop.turn(false)
+        expect((await shop.catalog()).sale).toBeUndefined()
+        shop.turn(true)
+        vi.advanceTimersByTime(30 * 60_000)
+        expect((await shop.catalog()).sale).toBeUndefined()
+
+        shop.sell(30, 20)
+        expect((await shop.catalog()).sale?.percentOff).toBe(20)
+        shop.endSale()
+        expect((await shop.catalog()).sale).toBeUndefined()
     })
 
     it("refuses as the server: a guest, no consent, the shop off, a submission not approved, a flag not founded", async () => {

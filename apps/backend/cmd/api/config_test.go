@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shop"
 )
 
 func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
@@ -399,6 +400,23 @@ func TestTheProductionShopSellsTheThreePlans(t *testing.T) {
 	assert.Equal(t, uint32(1000), config.Shop.Stripe.Plans.Month.Amount)
 	assert.Equal(t, uint32(6000), config.Shop.Stripe.Plans.Year.Amount)
 	require.NoError(t, config.Shop.Validate())
+}
+
+func TestTheProductionShopRunsBlackFriday(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.Equal(t, shop.SaleConfig{
+		Coupon: "BLACKFRIDAY2026", PercentOff: 50,
+		From:  time.Date(2026, 11, 27, 9, 0, 0, 0, time.UTC),
+		Until: time.Date(2026, 11, 30, 22, 59, 0, 0, time.UTC),
+	}, config.Shop.Stripe.Sale)
+}
+
+func TestASaleWithNoEndIsRefused(t *testing.T) {
+	config := productionConfig(t)
+	config.Shop.Stripe.Sale.Until = time.Time{}
+
+	assert.ErrorContains(t, config.Shop.Validate(), "shop.stripe: sale")
 }
 
 func TestTheShopModuleWithNoDatabaseIsRefused(t *testing.T) {

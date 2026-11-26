@@ -19,7 +19,7 @@ type Payables interface {
 
 // Pages are Stripe's Checkout Sessions.
 type Pages interface {
-	Checkout(ctx context.Context, order orders.Order, price plans.Price) (checkouts.Page, error)
+	Checkout(ctx context.Context, order orders.Order, offer plans.Offer) (checkouts.Page, error)
 }
 
 type Renewals interface {
@@ -52,8 +52,9 @@ type UseCase struct {
 	pages    Pages
 }
 
-// Execute answers Stripe's page for the order.
+// Execute answers Stripe's page for the order, at the sale's price while a sale runs.
 func (u *UseCase) Execute(ctx context.Context, in In) (string, error) {
+	now := u.clock.Now()
 	buyer, err := orders.BuyerOf(in.Account, in.Linked)
 	if err != nil {
 		return "", err //nolint:wrapcheck // the order names it.
@@ -62,11 +63,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (string, error) {
 	if err != nil {
 		return "", err //nolint:wrapcheck // the parse names it.
 	}
-	price, err := u.catalog.Price(plan)
+	offer, err := u.catalog.OfferAt(plan, now)
 	if err != nil {
 		return "", err //nolint:wrapcheck // the catalog names it.
 	}
-	order, err := orders.Place(buyer, plan, in.Target, in.StartsNow, u.clock.Now())
+	order, err := orders.Place(buyer, plan, in.Target, in.StartsNow, now)
 	if err != nil {
 		return "", err //nolint:wrapcheck // the order names it.
 	}
@@ -85,11 +86,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (string, error) {
 	if err := renewals.NoneRenewing(renewing); err != nil {
 		return "", err //nolint:wrapcheck // the renewals name it.
 	}
-	page, err := u.pages.Checkout(ctx, order, price)
+	page, err := u.pages.Checkout(ctx, order, offer)
 	if err != nil {
 		return "", fmt.Errorf("failed to make the checkout: %w", err)
 	}
-	if err := u.stores.Checkouts.Save(ctx, checkouts.Opened(page, in.Target, u.clock.Now())); err != nil {
+	if err := u.stores.Checkouts.Save(ctx, checkouts.Opened(page, in.Target, now)); err != nil {
 		return "", fmt.Errorf("failed to keep the checkout: %w", err)
 	}
 	return page.URL, nil

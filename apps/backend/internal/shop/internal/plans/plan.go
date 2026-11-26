@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var (
@@ -84,13 +85,15 @@ func (p Price) check() error {
 	return nil
 }
 
-// Catalog is the plans on sale, in the order the page shows them. Empty, the shop is off.
+// Catalog is the plans on sale, in the order the page shows them, and the sale over them. Empty, the shop is off.
 type Catalog struct {
 	prices []Price
+	sale   Sale
 }
 
-// NewCatalog is the three plans, each with its price, or none: a shop sells all three or nothing.
-func NewCatalog(prices ...Price) (Catalog, error) {
+// NewCatalog is the three plans, each with its price, or none: a shop sells all three or nothing. The sale, the zero
+// Sale for none, runs over all three.
+func NewCatalog(sale Sale, prices ...Price) (Catalog, error) {
 	if len(prices) == 0 {
 		return Catalog{}, nil
 	}
@@ -124,7 +127,7 @@ func NewCatalog(prices ...Price) (Catalog, error) {
 			}
 		}
 	}
-	return Catalog{prices: sorted}, nil
+	return Catalog{prices: sorted, sale: sale}, nil
 }
 
 // Prices is every plan on sale: none while the shop is off.
@@ -132,15 +135,29 @@ func (c Catalog) Prices() []Price {
 	return append([]Price(nil), c.prices...)
 }
 
-// Price is the plan's, ErrOff while the shop is off.
-func (c Catalog) Price(plan Plan) (Price, error) {
+// Offer is a plan as it sells at a moment: its Stripe price, and the coupons Stripe takes off its first payment.
+type Offer struct {
+	Price   Price
+	Coupons []CouponID
+}
+
+// OfferAt is the plan's at that moment, the sale's coupon while it runs; ErrOff while the shop is off.
+func (c Catalog) OfferAt(plan Plan, at time.Time) (Offer, error) {
 	for _, price := range c.prices {
 		if price.Plan == plan {
-			return price, nil
+			return Offer{Price: price, Coupons: c.sale.CouponsAt(at)}, nil
 		}
 	}
 	if len(c.prices) == 0 {
-		return Price{}, ErrOff
+		return Offer{}, ErrOff
 	}
-	return Price{}, fmt.Errorf("%w: %q", ErrInvalidPlan, plan)
+	return Offer{}, fmt.Errorf("%w: %q", ErrInvalidPlan, plan)
+}
+
+// SaleAt is the sale the page is told of at that moment: none outside it, or while the shop is off.
+func (c Catalog) SaleAt(at time.Time) (SaleSnapshot, bool) {
+	if len(c.prices) == 0 || !c.sale.Runs(at) {
+		return SaleSnapshot{}, false
+	}
+	return c.sale.TakeSnapshot(), true
 }
