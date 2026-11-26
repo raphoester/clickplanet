@@ -15,20 +15,20 @@ const found: Found = {
         countries: [{code: "tr", continent: "Middle East", tiles: 2500, changed: 6000, holdersStart: {tr: 2000}, holdersEnd: {fr: 1500, tr: 900}, takers: {fr: 5000}}],
         flags: [{code: "fr", continent: "Europe", took: 5000, filled: 100, lost: 3000, tookFrom: {tr: 4800}, solidity: 0.861,
             flippedByContinent: {"Middle East": 2400},
-            fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}]},
+            fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}], players: 5},
         {code: "tr", continent: "Middle East", took: 3000, filled: 0, lost: 5000, tookFrom: {fr: 3000}, solidity: 0.9,
-            flippedByContinent: {}, fighters: []}],
+            flippedByContinent: {}, fighters: [], players: 0}],
         bombs: 3, spreads: 0, enclosures: 1, score: 3886.52,
     }],
     tours: [{
         since: Date.UTC(2026, 9, 26, 8), until: Date.UTC(2026, 9, 26, 20), flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000},
         tookFrom: {dz: 8000}, nextTook: 9000, solidity: 0.95, bombs: 12, flippedByContinent: {"South Asia": 6246},
-        fighters: [{number: 1, name: "BraveFox42", took: 2100}],
+        fighters: [{number: 1, name: "BraveFox42", took: 2100}], players: 3,
     }],
     places: [{
         kind: "continent", place: {region: "South Asia"}, code: undefined, continent: "South Asia", tiles: 9600, holder: "fr", held: 6170,
         share: 0.6427, rivals: {dz: 1200}, changed: 6000, flippedByContinent: {"South Asia": 5200},
-        fighters: [{number: 2, name: "StormWolf", took: 40}],
+        fighters: [{number: 2, name: "StormWolf", took: 40}], players: 1,
     }],
     sagas: [{
         kind: "country", place: {country: "ru"}, code: "ru", continent: "Europe", tiles: 28527, holder: "pw", share: 0.9071,
@@ -77,13 +77,14 @@ describe("the findings", () => {
         })
     })
 
-    it("name the top fighters of each front's flags, of each tour and of each place, by their number in the cast", () => {
+    it("name the top fighters of each front's flags, of each tour and of each place, by their number in the cast, and count their players", () => {
         expect(json).toMatchObject({
-            fronts: [{flags: [{code: "fr", fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}]}, {code: "tr"}]}],
-            tours: [{fighters: [{number: 1, name: "BraveFox42", took: 2100}]}],
-            places: [{fighters: [{number: 2, name: "StormWolf", took: 40}]}],
+            fronts: [{flags: [{code: "fr", fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}], players: 5}, {code: "tr"}]}],
+            tours: [{fighters: [{number: 1, name: "BraveFox42", took: 2100}], players: 3}],
+            places: [{fighters: [{number: 2, name: "StormWolf", took: 40}], players: 1}],
         })
         expect((json.fronts as {flags: object[]}[])[0].flags[1]).not.toHaveProperty("fighters")
+        expect((json.fronts as {flags: object[]}[])[0].flags[1]).not.toHaveProperty("players")
     })
 
     it("tell each place's saga: who held over half of it, from when its conquest began to when it fell", () => {

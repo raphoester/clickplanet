@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {Cast, castWithin, namedSidesOf, Take, topFightersOf} from "./cast.ts"
+import {Cast, castWithin, namedSidesOf, playersOf, Take, topFightersOf} from "./cast.ts"
 
 const take = (fighter: number, flag: string, tile: number, at = 0): Take => ({at, tile, flag, fighter})
 
@@ -34,6 +34,13 @@ describe("the top fighters of what is counted", () => {
 
     it("are nobody when nobody of the cast took any of it", () => {
         expect(topFightersOf(cast, [])).toEqual([])
+    })
+})
+
+describe("the players of what is counted", () => {
+    it("are every player of the cast who took any of it, once each, past the three top fighters", () => {
+        expect(playersOf(cast.takes.filter(({flag}) => flag === "fr"))).toBe(4)
+        expect(playersOf([])).toBe(0)
     })
 })
 

@@ -208,9 +208,17 @@ and what it is, in the root's [The video lab](../../../docs/video-lab.md), "The 
 - **The writer writes it in `choose`, after the editor** (`choose_clips_usecase.EditNarrated`): when the run's lab story
   is told and its experiment is narrated, `narration.Narrator` asks `claude_writer`, the bench's writer, for one script:
   the tone `storyteller` on Sonnet 5.5 (`narration.ReportTone`, `ReportModel`: the owner's sign-off of 2026-11-25), the
-  story's facts as the editor read them (`claude_editor.FactsOf`), the findings' `day` (the gamemaster's day in
-  progress, which the generator reads from the turn `fetch -season` saves) and the episodes. Effort `high`, and a
-  refusal served again by Anthropic's fallback, as on the bench.
+  story's facts as the editor read them (`claude_editor.FactsOf`, each side's `players` among them: "ten Turks against
+  one Bulgarian"), the findings' `day` (the gamemaster's day in progress, which the generator reads from the turn
+  `fetch -season` saves) and the episodes. Effort `high`, and a refusal served again by Anthropic's fallback, as on the
+  bench.
+- **History and memes are the writer's to use, now and then** (2026-11-26, the owner, after a school class of Turkish
+  players took the Balkans from one Bulgarian): when the map repeats a real conquest, one sentence may call back to it
+  ("About six hundred years ago, the Ottomans rolled through the Balkans"), and a country meme years old and still used
+  may set the angle or the title, a swear with stars in the title alone, since Kokoro reads every letter of a line.
+  Either side the joke fits, the winner too; never a war going on now, a joke about victims, the Nazis, a player's name,
+  "Serbia Strong" or "Remove Kebab"; never two episodes in a row. It is all in `claude_writer/instructions.md`, and no
+  code judges a joke: the bench only shows a star in a line (`Script.Tells`, "a star").
 - **The episodes are what the voice said in the last 10 war reports posted, oldest first** (`narration.EpisodesOf`):
   each post's record keeps its clip's `narration.lines`, and the history `choose` reads for the editor gives them back
   (`metadata.SaidOf`, `Telling.Said`). There and not in a store of the job's: what Zernio holds is what was told, as
@@ -243,7 +251,7 @@ run's findings, and `ANTHROPIC_API_KEY`.
 - **The writer writes each in each tone with each model** (`narration/claude_writer`): its instructions
   (`instructions.md`, embedded, cached) hold what every tone keeps, then the tone's brief (`narration/tones/<name>.md`),
   then the story the editor chose and **its facts alone, as the editor read them** (`claude_editor.FactsOf`: its front,
-  tour, place or saga, the run's names, a saga's paths for its two flags), the season's day (`-day`) and the episodes
+  tour, place or saga with each side's `players` and `fighters`, the run's names, a saga's paths for its two flags), the season's day (`-day`) and the episodes
   before (none on the bench). It answers a title, the lines in the order said, and a note on its angle, by structured
   output, at effort `high` on every model so they compare on their writing; on Sonnet and Opus a refusal is served again
   by Anthropic's fallback (`fallbacks: "default"`). A script that fails is an entry with why; the round goes on.
@@ -251,8 +259,8 @@ run's findings, and `ANTHROPIC_API_KEY`.
   rate (`claude_writer.SpendOf`).
 - **`-out` is the round** (`display.Bench`): each story the editor chose, and each script with its id
   (`1-deadpan-opus`), its lines and what they say together, its words, its length at Adam's pace (about 200 words a minute, at 1.15 times Kokoro's),
-  the turns in it that give a machine away and the signs a voice reads badly (`Script.Tells`: a dash, a digit, more than
-  one exclamation mark), and what it cost. It refuses none: whether it sounds like a person is the owner's ear to say.
+  the turns in it that give a machine away ("history repeats itself" among them since 2026-11-26) and the signs a voice
+  reads badly (`Script.Tells`: a dash, a digit, more than one exclamation mark, a star), and what it cost. It refuses none: whether it sounds like a person is the owner's ear to say.
 - **The workflow** is `narration-bench.yml`, started by hand: the findings of a clips run (kept 30 days), `clips bench`
   in a job that runs no npm, then Kokoro's voice in one that holds no key (the frontend's
   [Clips](../../frontend/docs/clips.md), "The bench's voice").
@@ -320,7 +328,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   run with no answer and no day won posts nothing, and the next run, 2 hours on, sees the same stories.
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's findings as compact JSON: `now`,
   `slots`, `toldFirst`, the `window`, `names`, `continents`, `anthems`, each front numbered from 1 with its stretch in hours, its
-  countries and its flags, each tour and each place numbered the same, each saga numbered the same with each reign
+  countries and its flags (each with its `players` and `fighters`), each tour and each place numbered the same, each saga numbered the same with each reign
   numbered in it, its `days` held and its `conquestHours`, and its `contenders`; `paths`, each ruling flag's land at
   one list of times (`at`), in percent of each continent and of `the world`, a continent it never held 1% of left out;
   `told`, the season's posts with what each told (an older post with the countries it `shown`); and `shownLately`.
@@ -364,11 +372,16 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   render, which draws them, plays the look, and puts the teasers in the `Clip`. Only a day won and a call-up keep the
   generator's own, since no editor writes them: their own words, and a dive. From 2026-11-12 to 2026-11-26 the editor
   left `anthem` empty on 2 of 120 clips whose anthems we had, and a YouTube Short gets no other sound: the
-  instructions now say every story has one, the attacker's for two flags at war, and no code fills it in.
+  instructions now say every story has one, the attacker's for two flags at war, and no code fills it in. Since
+  2026-11-26 one teaser of a story may call back to a real conquest the map repeats or to a country meme ("TURKEY
+  TAKES THE BALKANS LIKE THE OTTOMANS DID"), with the war report's limits (above, "The war report"), and most runs have
+  none; the headline stays plain. A teaser is never drawn, so its stars pass.
 - **The editor chooses the players a clip names** (2026-10-28): each flag of a front, each tour and each place's
   holder comes with its top fighters of the cast (`Fighter`: number, name, tiles taken; the frontend's
-  [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's
-  `Pick.fighters`). **A check holds them to the story's sides** (`checkFighters`: a fighter of its attacker, its rival
+  [Clips](../../frontend/docs/clips.md)) and, since 2026-11-26, how many players of the cast took for it there
+  (`players`; a guest is in no cast, so there may be more), and each story answers the numbers to name (`Story.Fighters`, the generator's
+  `Pick.fighters`). The count is a fact for the words ("ten Turks against one Bulgarian"), never a name, and no check
+  reads it. **A check holds them to the story's sides** (`checkFighters`: a fighter of its attacker, its rival
   or a flag it took from, of a tour's flag or of a place's holder, each once; none for a seasonal story), never to
   taste. **Which names may be shown is not the editor's call**: the cast holds none that TikTok and YouTube forbid,
   since a judge of its own screens them first ([The names a post may show](clip-name-verdicts.md)). Until 2026-11-09

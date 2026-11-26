@@ -107,7 +107,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   - **`fighters`**, with a cast (`--cast`): the players who took the most, 3 at most (`topFightersOf`,
     `domain/clip/cast.ts`), each with its number in the cast, its name and the tiles it took from another flag. On each
     front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
-    on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
+    on each place, the holder's of the place in the window. **`players`** beside them (since 2026-11-26,
+    `playersOf`): how many players of the cast made those same takes, the 3 and every other, so the war report's
+    writer can say "ten Turks against one Bulgarian". A guest is in no cast, so there may be more; a saga has neither. **A take is matched by its tile and the stretch, never by
     its time**: the cast's times are postgres's, the replay's the stream's.
   - **`lists`**, a carousel's (`domain/clip/lists.ts`, `listsOf`; the root's [The video lab](../../../docs/video-lab.md),
     "Photos, not a video"), each ranked, 5 entries at most: **`fightTheMost`**, the flags by the tiles they took from

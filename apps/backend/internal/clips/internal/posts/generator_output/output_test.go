@@ -30,7 +30,7 @@ const (
       ],
       "flags": [
         {"code": "fr", "continent": "Europe", "took": 5000, "filled": 100, "lost": 3000, "tookFrom": {"tr": 4800}, "solidity": 0.86,
-         "flippedByContinent": {"Middle East": 2400}, "fighters": [{"number": 1, "name": "BraveFox42", "took": 812}]}
+         "flippedByContinent": {"Middle East": 2400}, "fighters": [{"number": 1, "name": "BraveFox42", "took": 812}], "players": 7}
       ],
       "bombs": 3,
       "score": 3886.5
@@ -38,11 +38,11 @@ const (
   ],
   "tours": [
     {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12, "flippedByContinent": {"South Asia": 6246},
-     "fighters": [{"number": 1, "name": "BraveFox42", "took": 4000}]}
+     "fighters": [{"number": 1, "name": "BraveFox42", "took": 4000}], "players": 3}
   ],
   "places": [
     {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000,
-     "flippedByContinent": {"South Asia": 5200}, "fighters": [{"number": 2, "name": "Ада", "took": 30}]}
+     "flippedByContinent": {"South Asia": 5200}, "fighters": [{"number": 2, "name": "Ада", "took": 30}], "players": 2}
   ],
   "sagas": [
     {"kind": "country", "code": "ru", "continent": "Europe", "tiles": 28527, "holder": "pw", "share": 0.91,
@@ -120,19 +120,19 @@ func TestTheFindingsAreEveryFrontTourPlaceSagaAndSeasonalStoryTheGeneratorWrote(
 		Flags: []posts.FrontFlag{{
 			Code: "fr", Continent: "Europe", Took: 5000, Filled: 100, Lost: 3000, TookFrom: map[string]int{"tr": 4800}, Solidity: 0.86,
 			FlippedByContinent: map[string]int{"Middle East": 2400},
-			Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}},
+			Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}}, Players: 7,
 		}},
 		Bombs: 3, Score: 3886.5,
 	}}, findings.Fronts)
 	assert.Equal(t, []posts.Tour{{
 		Flag: "fr", Since: findings.Since, Until: findings.Until, Took: 27992, ByContinent: map[string]int{"Europe": 12000},
 		TookFrom: map[string]int{"dz": 8000}, NextTook: 9000, Solidity: 0.95, Bombs: 12, FlippedByContinent: map[string]int{"South Asia": 6246},
-		Fighters: []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 4000}},
+		Fighters: []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 4000}}, Players: 3,
 	}}, findings.Tours)
 	assert.Equal(t, []posts.Place{{
 		Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643,
 		Rivals: map[string]int{"dz": 1200}, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200},
-		Fighters: []posts.Fighter{{Number: 2, Name: "Ада", Took: 30}},
+		Fighters: []posts.Fighter{{Number: 2, Name: "Ада", Took: 30}}, Players: 2,
 	}}, findings.Places)
 	hour := func(day, hour int) time.Time { return time.Date(2026, 11, day, hour, 0, 0, 0, time.UTC) }
 	assert.Equal(t, []posts.Saga{{

@@ -9,6 +9,8 @@ series that runs all season.
   forth: two hours of North Macedonia, Turkey and Greece trading tiles confused every listener, when Ireland holding
   North America was the best by far.
 - **Three countries at most**, the place included: past that, the ear loses who is who.
+- **A story that echoes history is a good pick**: a flag taking about the land its country's old empire took, the
+  same way (Turkey through the Balkans), or a story a country meme fits. The writer may call back to it.
 - **A story with a next chapter**: a place, a reign, a war of days, rather than an hour's skirmish. Read `told`: the
   series goes on from what its viewers saw.
 - **`headline`**: plain and true when the clip ends, as every headline is. It is not drawn: the voice's words take its

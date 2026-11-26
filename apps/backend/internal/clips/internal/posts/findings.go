@@ -100,6 +100,8 @@ type FrontFlag struct {
 	Solidity           float64
 	FlippedByContinent map[string]int
 	Fighters           []Fighter
+	// How many players of the cast took for it there.
+	Players int
 }
 
 // A player's number in the run's cast, from 1: the server alone knows its account.
@@ -124,6 +126,7 @@ type Tour struct {
 	// The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent.
 	FlippedByContinent map[string]int
 	Fighters           []Fighter
+	Players            int
 }
 
 type PlaceKind string
@@ -147,6 +150,7 @@ type Place struct {
 	FlippedByContinent map[string]int
 	// The holder's.
 	Fighters []Fighter
+	Players  int
 }
 
 // A place over the season: each flag that held over half of it, and each that held a tenth of it, oldest first.

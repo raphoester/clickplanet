@@ -105,6 +105,9 @@ func (s Script) Tells() []string {
 	if strings.Count(said, "!") > 1 {
 		found = append(found, "exclamation marks")
 	}
+	if strings.Contains(said, "*") {
+		found = append(found, "a star")
+	}
 	return found
 }
 
@@ -114,4 +117,5 @@ var machineTurns = slices.Sorted(slices.Values([]string{
 	"here's the thing", "only time will tell", "the stage is set", "in a world where", "epic", "showdown",
 	"unfold", "testament", "tapestry", "delve", "embark", "against all odds", "game-changer", "game changer",
 	"make no mistake", "the question remains", "one thing is clear", "stay tuned", "folks", "honestly",
+	"history repeats itself",
 }))
