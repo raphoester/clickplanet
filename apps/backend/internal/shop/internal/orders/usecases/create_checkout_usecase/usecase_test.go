@@ -22,9 +22,18 @@ var (
 	buyer = orders.AccountID{15: 1}
 )
 
-type payables struct{ refusal error }
+// payables answers the target asked, and the other targets of its flag.
+type payables struct {
+	refusal error
+	others  []orders.Target
+}
 
-func (p payables) Payable(context.Context, orders.AccountID, orders.Target) error { return p.refusal }
+func (p payables) Payable(_ context.Context, _ orders.AccountID, target orders.Target) ([]orders.Target, error) {
+	if p.refusal != nil {
+		return nil, p.refusal
+	}
+	return append([]orders.Target{target}, p.others...), nil
+}
 
 type pages struct{ orders []orders.Snapshot }
 
@@ -128,4 +137,40 @@ func TestASecondPlanIsNotSoldWhileARenewalRuns(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), in(t, "year"))
 
 	require.ErrorIs(t, err, renewals.ErrRenewing)
+}
+
+// A flag's holder renews it from the page that opened it: its renewal names the submission, and the flag is bought on
+// its code.
+func TestNoPlayerClaimsAFlagWhileItsHoldersRenewalRunsWhateverTargetItNames(t *testing.T) {
+	kept := renewals.NewMemoryStore()
+	kept.Seed(renewals.TestRenewing("sub_1", buyer, now.AddDate(0, 1, 0), now))
+	flag, err := orders.ParseTarget("", "r-0000000001")
+	require.NoError(t, err)
+	sold := &pages{}
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t),
+		payables{others: []orders.Target{target(t)}}, stores(kept), sold)
+	claim := in(t, "week")
+	claim.Account, claim.Target = orders.AccountID{15: 2}.String(), flag
+
+	_, err = useCase.Execute(t.Context(), claim)
+
+	require.ErrorIs(t, err, renewals.ErrRenewing, "Stripe may still retry the holder's card")
+	assert.Empty(t, sold.orders)
+}
+
+func TestAPlayerClaimsAFlagOnceItsHoldersRenewalStopped(t *testing.T) {
+	kept := renewals.NewMemoryStore()
+	stopping := renewals.TestRenewing("sub_1", buyer, now.AddDate(0, 1, 0), now)
+	stopping.State = renewals.Ended
+	kept.Seed(stopping)
+	flag, err := orders.ParseTarget("", "r-0000000001")
+	require.NoError(t, err)
+	useCase := create_checkout_usecase.New(cptime.NewFixedClock(now), catalog(t),
+		payables{others: []orders.Target{target(t)}}, stores(kept), &pages{})
+	claim := in(t, "week")
+	claim.Account, claim.Target = orders.AccountID{15: 2}.String(), flag
+
+	_, err = useCase.Execute(t.Context(), claim)
+
+	require.NoError(t, err)
 }

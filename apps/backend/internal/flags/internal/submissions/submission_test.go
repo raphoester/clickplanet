@@ -16,7 +16,7 @@ import (
 
 var (
 	at     = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	ada    = submissions.AccountID{15: 1}
+	ada    = catalog.AccountID{15: 1}
 	first  = submissions.SubmissionID{15: 1}
 	second = submissions.SubmissionID{15: 2}
 	rennes = submissions.Draft{Name: "Rennes", Pin: catalog.TestPin}
@@ -151,8 +151,8 @@ func TestAnApprovedNewSubmissionOpensItsFlagAtItsPin(t *testing.T) {
 
 	assert.Equal(t, catalog.Snapshot{
 		ID: "r-0000000001", Name: "Rennes", Picture: catalog.TestPicture, Pin: catalog.TestPin, State: catalog.Open,
-		DecidedAt: at.Add(time.Hour), EndsAt: at.Add(30 * 24 * time.Hour),
-	}, flag.TakeSnapshot())
+		DecidedAt: at.Add(time.Hour), EndsAt: at.Add(30 * 24 * time.Hour), Holder: ada,
+	}, flag.TakeSnapshot(), "held by its founder")
 	assert.Equal(t, submissions.Opened, opened.TakeSnapshot().State)
 	assert.Equal(t, catalog.FlagID("r-0000000001"), opened.TakeSnapshot().Flag)
 
@@ -191,7 +191,7 @@ func TestARejectedPictureIsDeleted30DaysLater(t *testing.T) {
 
 func TestASubmissionKeptInAStateItCannotBeInIsRefused(t *testing.T) {
 	for name, edit := range map[string]func(*submissions.Snapshot){
-		"no account":                  func(s *submissions.Snapshot) { s.Account = submissions.AccountID{} },
+		"no account":                  func(s *submissions.Snapshot) { s.Account = catalog.AccountID{} },
 		"no state":                    func(s *submissions.Snapshot) { s.State = "lost" },
 		"a flag before its opening":   func(s *submissions.Snapshot) { s.Flag = "r-0000000001" },
 		"rejected with no reason":     func(s *submissions.Snapshot) { s.State = submissions.Rejected },
@@ -269,7 +269,7 @@ func TestItsFounderPaysForAFlagUntilItsTimeIsPaidThenForItsFlag(t *testing.T) {
 	require.ErrorIs(t, paidFor(waiting).PayableBy(ada), submissions.ErrPaidAlready)
 	require.ErrorIs(t, paidFor(approved).PayableBy(ada), submissions.ErrPaidAlready, "it opens with that time")
 	require.ErrorIs(t, submissions.Restored(rejected).PayableBy(ada), submissions.ErrNotPayable)
-	require.ErrorIs(t, submissions.Restored(waiting).PayableBy(submissions.AccountID{15: 9}), submissions.ErrNotYours)
+	require.ErrorIs(t, submissions.Restored(waiting).PayableBy(catalog.AccountID{15: 9}), submissions.ErrNotYours)
 }
 
 func TestAVerdictIsToldAndNothingElse(t *testing.T) {

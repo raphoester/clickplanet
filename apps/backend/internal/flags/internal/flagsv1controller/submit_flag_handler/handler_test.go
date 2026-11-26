@@ -52,7 +52,7 @@ func submit(t *testing.T, useCase *stubUseCase) (*flagsv1.SubmitFlagResponse, er
 
 func TestTheCallerAndWhatItTypedAreHandedOnAndTheWaitingSubmissionAnswered(t *testing.T) {
 	at := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	useCase := &stubUseCase{out: submissions.TestWaiting(submissions.SubmissionID{15: 1}, submissions.AccountID{15: 1}, at)}
+	useCase := &stubUseCase{out: submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, at)}
 
 	answer, err := submit(t, useCase)
 	require.NoError(t, err)

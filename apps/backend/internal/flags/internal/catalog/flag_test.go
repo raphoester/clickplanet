@@ -55,28 +55,41 @@ func TestAFlagOpenedTellsItIsOpen(t *testing.T) {
 	}, flag.Facts())
 }
 
-func TestAFlagClosedTellsItIsClosed(t *testing.T) {
-	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
+func TestAFlagRemovedTellsItIsClosed(t *testing.T) {
+	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
 	require.NoError(t, err)
 
-	assert.Equal(t, catalog.Closed, flag.TakeSnapshot().State)
+	assert.Equal(t, catalog.Removed, flag.TakeSnapshot().State)
 	assert.Equal(t, closedAt, flag.TakeSnapshot().DecidedAt)
-	assert.Equal(t, catalog.Note("Broke the rules."), flag.TakeSnapshot().Note, "its founder reads why")
+	assert.Equal(t, catalog.Note("Broke the rules."), flag.TakeSnapshot().Note, "its holder reads why")
 	assertFacts(t, []proto.Message{
 		&flagsv1.FlagClosed{Flag: "r-0000000001", ClosedAt: timestamppb.New(closedAt)},
 	}, flag.Facts())
 }
 
-func TestAFlagIsClosedOnce(t *testing.T) {
-	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
+func TestAFlagClosedAtItsEndIsRemovedAndToldClosedAgain(t *testing.T) {
+	ended, ok := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Expired(openedAt.AddDate(0, 2, 0))
+	require.True(t, ok)
+
+	removed, err := ended.Removed("Broke the rules.", openedAt.AddDate(0, 3, 0))
 	require.NoError(t, err)
 
-	_, err = flag.Closed("Broke the rules.", closedAt.Add(time.Hour))
-	require.ErrorIs(t, err, catalog.ErrClosed)
+	assert.Equal(t, catalog.Removed, removed.TakeSnapshot().State)
+	assertFacts(t, []proto.Message{
+		&flagsv1.FlagClosed{Flag: "r-0000000001", ClosedAt: timestamppb.New(openedAt.AddDate(0, 3, 0))},
+	}, removed.Facts())
 }
 
-func TestAFlagIsNotClosedWithNoNote(t *testing.T) {
-	_, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("", closedAt)
+func TestAFlagIsRemovedOnce(t *testing.T) {
+	flag, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
+	require.NoError(t, err)
+
+	_, err = flag.Removed("Broke the rules.", closedAt.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrRemoved)
+}
+
+func TestAFlagIsNotRemovedWithNoNote(t *testing.T) {
+	_, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("", closedAt)
 	require.ErrorIs(t, err, catalog.ErrInvalidNote)
 }
 
@@ -104,6 +117,13 @@ func TestASnapshotOfAnOpenFlagWithANoteDoesNotRestore(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestASnapshotOfARemovedFlagWithNoNoteDoesNotRestore(t *testing.T) {
+	kept := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).TakeSnapshot()
+	kept.State = catalog.Removed
+	_, err := kept.Restore()
+	require.Error(t, err)
+}
+
 func assertFacts(t *testing.T, want []proto.Message, got []proto.Message) {
 	t.Helper()
 	require.Len(t, got, len(want))
@@ -117,7 +137,7 @@ func TestTimeAddedToAnOpenFlagEndsItLater(t *testing.T) {
 	days, err := catalog.ParseDays(7)
 	require.NoError(t, err)
 
-	added, err := flag.TimeAdded(days, openedAt.Add(time.Hour))
+	added, err := flag.TimeAdded(days, catalog.NamesOf(nil), openedAt.Add(time.Hour))
 	require.NoError(t, err)
 
 	assert.Equal(t, flag.TakeSnapshot().EndsAt.Add(7*24*time.Hour), added.TakeSnapshot().EndsAt)
@@ -125,14 +145,12 @@ func TestTimeAddedToAnOpenFlagEndsItLater(t *testing.T) {
 	assert.Equal(t, openedAt, added.TakeSnapshot().DecidedAt, "still open since it opened")
 }
 
-func TestAFlagClosedComesBackWithinThirtyDaysAndNotAfter(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
-	require.NoError(t, err)
-	days, err := catalog.ParseDays(30)
-	require.NoError(t, err)
+func TestAFlagClosedAtItsEndComesBackHoweverLongAgo(t *testing.T) {
+	closed, ok := catalog.HeldFlag("r-0000000001", "Rennes", catalog.TestHolder, openedAt).Expired(openedAt.AddDate(0, 2, 0))
+	require.True(t, ok)
 
-	back := closedAt.Add(29 * 24 * time.Hour)
-	reopened, err := closed.TimeAdded(days, back)
+	back := openedAt.AddDate(2, 0, 0)
+	reopened, err := closed.TimeAdded(catalog.Days(30), catalog.NamesOf(nil), back)
 	require.NoError(t, err)
 	kept := reopened.TakeSnapshot()
 	assert.Equal(t, catalog.Open, kept.State)
@@ -141,10 +159,114 @@ func TestAFlagClosedComesBackWithinThirtyDaysAndNotAfter(t *testing.T) {
 	assert.Equal(t, closed.TakeSnapshot().ID, kept.ID, "the same code")
 	assert.Equal(t, closed.TakeSnapshot().Name, kept.Name, "the same name")
 	assert.Equal(t, closed.TakeSnapshot().Picture, kept.Picture, "the same picture")
-	assert.Empty(t, kept.Note, "the close it came back from is over")
+	assert.Equal(t, catalog.TestHolder, kept.Holder, "the same holder")
+}
 
-	_, err = closed.TimeAdded(days, closedAt.Add(30*24*time.Hour))
-	require.ErrorIs(t, err, catalog.ErrTooLate)
+func TestARemovedFlagComesBackByHandUnlessANewFlagTookItsName(t *testing.T) {
+	removed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
+	require.NoError(t, err)
+
+	back, err := removed.TimeAdded(catalog.Days(7), catalog.NamesOf([]catalog.Flag{removed}), closedAt.Add(time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Open, back.TakeSnapshot().State)
+	assert.Empty(t, back.TakeSnapshot().Note, "the removal it came back from is over")
+
+	taken := catalog.NamesOf([]catalog.Flag{removed, catalog.OpenFlag("r-0000000002", "RENNES", closedAt)})
+	_, err = removed.TimeAdded(catalog.Days(7), taken, closedAt.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrNameTaken)
+}
+
+var (
+	ada = catalog.TestHolder
+	bob = catalog.AccountID{15: 2}
+	// Rennes, held by Ada, ends 30 days after it opened.
+	endedAt = openedAt.Add(30 * 24 * time.Hour)
+)
+
+func ended(t *testing.T) catalog.Flag {
+	t.Helper()
+	flag, ok := catalog.HeldFlag("r-0000000001", "Rennes", ada, openedAt).Expired(endedAt.Add(time.Minute))
+	require.True(t, ok)
+	return flag
+}
+
+func TestItsHolderPaysForAnOpenFlagAndNobodyElse(t *testing.T) {
+	flag := catalog.HeldFlag("r-0000000001", "Rennes", ada, openedAt)
+
+	require.NoError(t, flag.PayableBy(ada))
+	require.ErrorIs(t, flag.PayableBy(bob), catalog.ErrHeld)
+	require.ErrorIs(t, catalog.OpenFlag("r-0000000002", "Corsica", openedAt).PayableBy(bob), catalog.ErrHeld,
+		"a flag opened by hand is the operator's")
+
+	paid, added, err := flag.Paid(ada, openedAt, catalog.Days(7), openedAt.Add(time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, 7*24*time.Hour, added)
+	assert.Equal(t, endedAt.Add(7*24*time.Hour), paid.TakeSnapshot().EndsAt)
+
+	_, _, err = flag.Paid(bob, openedAt, catalog.Days(7), openedAt.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrHeld)
+}
+
+func TestAnyAccountClaimsAFlagWhoseTimeEndedHoweverLongAgo(t *testing.T) {
+	flag := ended(t)
+	require.NoError(t, flag.PayableBy(bob))
+
+	now := endedAt.AddDate(3, 0, 0)
+	claimed, added, err := flag.Paid(bob, now.Add(-time.Minute), catalog.Days(7), now)
+	require.NoError(t, err)
+
+	kept := claimed.TakeSnapshot()
+	assert.Equal(t, catalog.Open, kept.State)
+	assert.Equal(t, bob, kept.Holder, "the payer holds it")
+	assert.Equal(t, now, kept.DecidedAt)
+	assert.Equal(t, now.Add(7*24*time.Hour), kept.EndsAt)
+	assert.Equal(t, 7*24*time.Hour, added)
+	assert.Equal(t, flag.TakeSnapshot().Name, kept.Name, "the same flag")
+	assertFacts(t, []proto.Message{&flagsv1.FlagOpened{
+		Flag: "r-0000000001", Name: "Rennes", OpenedAt: timestamppb.New(now), Pin: &flagsv1.Pin{Latitude: 48.1173, Longitude: -1.6778},
+	}}, claimed.Facts())
+}
+
+func TestAnOrderPlacedBeforeTheFlagEndedClaimsNothing(t *testing.T) {
+	flag := ended(t)
+
+	_, _, err := flag.Paid(bob, endedAt.Add(-time.Hour), catalog.Days(7), endedAt.Add(time.Hour))
+	require.ErrorIs(t, err, catalog.ErrOrderedBefore, "a late renewal of a plan bought before")
+
+	back, _, err := flag.Paid(ada, openedAt, catalog.Days(7), endedAt.Add(time.Hour))
+	require.NoError(t, err, "its holder's late renewal brings it back")
+	assert.Equal(t, ada, back.TakeSnapshot().Holder)
+}
+
+func TestNobodyPaysForARemovedFlag(t *testing.T) {
+	removed, err := ended(t).Removed("Broke the rules.", endedAt.Add(time.Hour))
+	require.NoError(t, err)
+
+	require.ErrorIs(t, removed.PayableBy(ada), catalog.ErrRemoved)
+	require.ErrorIs(t, removed.PayableBy(bob), catalog.ErrRemoved)
+	_, _, err = removed.Paid(ada, endedAt.Add(2*time.Hour), catalog.Days(7), endedAt.Add(2*time.Hour))
+	require.ErrorIs(t, err, catalog.ErrRemoved)
+}
+
+func TestARefundTakesBackOnlyTimeGrantedSinceTheFlagLastOpened(t *testing.T) {
+	now := endedAt.AddDate(0, 1, 0)
+	claimed, _, err := ended(t).Paid(bob, now, catalog.Days(30), now)
+	require.NoError(t, err)
+
+	kept := claimed.Shortened(30*24*time.Hour, openedAt, now.Add(time.Hour))
+	assert.Equal(t, claimed.TakeSnapshot(), kept.TakeSnapshot(), "Ada's month was spent before Bob's claim")
+
+	cut := claimed.Shortened(30*24*time.Hour, now, now.Add(time.Hour))
+	assert.Equal(t, catalog.Closed, cut.TakeSnapshot().State, "Bob's own payment refunded")
+}
+
+func TestARemovedFlagsNameIsFree(t *testing.T) {
+	removed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
+	require.NoError(t, err)
+
+	require.NoError(t, catalog.NamesOf([]catalog.Flag{removed}).Free("RENNES", ""))
+	require.ErrorIs(t, catalog.NamesOf([]catalog.Flag{ended(t)}).Free("RENNES", ""), catalog.ErrNameTaken,
+		"a flag whose time ended keeps its name: a player may claim it")
 }
 
 func TestAFlagExpiresAtItsEndAndNotBefore(t *testing.T) {

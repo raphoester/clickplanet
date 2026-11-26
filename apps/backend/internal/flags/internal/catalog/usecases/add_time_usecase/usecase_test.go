@@ -48,11 +48,11 @@ func TestTimeAddedToAnOpenFlagTellsNothing(t *testing.T) {
 	assert.Empty(t, f.outbox.Recorded(), "the others know it open already")
 }
 
-func TestAFlagClosedComesBackOpenedAgainWithinThirtyDays(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
-	require.NoError(t, err)
+func TestAFlagClosedAtItsEndComesBackOpenedAgainHoweverLongAgo(t *testing.T) {
+	closed, ok := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Expired(closedAt)
+	require.True(t, ok)
 	f := newFixture(t, closed)
-	back := closedAt.Add(10 * 24 * time.Hour)
+	back := closedAt.AddDate(1, 0, 0)
 	f.clock.Advance(back.Sub(openedAt))
 
 	added, err := f.useCase.Execute(t.Context(), add_time_usecase.In{Flag: "r-0000000001", Days: 30})
@@ -65,19 +65,32 @@ func TestAFlagClosedComesBackOpenedAgainWithinThirtyDays(t *testing.T) {
 		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
-func TestAFlagClosedThirtyDaysAgoDoesNotComeBack(t *testing.T) {
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Closed("Broke the rules.", closedAt)
+func TestARemovedFlagComesBackOnlyWhileItsNameIsFree(t *testing.T) {
+	removed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
 	require.NoError(t, err)
-	f := newFixture(t, closed)
-	f.clock.Advance(closedAt.Add(30 * 24 * time.Hour).Sub(openedAt))
+	f := newFixture(t, removed)
+	require.NoError(t, f.store.Save(t.Context(), catalog.OpenFlag("r-0000000002", "rennes", closedAt)))
 
 	_, err = f.useCase.Execute(t.Context(), add_time_usecase.In{Flag: "r-0000000001", Days: 30})
 
-	require.ErrorIs(t, err, catalog.ErrTooLate)
+	require.ErrorIs(t, err, catalog.ErrNameTaken)
 	kept, err := f.store.Flag(t.Context(), "r-0000000001")
 	require.NoError(t, err)
-	assert.Equal(t, catalog.Closed, kept.TakeSnapshot().State)
+	assert.Equal(t, catalog.Removed, kept.TakeSnapshot().State)
 	assert.Empty(t, f.outbox.Recorded())
+}
+
+func TestARemovedFlagComesBackByHand(t *testing.T) {
+	removed, err := catalog.OpenFlag("r-0000000001", "Rennes", openedAt).Removed("Broke the rules.", closedAt)
+	require.NoError(t, err)
+	f := newFixture(t, removed)
+
+	added, err := f.useCase.Execute(t.Context(), add_time_usecase.In{Flag: "r-0000000001", Days: 30})
+	require.NoError(t, err)
+
+	assert.Equal(t, catalog.Open, added.State)
+	assert.Empty(t, added.Note)
+	assert.Len(t, f.outbox.Recorded(), 1)
 }
 
 func TestDaysAndCodesAreChecked(t *testing.T) {

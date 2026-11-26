@@ -36,7 +36,8 @@ func (h Handler) Handle(ctx context.Context, command *flagsv1.GrantTime) error {
 		return err
 	}
 	paid, err := grants.ParsePaid(command.GetGrantId(), command.GetTarget().GetSubmissionId(),
-		command.GetTarget().GetFlag(), period, command.GetPaidAt().AsTime())
+		command.GetTarget().GetFlag(), period, command.GetAccountId(), command.GetOrderedAt().AsTime(),
+		command.GetPaidAt().AsTime())
 	if err != nil {
 		return err //nolint:wrapcheck // the parse names it.
 	}
@@ -48,6 +49,7 @@ func (h Handler) Handle(ctx context.Context, command *flagsv1.GrantTime) error {
 	attributes := []any{
 		slog.String("grant", paid.Grant.String()), slog.String("submission", command.GetTarget().GetSubmissionId()),
 		slog.String("flag", command.GetTarget().GetFlag()), slog.String("period", string(period)),
+		slog.String("account", paid.By.String()),
 	}
 	switch {
 	case err == nil:

@@ -14,23 +14,24 @@ import (
 )
 
 var (
-	ErrUnknownFlag = errors.New("no flag was opened with this id")
-	ErrClosed      = errors.New("the flag is closed already")
-	ErrEnded       = errors.New("a flag's end is in the future")
-	ErrTooLate     = errors.New("a flag closed 30 days ago or more cannot come back")
-	ErrInvalidDays = errors.New("a flag gets 1 to 3660 days at a time")
+	ErrUnknownFlag   = errors.New("no flag was opened with this id")
+	ErrRemoved       = errors.New("the operator removed the flag: nobody pays for it")
+	ErrEnded         = errors.New("a flag's end is in the future")
+	ErrHeld          = errors.New("another account holds the open flag: only its holder adds time")
+	ErrOrderedBefore = errors.New("the flag's time ended after the order: an order placed before claims nothing")
+	ErrInvalidDays   = errors.New("a flag gets 1 to 3660 days at a time")
 )
-
-// A flag closed less long ago comes back with the time added to it.
-const comeback = 30 * 24 * time.Hour
 
 const maxDays = 3660
 
 type State string
 
 const (
-	Open   State = "open"
+	Open State = "open"
+	// Its time ended, at its end or by a refund: anyone may pay for it, and so claim it.
 	Closed State = "closed"
+	// The operator removed it, for good: nobody pays for it, and its name is free for a new flag.
+	Removed State = "removed"
 )
 
 type Days uint32
@@ -60,7 +61,9 @@ type Flag struct {
 	state     State
 	decidedAt time.Time
 	endsAt    time.Time
-	// Only while the operator's close holds: a flag closed at its end has none.
+	// The account whose payment opened it or claimed it last: none for a flag opened by hand.
+	holder AccountID
+	// Only while removed.
 	note Note
 }
 
@@ -73,7 +76,13 @@ type Opening struct {
 	clock cptime.Clock
 }
 
+// Open is a flag opened by hand, which no account holds.
 func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.Time) (Flag, error) {
+	return o.OpenFor(AccountID{}, name, picture, pin, endsAt)
+}
+
+// OpenFor is a flag its holder's payment opens.
+func (o Opening) OpenFor(holder AccountID, name Name, picture pictures.Picture, pin Pin, endsAt time.Time) (Flag, error) {
 	now := o.clock.Now()
 	if !endsAt.After(now) {
 		return Flag{}, fmt.Errorf("%w: %s", ErrEnded, endsAt.Format(time.RFC3339))
@@ -82,44 +91,73 @@ func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.
 	if err != nil {
 		return Flag{}, fmt.Errorf("failed to draw a flag id: %w", err)
 	}
-	return Flag{id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt}, nil
+	return Flag{
+		id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt, holder: holder,
+	}, nil
 }
 
-func (f Flag) TimeAdded(span Span, now time.Time) (Flag, error) {
-	added, _, err := f.Extended(span, now)
-	return added, err
-}
-
-// Extended is the flag with the span added, and how much later it ends: an open flag a span after its end, one closed
-// less than 30 days ago open again from now.
-func (f Flag) Extended(span Span, now time.Time) (Flag, time.Duration, error) {
-	if err := f.Payable(now); err != nil {
-		return f, 0, err
-	}
+// TimeAdded is the operator's time: an open flag ends a span later, a closed one opens again from now, its holder
+// kept. A removed one comes back too, its note dropped, unless a new flag took its name.
+func (f Flag) TimeAdded(span Span, names Names, now time.Time) (Flag, error) {
 	switch f.state {
 	case Open:
+		f.endsAt = span.After(f.endsAt)
+		return f, nil
+	case Removed:
+		if err := names.Free(f.name, f.id); err != nil {
+			return f, err //nolint:wrapcheck // the names say which.
+		}
+		return f.reopened(span, now), nil
+	case Closed:
+		return f.reopened(span, now), nil
+	}
+	return f, fmt.Errorf("the flag %s is %q, which is no state", f.id, f.state)
+}
+
+func (f Flag) reopened(span Span, now time.Time) Flag {
+	f.state, f.decidedAt, f.endsAt, f.note = Open, now, span.After(now), ""
+	return f
+}
+
+// PayableBy is nil when the account may pay for the flag now: its holder, or anyone once its time ended, which the
+// payment claims.
+func (f Flag) PayableBy(account AccountID) error {
+	switch {
+	case f.state == Removed:
+		return fmt.Errorf("%s: %w", f.id, ErrRemoved)
+	case f.holder == account, f.state == Closed:
+		return nil
+	}
+	return fmt.Errorf("%s: %w", f.id, ErrHeld)
+}
+
+// Paid is the flag with a payment's time, and how much later it ends. The holder's open flag ends a span later, and
+// opens again from now once closed. Another account's payment claims a closed flag, open from now and held by it,
+// only when its order was placed since the flag closed: an older order, a late renewal of a plan bought before, claims
+// nothing.
+func (f Flag) Paid(by AccountID, orderedAt time.Time, span Span, now time.Time) (Flag, time.Duration, error) {
+	if err := f.PayableBy(by); err != nil {
+		return f, 0, err
+	}
+	switch {
+	case f.state == Open:
 		end := span.After(f.endsAt)
 		added := end.Sub(f.endsAt)
 		f.endsAt = end
 		return f, added, nil
-	case Closed:
-		f.state, f.decidedAt, f.endsAt, f.note = Open, now, span.After(now), ""
-		return f, f.endsAt.Sub(now), nil
+	case f.holder != by && orderedAt.Before(f.decidedAt):
+		return f, 0, fmt.Errorf("%s closed %s, ordered %s: %w", f.id, f.decidedAt.Format(time.RFC3339),
+			orderedAt.Format(time.RFC3339), ErrOrderedBefore)
 	}
-	return f, 0, fmt.Errorf("the flag %s is %q, which is no state", f.id, f.state)
+	f = f.reopened(span, now)
+	f.holder = by
+	return f, f.endsAt.Sub(now), nil
 }
 
-// Payable is nil while time added would keep the flag or bring it back: open, or closed less than 30 days ago.
-func (f Flag) Payable(now time.Time) error {
-	if f.state == Closed && now.Sub(f.decidedAt) >= comeback {
-		return fmt.Errorf("%s closed %s: %w", f.id, f.decidedAt.Format(time.RFC3339), ErrTooLate)
-	}
-	return nil
-}
-
-// Shortened ends the flag that much sooner, and closes it now when that end is past. A closed flag stays as it is.
-func (f Flag) Shortened(by time.Duration, now time.Time) Flag {
-	if f.state != Open {
+// Shortened ends the flag that much sooner, and closes it now when that end is past. Only time granted since the flag
+// last opened is taken back: an earlier opening's time was spent, by its holder then. A closed flag stays as it is.
+func (f Flag) Shortened(by time.Duration, grantedAt, now time.Time) Flag {
+	if f.state != Open || grantedAt.Before(f.decidedAt) {
 		return f
 	}
 	f.endsAt = f.endsAt.Add(-by)
@@ -129,14 +167,15 @@ func (f Flag) Shortened(by time.Duration, now time.Time) Flag {
 	return f
 }
 
-func (f Flag) Closed(note Note, at time.Time) (Flag, error) {
-	if f.state == Closed {
-		return f, fmt.Errorf("%s: %w", f.id, ErrClosed)
+// Removed is the flag the operator removed, open or closed, with the note its holder reads.
+func (f Flag) Removed(note Note, at time.Time) (Flag, error) {
+	if f.state == Removed {
+		return f, fmt.Errorf("%s: %w", f.id, ErrRemoved)
 	}
 	if note == "" {
 		return f, fmt.Errorf("%s: %w", f.id, ErrInvalidNote)
 	}
-	f.state, f.decidedAt, f.note = Closed, at, note
+	f.state, f.decidedAt, f.note = Removed, at, note
 	return f, nil
 }
 
@@ -161,7 +200,7 @@ func (f Flag) Facts() []proto.Message {
 		return []proto.Message{&flagsv1.FlagOpened{
 			Flag: f.id.String(), Name: f.name.String(), OpenedAt: timestamppb.New(f.decidedAt), Pin: f.pin.message(),
 		}}
-	case Closed:
+	case Closed, Removed:
 		return []proto.Message{&flagsv1.FlagClosed{Flag: f.id.String(), ClosedAt: timestamppb.New(f.decidedAt)}}
 	}
 	return nil
@@ -170,7 +209,7 @@ func (f Flag) Facts() []proto.Message {
 func (f Flag) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), Pin: f.pin, State: f.state, DecidedAt: f.decidedAt,
-		EndsAt: f.endsAt, Note: f.note,
+		EndsAt: f.endsAt, Holder: f.holder, Note: f.note,
 	}
 }
 
@@ -182,7 +221,9 @@ type Snapshot struct {
 	State     State
 	DecidedAt time.Time
 	EndsAt    time.Time
-	Note      Note
+	// The zero id for none.
+	Holder AccountID
+	Note   Note
 }
 
 func (s Snapshot) Restore() (Flag, error) {
@@ -193,14 +234,14 @@ func (s Snapshot) Restore() (Flag, error) {
 	if err := s.Pin.check(); err != nil {
 		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
 	}
-	if s.Note != "" && s.State != Closed {
-		return Flag{}, fmt.Errorf("the flag %s is %q with a close's note", s.ID, s.State)
+	if (s.Note != "") != (s.State == Removed) {
+		return Flag{}, fmt.Errorf("the flag %s is %q with the note %q: only a removed flag has one", s.ID, s.State, s.Note)
 	}
 	switch s.State {
-	case Open, Closed:
+	case Open, Closed, Removed:
 		return Flag{
 			id: s.ID, name: s.Name, picture: picture, pin: s.Pin, state: s.State, decidedAt: s.DecidedAt,
-			endsAt: s.EndsAt, note: s.Note,
+			endsAt: s.EndsAt, holder: s.Holder, note: s.Note,
 		}, nil
 	}
 	return Flag{}, fmt.Errorf("the flag %s is %q, which is no state", s.ID, s.State)

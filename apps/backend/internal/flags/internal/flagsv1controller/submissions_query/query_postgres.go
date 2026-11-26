@@ -53,7 +53,7 @@ const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
 // Mine is the account's submissions, the newest first.
-func (q PostgresQuery) Mine(ctx context.Context, account submissions.AccountID) (*flagsv1.ListMySubmissionsResponse, error) {
+func (q PostgresQuery) Mine(ctx context.Context, account catalog.AccountID) (*flagsv1.ListMySubmissionsResponse, error) {
 	rows, err := q.read(ctx, `SELECT `+columns+from+` WHERE s.account_id = $1 ORDER BY s.submitted_at DESC, s.id`,
 		uuid.UUID(account))
 	if err != nil {
@@ -63,37 +63,41 @@ func (q PostgresQuery) Mine(ctx context.Context, account submissions.AccountID) 
 	for _, row := range rows {
 		mine = append(mine, q.messages.Submission(row))
 	}
-	closures, err := q.closures(ctx, account)
+	held, closures, err := q.held(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-	return &flagsv1.ListMySubmissionsResponse{Submissions: mine, Closures: closures}, nil
+	return &flagsv1.ListMySubmissionsResponse{Submissions: mine, Closures: closures, Held: held}, nil
 }
 
-// The notes of the flags the account founded: each opened from one of its submissions.
-func (q PostgresQuery) closures(ctx context.Context, account submissions.AccountID) ([]*flagsv1.Closure, error) {
+// The flags the account holds, and the note of each one the operator removed.
+func (q PostgresQuery) held(ctx context.Context, account catalog.AccountID) ([]string, []*flagsv1.Closure, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT c.flag, c.note FROM closures c
-		JOIN submissions s ON s.flag = c.flag AND s.state = 'opened'
-		WHERE s.account_id = $1
-		ORDER BY c.flag`, uuid.UUID(account))
+		SELECT h.flag, COALESCE(c.note, '') FROM holders h
+		LEFT JOIN closures c ON c.flag = h.flag
+		WHERE h.account_id = $1
+		ORDER BY h.flag`, uuid.UUID(account))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the closes of the account's flags: %w", err)
+		return nil, nil, fmt.Errorf("failed to read the account's flags: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
+	var held []string
 	var closures []*flagsv1.Closure
 	for rows.Next() {
-		closure := &flagsv1.Closure{}
-		if err := rows.Scan(&closure.Flag, &closure.Note); err != nil {
-			return nil, fmt.Errorf("failed to read a close of the account's flags: %w", err)
+		var flag, note string
+		if err := rows.Scan(&flag, &note); err != nil {
+			return nil, nil, fmt.Errorf("failed to read a flag of the account's: %w", err)
 		}
-		closures = append(closures, closure)
+		held = append(held, flag)
+		if note != "" {
+			closures = append(closures, &flagsv1.Closure{Flag: flag, Note: note})
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the closes of the account's flags: %w", err)
+		return nil, nil, fmt.Errorf("failed to read the account's flags: %w", err)
 	}
-	return closures, nil
+	return held, closures, nil
 }
 
 // Kept is every submission waiting, or only the paid ones, the oldest first, then the ones decided last, the latest
@@ -180,7 +184,7 @@ func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]s
 		}
 		row.ID, row.Flag, row.Name, row.State = submissions.SubmissionID(id), catalog.FlagID(flag), catalog.Name(name),
 			submissions.State(state)
-		row.Account = submissions.AccountID(account)
+		row.Account = catalog.AccountID(account)
 		picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
 		row.Picture, row.OtherColors, row.Rejection.Reason = picture, pictures.OtherColors(others),
 			submissions.Reason(reason)

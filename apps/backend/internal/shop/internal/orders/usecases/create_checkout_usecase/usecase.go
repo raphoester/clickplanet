@@ -11,9 +11,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shop/internal/renewals"
 )
 
-// Payables asks the flags module whether the account may buy time for the target now.
+// Payables asks the flags module whether the account may buy time for the target now, and which targets buy time for
+// the same flag.
 type Payables interface {
-	Payable(ctx context.Context, buyer orders.AccountID, target orders.Target) error
+	Payable(ctx context.Context, buyer orders.AccountID, target orders.Target) ([]orders.Target, error)
 }
 
 // Pages are Stripe's Checkout Sessions.
@@ -22,10 +23,10 @@ type Pages interface {
 }
 
 type Renewals interface {
-	Bought(ctx context.Context, buyer orders.AccountID) ([]renewals.Renewal, error)
+	OfTarget(ctx context.Context, target orders.Target) ([]renewals.Renewal, error)
 }
 
-// Stores is what a checkout reads and keeps: the buyer's renewals, and the pages opened.
+// Stores is what a checkout reads and keeps: the renewals of the flag, and the pages opened.
 type Stores struct {
 	Renewals  Renewals
 	Checkouts checkouts.Store
@@ -69,14 +70,19 @@ func (u *UseCase) Execute(ctx context.Context, in In) (string, error) {
 	if err != nil {
 		return "", err //nolint:wrapcheck // the order names it.
 	}
-	if err := u.payables.Payable(ctx, buyer, in.Target); err != nil {
+	same, err := u.payables.Payable(ctx, buyer, in.Target)
+	if err != nil {
 		return "", fmt.Errorf("the flags module refused the order: %w", err)
 	}
-	bought, err := u.stores.Renewals.Bought(ctx, buyer)
-	if err != nil {
-		return "", fmt.Errorf("failed to read the buyer's renewals: %w", err)
+	var renewing []renewals.Renewal
+	for _, target := range same {
+		kept, err := u.stores.Renewals.OfTarget(ctx, target)
+		if err != nil {
+			return "", fmt.Errorf("failed to read the renewals of %v: %w", target, err)
+		}
+		renewing = append(renewing, kept...)
 	}
-	if err := renewals.NoneRenewing(bought, in.Target); err != nil {
+	if err := renewals.NoneRenewing(renewing); err != nil {
 		return "", err //nolint:wrapcheck // the renewals name it.
 	}
 	page, err := u.pages.Checkout(ctx, order, price)

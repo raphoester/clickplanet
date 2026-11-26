@@ -32,8 +32,8 @@ func (links) HeldURL(key string, _ time.Duration) (string, error) {
 
 var (
 	at  = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	ada = submissions.AccountID{15: 1}
-	bob = submissions.AccountID{15: 2}
+	ada = catalog.AccountID{15: 1}
+	bob = catalog.AccountID{15: 2}
 )
 
 func ids[T interface{ GetId() string }](messages []T) []string {
@@ -73,32 +73,36 @@ func TestTheOperatorReadsTheWaitingOldestFirstThenTheDecidedLatestFirst(t *testi
 	assert.Equal(t, flagsv1.SubmissionState_SUBMISSION_STATE_REJECTED, mine.GetSubmissions()[1].GetState())
 }
 
-func TestAFounderReadsWhyTheOperatorClosedItsFlagsAndNoOtherFlag(t *testing.T) {
+func TestAHolderReadsItsFlagsAndWhyTheOperatorRemovedThemAndNoOtherFlag(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
-	store, flags := postgres_submission_store.New(db), postgres_flag_store.New(db)
+	flags := postgres_flag_store.New(db)
 	query := submissions_query.NewPostgresQuery(db,
 		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.EveryWaiting)
 
-	founded := func(flag catalog.FlagID, name catalog.Name, account submissions.AccountID, id byte, note catalog.Note) {
+	held := func(flag catalog.FlagID, name catalog.Name, account catalog.AccountID, note catalog.Note) catalog.Flag {
 		t.Helper()
-		opened := catalog.OpenFlag(flag, name, at)
+		opened := catalog.HeldFlag(flag, name, account, at)
 		if note != "" {
-			closed, err := opened.Closed(note, at.Add(time.Hour))
+			removed, err := opened.Removed(note, at.Add(time.Hour))
 			require.NoError(t, err)
-			opened = closed
+			opened = removed
 		}
 		require.NoError(t, flags.Save(t.Context(), opened))
-		row := submissions.TestWaiting(submissions.SubmissionID{15: id}, account, at.Add(-time.Hour))
-		row.State, row.Flag, row.Name, row.Held = submissions.Opened, flag, name, false
-		require.NoError(t, store.Save(t.Context(), submissions.Restored(row)))
+		return opened
 	}
-	founded("r-0000000001", "Bavaria", ada, 1, "Broke the rules.")
-	founded("r-0000000002", "Swabia", ada, 2, "")
-	founded("r-0000000003", "Tyrol", bob, 3, "A test.")
+	held("r-0000000001", "Bavaria", ada, "Broke the rules.")
+	held("r-0000000002", "Swabia", ada, "")
+	held("r-0000000003", "Tyrol", bob, "A test.")
+	claimed, ok := held("r-0000000004", "Savoy", ada, "").Expired(at.AddDate(0, 2, 0))
+	require.True(t, ok)
+	claimed, _, err := claimed.Paid(bob, at.AddDate(0, 2, 1), grants.Week, at.AddDate(0, 2, 1))
+	require.NoError(t, err)
+	require.NoError(t, flags.Save(t.Context(), claimed))
 
 	mine, err := query.Mine(t.Context(), ada)
 	require.NoError(t, err)
-	require.Len(t, mine.GetClosures(), 1, "not a flag open, nor one another account founded")
+	assert.Equal(t, []string{"r-0000000001", "r-0000000002"}, mine.GetHeld(), "Savoy left Ada's flags once Bob claimed it")
+	require.Len(t, mine.GetClosures(), 1, "not a flag open, nor one another account holds")
 	assert.Equal(t, "r-0000000001", mine.GetClosures()[0].GetFlag())
 	assert.Equal(t, "Broke the rules.", mine.GetClosures()[0].GetNote())
 }

@@ -71,7 +71,8 @@ func (m *MemoryStore) Save(_ context.Context, flags ...Flag) error {
 	for _, flag := range flags {
 		row := flag.TakeSnapshot()
 		for id, kept := range m.rows {
-			if id != row.ID && strings.EqualFold(kept.Name.String(), row.Name.String()) {
+			if id != row.ID && kept.State != Removed && row.State != Removed &&
+				strings.EqualFold(kept.Name.String(), row.Name.String()) {
 				return fmt.Errorf("%s: %w", row.Name, ErrNameTaken)
 			}
 		}

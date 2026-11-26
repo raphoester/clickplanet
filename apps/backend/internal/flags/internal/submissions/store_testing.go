@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 )
 
 var _ Store = (*MemoryStore)(nil)
@@ -60,10 +62,16 @@ func (m *MemoryStore) Submission(_ context.Context, id SubmissionID) (Submission
 	return row.Restore()
 }
 
-func (m *MemoryStore) Founded(_ context.Context, account AccountID) ([]Submission, error) {
+func (m *MemoryStore) Founded(_ context.Context, account catalog.AccountID) ([]Submission, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return restored(m.sorted(func(row Snapshot) bool { return row.Account == account }))
+}
+
+func (m *MemoryStore) Opened(_ context.Context, flag catalog.FlagID) ([]Submission, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return restored(m.sorted(func(row Snapshot) bool { return row.State == Opened && row.Flag == flag }))
 }
 
 func (m *MemoryStore) RejectedHeld(context.Context) ([]Submission, error) {

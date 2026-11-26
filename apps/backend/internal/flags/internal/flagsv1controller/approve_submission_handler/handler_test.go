@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/approve_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
@@ -23,7 +24,7 @@ type stubUseCase struct {
 
 func (s *stubUseCase) Execute(_ context.Context, in approve_submission_usecase.In) (submissions.Snapshot, error) {
 	s.asked = append(s.asked, in)
-	approved := submissions.TestWaiting(submissions.SubmissionID{15: 1}, submissions.AccountID{15: 1}, time.Now())
+	approved := submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, time.Now())
 	approved.State, approved.Held = submissions.Approved, false
 	return approved, nil
 }

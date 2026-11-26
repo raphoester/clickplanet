@@ -455,10 +455,14 @@ type Sold struct {
 	Picture *Picture               `protobuf:"bytes,1,opt,name=picture,proto3" json:"picture,omitempty"`
 	// When its time runs out. A closed flag keeps the end it had.
 	EndsAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
-	// Unset while the flag is open. Time added within 30 days of it opens the flag again.
+	// Unset while the flag is open. A flag closed at its end, not removed, is free: any signed-in player may pay for it,
+	// and so claim it.
 	ClosedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
 	// Where the flag starts in Capital Siege, as a country starts on its capital.
-	Pin           *Pin `protobuf:"bytes,4,opt,name=pin,proto3" json:"pin,omitempty"`
+	Pin *Pin `protobuf:"bytes,4,opt,name=pin,proto3" json:"pin,omitempty"`
+	// The operator removed it, for good: nobody pays for it, and its name is free for a new flag. A removed flag is
+	// closed.
+	Removed       bool `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -519,6 +523,13 @@ func (x *Sold) GetPin() *Pin {
 		return x.Pin
 	}
 	return nil
+}
+
+func (x *Sold) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
 }
 
 // A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
@@ -837,9 +848,11 @@ func (*ListMySubmissionsRequest) Descriptor() ([]byte, []int) {
 type ListMySubmissionsResponse struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Submissions []*Submission          `protobuf:"bytes,1,rep,name=submissions,proto3" json:"submissions,omitempty"`
-	// Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
-	// back. A flag closed at its end has none, nor one closed before the operator gave a note.
-	Closures      []*Closure `protobuf:"bytes,2,rep,name=closures,proto3" json:"closures,omitempty"`
+	// Each flag the caller holds that the operator removed.
+	Closures []*Closure `protobuf:"bytes,2,rep,name=closures,proto3" json:"closures,omitempty"`
+	// The code of each flag the caller holds: its payment opened the flag or claimed it last. A flag stays held once its
+	// time ended, until another player claims it.
+	Held          []string `protobuf:"bytes,3,rep,name=held,proto3" json:"held,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -888,8 +901,15 @@ func (x *ListMySubmissionsResponse) GetClosures() []*Closure {
 	return nil
 }
 
-// Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
-// online platforms ask.
+func (x *ListMySubmissionsResponse) GetHeld() []string {
+	if x != nil {
+		return x.Held
+	}
+	return nil
+}
+
+// Why the operator removed a flag, in its own words: the flag's holder reads it, as the EU's rules for online platforms
+// ask.
 type Closure struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Flag          string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
@@ -1225,12 +1245,13 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
 	"\x06closed\x18\x03 \x01(\bR\x06closed\x12\"\n" +
-	"\x04sold\x18\x04 \x01(\v2\x0e.flags.v1.SoldR\x04sold\"\xc2\x01\n" +
+	"\x04sold\x18\x04 \x01(\v2\x0e.flags.v1.SoldR\x04sold\"\xdc\x01\n" +
 	"\x04Sold\x12+\n" +
 	"\apicture\x18\x01 \x01(\v2\x11.flags.v1.PictureR\apicture\x123\n" +
 	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x127\n" +
 	"\tclosed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\x12\x1f\n" +
-	"\x03pin\x18\x04 \x01(\v2\r.flags.v1.PinR\x03pin\"?\n" +
+	"\x03pin\x18\x04 \x01(\v2\r.flags.v1.PinR\x03pin\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremoved\"?\n" +
 	"\x03Pin\x12\x1a\n" +
 	"\blatitude\x18\x01 \x01(\x01R\blatitude\x12\x1c\n" +
 	"\tlongitude\x18\x02 \x01(\x01R\tlongitude\"a\n" +
@@ -1251,10 +1272,11 @@ const file_flags_v1_flags_proto_rawDesc = "" +
 	"\n" +
 	"submission\x18\x01 \x01(\v2\x14.flags.v1.SubmissionR\n" +
 	"submission\"\x1a\n" +
-	"\x18ListMySubmissionsRequest\"\x82\x01\n" +
+	"\x18ListMySubmissionsRequest\"\x96\x01\n" +
 	"\x19ListMySubmissionsResponse\x126\n" +
 	"\vsubmissions\x18\x01 \x03(\v2\x14.flags.v1.SubmissionR\vsubmissions\x12-\n" +
-	"\bclosures\x18\x02 \x03(\v2\x11.flags.v1.ClosureR\bclosures\"1\n" +
+	"\bclosures\x18\x02 \x03(\v2\x11.flags.v1.ClosureR\bclosures\x12\x12\n" +
+	"\x04held\x18\x03 \x03(\tR\x04held\"1\n" +
 	"\aClosure\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x12\n" +
 	"\x04note\x18\x02 \x01(\tR\x04note\"\x92\x03\n" +

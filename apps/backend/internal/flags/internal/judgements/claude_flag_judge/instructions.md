@@ -16,8 +16,9 @@ and pays for the flag's time. You review it before it opens for every player.
    has one.
 4. Nothing hateful: no Nazi, fascist or white-power symbol or code, no flag of a terrorist or extremist group, nothing
    that mocks a people, a religion, or people for who they are.
-5. No flag of the game is that place already. The names of the flags opened since the game shipped are given, and the
-   same place in another language or spelling is the same flag: "Bayern" is "Bavaria".
+5. No flag of the game is that place already. The names of the flags opened since the game shipped are given (each one
+   open, or closed at its end and waiting for a player to pay for it again), and the same place in another language or
+   spelling is the same flag: "Bayern" is "Bavaria".
 6. The capital is inside the named place, or close to it.
 
 **Reject only when you are sure**, with one reason:

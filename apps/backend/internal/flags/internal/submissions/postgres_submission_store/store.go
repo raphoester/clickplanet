@@ -46,9 +46,13 @@ func (s *Store) Submission(ctx context.Context, id submissions.SubmissionID) (su
 	return submission, err
 }
 
-func (s *Store) Founded(ctx context.Context, account submissions.AccountID) ([]submissions.Submission, error) {
+func (s *Store) Founded(ctx context.Context, account catalog.AccountID) ([]submissions.Submission, error) {
 	return s.read(ctx, `SELECT `+columns+from+` WHERE s.account_id = $1 ORDER BY s.submitted_at DESC, s.id`,
 		uuid.UUID(account))
+}
+
+func (s *Store) Opened(ctx context.Context, flag catalog.FlagID) ([]submissions.Submission, error) {
+	return s.read(ctx, `SELECT `+columns+from+` WHERE s.state = 'opened' AND s.flag = $1 ORDER BY s.id`, flag.String())
 }
 
 func (s *Store) RejectedHeld(ctx context.Context) ([]submissions.Submission, error) {
@@ -92,7 +96,7 @@ func submissionOf(scan func(dest ...any) error) (submissions.Submission, error) 
 		return submissions.Submission{}, fmt.Errorf("failed to read a submission: %w", err)
 	}
 	kept.ID, kept.Name, kept.State = submissions.SubmissionID(id), catalog.Name(name), submissions.State(state)
-	kept.Account = submissions.AccountID(account)
+	kept.Account = catalog.AccountID(account)
 	if flag != "" {
 		flagID, err := catalog.ParseFlagID(flag)
 		if err != nil {

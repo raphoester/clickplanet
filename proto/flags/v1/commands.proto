@@ -7,14 +7,18 @@ import "google/protobuf/timestamp.proto";
 
 // What another module asks of the flags, in the flags' words, over Redis Streams.
 
-// Time paid for. An approved submission's flag opens for the period; an open flag ends a period later; a flag closed
-// less than 30 days ago opens again for the period. grant_id names the payment: told twice, it grants once, and one
-// taken back before it came grants nothing.
+// Time paid for. An approved submission's flag opens for the period; the holder's open flag ends a period later; a
+// flag whose time ended opens again for the period, and its payer holds it from then, when the order was placed after
+// it ended. grant_id names the payment: told twice, it grants once, and one taken back before it came grants nothing.
 message GrantTime {
   string grant_id = 1;
   TimeTarget target = 2;
   TimePeriod period = 3;
   google.protobuf.Timestamp paid_at = 4;
+  // The account that paid.
+  string account_id = 5;
+  // When the order was placed: each renewal of a plan names its first order.
+  google.protobuf.Timestamp ordered_at = 6;
 }
 
 // The time a payment granted, taken back: the payment was refunded in full, or lost in a dispute. The flag ends that

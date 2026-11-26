@@ -31,7 +31,8 @@ type Case struct {
 	Pin  catalog.Pin
 	// The picture as the server drew it again, a PNG.
 	Picture []byte
-	// The names of the flags opened since the game shipped, open or closed: a place has one flag.
+	// The names of the flags opened since the game shipped, open or closed at their end, never removed: a place has one
+	// flag.
 	Taken []catalog.Name
 }
 

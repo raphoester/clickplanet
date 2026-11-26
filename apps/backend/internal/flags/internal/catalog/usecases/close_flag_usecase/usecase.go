@@ -33,6 +33,8 @@ type UseCase struct {
 	outbox cpatomic.Outbox
 }
 
+// Execute removes the flag for good, open or closed at its end: closed again for the other modules, so the pages hear
+// it removed.
 func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -46,25 +48,25 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 		return catalog.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}
 
-	var closed catalog.Flag
+	var removed catalog.Flag
 	if err := u.db.InTx(ctx, func(ctx context.Context) error {
 		flag, err := u.flags.Flag(ctx, id)
 		if err != nil {
 			return fmt.Errorf("failed to read the flag: %w", err)
 		}
-		closed, err = flag.Closed(note, u.clock.Now())
+		removed, err = flag.Removed(note, u.clock.Now())
 		if err != nil {
 			return err //nolint:wrapcheck // the flag names it.
 		}
-		if err := u.flags.Save(ctx, closed); err != nil {
+		if err := u.flags.Save(ctx, removed); err != nil {
 			return fmt.Errorf("failed to keep the flag: %w", err)
 		}
-		if err := u.outbox.Record(ctx, closed.Facts()...); err != nil {
-			return fmt.Errorf("failed to record that the flag was closed: %w", err)
+		if err := u.outbox.Record(ctx, removed.Facts()...); err != nil {
+			return fmt.Errorf("failed to record that the flag was removed: %w", err)
 		}
 		return nil
 	}); err != nil {
-		return catalog.Snapshot{}, fmt.Errorf("failed to close the flag %s: %w", id, err)
+		return catalog.Snapshot{}, fmt.Errorf("failed to remove the flag %s: %w", id, err)
 	}
-	return closed.TakeSnapshot(), nil
+	return removed.TakeSnapshot(), nil
 }

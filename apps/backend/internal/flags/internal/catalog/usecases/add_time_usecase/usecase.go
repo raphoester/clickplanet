@@ -12,6 +12,7 @@ import (
 
 type Flags interface {
 	Flag(ctx context.Context, id catalog.FlagID) (catalog.Flag, error)
+	Flags(ctx context.Context) ([]catalog.Flag, error)
 	Save(ctx context.Context, flags ...catalog.Flag) error
 }
 
@@ -33,7 +34,8 @@ type UseCase struct {
 	outbox cpatomic.Outbox
 }
 
-// A flag that comes back is told opened again: the time added to an open one changes nothing the others know.
+// A flag that comes back is told opened again: the time added to an open one changes nothing the others know. A removed
+// one comes back only while no new flag took its name.
 func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -53,7 +55,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (catalog.Snapshot, error) 
 		if err != nil {
 			return fmt.Errorf("failed to read the flag: %w", err)
 		}
-		added, err = flag.TimeAdded(days, u.clock.Now())
+		flags, err := u.flags.Flags(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to read the flags' names: %w", err)
+		}
+		added, err = flag.TimeAdded(days, catalog.NamesOf(flags), u.clock.Now())
 		if err != nil {
 			return err //nolint:wrapcheck // the flag names it.
 		}

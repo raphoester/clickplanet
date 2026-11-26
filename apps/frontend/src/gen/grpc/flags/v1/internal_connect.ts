@@ -15,10 +15,10 @@ export const InternalService = {
     /**
      * Whether an account may buy time for this submission or flag now. A submission: its founder alone, while it waits
      * with no time paid (the time is held, and starts when it is approved), once approved (the payment opens its flag)
-     * or opened (the time goes to its flag). A flag: the account whose submission opened it, while it is open or closed
-     * less than 30 days ago. NotFound for no such submission or flag; PermissionDenied for another account's;
-     * FailedPrecondition for a submission that waits with time paid already or was rejected, and for a flag closed 30
-     * days ago or more.
+     * or opened (the time goes to its flag, as for the flag). A flag: its holder, or any account once its time ended (a
+     * claim: the payment makes the payer its holder). NotFound for no such submission or flag; PermissionDenied for
+     * another account's submission, or an open flag another account holds; FailedPrecondition for a submission that waits
+     * with time paid already or was rejected, and for a removed flag.
      *
      * @generated from rpc flags.v1.InternalService.GetPayable
      */

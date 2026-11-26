@@ -20,7 +20,7 @@ import (
 
 var (
 	now = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	ada = submissions.AccountID{15: 1}
+	ada = catalog.AccountID{15: 1}
 	id  = submissions.SubmissionID{15: 1}
 )
 

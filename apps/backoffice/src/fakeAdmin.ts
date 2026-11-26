@@ -883,10 +883,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
 const DAY_MS = 86_400_000
 
-// A flag opened since the game shipped, as the server lists it; closed when it has a close.
+// A flag opened since the game shipped, as the server lists it; closed when it has a close, at its end unless removed.
 export function soldFlag(
     code: string, name: string, endsAt: Date, closedAt?: Date, url = `https://media.test/flags/pictures/${code}.png`,
-    pin: {latitude: number, longitude: number} = {latitude: 0, longitude: 0},
+    pin: {latitude: number, longitude: number} = {latitude: 0, longitude: 0}, removed = false,
 ): Flag {
     return new Flag({
         code, name, closed: closedAt !== undefined,
@@ -895,6 +895,7 @@ export function soldFlag(
             endsAt: Timestamp.fromDate(endsAt),
             closedAt: closedAt === undefined ? undefined : Timestamp.fromDate(closedAt),
             pin: new Pin(pin),
+            removed,
         }),
     })
 }
@@ -1015,14 +1016,17 @@ export class FakeFlags implements FlagsAdmin {
         return answer
     }
 
-    // An open flag ends that much later; one closed less than 30 days ago opens again, and ends that much from now.
+    // An open flag ends that much later; a closed one opens again, and ends that much from now; a removed one too, unless
+    // a flag open or ended took its name.
     addTime(request: PartialMessage<AddTimeRequest>): Promise<AddTimeResponse> {
         const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
         if (flag === undefined) return this.refused("addTime", request, "no flag opened under this code", Code.NotFound)
         const now = new Date()
         const closedAt = flag.sold?.closedAt?.toDate()
-        if (closedAt !== undefined && now.getTime() - closedAt.getTime() >= 30 * DAY_MS) {
-            return this.refused("addTime", request, "closed over 30 days ago", Code.FailedPrecondition)
+        const taken = this.listed.some(each => each.code !== flag.code && !each.sold?.removed &&
+            each.name.toLowerCase() === flag.name.toLowerCase())
+        if (flag.sold?.removed && taken) {
+            return this.refused("addTime", request, "a new flag took its name", Code.FailedPrecondition)
         }
         const from = closedAt === undefined ? flag.sold?.endsAt?.toDate() ?? now : now
         const added = soldFlag(flag.code, flag.name, new Date(from.getTime() + (request.days ?? 0) * DAY_MS), undefined,
@@ -1033,10 +1037,10 @@ export class FakeFlags implements FlagsAdmin {
     closeFlag(request: PartialMessage<CloseFlagRequest>): Promise<CloseFlagResponse> {
         const flag = this.listed.find(each => each.code === request.code && each.sold !== undefined)
         if (flag === undefined) return this.refused("closeFlag", request, "no flag opened under this code", Code.NotFound)
-        if (flag.closed) return this.refused("closeFlag", request, "the flag is closed already", Code.FailedPrecondition)
-        if ((request.note ?? "").trim() === "") return this.refused("closeFlag", request, "an early close has a note", Code.InvalidArgument)
+        if (flag.sold?.removed) return this.refused("closeFlag", request, "the flag is removed already", Code.FailedPrecondition)
+        if ((request.note ?? "").trim() === "") return this.refused("closeFlag", request, "a removal has a note", Code.InvalidArgument)
         const closed = soldFlag(flag.code, flag.name, flag.sold?.endsAt?.toDate() ?? new Date(), new Date(),
-            flag.sold?.picture?.url, flag.sold?.pin)
+            flag.sold?.picture?.url, flag.sold?.pin, true)
         return this.replaced("closeFlag", request, closed, new CloseFlagResponse({flag: closed}))
     }
 
