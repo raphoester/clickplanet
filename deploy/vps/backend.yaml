@@ -375,10 +375,10 @@ flags:
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
   # The judge of the flags sent, a Claude model (docs/flags.md, "The judge"): it approves or rejects the clear ones
-  # itself. Off until the owner says so: uncomment, and every flag sent is judged within seconds.
-  # judge:
-  #   anthropic:
-  #     apiKey: env://ANTHROPIC_API_KEY
+  # itself, within seconds of its sending, paid or not. On since 2026-11-26.
+  judge:
+    anthropic:
+      apiKey: env://ANTHROPIC_API_KEY
 
 # Time for a regional flag, paid on Stripe's page under Managed Payments (deploy/vps/README.md, "The shop"). Both
 # secrets must be GitHub secrets: an env:// that names none refuses the boot. The prices are the live ones, and each
