@@ -123,17 +123,18 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   view's slots, and as its URL in the picker, the chat, the share card and the clips; a held flag closed and its window;
   a flag renamed; a code it does not know: its code as its name, a grey flag; Brittany, England, Scotland and Wales,
   sold since they left the build; the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
-- [Flag submissions](docs/flag-submissions.md) — a signed-in player sends its region's flag (a name, a picture, its
-  capital: a pin aimed on the globe as a rally) from the end of the flag picker; a guest sees the sign-in buttons there; the latest
-  submission's status in the same place, an opened one showing its flag's state now (open until its end, or closed
-  and since when, with the operator's note to its founder), a change while it waits and never once decided, each decision and a close told once on the news line; the
-  fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
-- [The shop](docs/shop.md) — the shop's modal (one card per product, today the region's flag), opened from the
-  status bar's bag on a phone and the rail's Shop on the desktop, neither while the shop is off; the founder pays for
-  its flag's time on Stripe's page as it sends it, held until the approval: the plans priced in the
-  page's language, the consent before Pay, Add time and the renewals in "Your flags", `?shop=paid` read and dropped and
-  the submissions read again until the flag opens; nothing while the shop is off; the fake's `shopOff`, `shopOn`,
-  `refuseCheckouts`; the terms of sale and refunds pages.
+- [Flag submissions](docs/flag-submissions.md) — one flow from every door (the shop's, the picker's gold row, the
+  picker's search that finds no country): step 1 makes the region's flag with no price (a name, a picture, its capital:
+  a pin aimed on the globe as a rally) and shows it on a flat card of tiles, Next sends it and the judge reviews it,
+  step 2 is the paywall with the verdict as it comes (Approved, or Rejected with Fix it, before any payment), a flag on
+  its way resumed there; a guest sees the sign-in buttons; "Your flags" in the profile, each flag's state, time, Change,
+  Add time and Stop renewal; each decision and a close told once on the news line; the fake's `approveSubmission`,
+  `rejectSubmission`, `openSubmission`.
+- [The shop](docs/shop.md) — the founder pays for its flag's time on Stripe's page from the paywall, held until the
+  approval; the shop's door (the status bar's bag on a phone, the rail's Shop on the desktop, neither while the shop is
+  off) opens the flag's flow, the plans once; the plans priced in the page's language, the consent before Pay, Add time
+  and the renewals in the profile's "Your flags", `?shop=paid` read and dropped and the submissions read again until the
+  flag opens; the fake's `shopOff`, `shopOn`, `refuseCheckouts`; the terms of sale and refunds pages.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
   held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a

@@ -1,5 +1,5 @@
-import type {FlagCatalog, SoldFlag} from "./flags.ts"
-import {foundedFlags, Submission, waitingOf} from "./flagSubmissions.ts"
+import type {SoldFlag} from "./flags.ts"
+import type {Submission} from "./flagSubmissions.ts"
 
 export type Plan = "week" | "month" | "year"
 
@@ -79,33 +79,4 @@ export function flagTimeOf(sold: SoldFlag | undefined, closed: boolean, renewal:
     if (renewal) return renewal.state === "renewing" ? {kind: "renews", renewal} : {kind: "stopping", renewal}
     if (sold === undefined || !canAddTime(sold, closed, now)) return {kind: "none"}
     return closed ? {kind: "closed", closedAt: sold.closedAt ?? now} : {kind: "open", endsAt: sold.endsAt}
-}
-
-// What the shop sells the account now: a flag sent to pay for, an approved one to open, time for a flag it founded,
-// or a flag to add.
-export type ShopOffer =
-    | {kind: "pay", submission: Submission}
-    | {kind: "open", submission: Submission}
-    // Paid, and checked before it opens.
-    | {kind: "checking", submission: Submission}
-    | {kind: "addTime", flag: string, time: FlagTime}
-    // A flag founded whose renewal runs: its place stops it.
-    | {kind: "renewing", flag: string, time: FlagTime}
-    | {kind: "new"}
-
-export function offerOf(submissions: readonly Submission[], catalog: FlagCatalog, renewals: readonly Renewal[], now: number): ShopOffer {
-    const approved = submissions.find((submission) => submission.state === "approved" && !submission.paid)
-    if (approved) return {kind: "open", submission: approved}
-    const waiting = waitingOf(submissions)
-    if (waiting) return waiting.paid ? {kind: "checking", submission: waiting} : {kind: "pay", submission: waiting}
-    const opening = submissions.find((submission) => submission.state === "approved")
-    if (opening) return {kind: "checking", submission: opening}
-    const times = foundedFlags(submissions).map((flag) => ({
-        flag, time: flagTimeOf(catalog.soldOf(flag), catalog.closedFlag(flag), flagRenewal(renewals, flag, submissions), now),
-    }))
-    const addable = times.find(({time}) => time.kind === "open" || time.kind === "closed" || time.kind === "stopping")
-    if (addable) return {kind: "addTime", ...addable}
-    const renewing = times.find(({time}) => time.kind === "renews")
-    if (renewing) return {kind: "renewing", ...renewing}
-    return {kind: "new"}
 }

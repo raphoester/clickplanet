@@ -10,8 +10,9 @@ import {CrownIcon} from "../components/icons.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
+import FlagPaywall from "./FlagPaywall.tsx"
+import FlagPitch from "./FlagPitch.tsx"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
-import FlagSubmissionStatus from "./FlagSubmissionStatus.tsx"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 import "../account/Account.css"
 import "./FlagSubmission.css"
@@ -24,14 +25,14 @@ export type FlagSubmissionPlaceProps = {
     toCheckout: (url: string) => void
 }
 
-// The flag form's place: the status of the latest submission, or the form, or a guest's sign-in. Mounted with the
-// game, so what was typed stays while the form is put aside to aim the pin.
+// The one way to a region's flag, which every door opens: the flag made, then paid for, or a guest's sign-in. Mounted
+// with the game, so what was typed stays while the form is put aside to aim the pin.
 export default function FlagSubmissionPlace({account: store, submitter, shop, toCheckout}: FlagSubmissionPlaceProps) {
     const shown = useFlagForm((form) => form.shown)
-    const composing = useFlagForm((form) => form.composing)
+    const step = useFlagForm((form) => form.step)
     const aiming = useFlagForm((form) => form.aiming)
+    const land = useFlagForm((form) => form.land)
     const close = useFlagForm((form) => form.close)
-    const submissions = useFlagSubmissions((store) => store.submissions)
     const read = useFlagSubmissions((store) => store.read)
     const account = useAccount(store)
 
@@ -41,6 +42,10 @@ export default function FlagSubmissionPlace({account: store, submitter, shop, to
         useShop.getState().refresh()
     }, [shown])
 
+    useEffect(() => {
+        if (read) land()
+    }, [read, step, land])
+
     if (!shown) return null
     if (aiming) return <PinAim/>
     if (account.kind !== "ready") return null
@@ -48,21 +53,23 @@ export default function FlagSubmissionPlace({account: store, submitter, shop, to
     if (account.me.linked.length === 0) {
         return <Modal title={t("flagSubmission.add")} onClose={close}>
             <div className="account-panel flag-sign-in" aria-busy={account.busy !== undefined}>
+                <FlagPitch/>
                 <p className="account-text">{t("flagSubmission.signIn")}</p>
                 <SignInButtons state={account} store={store}/>
             </div>
         </Modal>
     }
 
-    if (composing || (read && submissions.length === 0)) {
-        return <FlagSubmissionForm submitter={submitter} shop={shop} toCheckout={toCheckout}/>
+    switch (step.kind) {
+        case "door":
+            return <Modal title={t("flagSubmission.add")} onClose={close}>
+                <p className="flag-status-line" role="status">{t("common.loading")}</p>
+            </Modal>
+        case "make":
+            return <FlagSubmissionForm submitter={submitter}/>
+        case "pay":
+            return <FlagPaywall submission={step.submission} typed={step.typed} shop={shop} toCheckout={toCheckout}/>
     }
-    if (!read) {
-        return <Modal title={t("flagSubmission.yours")} onClose={close}>
-            <p className="flag-status-line" role="status">{t("common.loading")}</p>
-        </Modal>
-    }
-    return <FlagSubmissionStatus submissions={submissions} shop={shop} toCheckout={toCheckout}/>
 }
 
 // The form put aside: a tap on the globe puts the pin, Escape or Cancel brings the form back as it was.

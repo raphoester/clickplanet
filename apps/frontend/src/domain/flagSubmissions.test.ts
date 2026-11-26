@@ -1,16 +1,17 @@
 import {describe, expect, it} from "vitest"
 import {
+    changeable,
     flagNameLength,
     foundedFlags,
     isValidFlagName,
     MAX_PICTURE_BYTES,
+    onItsWayOf,
     pictureFileRefusal,
     pictureShapeRefusal,
     pinAt,
     shownOf,
     Submission,
     untold,
-    waitingOf,
     withTold,
 } from "./flagSubmissions.ts"
 import {FlagCatalog} from "./flags.ts"
@@ -66,9 +67,17 @@ describe("pinAt", () => {
 })
 
 describe("the account's submissions", () => {
-    it("hold the one that waits", () => {
-        expect(waitingOf([submission("a", {state: "rejected"})])).toBeUndefined()
-        expect(waitingOf([submission("b"), submission("a", {state: "rejected"})])?.id).toBe("b")
+    it("hold the new flag on its way, waiting or approved and not open yet, the newest first", () => {
+        expect(onItsWayOf([submission("a", {state: "rejected"}), submission("o", {state: "opened", flag: "r-aaaaaaaaaa"})])).toBeUndefined()
+        expect(onItsWayOf([submission("b"), submission("a", {state: "rejected"})])?.id).toBe("b")
+        expect(onItsWayOf([submission("c", {state: "rejected"}), submission("b", {state: "approved", paid: true})])?.id).toBe("b")
+    })
+
+    it("change while it waits and is not paid, never once paid or decided", () => {
+        expect(changeable(submission("a"))).toBe(true)
+        expect(changeable(submission("a", {paid: true}))).toBe(false)
+        expect(changeable(submission("a", {state: "approved"}))).toBe(false)
+        expect(changeable(submission("a", {state: "rejected"}))).toBe(false)
     })
 
     it("name the flags the account founded, the newest first: each opened from one of them", () => {

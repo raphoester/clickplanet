@@ -6,6 +6,7 @@ import TabBar from "./TabBar.tsx"
 import StatusBar, {STATUS_BOTTOM} from "./StatusBar.tsx"
 import MenuPanel from "../components/MenuPanel.tsx"
 import {useScreen} from "./screenStore.ts"
+import {useFlagForm} from "../flags/flagFormStore.ts"
 import {useChat} from "../chat/chatStore.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useCountry} from "../countryStore.ts"
@@ -115,13 +116,13 @@ describe("StatusBar", () => {
         expect(screen.getByRole("button", {name: "France, no rank yet. Leaderboard"})).toBeDefined()
     })
 
-    it("opens the shop while it sells, and shows no door to it while it is off", () => {
+    it("opens the region's flag from the shop while it sells, and shows no door to it while it is off", () => {
         render(<StatusBar rank={3}/>)
         expect(screen.queryByRole("button", {name: "Shop"})).toBeNull()
 
         act(() => useShop.setState({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]}))
         fireEvent.click(screen.getByRole("button", {name: "Shop"}))
-        expect(useScreen.getState().shopOpen).toBe(true)
+        expect(useFlagForm.getState().shown).toBe(true)
     })
 
     it("tells the moments at the top where it ends", () => {

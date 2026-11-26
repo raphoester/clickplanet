@@ -68,14 +68,14 @@ export function pinAt(point: {x: number, y: number, z: number}): Pin {
     return {latitude, longitude}
 }
 
-// The newest first, as the server lists them.
-export function latestOf(submissions: readonly Submission[]): Submission | undefined {
-    return submissions[0]
+// The new flag on its way to the globe, the newest first: sent and waiting for its review, or approved and not open yet.
+export function onItsWayOf(submissions: readonly Submission[]): Submission | undefined {
+    return submissions.find(({state}) => state === "waiting" || state === "approved")
 }
 
-// The one that waits: one at a time, and the only one its player may change.
-export function waitingOf(submissions: readonly Submission[]): Submission | undefined {
-    return submissions.find((submission) => submission.state === "waiting")
+// Its player may change it while it waits and is not paid, never once paid or decided.
+export function changeable({state, paid}: Submission): boolean {
+    return state === "waiting" && !paid
 }
 
 // The flags the account founded, the newest first: each opened from one of its submissions.

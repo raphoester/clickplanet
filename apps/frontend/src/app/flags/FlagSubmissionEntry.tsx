@@ -1,24 +1,29 @@
-import {shownOf} from "../../domain/flagSubmissions.ts"
 import {FlagIcon} from "../components/icons.tsx"
 import {t} from "../../i18n/page.ts"
 import {useFlagForm} from "./flagFormStore.ts"
-import {useFlags} from "./flagsStore.ts"
-import {latestSubmission, useFlagSubmissions} from "./submissionsStore.ts"
-import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
+import {useFlagSubmissions} from "./submissionsStore.ts"
+import "../shop/Shop.css"
 import "./FlagSubmission.css"
 
-// At the end of the flag picker: where a player looks for its region's flag.
-export default function FlagSubmissionEntry() {
+export type FlagSubmissionEntryProps = {
+    // What the picker's search found no country for: the flag's name.
+    typed?: string
+}
+
+// In the flag picker, where a player looks for its region's flag: a door to it, as the shop's.
+export default function FlagSubmissionEntry({typed}: FlagSubmissionEntryProps) {
     const who = useFlagSubmissions((store) => store.who)
-    const latest = useFlagSubmissions(latestSubmission)
-    const catalog = useFlags((store) => store.catalog)
-    const show = useFlagForm((form) => form.show)
+    const open = useFlagForm((form) => form.open)
 
     if (who === "nobody") return null
 
-    return <button type="button" className="panel-box menu-tile flag-entry" aria-haspopup="dialog" onClick={show}>
+    return <button type="button"
+                   className={typed === undefined ? "panel-box menu-tile flag-entry shop-shine" : "panel-box menu-tile flag-entry flag-entry--typed shop-shine"}
+                   aria-haspopup="dialog"
+                   onClick={() => open(typed)}>
         <FlagIcon size={20}/>
-        <span className="flag-entry-name">{latest ? latest.name : t("flagSubmission.add")}</span>
-        {latest && <SubmissionStateChip state={shownOf(latest, catalog).state}/>}
+        <span className="flag-entry-name">
+            {typed === undefined ? t("flagSubmission.add") : t("flagSubmission.addTyped", {name: typed.trim()})}
+        </span>
     </button>
 }

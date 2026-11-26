@@ -1,29 +1,39 @@
 # Flag submissions
 
-**A signed-in player sends its region's flag for the operator's review, and reads the verdict in the game** (step 3 of
-the regional flags, 2026-11-24): a name, a picture and its capital, a pin on the globe. The pin is the region's capital:
-in Capital Siege the flag starts there, as a country starts on its capital. So the page says "capital" wherever the
-player reads about the pin (the owner, 2026-11-24). While the shop sells, the player pays as it sends the flag, and only
-a paid flag reaches the review (see [The shop](shop.md#pay-as-the-flag-is-sent)). The operator approves or rejects it
-in the backoffice; an approved flag paid opens at once, one not paid waits to be paid for. **The player changes it while
-it waits and is not paid, never once paid or decided** (the owner, 2026-11-24: a "Change" on an approved flag
-"shouldn't be allowed"). The backend's side is `flags.v1.FlagService`'s
-`CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`).
+**A signed-in player makes its region's flag, sees it as the players will, sends it, then pays for it while it is
+reviewed** (step 3 of the regional flags, 2026-11-24; one flow from every door, the owner, 2026-11-26): a name, a
+picture and its capital, a pin on the globe. The pin is the region's capital: in Capital Siege the flag starts there,
+as a country starts on its capital. So the page says "capital" wherever the player reads about the pin (the owner,
+2026-11-24). **Commitment first, then the paywall**: step 1 makes the flag with no price, Next sends it, and the
+server's Claude judge reviews it while the player is on step 2, the paywall (the backend's
+[The judge](../../backend/docs/flags.md#the-judge): every 3 seconds, paid or not). An approved flag paid opens at once.
+**The player changes it while it waits and is not paid, never once paid or decided** (the owner, 2026-11-24: a
+"Change" on an approved flag "shouldn't be allowed"). The backend's side is `flags.v1.FlagService`'s
+`CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`); the
+payment is the shop's (see [The shop](shop.md)).
 
-## Where
+## The doors
 
-**At the end of the flag picker** (`FlagSubmissionEntry` under the list in `CountryPicker`, the desktop menu's and the
-phone's Board sheet): it is where a player looks for its region's flag, and finds it missing. A `menu-tile` row: "Add a
-flag", or, once the account has a submission, the latest one's name and its state as a chip (Waiting, Approved,
-Rejected, Open, Closed: see [What the player reads](#what-the-player-reads)). It shows even while the picker's list is
-locked.
+**Every door opens the same flow** (`useFlagForm.open`): once the account's submissions are read, the flag on its way
+(`onItsWayOf`: waiting, or approved and not open yet) on step 2, or else a new flag on step 1. "Loading…" until the
+first read. A founder's door opens a new flag: its founded flags are in its profile.
 
-- **Who sees it** is `useFlagSubmissions.who`, which `PlayScreen` hands `useFlagSubmissionsFeed`: `player` for a
-  signed-in (linked) account, `guest` for a guest the server offers sign-in to, `nobody` otherwise (the account not read,
-  or no provider offered), and then no entry.
-- **A guest sees the sign-in buttons**, never the form: "Sign in to add your flag." over `SignInButtons` (Google,
-  Discord, the emailed code), in the same modal. Signed in by email there, the place reads the account's submissions
-  and shows the form.
+- **The shop's**: the phone's status-bar bag and the desktop rail's Shop, while the shop sells (see
+  [The shop](shop.md#its-doors)).
+- **The flag picker's row** (`FlagSubmissionEntry`, at the end of `CountryPicker`'s list, the desktop menu's and the
+  phone's Board sheet): always "Add your region's flag", gold with the shop door's shine (`shop-shine`, none under
+  reduced motion). It never shows a submission: until 2026-11-26 it showed the latest one ("Bavaria · Closed"), and a
+  founder lost its way to a new flag. It shows even while the picker's list is locked.
+- **The picker's search that finds no country** (`SelectWithSearch`'s `noMatch`; the selected country, which the list
+  always keeps, does not count): the row comes up under the search, larger, "Put “Bavaria” on the map", in place of
+  the one under the list, and the text typed is the flag's name on step 1 (cut at its ends).
+- **The profile's "Your flags"**: Change and Pay (below).
+- **Who sees the row** is `useFlagSubmissions.who`, which `PlayScreen` hands `useFlagSubmissionsFeed`: `player` for a
+  signed-in (linked) account, `guest` for a guest the server offers sign-in to, `nobody` otherwise (the account not
+  read, or no provider offered), and then no row.
+- **A guest sees the sign-in buttons**, never the form: the region's flag's pitch, "Sign in to add your flag." over
+  `SignInButtons` (Google, Discord, the emailed code), in the same modal. Signed in by email there, the door lands once
+  the submissions are read.
 
 ## The place
 
@@ -31,20 +41,21 @@ locked.
 form is put aside while the pin is aimed, and on a phone the sheet that held the picker closes then. It reads two
 stores:
 
-- **`useFlagForm`** (`flagFormStore.ts`): whether the place is open (`shown`), the form rather than the status
-  (`composing`), the pin aimed (`aiming`), and the `Draft`: the name, the `File`, the pin with the place's name, and
-  the submission that waits, which a change replaces. What was typed is in the store, so it stays while the form is
-  aside.
+- **`useFlagForm`** (`flagFormStore.ts`): whether the flow is open (`shown`), its `step` (`door` until the submissions
+  are read, `make`, or `pay` with the submission as sent and what was typed for it), the pin aimed (`aiming`), and the
+  `Draft`: the name, the `File`, the pin with the place's name, and the submission that waits, which a change replaces.
+  What was typed stays while the form is aside, and on step 2 for Back and Fix it.
 - **`useFlagSubmissions`** (`submissionsStore.ts`): the account's submissions, the newest first, and whether a read
   ended.
 
-It shows the form while composing or when the account has none, the latest submission's status otherwise ("Loading…"
-until the first read), and a guest's sign-in. Opening it reads the submissions again.
+Opening it reads the submissions and the shop's plans again.
 
-## The form
+## Step 1: make your flag
 
-`FlagSubmissionForm`, a `Modal` like the support's `NoteModal`:
+`FlagSubmissionForm`, a `Modal` titled "Add your region's flag", or "Change your flag" for a change. **No price shows.**
 
+- **The head** (`FlagPitch`), over a new flag only: the shop's gold coin, "Put your region on the map" and its three
+  perks.
 - **The name**: 1 to 40 characters once the spaces at its ends are cut, counted as code points (`flagNameLength`, the
   server's `catalog.ParseName`); "7/40" beside its label, red past 40.
 - **The picture**: one file, shown as picked. Its type (PNG, JPEG, WebP) and size (5 MB) are checked as it is picked
@@ -54,16 +65,27 @@ until the first read), and a guest's sign-in. Opening it reads the submissions a
 - **The capital**: "Put the capital on the globe" puts the form aside and aims the globe (below); once put, the name of
   the place under the pin and its coordinates ("Upper Bavaria", "48.14° N, 11.58° E", each language's compass letters),
   and "Move".
-- **Send**: `CreateSubmissionUpload` with the type and the size, the `PUT` to the link with a bar on the picture and
-  "Uploading… 50%" on the button, then `SubmitFlag`. Its answer goes first in the store (`submitted`) and the place shows
-  its status. **Each send uploads the picture again**: the server may have used or dropped an upload it refused.
+- **The flag card** (below), as the players will see it, under the fields.
+- **Next**: `CreateSubmissionUpload` with the type and the size, the `PUT` to the link with a bar on the picture and
+  "Uploading… 50%" on the button, then `SubmitFlag` (with `replaces` for a change), and no checkout. Its answer goes
+  first in the store, in the place of the one it replaced (`submitted`), and step 2 shows it. **Each send uploads the
+  picture again**: the server may have used or dropped an upload it refused.
 - **Each refusal is one line under the form, and the form keeps what was typed** (`SubmissionRefusedError`'s
-  `refusal`): `no-session`, `guest`, `decided` (the operator decided the one a change replaces: "Your flag was reviewed
-  already, so it can't change."), `waiting` (one already waits), `invalid` (said as the picture's, since
-  the page checked the rest), `off` (pictures off on the server), `too-many` (the uploads of a day); a `PUT` that failed
-  is "The picture did not upload".
+  `refusal`): `no-session`, `guest`, `decided` ("Your flag was reviewed already, so it can't change."), `waiting` (one
+  already waits), `invalid` (said as the picture's, since the page checked the rest), `off` (pictures off on the
+  server), `too-many` (the uploads of a day); a `PUT` that failed is "The picture did not upload". **A change refused
+  `decided` whose flag the store holds shows that flag's paywall**, read again: the judge decided it while the player
+  changed it, and its verdict is there; Fix it after a rejection brings back the change typed.
 - **Closing it calls the upload off** (an `AbortController` made in an effect, as `NoteModal`'s: made once per component,
   StrictMode aborted it before any use). A click beside it does not close it once something is typed.
+
+### The flag card
+
+**`FlagCard` shows the flag on a few tiles at about the game's tile size** (the owner chose it flat, 2026-11-26; a
+globe preview may come later): 13 tiles in rows of 4, 5 and 4, each a hexagon 22.5 px wide wearing the whole picture as
+a cover, the capital's crown on the middle one; beside them the name ("Your region" until one is typed) and the capital's
+place with a crown, or its coordinates at sea or for a pin the page was given. The picture is the file picked until the
+approval makes one public, then that one; none draws the tiles as bare ground.
 
 ## Aiming the capital
 
@@ -79,50 +101,65 @@ calls `Globe.setPinAimed(true)`, which puts every bonus aim away and sets the cr
   place).
 - **A change is prefilled** with the capital that was sent: coordinates alone, with no place name.
 
-## The status, in the game
+## Step 2: the paywall
 
-**The place shows the latest submission**: its name, its state's chip and one line. Waiting: "Sent on Nov 24, 2026.";
-while the shop sells, "Sent! Pay to send it for review." over the plans, or once paid "Paid! We check your flag, then it
-opens.". Approved: "Approved! It opens soon.", or "Approved! Pick a plan to open it." over the plans while the shop sells
-(see [The shop](shop.md#the-offer)), or "Approved! It opens now." once paid. Rejected: its reason in
-plain words (not a place, a flag in the game already, unreadable at a tile's size, hateful, or "It was not approved."),
-then the operator's note quoted, then "Think we got it wrong? Ask a person to look again.", an email to
-support@clickplanet.lol named after the flag: the first review may be Claude's (the backend's
-[The judge](../../backend/docs/flags.md#the-judge)). Opened: "Bavaria is in the game until Dec 24, 2026!" (its `endsAt`; "Bavaria is in the
-game!" while the list of flags does not hold it yet), the picture an approval made public beside the name. Closed:
-"Bavaria closed on Nov 24, 2026." (its `closedAt`), then the operator's note quoted when the operator closed it (below).
+**`FlagPaywall` shows the flag sent, its review's verdict as it comes, and the plans once**: the flag card with its
+state's chip, one line, and while the shop sells and the flag is not paid, `PlanOffer`: the plans, the consent and
+Pay (`CreateCheckout{plan, submission_id, starts_now}`, see [The shop](shop.md#the-offer)). **Pay never waits for the
+verdict.** While the flag waits, the page reads `ListMySubmissions` every 3 seconds for 2 minutes at most
+(`useVerdictReads`), and a newer read of the flag wins over the one sent.
+
+- **Waiting, not paid**: "We check it after you pay." (the judge left it unsure, or has not answered yet; the operator
+  reviews only the paid ones while the shop sells). "Sent on Nov 24, 2026." while the shop is off.
+- **Approved, not paid**: the Approved chip, its public picture, "Approved! Pick a plan to open it.": paying opens it at
+  once. "Approved! It opens soon." while the shop is off. The plan and the consent picked stay as the verdict lands.
+- **Rejected**: its reason in plain words (not a place, a flag in the game already, unreadable at a tile's size,
+  hateful, or "It was not approved."), then the operator's note quoted, then "Think we got it wrong? Ask a person to
+  look again.", an email to support@clickplanet.lol named after the flag: the first review may be Claude's. **No plan
+  shows, before any payment.** "Fix it" goes back to step 1 with the name, the capital and the picture typed: a
+  decided submission is not replaced, so it sends a new one.
+- **Paid**: "Paid! We check your flag, then it opens.", "Approved! It opens now." the moment before the flags stream
+  tells it open, then "Bavaria is in the game!": no plan and no Back.
+- **Back, while it waits and is not paid**: step 1 as a change of it (`replaces`), with what was typed. Beside Pay, or
+  the footer's while the shop is off. Once approved or paid, none.
+- **The picture typed stays for the visit**: a door that finds the flag after a reload has its name and its capital,
+  and the picture is picked again for a change: the page keeps none.
+
+## Your flags, in the profile
+
+**`YourFlags` lists each submission of the account, the newest first** (desktop: the first section of
+`ProfileModal`'s main column; phone: a fold of the You sheet's Progress tab; nothing for an account that sent none).
+It reads the submissions and the renewals again as it shows.
+
+- **A flag sent**: its picture once approved, its name, the step 2 line, its chip; Change while it waits and is not paid
+  (step 1 as a change, from what was sent); Pay while the shop sells and it is not paid (its paywall); a rejection's
+  note and the appeal.
+- **A flag founded** (opened from one of its submissions): its flag, its time line (`flagTimeOf`, see
+  [The shop](shop.md#time-for-a-founded-flag)), its chip (Open or Closed), Add time or Stop renewal, and the operator's
+  note while it is closed. No Change: nothing changes a flag once the operator approved it.
+- **Change and Pay close the profile's modal first**: one dialog at a time.
 
 ### What the player reads
 
 **Once a submission opened its flag, the page shows the flag's state now, not the submission's** (`shownOf` in
 `domain/flagSubmissions.ts`): the server keeps the submission `opened` for good, and the flag lives on in the flags
 module, which closes it at its end, at the operator's `CloseFlag`, and opens it again at an `AddTime` within 30 days. So
-an opened submission whose flag the list of flags holds closed reads Closed, a muted chip, in the picker's entry and
-the place, and Open again once its flag comes back. "Your flags" marks each closed flag with the same chip.
+an opened submission whose flag the list of flags holds closed reads Closed, a muted chip, in "Your flags", and Open
+again once its flag comes back.
 
 **Why the operator closed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
 founded that the operator closed and that has not come back; see the backend's [flags module](../../backend/docs/flags.md)):
 `ConnectFlagSubmissions` puts each note on the submission that opened its flag (`Submission.closeNote`), so the store
-holds submissions alone. The place quotes it under "Bavaria closed on …", as a rejection's note, while the flag reads
-Closed; and on that flag's "Your flags" row when the card shows another submission. A flag closed at its end, or
-before the notes existed, has none: the date alone. **The page reads the submissions again when a flag the account
-founded closes or comes back** (`useFlagSubmissionsFeed`, on the list of flags), so the note shows at once in a place
-left open. The note is the operator's, in English, never translated.
-
-- **A new submission can be sent once none waits**: "New flag" after an approval or an opening, "Try again" after a
-  rejection, which opens the form with what was sent (the name and the capital; the picture is picked again). The
-  footer holds that one next step, and the × closes.
-- **A change, while it waits alone**: Change, the footer's button while one waits (`waitingOf`), opens "Change your
-  flag" with what was sent, and `replaces` its id. Send waits for a picture, the same file for a new name alone: the page keeps none, and the server
-  draws and reviews every flag as the players will see it. The new one takes the old one's place, which the server
-  deletes unreviewed. "Your flags" (`FoundedFlags`) lists each flag the account founded (`foundedFlags`: one of its
-  submissions opened it), with no Change: nothing changes a flag once the operator approved it. While the shop sells,
-  each row says its time: Add time, or its renewal (see [The shop](shop.md#time-for-a-founded-flag)).
+holds submissions alone. "Your flags" quotes it on that flag's row while the flag reads Closed. A flag closed at its
+end, or before the notes existed, has none: the date alone. **The page reads the submissions again when a flag the
+account founded closes or comes back** (`useFlagSubmissionsFeed`, on the list of flags), so the note shows at once. The
+note is the operator's, in English, never translated.
 
 **When the page reads them** (`useFlagSubmissionsFeed`): at once for a signed-in account, each time the flags stream
-opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the place opens, and every 3
-seconds for a while after a payment (see [The shop](shop.md#back-from-stripe)). One read
-at a time, one queued behind it; a read that fails keeps what is shown. A guest reads none, and a sign-out forgets them.
+opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the flow or the profile
+opens, every 3 seconds while the paywall shows a flag that waits, and every 3 seconds for a while after a payment (see
+[The shop](shop.md#back-from-stripe)). One read at a time, one queued behind it; a read that fails keeps what is shown.
+A guest reads none, and a sign-out forgets them.
 
 **A decision is told once on the news line** (`SubmissionNews`, the news store's `submission` kind, 4 seconds): "Your
 flag Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in the
@@ -136,8 +173,9 @@ the list of flags change, so a close the flags stream tells is told at once.
 ## In fake mode
 
 `FakeFlagSubmissions` (`backends/fakeFlagSubmissions.ts`) keeps the submissions in memory, uploads in eight steps so the
-bar moves, and refuses as the server does (a guest, one waiting, a change of one decided or paid). Sign in first (`signIn()`), send a
-flag from the picker, then on the console:
+bar moves, and refuses as the server does (a guest, one waiting, a change of one decided or paid). Sign in first
+(`signIn()`), make a flag from any door and press Next, then on the console, while the paywall shows it (it reads the
+verdict within 3 seconds, as it would the judge's):
 
 - `approveSubmission()`: the one that waits is approved, with its upload as its public picture; a paid one opens at once
   with its time.
@@ -148,15 +186,16 @@ flag from the picker, then on the console:
 - `refuseSubmissions("waiting")`: the next sends are refused with that refusal, or `"upload-failed"` for a `PUT` that
   fails; `refuseSubmissions()` lets them through again.
 
-The fake shop pays for a flag as it is sent, or for an approved one in the place itself (see
-[The shop](shop.md#in-fake-mode)): `openSubmission()` is the opening of an approved one without the plans.
+The fake shop pays for the flag on the paywall (see [The shop](shop.md#in-fake-mode)): `openSubmission()` is the opening
+of an approved one without the plans.
 
 After each verdict the fake says the flags stream opened again (`FakeFlagsBackend.reopen`), so the page reads it at once
-and the news line tells it, as the real page would at the stream's next opening or the place's next opening. Then
-`closeFlag(code, note)` (the code `openSubmission` answers; a note by default) closes it as the operator would, with the
-note its founder reads, and `addTime(code, 7)` brings it back.
+and the news line tells it, as the real page would at the stream's next opening. Then `closeFlag(code, note)` (the code
+`openSubmission` answers; a note by default) closes it as the operator would, with the note its founder reads in "Your
+flags", and `addTime(code, 7)` brings it back.
 
 ## Not built yet
 
-A decision read while the page is open and the stream stays up: the server tells none on a stream, so the page learns it
-at the next opening of the flags stream, of the place, or a load.
+- **The flag on the globe itself as a preview**, in place of the flat card: the owner may ask for it later.
+- **A decision read while no paywall shows and the stream stays up**: the server tells none on a stream, so the page
+  learns it at the next opening of the flags stream, of the flow or the profile, or a load.

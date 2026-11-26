@@ -5,6 +5,7 @@ import {ShopIcon} from "../components/icons.tsx"
 import {useEdge} from "../components/useEdge.ts"
 import {useCountry} from "../countryStore.ts"
 import {useShop} from "../shop/shopStore.ts"
+import {useFlagForm} from "../flags/flagFormStore.ts"
 import {useScreen} from "./screenStore.ts"
 import {t, translator} from "../../i18n/page.ts"
 import "./StatusBar.css"
@@ -23,7 +24,7 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
     const boardOpen = useScreen((screen) => screen.sheet === "board")
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
     const selling = useShop((store) => store.plans.length > 0)
-    const setShopOpen = useScreen((screen) => screen.setShopOpen)
+    const openFlag = useFlagForm((form) => form.open)
 
     const name = translator().country(country.code)
 
@@ -45,7 +46,7 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
                                 className="icon-button status-bar-shop shop-shine"
                                 aria-label={t("menu.shop")}
                                 aria-haspopup="dialog"
-                                onClick={() => setShopOpen(true)}>
+                                onClick={() => openFlag()}>
                 <ShopIcon/>
             </button>}
         </div>

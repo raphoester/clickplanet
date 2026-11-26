@@ -17,8 +17,6 @@ type ScreenStore = {
     // The desktop menu's panel and the chat as the player last left them; unset until the player opens or folds one.
     menuOpen?: boolean
     chatOpen?: boolean
-    // The shop's modal, on both forms.
-    shopOpen: boolean
     openSheet: (sheet: SheetName) => void
     toggleSheet: (sheet: SheetName) => void
     closeSheet: () => void
@@ -28,7 +26,6 @@ type ScreenStore = {
     togglePopover: (popover: PopoverName) => void
     closePopover: (popover: PopoverName) => void
     closeAll: () => void
-    setShopOpen: (open: boolean) => void
 }
 
 const NO_POPOVER = {season: false, battle: false, clicks: false, bonuses: false}
@@ -60,7 +57,6 @@ export const useScreen = create<ScreenStore>()((set) => ({
     popovers: NO_POPOVER,
     menuOpen: storedOpen(MENU_OPEN_KEY),
     chatOpen: storedOpen(CHAT_OPEN_KEY),
-    shopOpen: false,
     openSheet: (sheet) => set(({popovers}) => ({sheet, popovers: {...popovers, bonuses: false}})),
     toggleSheet: (sheet) => set(({sheet: open, popovers}) => open === sheet
         ? {sheet: undefined}
@@ -75,7 +71,6 @@ export const useScreen = create<ScreenStore>()((set) => ({
     }),
     closePopover: (popover) => set(({popovers}) => ({popovers: {...popovers, [popover]: false}})),
     closeAll: () => set({sheet: undefined, popovers: NO_POPOVER}),
-    setShopOpen: (shopOpen) => set({shopOpen}),
 }))
 
 useScreen.subscribe(({menuOpen, chatOpen}, was) => {

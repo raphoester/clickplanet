@@ -1,57 +1,36 @@
 # The shop
 
-**The founder of a regional flag pays for its time on Stripe's own page, as it sends the flag** (step 4 of the regional
-flags, 2026-11-24; pay first, the owner the same day: "make the guy PAY FIRST NOW or he might change his mind"): the
-page shows the plans, asks one consent, and goes to the page `CreateCheckout` answers. The time paid is held, and starts
-when the team approves the flag, which then opens at once; a rejected flag is refunded in full by the server, its
-renewal stopped, and only a paid flag reaches the review. Nothing about a
-card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/shop/v1/shop.proto`): `ListPlans`,
-`CreateCheckout`, `ListMyRenewals`, `StopRenewal`.
+**The founder of a regional flag pays for its time on Stripe's own page, on the paywall after it made and sent its flag**
+(step 4 of the regional flags, 2026-11-24; the flag made first, the review started at Next and the paywall after it, the
+owner, 2026-11-26): the page shows the plans once, asks one consent, and goes to the page `CreateCheckout` answers. The
+time paid is held, and starts when the team approves the flag, which then opens at once; an approved flag opens as it is
+paid; a rejected flag is refunded in full by the server, its renewal stopped. Nothing about a card is typed in the
+game. The backend's side is `shop.v1.ShopService` (`proto/shop/v1/shop.proto`): `ListPlans`, `CreateCheckout`,
+`ListMyRenewals`, `StopRenewal`.
 
 - **The plans**: a week paid once, a month and a year that renew, prices with VAT, in the currency's smallest unit
   (`PlanPrice.amount`, 400 is €4). The page prices each with `Intl.NumberFormat` in its language, a whole amount with no
   cents ("€4", "€10 / month").
-- **The shop off on the server** answers no plan: then no plan, no pay button, no Add time and no renewal line shows,
-  and an approval reads "Approved! It opens soon." as before. A server with no shop at all (`Unimplemented`) reads the
-  same.
+- **The shop off on the server** answers no plan: then no plan, no pay button, no shop door, no Add time and no renewal line
+  shows, and the flag's paywall reads "Sent on …" and "Approved! It opens soon." as before. A server with no shop at all
+  (`Unimplemented`) reads the same.
 
-## The shop's modal
+## Its doors
 
-**The shop is where the money comes from, so it is a purchase path, not a price list** (the owner, 2026-11-24):
-`ShopModal`, ready for more products. Today one, the region's flag, and what it shows follows the account
-(`offerOf` in `domain/shop.ts`):
+**The shop's door opens the region's flag's one flow** (see [Flag submissions](flag-submissions.md#the-doors)): step 1,
+"make your flag", with no price, or step 2, the paywall, for a flag sent or approved and not open yet. **The plans show
+once in the whole flow, on the paywall.** Until 2026-11-26 the door opened a shop's modal that listed the plans and sent
+the player to the flag form, which listed them again with Pay: the player picked a plan twice. A founder's door opens a
+new flag: its founded flags, their time and their renewals are in its profile's "Your flags".
 
-| The account | Its head | Then |
-|---|---|---|
-| no flag to pay for (a guest too) | a gold coin, "Your region's flag", "Put your region on the map", three perks | the steps at 1, the plans, **Add your flag** (the flag's place: a guest signs in, a player sends its flag and pays in the same form) |
-| a flag sent, not paid (its payment page closed) | its name | the steps at 2, then the plans, the consent and **Pay €60**: it pays from the shop |
-| a flag paid, in review | its name, the Waiting chip | the steps at 3, "Paid! We check your flag, then it opens.", **Your flag** |
-| a flag paid and approved, the moment before it opens | its picture and name, the Approved chip | every step done, "Approved! It opens now.", **Your flag** |
-| a flag approved and not paid (refunded while it waited, or approved before pay first) | its picture and name, the Approved chip | the plans, the consent and Pay, with no steps |
-| a flag founded, open or closed less than 30 days ago, or its renewal stopping | its flag, "Ends on …" or "Closed on …" | the plans, the consent and Pay, for the flag; **New flag** under them |
-| a flag founded whose renewal runs | its flag, "Renews on …" | **Your flag**: no second plan, it would charge twice; **New flag** under it |
-
-- **The steps** ("Send your flag", "Pay", "We check it"): three coins on a line, gold up to where the flag is, a check
-  on each one done. Only on the way to a new flag.
-- **New flag** for a founder (the modal's footer, secondary: Pay stays the one thing to press): it closes the shop and
-  opens the flag form empty (`useFlagForm.compose`), as the footer's New flag in the flag's place. Without it, a founder
-  whose flag closed found no way to a second flag in the shop for 30 days. The server takes a new flag whenever none
-  waits, and `offerOf` gives these two offers only then.
-- **The plans side by side** (`PlanCards`): three cards, a radio group. Each has its name, its price large (the sign in
-  Rubik: Luckiest Guy's euro reads as a "<"), "Paid once" or "Every month", its price by the day ("€0.17 / day",
-  rounded up so it is never told cheaper), and what it saves by the day against the dearest plan, rounded down ("-42%",
-  "-71%", none on the week). The plan cheapest by the day wears "Best value" and is picked first.
-- **The pick is kept** (`useShop.chosen`) for the session: a plan picked in the shop is the one the flag form picks.
-- **Colors** in their jobs: blue for the plan picked (a toggled button), gold for value (the savings, Best value, the
-  steps), red only for the one thing to press.
-- **Its doors**: on a phone, a bag at the end of the status bar's lead (`status-bar-shop`), so held sideways it is in
-  the left pill; on the desktop, the rail's Shop, under its line above You (`menu-rail-shop` in `menu-rail-modals`).
-  Each is a gold button, as the money comes from there, and a band of gold light crosses it every
-  5 seconds (`shop-shine`, an endless animation, see [Styling](styling.md)); none under reduced motion. Each opens it with
-  `useScreen.setShopOpen(true)` (see [The screen](screen.md)). The shop reads the submissions and the renewals again as it
-  opens.
+- **On a phone**, a bag at the end of the status bar's lead (`status-bar-shop`), so held sideways it is in the left pill;
+  **on the desktop**, the rail's Shop, under its line above You (`menu-rail-shop` in `menu-rail-modals`). Each is a gold
+  button, as the money comes from there, and a band of gold light crosses it every 5 seconds (`shop-shine`, an endless
+  animation, see [Styling](styling.md)); none under reduced motion. Each calls `useFlagForm.open()`. The flag picker's
+  row is gold with the same shine.
 - **No door while the shop is off**: the plans are read at load for every page, a guest's too (`ListPlans` is a GET,
   the same answer for all), and with none the bag and the rail's Shop do not show.
+- **The head of step 1** (`FlagPitch`) is the shop's pitch: the gold coin, "Put your region on the map" and three perks.
 
 ## The code
 
@@ -63,37 +42,27 @@ card is typed in the game. The backend's side is `shop.v1.ShopService` (`proto/s
   token that names the account (`identity()`, as `ListMySubmissions`), `ListPlans` none; the reads are retried, and a
   checkout is not: each call is a new page on Stripe. `FakeShop` in fake mode.
 - `app/shop/shopStore.ts`: `useShop`, the plans and the renewals. `useShopFeed`, in `PlayScreen`, reads the plans at
-  load for every page, and a signed-in account's renewals each time the flag's place opens (`refresh`, which reads the
-  plans again too).
-- `domain/shop.ts` also prices the plans against each other: `perDayOf`, `savingOf`, `bestValueOf`, `pickedOf`; and
-  `offerOf`, what the shop sells the account now.
-- `app/shop/ShopModal.tsx`: the shop's modal. `app/shop/PlanCards.tsx`: the plans side by side.
-  `app/shop/PlanOffer.tsx`: the plans, the consent and Pay, in the shop and in the flag's place. `app/shop/prices.ts`
-  and `Money.tsx`: a plan's name, cadence, price by the day, saving, and its price with the sign apart.
-  `app/shop/flagTime.ts`: a founded flag's time line.
+  load for every page, and a signed-in account's renewals each time the flag's flow or the profile's "Your flags" opens
+  (`refresh`, which reads the plans again too).
+- `domain/shop.ts` also prices the plans against each other: `perDayOf`, `savingOf`, `bestValueOf`, `pickedOf`.
+- `app/shop/PlanCards.tsx`: the plans side by side. `app/shop/PlanOffer.tsx`: the plans, the consent and Pay, on the
+  flag's paywall and for Add time. `app/shop/prices.ts` and `Money.tsx`: a plan's name, cadence, price by the day,
+  saving, and its price with the sign apart. `app/shop/flagTime.ts`: a founded flag's time line.
 - `app/shop/shopReturn.ts`: the way back from Stripe's page.
 - `Backends.toCheckout` goes to Stripe's page: `location.assign` in production.
 
-## Pay as the flag is sent
-
-**While the shop sells, the flag form ends with the plans, the consent and "Pay €60"** (`FlagSubmissionForm`), in place
-of Send: the plan picked in the shop is picked here, and Pay is off until the box is checked. It uploads the picture,
-sends the flag, then calls `CreateCheckout{plan, submission_id, starts_now: true}` for the submission just sent and goes
-to its `url`. A checkout that fails after the send puts the form away (`useFlagForm.sent(payFailure)`): the place shows
-the flag sent, "Sent! Pay to send it for review.", the plans and the failure line under Pay, so the player pays again
-there. While the shop is off, the form sends as before.
-
-- **A flag sent and not paid** may still change (the footer's Change), and offers the plans.
-- **A flag paid** reads "Paid! We check your flag, then it opens." (`Submission.paid`, from the wire's `paid`): no plan,
-  no Change (the server refuses to replace a paid flag) and no New flag, since one waits.
-- **Approved and paid**: "Approved! It opens now.", the moment before the flags stream tells it open.
-
 ## The offer
 
-**The plans, the consent and Pay are one screen** (`PlanOffer`), in the shop and in the flag's place, for a flag sent
-and not paid, a flag approved and not paid ("Approved! Pick a plan to open it."), and time for a founded flag:
+**The plans, the consent and Pay are one piece** (`PlanOffer`), on the flag's paywall (target the submission; see
+[Flag submissions](flag-submissions.md#step-2-the-paywall)) and for time added to a founded flag (target the flag):
 
-- **The plans side by side**, the best value picked first, or the plan the player picked last.
+- **The plans side by side** (`PlanCards`): three cards, a radio group. Each has its name, its price large (the sign in
+  Rubik: Luckiest Guy's euro reads as a "<"), "Paid once" or "Every month", its price by the day ("€0.17 / day",
+  rounded up so it is never told cheaper), and what it saves by the day against the dearest plan, rounded down ("-42%",
+  "-71%", none on the week). The plan cheapest by the day wears "Best value" and is picked first.
+- **The pick is kept** (`useShop.chosen`) for the session: the next offer picks it.
+- **Colors** in their jobs: blue for the plan picked (a toggled button), gold for value (the savings, Best value), red
+  only for the one thing to press.
 - **One checkbox, unchecked** (`Consent`, `PayTerms.tsx`): "I want my flag to start as soon as it's approved. I know I
   can't cancel once it starts." This is the EU right of withdrawal's waiver for digital content: the server refuses a
   checkout without `starts_now`, and the page sends it only once the box is checked.
@@ -103,20 +72,22 @@ and not paid, a flag approved and not paid ("Approved! Pick a plan to open it.")
   again."
 - Under it (`FinePrint`), "Secure payment by Stripe", with "· Stop anytime" for a plan that renews, and the links to the
   terms of sale and the refunds (`/sale`, `/refunds`), in a new tab.
-- In the flag's place, Back beside Pay when it adds time, and the footer's "New flag" turns secondary: Pay is the one
-  thing to press. The place and the form widen to the shop's width while they offer the plans.
+- **Back beside Pay**: on the paywall while the flag waits unpaid (a change of it), and for Add time (back to the
+  list). The paywall widens to the plans' width (`shop-modal`).
 
 ## Time for a founded flag
 
-**"Your flags" says each founded flag's time while the shop sells** (`FoundedFlags`, `flagTimeOf`):
+**The profile's "Your flags" says each founded flag's time while the shop sells** (`YourFlags`, `flagTimeOf`; see
+[Flag submissions](flag-submissions.md#your-flags-in-the-profile)):
 
 - **A renewal that runs**, on the flag or on the submission that opened it: "Renews on Dec 24, 2026" and Stop renewal.
   `StopRenewal{renewal_id}` answers the renewal stopping, which replaces it in the store: "Ends on Dec 24, 2026". A stop
-  that fails is one line under the list. The server refuses a second plan while a renewal runs: it would charge twice.
+  that fails is one line under the list. The server refuses a second plan while a renewal runs: it would charge twice,
+  so no Add time shows.
 - **A renewal that stops**: "Ends on …" and Add time: it charges no more, so more time is no second charge.
 - **No renewal**, the flag open: "Ends on …" (`Sold.endsAt`) and Add time; closed less than 30 days ago (`Sold.closedAt`):
   "Closed on …" and Add time. Closed longer: nothing.
-- **Add time** shows the flag with the same plans in the place, target `flag`, and Back to the list.
+- **Add time** shows the flag with the plans in the profile, target `flag`, and Back to the list.
 
 The dates are each language's medium date, as "Sent on …".
 
@@ -127,7 +98,7 @@ The dates are each language's medium date, as "Sent on …".
 and the hash, and hands it to `PlayScreen` (`shopReturn`), which calls `returnFromShop` once:
 
 - **The news line** (`ShopNews`, the news store's `shop` kind, 4 seconds): "Payment received!", or "Payment
-  cancelled.". The flag's place and the shop are closed; nothing else opens.
+  cancelled.". The flag's flow is closed; nothing else opens.
 - **After a payment, the submissions are read every 3 seconds for 2 minutes at most**, and no more once a read finds
   none sent or approved and unpaid (`awaitsPayment`): the server marks a flag sent paid, or opens an approved one, from
   Stripe's webhook a moment after the buyer is back. An opening is then told as any other: "Bavaria is in the game!". Time added to a flag needs no read: the
@@ -145,8 +116,9 @@ approved one opens (`openApproved`, a week, a month or a year), and a founded on
 paid flag at once with its time, as the server's release; `rejectSubmission()` of a paid one makes it unpaid, as the
 refund. A paid flag is not replaced.
 
-Sign in (`signIn()`), send a flag from the shop or the flag picker, and pay: the flag waits, paid. Then
-`approveSubmission()`. On the console:
+Sign in (`signIn()`), make a flag from the shop or the flag picker, press Next, and pay on the paywall: the flag waits,
+paid. Then `approveSubmission()`; or give the verdict while the paywall shows, and pay the approved flag, which opens two
+seconds later. On the console:
 
 - `shopOff()` / `shopOn()`: no plan, as a server with the shop off, or the three again.
 - `refuseCheckouts("unavailable")`: the next checkouts are refused with that refusal (`not-yours`, `not-found`,
