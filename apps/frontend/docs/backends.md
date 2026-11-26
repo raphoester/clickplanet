@@ -380,7 +380,8 @@ flags store listens (`useFlagsFeed`). It carries no token: it is the same for ev
   page already held six, which fill Chrome's six connections to a host: the flags stream waits for one, and so does
   every unary call.
 - **`FakeFlagsBackend`** says the stream opened a moment after it is listened to, and tells each `openFlag(name)`,
-  `addTime(code)`, `closeFlag(code)` and `renameFlag(code, name)` as `flag_changed`. The archive page opens no stream: it
+  `addTime(code)`, `endFlag(code)`, `claimElsewhere(code)`, `removeFlag(code)` and `renameFlag(code, name)` as
+  `flag_changed`. The archive page opens no stream: it
   reads the list once.
 
 See [The list of flags](flag-catalog.md).

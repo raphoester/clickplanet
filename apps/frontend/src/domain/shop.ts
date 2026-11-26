@@ -34,16 +34,14 @@ export function pickedOf(plans: readonly PlanPrice[], chosen: Plan | undefined):
     return plans.find(({plan}) => plan === chosen) ?? plans.find(({plan}) => plan === best) ?? plans[0]
 }
 
-// What a payment is for: an approved submission of a new flag, which its first payment opens, or a flag founded.
+// What a payment is for: an approved submission of a new flag, which its first payment opens, or a flag: one the account
+// holds, or one whose time ended, which the payment claims.
 export type CheckoutTarget = {kind: "submission", id: string} | {kind: "flag", flag: string}
 
 export type RenewalState = "renewing" | "stopping"
 
 // A plan that renews, until periodEndsAt (milliseconds since the epoch): its next payment, or its end once stopping.
 export type Renewal = {id: string, plan: Plan, target: CheckoutTarget, state: RenewalState, periodEndsAt: number}
-
-// Time added within this long of a close opens the flag again.
-export const COMEBACK_MS = 30 * 24 * 60 * 60 * 1000
 
 // A new flag not paid yet: sent and waiting for its review, or approved before it was paid.
 export function payable(submission: Submission): boolean {
@@ -60,23 +58,19 @@ export function flagRenewal(renewals: readonly Renewal[], flag: string, submissi
     return renewals.find(({target}) => target.kind === "flag" ? target.flag === flag : openedFrom.has(target.id))
 }
 
-// Open, or closed less than 30 days ago.
-export function canAddTime(sold: SoldFlag | undefined, closed: boolean, now: number): boolean {
-    if (sold === undefined) return false
-    if (!closed) return true
-    return sold.closedAt !== undefined && now - sold.closedAt < COMEBACK_MS
-}
-
-// A founded flag's time, as its founder reads it: a renewal that runs or stops, or the time more can be added to.
+// A held flag's time, as its holder reads it: a renewal that runs or stops, the time more can be added to, or its
+// removal.
 export type FlagTime =
     | {kind: "renews", renewal: Renewal}
     | {kind: "stopping", renewal: Renewal}
     | {kind: "open", endsAt: number}
     | {kind: "closed", closedAt: number}
+    | {kind: "removed", removedAt: number}
     | {kind: "none"}
 
-export function flagTimeOf(sold: SoldFlag | undefined, closed: boolean, renewal: Renewal | undefined, now: number): FlagTime {
+export function flagTimeOf(sold: SoldFlag | undefined, closed: boolean, renewal: Renewal | undefined): FlagTime {
+    if (sold === undefined) return {kind: "none"}
+    if (sold.removed) return {kind: "removed", removedAt: sold.closedAt ?? 0}
     if (renewal) return renewal.state === "renewing" ? {kind: "renews", renewal} : {kind: "stopping", renewal}
-    if (sold === undefined || !canAddTime(sold, closed, now)) return {kind: "none"}
-    return closed ? {kind: "closed", closedAt: sold.closedAt ?? now} : {kind: "open", endsAt: sold.endsAt}
+    return closed ? {kind: "closed", closedAt: sold.closedAt ?? 0} : {kind: "open", endsAt: sold.endsAt}
 }

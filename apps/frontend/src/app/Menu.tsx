@@ -36,7 +36,6 @@ import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import {MenuTab, useScreen} from "./hud/screenStore.ts"
 import {useFlagForm} from "./flags/flagFormStore.ts"
 import {useShop} from "./shop/shopStore.ts"
-import {Shop} from "../backends/shop.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {t, translator} from "../i18n/page.ts"
 import "./Menu.css"
@@ -61,9 +60,6 @@ export type YouPlaceProps = {
     playerInfo: PlayerInfoBackend,
     listenForClicks?: ListenForClicks,
     clips: ClipsNameBackend,
-    shop: Shop,
-    // Stripe's page.
-    toCheckout: (url: string) => void,
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
@@ -89,7 +85,7 @@ export default function Menu(props: MenuProps) {
     const open = chosen ?? !small
     const [profileOpen, setProfileOpen] = useState(false)
     const selling = useShop((store) => store.plans.length > 0)
-    const openFlag = useFlagForm((form) => form.open)
+    const openShop = useFlagForm((form) => form.openShop)
     const picker = usePicker()
     const [shell, setShell] = useState<HTMLElement | null>(null)
     useEdge(shell, MENU_RIGHT, "right")
@@ -149,7 +145,7 @@ export default function Menu(props: MenuProps) {
                 {selling && <button type="button"
                                     className="menu-rail-item menu-rail-shop shop-shine"
                                     aria-haspopup="dialog"
-                                    onClick={() => openFlag()}>
+                                    onClick={openShop}>
                     <ShopIcon/>
                     <span className="menu-rail-label">{t("menu.shop")}</span>
                 </button>}
@@ -222,8 +218,6 @@ export default function Menu(props: MenuProps) {
                                       playerInfo={props.playerInfo}
                                       listenForClicks={props.listenForClicks}
                                       clips={props.clips}
-                                      shop={props.shop}
-                                      toCheckout={props.toCheckout}
                                       country={props.country}
                                       onClose={() => setProfileOpen(false)}/>}
     </div>
@@ -378,7 +372,7 @@ function rankShown(props: BoardPlaceProps, race: Race | undefined): number | nul
     return rankOf(linesShown(props, race), props.country)
 }
 
-export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks, clips, shop, toCheckout}: YouPlaceProps) {
+export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks, clips}: YouPlaceProps) {
     const account = useAccount(store)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -396,8 +390,6 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
                       playerInfo={playerInfo}
                       listenForClicks={listenForClicks}
                       clips={clips}
-                      shop={shop}
-                      toCheckout={toCheckout}
                       onDelete={() => setConfirmingDelete(true)}/>
 
         {confirmingDelete && <DeleteAccountModal

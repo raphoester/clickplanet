@@ -9,15 +9,6 @@ import {ProgressionBackend} from "../../backends/progression.ts"
 import {FakeClipsBackend} from "../../backends/fakeClipsBackend.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
-import {Shop} from "../../backends/shop.ts"
-
-// The shop with nothing on sale.
-const CLOSED_SHOP: Shop = {
-    plans: async () => [],
-    checkout: async () => Promise.reject(new Error("the shop is closed")),
-    myRenewals: async () => [],
-    stopRenewal: async () => Promise.reject(new Error("the shop is closed")),
-}
 
 afterEach(cleanup)
 
@@ -51,7 +42,7 @@ async function guest(offered: Provider[] = ["google", "email"]) {
 
     function Panel() {
         const state = useSyncExternalStore(store.subscribe, store.state)
-        return state.kind === "ready" ? <AccountPanel state={state} store={store} playerInfo={playerInfo} clips={clips} shop={CLOSED_SHOP} toCheckout={vi.fn()} onDelete={vi.fn()}/> : null
+        return state.kind === "ready" ? <AccountPanel state={state} store={store} playerInfo={playerInfo} clips={clips} onDelete={vi.fn()}/> : null
     }
 
     render(<Panel/>)

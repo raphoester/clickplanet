@@ -18,8 +18,6 @@ export type Submission = {
     decidedAt: number
     rejection?: Rejection
     picture?: FlagPicture
-    // An opened one's, while the operator's close of its flag holds: why, in the operator's words.
-    closeNote?: string
     // Its time is paid and held until its flag opens, at its approval; a paid one is not changed.
     paid: boolean
 }
@@ -75,19 +73,22 @@ export function pointOfPin({latitude, longitude}: Pin): {x: number, y: number, z
     return {x: -Math.cos(phi) * Math.cos(lambda), y: Math.sin(phi), z: Math.cos(phi) * Math.sin(lambda)}
 }
 
-// The new flag on its way to the globe, the newest first: sent and waiting for its review, or approved and not open yet.
-export function onItsWayOf(submissions: readonly Submission[]): Submission | undefined {
-    return submissions.find(({state}) => state === "waiting" || state === "approved")
+// A flag the account holds now: its payment opened it or claimed it last. A removed one has the operator's note.
+export type Held = {code: string, removalNote?: string}
+
+// What an account reads of its flags: its submissions, the newest first, and the flags it holds.
+export type MyFlags = {submissions: Submission[], held: Held[]}
+
+export const NO_FLAGS: MyFlags = {submissions: [], held: []}
+
+// One submission waits at a time: a new flag takes the place of one that waits unpaid. A paid one is not replaced.
+export function replacedByNewOf(submissions: readonly Submission[]): Submission | undefined {
+    return submissions.find((submission) => changeable(submission))
 }
 
 // Its player may change it while it waits and is not paid, never once paid or decided.
 export function changeable({state, paid}: Submission): boolean {
     return state === "waiting" && !paid
-}
-
-// The flags the account founded, the newest first: each opened from one of its submissions.
-export function foundedFlags(submissions: readonly Submission[]): string[] {
-    return submissions.filter(({state, flag}) => state === "opened" && flag !== "").map(({flag}) => flag)
 }
 
 // What its player reads: once a submission opened its flag, the flag's state now.
@@ -109,9 +110,12 @@ function decided(shown: Shown): shown is Decided {
 // The state each submission was last told in, by id.
 export type Told = Readonly<Record<string, ShownState>>
 
-// The decisions not told yet, the newest first: a submission approved, opened, then its flag closed, is told thrice.
-export function untold(submissions: readonly Submission[], told: Told, catalog: FlagCatalog): Decided[] {
+// The decisions not told yet, the newest first: a submission approved, opened, then its flag closed, is told thrice. A
+// flag another player claimed since is theirs: nothing of it is told.
+export function untold(submissions: readonly Submission[], told: Told, catalog: FlagCatalog, held: readonly Held[]): Decided[] {
+    const holds = new Set(held.map(({code}) => code))
     return submissions
+        .filter(({state, flag}) => state !== "opened" || holds.has(flag))
         .map((submission) => shownOf(submission, catalog))
         .filter(decided)
         .filter(({id, state}) => told[id] !== state)

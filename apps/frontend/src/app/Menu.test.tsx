@@ -32,7 +32,6 @@ import {FakeAccountBackend} from "../backends/fakeAccountBackend.ts"
 import {FakeClipsBackend} from "../backends/fakeClipsBackend.ts"
 import {FakeSupportBackend} from "../backends/fakeSupportBackend.ts"
 import {NoSession} from "../backends/session.ts"
-import {Shop} from "../backends/shop.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
@@ -44,22 +43,12 @@ const RACE: Race = {
 }
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 const NO_PLAYER: PlayerInfoBackend = {playerInfo: async () => undefined}
-// The shop with nothing on sale.
-const CLOSED_SHOP: Shop = {
-    plans: async () => [],
-    checkout: async () => Promise.reject(new Error("the shop is closed")),
-    myRenewals: async () => [],
-    stopRenewal: async () => Promise.reject(new Error("the shop is closed")),
-}
-
 function backends() {
     const account = new FakeAccountBackend()
     return {
         account: new AccountStore(account, account, account, new NoSession(), {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()}),
         playerInfo: NO_PLAYER,
         clips: new FakeClipsBackend(),
-        shop: CLOSED_SHOP,
-        toCheckout: vi.fn(),
         support: new FakeSupportBackend(),
         address: {code: "fr"},
     }
@@ -790,8 +779,7 @@ describe("Menu", () => {
             } satisfies ProgressionBackend
             const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
             const view = render(phone
-                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks} clips={new FakeClipsBackend()}
-                            shop={CLOSED_SHOP} toCheckout={vi.fn()}/>
+                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks} clips={new FakeClipsBackend()}/>
                 : <Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                         account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
                         listenForClicks={clicks?.listenForClicks}/>)

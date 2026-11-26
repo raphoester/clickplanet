@@ -494,8 +494,6 @@ export default function PlayScreen(props: PlayScreenProps) {
         playerInfo: backends.playerInfo,
         listenForClicks: accepted.listenForClicks,
         clips: backends.clips,
-        shop: backends.shop,
-        toCheckout: backends.toCheckout,
     }
     const share = {
         address,

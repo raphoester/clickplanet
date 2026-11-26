@@ -33,6 +33,7 @@ export function listedOf({code, name, closed, sold}: Flag): ListedFlag {
             endsAt: sold.endsAt ? sold.endsAt.toDate().getTime() : 0,
             closedAt: sold.closedAt ? sold.closedAt.toDate().getTime() : undefined,
             ...sold.pin ? {pin: pinOf(sold.pin)} : {},
+            ...sold.removed ? {removed: true} : {},
         },
     }
 }

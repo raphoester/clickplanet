@@ -1,4 +1,4 @@
-import {ReactNode, useId, useState} from "react"
+import {useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
 import {PlayerInfoBackend} from "../../backends/player.ts"
 import LevelProgress from "../level/LevelProgress.tsx"
@@ -22,11 +22,10 @@ export type ProgressTabProps = {
     me: Me
     stats?: {backend: PlayerInfoBackend, accountId: string}
     listenForClicks?: ListenForClicks
-    flags?: ReactNode
 }
 
 // The phone's You sheet. The desktop shows the same in ProfileModal, laid out for its room.
-export default function ProgressTab({store, me, stats, listenForClicks, flags}: ProgressTabProps) {
+export default function ProgressTab({store, me, stats, listenForClicks}: ProgressTabProps) {
     const [titles, reread] = useTitles(store, me, listenForClicks)
     const fronts = useFronts(store, me, listenForClicks)
     const [wearing, setWearing] = useState<string>()
@@ -74,8 +73,6 @@ export default function ProgressTab({store, me, stats, listenForClicks, flags}: 
         <LevelProgress/>
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
-
-        {flags}
 
         <Fold title={t("profile.titles")} startOpen>{titlesBody}</Fold>
 

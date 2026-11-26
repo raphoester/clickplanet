@@ -131,30 +131,33 @@ describe("ConnectFlagSubmissions", () => {
     it("reads the account's submissions with the token that names it, and none with no token", async () => {
         const listMySubmissions = vi.fn().mockResolvedValue(new ListMySubmissionsResponse({submissions: [waiting()]}))
 
-        const mine = await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("token-1")).mySubmissions()
-        expect(mine.map(({id}) => id)).toEqual(["s-1"])
+        const mine = await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("token-1")).myFlags()
+        expect(mine.submissions.map(({id}) => id)).toEqual(["s-1"])
         expect(headersOf(listMySubmissions).get(SESSION_HEADER)).toBe("token-1")
 
         const none = vi.fn()
-        expect(await new ConnectFlagSubmissions(clientOf({listMySubmissions: none}), guestPage()).mySubmissions()).toEqual([])
+        expect(await new ConnectFlagSubmissions(clientOf({listMySubmissions: none}), guestPage()).myFlags())
+            .toEqual({submissions: [], held: []})
         expect(none).not.toHaveBeenCalled()
     })
 
-    it("puts the note of a flag's close on the submission that opened it, and on no other", async () => {
+    it("reads the flags the account holds, each removed one with its note", async () => {
         const opened = new Submission({...waiting(), id: "s-1", flag: "r-k3p9x2ma0b", state: SubmissionState.OPENED})
-        const later = new Submission({...waiting(), id: "s-2", state: SubmissionState.APPROVED})
         const listMySubmissions = vi.fn().mockResolvedValue(new ListMySubmissionsResponse({
-            submissions: [later, opened],
-            closures: [new Closure({flag: "r-k3p9x2ma0b", note: "A club's crest."})],
+            submissions: [opened],
+            held: ["r-k3p9x2ma0b", "r-0a1b2c3d4e"],
+            closures: [new Closure({flag: "r-0a1b2c3d4e", note: "A club's crest."})],
         }))
 
-        const mine = await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("t")).mySubmissions()
+        const mine = await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("t")).myFlags()
 
-        expect(mine.map(({id, closeNote}) => [id, closeNote])).toEqual([["s-2", undefined], ["s-1", "A club's crest."]])
+        expect(mine.held).toEqual([{code: "r-k3p9x2ma0b"}, {code: "r-0a1b2c3d4e", removalNote: "A club's crest."}])
+        expect(mine.submissions.map(({id}) => id)).toEqual(["s-1"])
     })
 
     it("reads none from a server without submissions", async () => {
         const listMySubmissions = vi.fn().mockRejectedValue(new ConnectError("no", Code.Unimplemented))
-        expect(await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("t")).mySubmissions()).toEqual([])
+        expect(await new ConnectFlagSubmissions(clientOf({listMySubmissions}), session("t")).myFlags())
+            .toEqual({submissions: [], held: []})
     })
 })

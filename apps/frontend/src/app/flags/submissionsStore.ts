@@ -2,7 +2,7 @@ import {useEffect} from "react"
 import {create} from "zustand"
 import {FlagSubmitter} from "../../backends/flags.ts"
 import {FlagCatalog} from "../../domain/flags.ts"
-import {foundedFlags, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
+import {Held, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
 import {useNews} from "../news/newsStore.ts"
 import {useFlags} from "./flagsStore.ts"
 import {keepTold, toldSubmissions} from "./toldSubmissions.ts"
@@ -14,6 +14,8 @@ type FlagSubmissionsStore = {
     who: Who
     // The account's, the newest first: none for a guest.
     submissions: readonly Submission[]
+    // The flags the account holds now, each removed one with its note.
+    held: readonly Held[]
     // Whether a read ended since the store was served.
     read: boolean
     setWho: (who: Who) => void
@@ -40,9 +42,9 @@ export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
         reading = true
         const generation = served
         const current = () => generation === served
-        from.mySubmissions().then(
-            (submissions) => {
-                if (current()) set({submissions, read: true})
+        from.myFlags().then(
+            ({submissions, held}) => {
+                if (current()) set({submissions, held, read: true})
             },
             (e: unknown) => console.error("could not read the flags you submitted", e),
         ).finally(() => {
@@ -59,6 +61,7 @@ export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
     return {
         who: "nobody",
         submissions: [],
+        held: [],
         read: false,
         setWho: (who) => set({who}),
         serve: (next) => {
@@ -66,7 +69,7 @@ export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
             served += 1
             reading = false
             queued = false
-            set({submissions: [], read: false})
+            set({submissions: [], held: [], read: false})
             read()
         },
         refresh: read,
@@ -115,7 +118,7 @@ export function useFlagSubmissionsFeed(submitter: FlagSubmitter, who: Who): void
         const {serve, refresh} = useFlagSubmissions.getState()
         serve(submitter)
         const stopOpenings = useFlags.subscribe((flags, was) => {
-            if (flags.openings !== was.openings || foundedClosedOrBack(flags.catalog, was.catalog)) refresh()
+            if (flags.openings !== was.openings || heldChanged(flags.catalog, was.catalog)) refresh()
         })
         return () => {
             stopOpenings()
@@ -124,8 +127,8 @@ export function useFlagSubmissionsFeed(submitter: FlagSubmitter, who: Who): void
     }, [submitter, signedIn])
 
     useEffect(() => {
-        const stopSubmissions = useFlagSubmissions.subscribe(({submissions}, was) => {
-            if (submissions !== was.submissions) tellDecisions()
+        const stopSubmissions = useFlagSubmissions.subscribe(({submissions, held}, was) => {
+            if (submissions !== was.submissions || held !== was.held) tellDecisions()
         })
         const stopFlags = useFlags.subscribe(({catalog, read}, was) => {
             if (catalog !== was.catalog || read !== was.read) tellDecisions()
@@ -137,11 +140,12 @@ export function useFlagSubmissionsFeed(submitter: FlagSubmitter, who: Who): void
     }, [])
 }
 
-// The operator's note of a close is read with the submissions.
-function foundedClosedOrBack(catalog: FlagCatalog, was: FlagCatalog): boolean {
+// A flag held that closes, comes back or opens for another player: the removal's note and who holds it are read with
+// the submissions.
+function heldChanged(catalog: FlagCatalog, was: FlagCatalog): boolean {
     if (catalog === was) return false
-    return foundedFlags(useFlagSubmissions.getState().submissions)
-        .some((flag) => catalog.closedFlag(flag) !== was.closedFlag(flag))
+    return useFlagSubmissions.getState().held
+        .some(({code}) => catalog.closedFlag(code) !== was.closedFlag(code))
 }
 
 // Not before the list of flags is read: an opened flag would be told open, then closed.
@@ -150,7 +154,8 @@ function tellDecisions(): void {
     if (!read) return
     const told = toldSubmissions()
     if (told === undefined) return
-    const fresh = untold(useFlagSubmissions.getState().submissions, told, catalog)
+    const {submissions, held} = useFlagSubmissions.getState()
+    const fresh = untold(submissions, told, catalog, held)
     if (fresh.length === 0) return
     keepTold(withTold(told, fresh))
     useNews.getState().tellSubmission(fresh[0])

@@ -71,8 +71,8 @@ export default function CountryPicker(props: CountryPickerProps) {
                     onChange={(value) => pick({code: value.code})}
                     selected={values.find((value) => value.code === props.country.code)}
                     values={values}
-                    footer={<FlagSubmissionEntry/>}
-                    noMatch={(typed) => <FlagSubmissionEntry typed={typed}/>}
+                    footer={(search) => <FlagSubmissionEntry search={search}/>}
+                    noMatch={(search) => <FlagSubmissionEntry search={search} unmatched/>}
                 />
             </div>}
     </>

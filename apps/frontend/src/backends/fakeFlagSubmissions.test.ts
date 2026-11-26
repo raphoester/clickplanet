@@ -36,13 +36,13 @@ describe("FakeFlagSubmissions", () => {
         expect(sent).toMatchObject({name: "Bavaria", state: "waiting", flag: ""})
         expect(await refusalOf(submissions.submitFlag({name: "Tyrol", uploadId: await submissions.uploadPicture(png()), pin: PIN})))
             .toBe("waiting")
-        expect((await submissions.mySubmissions()).map(({name}) => name)).toEqual(["Bavaria"])
+        expect((await submissions.myFlags()).submissions.map(({name}) => name)).toEqual(["Bavaria"])
     })
 
     it("refuses a guest, and lists it none", async () => {
         const {submissions} = setup(false)
         expect(await refusalOf(submissions.uploadPicture(png()))).toBe("guest")
-        expect(await submissions.mySubmissions()).toEqual([])
+        expect(await submissions.myFlags()).toEqual({submissions: [], held: []})
     })
 
     it("approves, opens a flag with the upload's picture and the pin, and says the stream opened after each", async () => {
@@ -51,12 +51,13 @@ describe("FakeFlagSubmissions", () => {
         vi.mocked(handlers.onOpened).mockClear()
 
         await submissions.approve()
-        expect((await submissions.mySubmissions())[0]).toMatchObject({state: "approved", picture: PICTURE})
+        expect((await submissions.myFlags()).submissions[0]).toMatchObject({state: "approved", picture: PICTURE})
         expect(handlers.onOpened).toHaveBeenCalledTimes(1)
 
         await submissions.open(7)
-        const [opened] = await submissions.mySubmissions()
+        const {submissions: [opened], held} = await submissions.myFlags()
         expect(opened.state).toBe("opened")
+        expect(held).toEqual([{code: opened.flag}])
         const listed = (await flags.listFlags()).find(({code}) => code === opened.flag)
         expect(listed?.sold).toMatchObject({picture: PICTURE, pin: PIN})
         expect(handlers.onOpened).toHaveBeenCalledTimes(2)
@@ -68,7 +69,7 @@ describe("FakeFlagSubmissions", () => {
 
         submissions.reject("not-a-place", "A club's crest.")
 
-        expect((await submissions.mySubmissions())[0]).toMatchObject({state: "rejected", rejection: {reason: "not-a-place", note: "A club's crest."}})
+        expect((await submissions.myFlags()).submissions[0]).toMatchObject({state: "rejected", rejection: {reason: "not-a-place", note: "A club's crest."}})
     })
 
     it("replaces the submission that waits, and never one the operator decided", async () => {
@@ -78,7 +79,7 @@ describe("FakeFlagSubmissions", () => {
         const second = await submissions.submitFlag({
             name: "Bayern", uploadId: await submissions.uploadPicture(png()), pin: PIN, replaces: first.id,
         })
-        expect((await submissions.mySubmissions()).map(({id, name}) => [id, name])).toEqual([[second.id, "Bayern"]])
+        expect((await submissions.myFlags()).submissions.map(({id, name}) => [id, name])).toEqual([[second.id, "Bayern"]])
 
         await submissions.approve()
         expect(await refusalOf(submissions.submitFlag({

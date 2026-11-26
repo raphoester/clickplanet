@@ -2,8 +2,7 @@ import {describe, expect, it} from "vitest"
 import type {SoldFlag} from "./flags.ts"
 import type {Submission} from "./flagSubmissions.ts"
 import {
-    awaitsPayment, bestValueOf, canAddTime, COMEBACK_MS, flagRenewal, flagTimeOf, payable, pickedOf, PlanPrice,
-    Renewal, savingOf, perDayOf,
+    awaitsPayment, bestValueOf, flagRenewal, flagTimeOf, payable, pickedOf, PlanPrice, Renewal, savingOf, perDayOf,
 } from "./shop.ts"
 
 const PLANS: PlanPrice[] = [
@@ -55,23 +54,15 @@ describe("flagRenewal", () => {
     })
 })
 
-describe("canAddTime", () => {
-    it("takes an open flag, or one closed less than 30 days ago", () => {
-        expect(canAddTime(sold(), false, NOW)).toBe(true)
-        expect(canAddTime(sold({closedAt: NOW - COMEBACK_MS + 1}), true, NOW)).toBe(true)
-        expect(canAddTime(sold({closedAt: NOW - COMEBACK_MS}), true, NOW)).toBe(false)
-        expect(canAddTime(sold(), true, NOW)).toBe(false)
-        expect(canAddTime(undefined, false, NOW)).toBe(false)
-    })
-})
-
 describe("flagTimeOf", () => {
-    it("says a renewal first, then the time more can be added to", () => {
-        expect(flagTimeOf(sold(), false, renewal(), NOW)).toEqual({kind: "renews", renewal: renewal()})
-        expect(flagTimeOf(sold(), false, renewal({state: "stopping"}), NOW)).toEqual({kind: "stopping", renewal: renewal({state: "stopping"})})
-        expect(flagTimeOf(sold(), false, undefined, NOW)).toEqual({kind: "open", endsAt: NOW + 5})
-        expect(flagTimeOf(sold({closedAt: NOW - 1}), true, undefined, NOW)).toEqual({kind: "closed", closedAt: NOW - 1})
-        expect(flagTimeOf(sold({closedAt: NOW - COMEBACK_MS}), true, undefined, NOW)).toEqual({kind: "none"})
+    it("says a removal first, then a renewal, then the time more can be added to, however long ago it closed", () => {
+        expect(flagTimeOf(sold(), false, renewal())).toEqual({kind: "renews", renewal: renewal()})
+        expect(flagTimeOf(sold(), false, renewal({state: "stopping"}))).toEqual({kind: "stopping", renewal: renewal({state: "stopping"})})
+        expect(flagTimeOf(sold(), false, undefined)).toEqual({kind: "open", endsAt: NOW + 5})
+        expect(flagTimeOf(sold({closedAt: NOW - 1}), true, undefined)).toEqual({kind: "closed", closedAt: NOW - 1})
+        expect(flagTimeOf(sold({closedAt: 1}), true, undefined)).toEqual({kind: "closed", closedAt: 1})
+        expect(flagTimeOf(sold({closedAt: NOW - 1, removed: true}), true, renewal())).toEqual({kind: "removed", removedAt: NOW - 1})
+        expect(flagTimeOf(undefined, false, undefined)).toEqual({kind: "none"})
     })
 })
 

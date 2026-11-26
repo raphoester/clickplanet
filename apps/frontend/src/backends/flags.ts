@@ -1,5 +1,5 @@
 import type {ListedFlag, Pin} from "../domain/flags.ts"
-import type {Submission} from "../domain/flagSubmissions.ts"
+import type {MyFlags, Submission} from "../domain/flagSubmissions.ts"
 import type {UploadOptions} from "./support.ts"
 
 export interface FlagLister {
@@ -31,8 +31,8 @@ export interface FlagSubmitter {
     // The id SubmitFlag takes, once the picture is up.
     uploadPicture(file: Blob, options?: UploadOptions): Promise<string>
     submitFlag(submitted: SubmittedFlag): Promise<Submission>
-    // The newest first; none for a guest.
-    mySubmissions(): Promise<Submission[]>
+    // The submissions, the newest first, and the flags held; none for a guest.
+    myFlags(): Promise<MyFlags>
 }
 
 export type SubmissionRefusal = "no-session" | "guest" | "decided" | "waiting" | "invalid" | "off" | "too-many"

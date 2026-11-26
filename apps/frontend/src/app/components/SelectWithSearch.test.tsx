@@ -128,7 +128,7 @@ describe("SelectWithSearch", () => {
         render(<SelectWithSearch values={VALUES}
                                  selected={VALUES[0]}
                                  onChange={vi.fn()}
-                                 footer={<p>footer</p>}
+                                 footer={() => <p>footer</p>}
                                  noMatch={(search) => <p>{`none for ${search}`}</p>}/>)
         const search = screen.getByPlaceholderText("Search a country")
         expect(screen.getByText("footer")).not.toBeNull()

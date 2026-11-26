@@ -306,13 +306,20 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                 case "longer":
                     return `${code} ends ${days} days later`
                 case "reopened":
-                    return `${code} is open again for ${days} days, with the land it still holds`
-                case "too late":
-                    return `${code} closed more than 30 days ago: it cannot come back`
+                    return `${code} is open again for ${days} days, with the land it still holds and its holder`
+                case "taken":
+                    return `${code} was removed, and a new flag took its name: rename one of them first`
                 case "unknown":
                     return `no flag ${code}: openFlag(name) answers one`
             }
         },
+        endFlag: (code: string) => fakeFlags.end(code)
+            ? `${code}'s time ended: its players pick another flag, and any player may claim it from the flag picker's search`
+            : `no open flag ${code}: openFlag(name) answers one`,
+        claimElsewhere: (code: string) => fakeFlags.claimElsewhere(code)
+            ? `another player claimed ${code}: it is open again, and it left your flags`
+            : `no flag ${code} whose time ended: endFlag(code) ends one`,
+        renewingElsewhere: (code: string, on = true) => fakeShop.renewElsewhere(code, on),
         approveSubmission: () => fakeSubmissions.approve(),
         rejectSubmission: (reason?: RejectionReason, note?: string) => fakeSubmissions.reject(reason, note),
         openSubmission: (days?: number) => fakeSubmissions.open(days),
@@ -320,9 +327,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shopOff: () => fakeShop.turn(false),
         shopOn: () => fakeShop.turn(true),
         refuseCheckouts: (refusal?: ShopRefusal) => fakeShop.refuse(refusal),
-        closeFlag: (code: string, note = "It broke the game's rules.") => fakeFlags.close(code, note)
-            ? `${code} is closed: its players pick another flag, its land stays, its founder reads the note, and addTime(code) brings it back`
-            : `no open flag ${code}, or no note: openFlag(name) answers one`,
+        removeFlag: (code: string, note = "It broke the game's rules.") => fakeFlags.remove(code, note)
+            ? `${code} is removed: its players pick another flag, its land stays, nobody may pay for it, its holder reads the note, and addTime(code) brings it back`
+            : `no flag ${code} to remove, or no note: openFlag(name) answers one`,
         renameFlag: (code: string, name: string) => {
             const renamed = fakeFlags.rename(code, name)
             switch (renamed) {

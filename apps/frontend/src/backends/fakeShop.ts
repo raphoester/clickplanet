@@ -1,5 +1,4 @@
-import {foundedFlags} from "../domain/flagSubmissions.ts"
-import {canAddTime, CheckoutTarget, flagRenewal, payable, Plan, PlanPrice, Renewal} from "../domain/shop.ts"
+import {CheckoutTarget, flagRenewal, payable, Plan, PlanPrice, Renewal} from "../domain/shop.ts"
 import {FakeFlagsBackend} from "./fakeFlagsBackend.ts"
 import {FakeFlagSubmissions} from "./fakeFlagSubmissions.ts"
 import {CheckoutRequest, Shop, ShopRefusal, ShopRefusedError} from "./shop.ts"
@@ -19,11 +18,13 @@ const DAYS: Record<Plan, number> = {week: 7, month: 30, year: 365}
 
 // The shop module in memory, on by default. A checkout is paid at once: the page comes back from "Stripe" with
 // ?shop=paid, and the flag opens or gets its time a moment later, as the webhook would. shopOff() and shopOn() on the
-// console, and refuseCheckouts(refusal).
+// console, refuseCheckouts(refusal), and renewingElsewhere(code), another player's renewal that still runs on a flag.
 export class FakeShop implements Shop {
     private on = true
     private refusal?: ShopRefusal
     private readonly renewals: Renewal[] = []
+    // Flags another player's renewal still pays for, as while Stripe tries a card again: nobody else may claim them.
+    private readonly renewedElsewhere = new Set<string>()
     // Paid, not landed yet: a second checkout of the same target is refused until then.
     private readonly landing = new Set<string>()
 
@@ -46,6 +47,12 @@ export class FakeShop implements Shop {
     public refuse(refusal?: ShopRefusal): string {
         this.refusal = refusal
         return refusal ? `the next checkouts are refused: ${refusal}` : "the next checkouts go through"
+    }
+
+    public renewElsewhere(flag: string, on: boolean): string {
+        if (on) this.renewedElsewhere.add(flag)
+        else this.renewedElsewhere.delete(flag)
+        return on ? `another player's renewal still runs on ${flag}: nobody else may pay for it` : `no other renewal runs on ${flag}`
     }
 
     public async plans(): Promise<PlanPrice[]> {
@@ -88,7 +95,7 @@ export class FakeShop implements Shop {
     }
 
     private async forSubmission(id: string, days: number): Promise<() => Promise<void>> {
-        const submission = (await this.submissions.mySubmissions()).find((mine) => mine.id === id)
+        const submission = (await this.submissions.myFlags()).submissions.find((mine) => mine.id === id)
         if (!submission) throw new ShopRefusedError("not-found")
         if (!payable(submission)) throw new ShopRefusedError("unavailable")
         if (submission.state === "waiting") {
@@ -102,15 +109,18 @@ export class FakeShop implements Shop {
         }
     }
 
+    // Its holder's, or anyone's once its time ended, never a removed one, nor while a renewal of it runs.
     private async forFlag(flag: string, days: number): Promise<() => Promise<void>> {
-        const submissions = await this.submissions.mySubmissions()
-        if (!foundedFlags(submissions).includes(flag)) throw new ShopRefusedError("not-yours")
+        const {submissions} = await this.submissions.myFlags()
         const listed = (await this.flags.listFlags()).find(({code}) => code === flag)
         if (listed?.sold === undefined) throw new ShopRefusedError("not-found")
-        if (!canAddTime(listed.sold, listed.closed, this.now())) throw new ShopRefusedError("unavailable")
-        if (flagRenewal(this.renewals, flag, submissions)) throw new ShopRefusedError("unavailable")
+        if (listed.sold.removed) throw new ShopRefusedError("unavailable")
+        if (!listed.closed && !this.flags.holds(flag)) throw new ShopRefusedError("not-yours")
+        const renewing = flagRenewal(this.renewals.filter(({state}) => state === "renewing"), flag, submissions)
+        if (renewing || this.renewedElsewhere.has(flag)) throw new ShopRefusedError("unavailable")
         return async () => {
-            this.flags.addTime(flag, days)
+            const paid = this.flags.pay(flag, days)
+            if (paid === "removed" || paid === "held" || paid === "unknown") console.error(`the fake shop could not pay for ${flag}: ${paid}`)
         }
     }
 

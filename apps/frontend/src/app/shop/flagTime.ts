@@ -5,7 +5,7 @@ function dateOf(at: number): string {
     return translator().dateTime(at, {dateStyle: "medium"})
 }
 
-// "Renews on Dec 24, 2026", "Ends on …", "Closed on …".
+// "Renews on Dec 24, 2026", "Ends on …", "Closed on …", "Removed on …".
 export function flagTimeLine(time: FlagTime): string | undefined {
     switch (time.kind) {
         case "renews":
@@ -16,6 +16,8 @@ export function flagTimeLine(time: FlagTime): string | undefined {
             return t("shop.endsOn", {date: dateOf(time.endsAt)})
         case "closed":
             return t("shop.closedOn", {date: dateOf(time.closedAt)})
+        case "removed":
+            return t("shop.removedOn", {date: dateOf(time.removedAt)})
         case "none":
             return undefined
     }
