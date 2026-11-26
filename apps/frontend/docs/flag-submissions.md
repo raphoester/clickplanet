@@ -158,13 +158,25 @@ of the one that waits unpaid), then a row per flag the account holds, then a row
 open, each with one action that opens its own page: **never the plans inside the list.** It reads the submissions and
 the renewals again as it shows.
 
-- **A flag held** (`ListMySubmissionsResponse.held`, the account's payment opened it or claimed it last): its flag, its
-  time line (`flagTimeOf`, see [The shop](shop.md#time-for-a-flag-held)), its chip (Open, Closed or Removed), and Add
-  time ([its pay page](#a-flags-pay-page)) or Stop renewal. A removed one has no action, and quotes the operator's note.
-  A flag another player claimed is no longer held: it leaves the list.
-- **A flag sent**: its picture once approved, its name, the step 2 line, its chip; Change while it waits and is not paid
-  (step 1 as a change, from what was sent); Pay while the shop sells and it is not paid (its paywall); a rejection's
-  reason, note and appeal.
+**A row** (`flag-row`, a grid at every width): the flag's picture, its name over one line that says where it is, its
+one button under them where the name starts, then the operator's note and the appeal across the row. No state chip:
+the line says it (the owner, 2026-11-26: the first hub put a chip, a line and a lone button on three corners of each
+row, "extremely slop").
+
+- **A flag held** (`ListMySubmissionsResponse.held`, the account's payment opened it or claimed it last): its time line
+  (`flagTimeOf`, see [The shop](shop.md#time-for-a-flag-held)), and Add time ([its pay page](#a-flags-pay-page)) or
+  Stop renewal. A removed one has no button, and quotes the operator's note. A flag another player claimed is no longer
+  held: it leaves the list.
+- **A flag sent**: its picture once approved, the step 2 line, and one button: Pay while the shop sells and it is not
+  paid (its paywall, whose Back changes one that waits), Change while the shop is off and it waits; a rejection's note
+  and the appeal.
+- **What shows** (`flagRowsOf`): each flag held, then each flag sent whose flag did not open, **the newest of a name**
+  (a second try of Kurdistan hides the first), and **none of a name the account holds** (a Bavaria rejected as `exists`
+  while the account holds Bavaria).
+- **A row that is done is put away** with its × ("Hide Sardinia"; `dismissable`): a flag removed, a flag rejected, an
+  approved one left unpaid. Never one that waits. The keys are kept in this browser (`localStorage`
+  `clickplanet-flag-rows-dismissed`, `useDismissedFlagRows`); a removed flag that comes back shows again. With every
+  row put away, the shop's door opens step 1.
 
 ## A flag's pay page
 

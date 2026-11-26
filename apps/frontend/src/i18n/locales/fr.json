@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Corrige-le",
   "flagSubmission.founded": "Tes drapeaux",
   "flagSubmission.addNew": "Ajouter un drapeau",
+  "flagSubmission.dismiss": "Masquer {flag}",
   "flagSubmission.replaces": "Ceci remplace {flag}, qui attend.",
   "flagSubmission.claimable": "{flag} est libre. Prends-le.",
   "flagSubmission.claim": "Le prendre",

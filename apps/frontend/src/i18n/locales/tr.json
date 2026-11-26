@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Düzelt",
   "flagSubmission.founded": "Bayrakların",
   "flagSubmission.addNew": "Yeni bayrak ekle",
+  "flagSubmission.dismiss": "{flag} bayrağını gizle",
   "flagSubmission.replaces": "Bu, bekleyen {flag} bayrağının yerine geçer.",
   "flagSubmission.claimable": "{flag} boşta. Sahiplen.",
   "flagSubmission.claim": "Sahiplen",

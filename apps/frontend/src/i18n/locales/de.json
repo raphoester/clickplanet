@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Korrigieren",
   "flagSubmission.founded": "Deine Flaggen",
   "flagSubmission.addNew": "Neue Flagge hinzufügen",
+  "flagSubmission.dismiss": "{flag} ausblenden",
   "flagSubmission.replaces": "Diese ersetzt deine wartende Flagge {flag}.",
   "flagSubmission.claimable": "{flag} ist frei. Hol sie dir.",
   "flagSubmission.claim": "Sichern",

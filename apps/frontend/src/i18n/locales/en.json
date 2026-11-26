@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Fix it",
   "flagSubmission.founded": "Your flags",
   "flagSubmission.addNew": "Add a new flag",
+  "flagSubmission.dismiss": "Hide {flag}",
   "flagSubmission.replaces": "This replaces {flag}, which waits.",
   "flagSubmission.claimable": "{flag} is free. Claim it.",
   "flagSubmission.claim": "Claim it",

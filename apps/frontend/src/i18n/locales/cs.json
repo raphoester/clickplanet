@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Oprav to",
   "flagSubmission.founded": "Tvoje vlajky",
   "flagSubmission.addNew": "Přidat novou vlajku",
+  "flagSubmission.dismiss": "Skrýt {flag}",
   "flagSubmission.replaces": "Tohle nahradí vlajku {flag}, která čeká.",
   "flagSubmission.claimable": "{flag} je volná. Získej ji.",
   "flagSubmission.claim": "Získat ji",

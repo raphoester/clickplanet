@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Perbaiki",
   "flagSubmission.founded": "Bendera kamu",
   "flagSubmission.addNew": "Tambah bendera baru",
+  "flagSubmission.dismiss": "Sembunyikan {flag}",
   "flagSubmission.replaces": "Ini menggantikan {flag} yang menunggu.",
   "flagSubmission.claimable": "{flag} kosong. Klaim.",
   "flagSubmission.claim": "Klaim",

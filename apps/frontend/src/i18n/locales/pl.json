@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Popraw ją",
   "flagSubmission.founded": "Twoje flagi",
   "flagSubmission.addNew": "Dodaj nową flagę",
+  "flagSubmission.dismiss": "Ukryj {flag}",
   "flagSubmission.replaces": "Zastąpi to {flag}, która czeka.",
   "flagSubmission.claimable": "Wolne: {flag}. Przejmij!",
   "flagSubmission.claim": "Przejmij",

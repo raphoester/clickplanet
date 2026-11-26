@@ -307,6 +307,7 @@
   "flagSubmission.status.closed": "{date} is the day the flag was closed, as \"Nov 24, 2026\": nobody can play for it since.",
   "flagSubmission.founded": "Title over the list of the player's flags: each flag it holds (pays for) and each flag it sent.",
   "flagSubmission.addNew": "Button on top of the player's list of flags: make another region's flag.",
+  "flagSubmission.dismiss": "Label read aloud for the small × that hides a finished row (a flag rejected or removed, an approved one left unpaid) from the player's list. {flag} is its name.",
   "flagSubmission.replaces": "On the form for a new flag: the player's other flag, sent and not paid, is replaced by this one. {flag} is a region's name.",
   "flagSubmission.claimable": "A region's flag nobody pays for now: the player may pay to hold it. {flag} is its name. Short, like a button.",
   "flagSubmission.claim": "Button: pay for a region's flag nobody holds now, and hold it.",

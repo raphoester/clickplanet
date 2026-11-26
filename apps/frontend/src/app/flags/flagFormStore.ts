@@ -1,6 +1,8 @@
 import {create} from "zustand"
 import type {Pin} from "../../domain/flags.ts"
-import {replacedByNewOf, Submission} from "../../domain/flagSubmissions.ts"
+import {flagRowsOf, replacedByNewOf, Submission} from "../../domain/flagSubmissions.ts"
+import {useDismissedFlagRows} from "./dismissedFlagRows.ts"
+import {useFlags} from "./flagsStore.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 
 // A pin, and the place the page names there: a province or a landmass; none at sea, or for a pin the page was given.
@@ -63,8 +65,8 @@ type FlagFormStore = {
 function landed(to: "hub" | "make", typed: string): Pick<FlagFormStore, "step" | "draft"> {
     const {read, submissions, held} = useFlagSubmissions.getState()
     if (!read) return {step: {kind: "door", to}, draft: {name: typed}}
-    const any = held.length > 0 || submissions.some(({state}) => state !== "opened")
-    if (to === "hub" && any) return {step: {kind: "hub"}, draft: EMPTY}
+    const rows = flagRowsOf({submissions, held}, useFlags.getState().catalog, useDismissedFlagRows.getState().dismissed)
+    if (to === "hub" && rows.length > 0) return {step: {kind: "hub"}, draft: EMPTY}
     return {step: {kind: "make"}, draft: newDraftOf(typed, submissions)}
 }
 

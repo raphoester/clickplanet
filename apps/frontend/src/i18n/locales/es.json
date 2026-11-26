@@ -532,6 +532,7 @@
   "flagSubmission.fix": "Corrígela",
   "flagSubmission.founded": "Tus banderas",
   "flagSubmission.addNew": "Añadir una bandera nueva",
+  "flagSubmission.dismiss": "Ocultar {flag}",
   "flagSubmission.replaces": "Esto reemplaza a {flag}, que espera.",
   "flagSubmission.claimable": "{flag} está libre. Reclámala.",
   "flagSubmission.claim": "Reclamar",

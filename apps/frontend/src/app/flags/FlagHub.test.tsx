@@ -8,6 +8,7 @@ import {FlagCatalog, SoldFlag} from "../../domain/flags.ts"
 import type {PlanPrice, Renewal} from "../../domain/shop.ts"
 import {translator} from "../../i18n/page.ts"
 import {useShop} from "../shop/shopStore.ts"
+import {useDismissedFlagRows} from "./dismissedFlagRows.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagHub from "./FlagHub.tsx"
 import FlagPayScreen from "./FlagPayScreen.tsx"
@@ -55,7 +56,7 @@ function flagIs(state: "open" | "closed" | "removed") {
     useFlags.setState({catalog: FlagCatalog.BUILT_IN.withFlags([{code: FLAG, name: "Bavaria", closed: state !== "open", sold}])})
 }
 
-const rows = () => [...document.querySelectorAll(".flag-founded")].map((row) => row.textContent)
+const rows = () => [...document.querySelectorAll(".flag-row")].map((row) => row.textContent)
 
 afterEach(() => {
     cleanup()
@@ -63,6 +64,8 @@ afterEach(() => {
     useFlagSubmissions.setState(useFlagSubmissions.getInitialState(), true)
     useShop.setState(useShop.getInitialState(), true)
     useFlags.setState({catalog: FlagCatalog.BUILT_IN})
+    useDismissedFlagRows.setState({dismissed: new Set()})
+    window.localStorage.clear()
     vi.restoreAllMocks()
 })
 
@@ -79,9 +82,12 @@ describe("the account's flags", () => {
 
         expect(screen.getByRole("dialog", {name: "Your flags"})).not.toBeNull()
         expect(screen.getByRole("button", {name: "Add a new flag"})).not.toBeNull()
-        expect([...document.querySelectorAll(".flag-founded")].map((row) => row.querySelector(".chip")?.textContent))
-            .toEqual(["Open", "Waiting", "Rejected"])
-        expect(rows()[0]).toBe(`BavariaEnds on ${dateOf(ENDS_AT)}OpenAdd time`)
+        expect(rows()).toEqual([
+            `BavariaEnds on ${dateOf(ENDS_AT)}Add time`,
+            "SwabiaWe check it after you pay.Pay",
+            "FranconiaIt is hard to read at the size of a tile.Too small.Think we got it wrong? Ask a person to look again.",
+        ])
+        expect(document.querySelector(".chip"), "the line says the state").toBeNull()
         expect(screen.getByText("Too small.")).not.toBeNull()
         expect(screen.getByRole("link", {name: "Think we got it wrong? Ask a person to look again."}).getAttribute("href"))
             .toBe("mailto:support@clickplanet.lol?subject=Look%20again%20at%20my%20flag%20Franconia")
@@ -98,18 +104,65 @@ describe("the account's flags", () => {
         })
     })
 
-    it("change a flag that waits unpaid, and pay for one approved on its paywall", async () => {
+    it("give each flag sent one action: Pay while the shop sells, Change while it is off", async () => {
         useShop.setState({plans: PLANS})
-        const approved = submission({id: "s-2", state: "approved", picture: PICTURE})
+        const approved = submission({id: "s-2", name: "Swabia", state: "approved", picture: PICTURE})
         read([submission(), approved])
-        render(<FlagHub shop={shop()}/>)
+        const view = render(<FlagHub shop={shop()}/>)
         const user = userEvent.setup()
 
-        await user.click(screen.getByRole("button", {name: "Change"}))
-        expect(useFlagForm.getState()).toMatchObject({step: {kind: "make"}, draft: {name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"}})
-
+        expect(screen.queryByRole("button", {name: "Change"}), "its paywall changes it").toBeNull()
         await user.click(screen.getAllByRole("button", {name: "Pay"})[1])
         expect(useFlagForm.getState()).toMatchObject({step: {kind: "pay", submission: approved}})
+
+        view.unmount()
+        useShop.setState({plans: []})
+        render(<FlagHub shop={shop()}/>)
+        await user.click(screen.getByRole("button", {name: "Change"}))
+        expect(useFlagForm.getState()).toMatchObject({step: {kind: "make"}, draft: {name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"}})
+    })
+
+    it("show a flag sent once: the newest of a name, and none of a name the account holds", () => {
+        flagIs("closed")
+        read([
+            submission({id: "s-4", name: "kurdistan", state: "rejected", rejection: {reason: "exists", note: ""}}),
+            submission({id: "s-3", name: "Kurdistan", state: "rejected", rejection: {reason: "hateful", note: ""}}),
+            submission({id: "s-2", name: "Bavaria", state: "rejected", rejection: {reason: "exists", note: ""}}),
+            submission({state: "opened", flag: FLAG}),
+        ], [{code: FLAG}])
+        render(<FlagHub shop={shop()}/>)
+
+        expect([...document.querySelectorAll(".flag-row-name")].map((name) => name.textContent)).toEqual(["Bavaria", "kurdistan"])
+    })
+
+    it("put away a row that is done, for good in this browser, and never one that waits", async () => {
+        flagIs("removed")
+        read([
+            submission({id: "s-3", name: "Swabia"}),
+            submission({id: "s-2", name: "Sardinia", state: "approved"}),
+        ], [{code: FLAG, removalNote: "A club's crest."}])
+        const view = render(<FlagHub shop={shop()}/>)
+        const user = userEvent.setup()
+
+        expect(screen.queryByRole("button", {name: "Hide Swabia"})).toBeNull()
+        await user.click(screen.getByRole("button", {name: "Hide Sardinia"}))
+        await user.click(screen.getByRole("button", {name: "Hide Bavaria"}))
+        expect([...document.querySelectorAll(".flag-row-name")].map((name) => name.textContent)).toEqual(["Swabia"])
+
+        view.unmount()
+        expect(JSON.parse(window.localStorage.getItem("clickplanet-flag-rows-dismissed") ?? "[]")).toEqual(["s-2", `flag:${FLAG}`])
+    })
+
+    it("bring back a flag held once it is open again, though it was put away removed", async () => {
+        flagIs("removed")
+        read([], [{code: FLAG, removalNote: "A club's crest."}])
+        render(<FlagHub shop={shop()}/>)
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Hide Bavaria"}))
+        expect(rows()).toEqual([])
+
+        act(() => flagIs("open"))
+        expect([...document.querySelectorAll(".flag-row-name")].map((name) => name.textContent)).toEqual(["Bavaria"])
     })
 
     it("open the pay page of a flag held to add time, never the plans in the list", async () => {
@@ -118,7 +171,7 @@ describe("the account's flags", () => {
         read([], [{code: FLAG}])
         render(<FlagHub shop={shop()}/>)
 
-        expect(rows()[0]).toBe(`BavariaClosed on ${dateOf(CLOSED_AT)}ClosedAdd time`)
+        expect(rows()[0]).toBe(`BavariaClosed on ${dateOf(CLOSED_AT)}Add time`)
         await userEvent.setup().click(screen.getByRole("button", {name: "Add time"}))
 
         expect(useFlagForm.getState().step).toEqual({kind: "flag", flag: FLAG, fromHub: true})
@@ -162,7 +215,7 @@ describe("the account's flags", () => {
         read([], [{code: FLAG, removalNote: "A club's crest."}])
         render(<FlagHub shop={shop()}/>)
 
-        expect(rows()[0]).toBe(`BavariaRemoved on ${dateOf(CLOSED_AT)}RemovedA club's crest.`)
+        expect(rows()[0]).toBe(`BavariaRemoved on ${dateOf(CLOSED_AT)}A club's crest.`)
         expect(screen.queryByRole("button", {name: "Add time"})).toBeNull()
     })
 
