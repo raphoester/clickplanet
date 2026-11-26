@@ -5,8 +5,9 @@ import {TeaserCard} from "../backends/promo.ts"
 import {BattleToCome} from "../backends/turn.ts"
 import {Battle, battleKeyOf} from "./battle.ts"
 import {teaserKeyOf} from "./battleTeaser.ts"
-import {Ask} from "./nudges.ts"
+import {Ask, saleKeyOf} from "./nudges.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
+import {Sale} from "./shop.ts"
 import {VideoStory} from "./video/story.ts"
 import {WorldGrew} from "./worldGrew.ts"
 
@@ -22,6 +23,8 @@ export type Announcement =
     // The flag is losing a country: the video that calls for help is offered.
     | {kind: "video", story: VideoStory}
     | {kind: "ask", ask: Ask}
+    // The shop's sale, while it runs.
+    | {kind: "sale", sale: Sale}
     // The world's switch of board, once per browser.
     | {kind: "worldGrew", grew: WorldGrew}
     | Reveal
@@ -44,6 +47,8 @@ export function announcementKeyOf(announcement: Announcement): string {
             return `video:${announcement.story.flag}:${announcement.story.country}`
         case "ask":
             return `ask:${announcement.ask}`
+        case "sale":
+            return `sale:${saleKeyOf(announcement.sale)}`
         case "worldGrew":
             return `worldGrew:${announcement.grew.board}`
         case "round":

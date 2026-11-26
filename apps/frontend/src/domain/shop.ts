@@ -6,6 +6,22 @@ export type Plan = "week" | "month" | "year"
 // A plan on sale: its amount in the currency's smallest unit, taxes included (400 is 4.00 EUR).
 export type PlanPrice = {plan: Plan, amount: number, currency: string, renews: boolean}
 
+// A sale over every plan, while it runs by the server's clock: percentOff taken off each plan's first payment, until
+// endsAt (milliseconds since the epoch, excluded). A week is paid once; a month or a year then renews at its full price.
+export type Sale = {percentOff: number, endsAt: number}
+
+// What the shop sells: the plans, none while it is off, and the sale over them while one runs.
+export type Catalog = {plans: PlanPrice[], sale?: Sale}
+
+export function saleRuns(sale: Sale | undefined, now: number): sale is Sale {
+    return sale !== undefined && now < sale.endsAt
+}
+
+// A plan's first payment during the sale, in the currency's smallest unit: 200 for a week at 400, half off.
+export function salePriceOf(price: PlanPrice, sale: Sale): PlanPrice {
+    return {...price, amount: price.amount - Math.round(price.amount * sale.percentOff / 100)}
+}
+
 const DAYS: Record<Plan, number> = {week: 7, month: 365 / 12, year: 365}
 
 const dailyOf = ({plan, amount}: PlanPrice): number => amount / DAYS[plan]

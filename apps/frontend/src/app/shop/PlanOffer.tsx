@@ -1,6 +1,6 @@
 import {useState} from "react"
 import {PayFailure, Shop, ShopRefusedError} from "../../backends/shop.ts"
-import {CheckoutTarget, pickedOf, PlanPrice} from "../../domain/shop.ts"
+import {CheckoutTarget, pickedOf, PlanPrice, salePriceOf} from "../../domain/shop.ts"
 import {t} from "../../i18n/page.ts"
 import {Key} from "../../i18n/translator.ts"
 import {rich} from "../../i18n/rich.tsx"
@@ -8,6 +8,7 @@ import "../support/Support.css"
 import Money from "./Money.tsx"
 import {Consent, FinePrint} from "./PayTerms.tsx"
 import PlanCards from "./PlanCards.tsx"
+import SaleClock from "./SaleClock.tsx"
 import {useShop} from "./shopStore.ts"
 import "./Shop.css"
 
@@ -34,6 +35,7 @@ const FAILURES: Record<PayFailure, Key> = {
 export default function PlanOffer({shop, plans, target, toCheckout, onBack}: PlanOfferProps) {
     const chosen = useShop((store) => store.chosen)
     const choose = useShop((store) => store.choose)
+    const sale = useShop((store) => store.sale)
     const [agreed, setAgreed] = useState(false)
     const [paying, setPaying] = useState(false)
     const [failure, setFailure] = useState<PayFailure>()
@@ -55,7 +57,9 @@ export default function PlanOffer({shop, plans, target, toCheckout, onBack}: Pla
     }
 
     return <div className="shop-offer" aria-busy={paying}>
+        {sale && <SaleClock sale={sale}/>}
         <PlanCards plans={plans}
+                   sale={sale}
                    picked={picked.plan}
                    disabled={paying}
                    onPick={(plan) => {
@@ -71,7 +75,7 @@ export default function PlanOffer({shop, plans, target, toCheckout, onBack}: Pla
                     className="button button-action shop-pay"
                     disabled={!agreed || paying}
                     onClick={() => void pay()}>
-                {paying ? t("common.loading") : rich("shop.payPrice", {price: <Money price={picked}/>})}
+                {paying ? t("common.loading") : rich("shop.payPrice", {price: <Money price={sale ? salePriceOf(picked, sale) : picked}/>})}
             </button>
         </div>
         {failure && <p className="support-notice" role="alert">{t(FAILURES[failure])}</p>}

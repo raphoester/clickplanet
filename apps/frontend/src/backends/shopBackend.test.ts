@@ -2,10 +2,10 @@ import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {ShopService} from "../gen/grpc/shop/v1/shop_connect.ts"
-import {Plan, PlanPrice, Renewal, RenewalState} from "../gen/grpc/shop/v1/shop_pb.ts"
+import {ListPlansResponse, Plan, PlanPrice, Renewal, RenewalState, Sale} from "../gen/grpc/shop/v1/shop_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {ShopRefusedError} from "./shop.ts"
-import {ConnectShop, planPriceOf, renewalOf} from "./shopBackend.ts"
+import {ConnectShop, planPriceOf, renewalOf, saleOf} from "./shopBackend.ts"
 
 const session = (): SessionProvider => ({
     token: vi.fn(), held: vi.fn(), identity: vi.fn(async () => "identity-1"), heldIdentity: vi.fn(), invalidate: vi.fn(),
@@ -28,6 +28,15 @@ const renewing = () => new Renewal({
 })
 
 describe("the shop's messages", () => {
+    it("read a sale, and drop one they cannot price", () => {
+        const endsAt = Timestamp.fromDate(new Date(5_000))
+        expect(saleOf(new Sale({percentOff: 50, endsAt}))).toEqual({percentOff: 50, endsAt: 5_000})
+        expect(saleOf(undefined)).toBeUndefined()
+        expect(saleOf(new Sale({percentOff: 50}))).toBeUndefined()
+        expect(saleOf(new Sale({percentOff: 0, endsAt}))).toBeUndefined()
+        expect(saleOf(new Sale({percentOff: 100, endsAt}))).toBeUndefined()
+    })
+
     it("read a plan's price, and drop a plan this build does not know", () => {
         expect(planPriceOf(new PlanPrice({plan: Plan.YEAR, amount: 6000, currency: "eur", renews: true})))
             .toEqual({plan: "year", amount: 6000, currency: "eur", renews: true})
@@ -48,13 +57,24 @@ describe("the shop's messages", () => {
 describe("ConnectShop", () => {
     it("reads the plans with no token, and none from a server without the shop", async () => {
         const listPlans = vi.fn().mockResolvedValue({plans: [new PlanPrice({plan: Plan.WEEK, amount: 400, currency: "eur"})]})
-        const plans = await new ConnectShop(clientOf({listPlans}), session()).plans()
+        const catalog = await new ConnectShop(clientOf({listPlans}), session()).catalog()
 
-        expect(plans).toEqual([{plan: "week", amount: 400, currency: "eur", renews: false}])
+        expect(catalog).toEqual({plans: [{plan: "week", amount: 400, currency: "eur", renews: false}]})
         expect(listPlans.mock.calls[0]).toEqual([{}])
 
         const absent = vi.fn().mockRejectedValue(new ConnectError("no", Code.Unimplemented))
-        expect(await new ConnectShop(clientOf({listPlans: absent}), session()).plans()).toEqual([])
+        expect(await new ConnectShop(clientOf({listPlans: absent}), session()).catalog()).toEqual({plans: []})
+    })
+
+    it("reads the sale while one runs, its end in milliseconds", async () => {
+        const listPlans = vi.fn().mockResolvedValue(new ListPlansResponse({
+            plans: [new PlanPrice({plan: Plan.WEEK, amount: 400, currency: "eur"})],
+            sale: new Sale({percentOff: 50, endsAt: Timestamp.fromDate(new Date("2026-11-30T22:59:00Z"))}),
+        }))
+
+        const {sale} = await new ConnectShop(clientOf({listPlans}), session()).catalog()
+
+        expect(sale).toEqual({percentOff: 50, endsAt: Date.parse("2026-11-30T22:59:00Z")})
     })
 
     it("asks a checkout for the plan and the target with the token that names the account", async () => {

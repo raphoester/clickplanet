@@ -1,4 +1,5 @@
-import {perDayOf, Plan, PlanPrice} from "../../domain/shop.ts"
+import {perDayOf, Plan, PlanPrice, Sale} from "../../domain/shop.ts"
+import {timeLeftTo} from "../../domain/seasonClock.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {Key} from "../../i18n/translator.ts"
 
@@ -12,6 +13,12 @@ const EVERY: Record<Plan, Key> = {
     week: "shop.cadence.week",
     month: "shop.cadence.month",
     year: "shop.cadence.year",
+}
+
+const THEN: Record<Plan, Key> = {
+    week: "shop.onSale.thenWeek",
+    month: "shop.onSale.thenMonth",
+    year: "shop.onSale.thenYear",
 }
 
 export function planName(plan: Plan): string {
@@ -46,6 +53,16 @@ export function pricePartsOf({amount, currency}: PlanPrice): MoneyPart[] {
 // "Paid once", or for a plan that renews "Every month".
 export function cadenceOf({plan, renews}: PlanPrice): string {
     return renews ? t(EVERY[plan]) : t("shop.cadence.once")
+}
+
+// During a sale, "Paid once", or for a plan that renews "Then €10 / month": the sale takes its cut off the first payment.
+export function saleCadenceOf(price: PlanPrice): string {
+    return price.renews ? t(THEN[price.plan], {price: moneyOf(price.amount, price.currency)}) : t("shop.cadence.once")
+}
+
+// "2d 04h 12m 09s".
+export function saleLeftOf(sale: Sale, now: number): string {
+    return translator().countdown(timeLeftTo(sale.endsAt, now))
 }
 
 // "€0.17 / day".

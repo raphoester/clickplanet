@@ -1,4 +1,4 @@
-import {CheckoutTarget, flagRenewal, payable, Plan, PlanPrice, Renewal} from "../domain/shop.ts"
+import {Catalog, CheckoutTarget, flagRenewal, payable, Plan, PlanPrice, Renewal, Sale, saleRuns} from "../domain/shop.ts"
 import {FakeFlagsBackend} from "./fakeFlagsBackend.ts"
 import {FakeFlagSubmissions} from "./fakeFlagSubmissions.ts"
 import {CheckoutRequest, Shop, ShopRefusal, ShopRefusedError} from "./shop.ts"
@@ -7,6 +7,7 @@ const ANSWER_DELAY_MS = 400
 // As Stripe's webhook, a moment after the buyer is back in the game.
 const PAID_LANDS_MS = 2_000
 const DAY_MS = 24 * 60 * 60 * 1000
+const MINUTE_MS = 60_000
 
 const PLANS: readonly PlanPrice[] = [
     {plan: "week", amount: 400, currency: "eur", renews: false},
@@ -16,12 +17,14 @@ const PLANS: readonly PlanPrice[] = [
 
 const DAYS: Record<Plan, number> = {week: 7, month: 30, year: 365}
 
-// The shop module in memory, on by default. A checkout is paid at once: the page comes back from "Stripe" with
-// ?shop=paid, and the flag opens or gets its time a moment later, as the webhook would. shopOff() and shopOn() on the
-// console, refuseCheckouts(refusal), and renewingElsewhere(code), another player's renewal that still runs on a flag.
+// The shop module in memory, on by default, with no sale. A checkout is paid at once: the page comes back from "Stripe"
+// with ?shop=paid, and the flag opens or gets its time a moment later, as the webhook would. shopOff() and shopOn() on
+// the console, refuseCheckouts(refusal), renewingElsewhere(code), another player's renewal that still runs on a flag,
+// startSale(minutes) and endSale().
 export class FakeShop implements Shop {
     private on = true
     private refusal?: ShopRefusal
+    private sale?: Sale
     private readonly renewals: Renewal[] = []
     // Flags another player's renewal still pays for, as while Stripe tries a card again: nobody else may claim them.
     private readonly renewedElsewhere = new Set<string>()
@@ -55,9 +58,22 @@ export class FakeShop implements Shop {
         return on ? `another player's renewal still runs on ${flag}: nobody else may pay for it` : `no other renewal runs on ${flag}`
     }
 
-    public async plans(): Promise<PlanPrice[]> {
+    // As the server's: percentOff off every plan's first payment, until it ends.
+    public sell(minutes: number, percentOff = 50): string {
+        this.sale = {percentOff, endsAt: this.now() + minutes * MINUTE_MS}
+        return `${percentOff}% off every plan for ${minutes} minutes: the plans are read again`
+    }
+
+    public endSale(): string {
+        this.sale = undefined
+        return "no sale: the plans are read again"
+    }
+
+    public async catalog(): Promise<Catalog> {
         await this.wait(this.delayMs / 4)
-        return this.on ? PLANS.map((plan) => ({...plan})) : []
+        if (!this.on) return {plans: []}
+        const plans = PLANS.map((plan) => ({...plan}))
+        return saleRuns(this.sale, this.now()) ? {plans, sale: {...this.sale}} : {plans}
     }
 
     public async checkout({plan, target, startsNow}: CheckoutRequest): Promise<string> {
