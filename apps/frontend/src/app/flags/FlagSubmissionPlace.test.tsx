@@ -59,7 +59,7 @@ const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
 const submitter = (): FlagSubmitter => ({uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []}))})
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({
-    plans: vi.fn(async () => []),
+    catalog: vi.fn(async () => ({plans: []})),
     checkout: vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1"),
     myRenewals: vi.fn(async () => []),
     stopRenewal: vi.fn(),
