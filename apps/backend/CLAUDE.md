@@ -204,7 +204,8 @@ and says what is in it. Read the doc before you change its area.
   whose time ended by any player, forever; the judge, a Claude model that approves or rejects the clear
   flags as they are sent, the rest left to the operator.
 - [The shop](docs/shop.md) — a player pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
-  once, a month or a year that renews; off with no Stripe key; the Checkout Session, Stripe's signed events at
+  once, a month or a year that renews; off with no Stripe key; a sale (a coupon off every plan's first payment between
+  two moments, Black Friday 2026); the Checkout Session, Stripe's signed events at
   `/stripe/webhook` acted on once each, what each event does and what Stripe's pages leave open (refunds, disputes),
   stopping a renewal; no claim while a renewal runs, a refused payment's renewal cancelled; downstream of the flags,
   which it asks and commands in their words.

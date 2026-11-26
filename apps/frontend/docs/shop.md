@@ -13,6 +13,8 @@ game. The backend's side is `shop.v1.ShopService` (`proto/shop/v1/shop.proto`): 
 - **The plans**: a week paid once, a month and a year that renew, prices with VAT, in the currency's smallest unit
   (`PlanPrice.amount`, 400 is €4). The page prices each with `Intl.NumberFormat` in its language, a whole amount with no
   cents ("€4", "€10 / month").
+- **A sale**, while one runs by the server's clock: `ListPlans` answers it beside the plans (`Sale`, its percent off and
+  its end), and the page takes its cut off the prices (see [A sale](#a-sale)).
 - **The shop off on the server** answers no plan: then no plan, no pay button, no shop door, no Add time and no renewal line
   shows, and the flag's paywall reads "Sent on …" and "Approved! It opens soon." as before. A server with no shop at all
   (`Unimplemented`) reads the same.
@@ -36,14 +38,17 @@ Pay: the player picked a plan twice; then, that day, the plans showed inside the
 
 ## The code
 
-- `domain/shop.ts`: `Plan`, `PlanPrice`, `CheckoutTarget` (a submission or a flag), `Renewal`; `payable` (a new flag not
+- `domain/shop.ts`: `Plan`, `PlanPrice`, `Sale`, `Catalog` (the plans and the sale), `CheckoutTarget` (a submission or
+  a flag), `Renewal`; `saleRuns` and `salePriceOf` (a plan's first payment during a sale: half of 400, 1000 and 6000 is
+  200, 500 and 3000); `payable` (a new flag not
   paid: sent, or approved), `awaitsPayment`, `flagRenewal` (the renewal on a flag or on the submission that opened it)
   and `flagTimeOf`, the facts a held flag's line says.
 - `backends/shop.ts`: `Shop` and `ShopRefusedError` (`not-yours`, `not-found`, `unavailable`, `invalid`, the codes
   `PermissionDenied`, `NotFound`, `FailedPrecondition`, `InvalidArgument`). `ConnectShop` (`shopBackend.ts`) sends the
   token that names the account (`identity()`, as `ListMySubmissions`), `ListPlans` none; the reads are retried, and a
   checkout is not: each call is a new page on Stripe. `FakeShop` in fake mode.
-- `app/shop/shopStore.ts`: `useShop`, the plans and the renewals. `useShopFeed`, in `PlayScreen`, reads the plans at
+- `app/shop/shopStore.ts`: `useShop`, the plans, the sale and the renewals; the sale is dropped at its end by a timer,
+  with no read. `useShopFeed`, in `PlayScreen`, reads the plans at
   load for every page, and a signed-in account's renewals each time the flag's flow or Your flags opens (`refresh`,
   which reads the plans again too).
 - `domain/shop.ts` also prices the plans against each other: `perDayOf`, `savingOf`, `bestValueOf`, `pickedOf`.
@@ -77,6 +82,26 @@ a claim (target the flag; see [A flag's pay page](flag-submissions.md#a-flags-pa
   terms of sale and the refunds (`/sale`, `/refunds`), in a new tab.
 - **Back beside Pay**: on the paywall while the flag waits unpaid (a change of it), and on a flag's pay page opened from
   Your flags (back to it). Each widens to the plans' width (`shop-modal`).
+
+## A sale
+
+**While a sale runs, every price the shop shows is the sale's, and the game says how long it lasts** (Black Friday 2026,
+50% off from Fri 27 Nov 09:00 UTC until Mon 30 Nov 22:59 UTC; the backend's [A sale](../../backend/docs/shop.md#a-sale)).
+`ListPlans` answers the plans at their full price and the sale's raw facts (`percent_off`, `ends_at`); a page of an
+older build ignores them and shows the full prices, which Stripe's page then lowers. The store drops the sale at its end
+by itself, so the tags, the clock and the nudge go at the second it ends, with no read. A page loaded before the sale
+starts sees it at its next read of the plans: a load, or the flag's flow or Your flags opened.
+
+- **The offer** (`PlanCards`, `PlanOffer`, on the paywall and on a flag's pay page): over the cards, the sale's clock
+  (`SaleClock`, "Black Friday · ends in 2d 04h 12m 09s", the game's countdown, to the second, never cut in two); each
+  card's own price crossed out over the sale's price, large in gold; "Paid once", or for a plan that renews "Then €10 a
+  month", as the coupon is taken off the first payment only; the sale's cut ("-50%") in the gold of value, in the
+  saving's place; the price by the day of the sale's price. Pay says the sale's price ("Pay €30"). The blue of the plan
+  picked and the red of Pay keep their jobs.
+- **The doors** (`status-bar-shop`, `menu-rail-shop`) wear the cut (`SaleTag`, "-50%"), gold on a dark well, outside
+  the button (`shop-door`), which clips its shine: on the rail at its top corner, on the phone's status bar from the
+  bag's lower corner, as the bar has no room above.
+- **The nudge**: the sale full screen in the nudge lane (see [Nudges](nudges.md#the-sale)).
 
 ## Time for a flag held
 
@@ -130,6 +155,9 @@ seconds later. On the console:
   `unavailable`, `invalid`); `refuseCheckouts()` lets them through again.
 - `renewingElsewhere(code)`: another player's renewal still runs on the flag, as while Stripe tries a card again: a
   claim is refused, "You can't pay for this flag now."; `renewingElsewhere(code, false)` lets it through.
+- `startSale(minutes = 60, percentOff = 50)`: the fake answers a sale that ends in that many minutes, and the page reads
+  the plans again: the clock, the tags and the nudge show (the nudge once per sale: a new `startSale` is a new sale).
+  `endSale()`: no sale, the plans read again. The fake has no sale until then.
 
 To claim a flag: `endFlag("xb")` (Brittany's time ends; nobody holds it), then search "brit" in the flag picker:
 "Brittany is free. Claim it." opens its pay page; pay, and two seconds later Brittany is open and in Your flags.

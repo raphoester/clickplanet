@@ -1992,7 +1992,12 @@ The steps below are in Stripe's Dashboard, live mode. Nothing in the repo writes
    paid and rejected shows the refund (`a rejected flag refunded`, then `time paid for taken back`). While the shop
    sells, the backoffice lists a waiting flag only once it is paid for.
 
-9. **The judge** (on since 2026-11-26, the owner's call): `flags.judge` in `backend.yaml` (it reads the
+9. **A sale** (Black Friday 2026, `BLACKFRIDAY2026`): a coupon made in Stripe (Product catalog, Coupons), percent off,
+   duration **once**, redeemable until the sale's end, limited to the three flag products, in test and live mode; then
+   `shop.stripe.sale` in `backend.yaml` (the coupon, the same percent off, `from`, `until`). The sale starts and ends by
+   the server's clock, with no deploy (see the backend's [The shop](../../apps/backend/docs/shop.md#a-sale)).
+
+10. **The judge** (on since 2026-11-26, the owner's call): `flags.judge` in `backend.yaml` (it reads the
    `ANTHROPIC_API_KEY` secret the other judges use). A Claude model approves or rejects the clear flags within
    seconds of their sending, often before their buyer leaves Stripe's page, and leaves the rest in the backoffice's
    list with a Claude line. journald shows `flags sent judged`.
