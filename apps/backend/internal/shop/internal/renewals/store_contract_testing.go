@@ -48,18 +48,6 @@ func (s *StoreContractSuite) TestARenewalNeverKeptIsUnknown() {
 	s.Require().ErrorIs(err, ErrUnknownRenewal)
 }
 
-func (s *StoreContractSuite) TestABuyersRenewalsComeByTheEndOfTheirPeriod() {
-	later := s.told("sub_1", buyer, toldAt.AddDate(1, 0, 0))
-	sooner := s.told("sub_2", buyer, toldAt.AddDate(0, 1, 0))
-	s.told("sub_3", orders.AccountID{15: 2}, toldAt.AddDate(0, 1, 0))
-
-	bought, err := s.store.Bought(s.T().Context(), buyer)
-	s.Require().NoError(err)
-	s.Require().Len(bought, 2)
-	s.Equal(sooner.TakeSnapshot(), bought[0].TakeSnapshot())
-	s.Equal(later.TakeSnapshot(), bought[1].TakeSnapshot())
-}
-
 func (s *StoreContractSuite) TestARenewalStoppedKeepsItsState() {
 	renewal := s.told("sub_1", buyer, toldAt.AddDate(0, 1, 0))
 	stopped, _, err := renewal.StoppedBy(buyer, toldAt.Add(time.Hour))

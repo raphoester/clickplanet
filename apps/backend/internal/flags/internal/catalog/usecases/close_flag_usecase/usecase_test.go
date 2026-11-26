@@ -36,7 +36,7 @@ func newFixture(t *testing.T) fixture {
 		cptime.NewFixedClock(now), cpatomic.FakeTransactioner{}, store, outbox)}
 }
 
-func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
+func TestAFlagRemovedIsKeptRemovedAndToldClosed(t *testing.T) {
 	f := newFixture(t)
 
 	answered, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
@@ -44,7 +44,7 @@ func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 
 	kept, err := f.store.Flag(t.Context(), "r-0000000001")
 	require.NoError(t, err)
-	assert.Equal(t, catalog.Closed, kept.TakeSnapshot().State, "closed, never deleted")
+	assert.Equal(t, catalog.Removed, kept.TakeSnapshot().State, "removed, never deleted")
 	assert.Equal(t, now, kept.TakeSnapshot().DecidedAt)
 	assert.Equal(t, kept.TakeSnapshot(), answered)
 	require.Len(t, f.outbox.Recorded(), 1)
@@ -52,18 +52,35 @@ func TestAFlagClosedIsKeptClosedAndTold(t *testing.T) {
 		f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
-func TestAFlagClosedAlreadyIsNotClosedAgain(t *testing.T) {
+func TestAFlagRemovedAlreadyIsNotRemovedAgain(t *testing.T) {
 	f := newFixture(t)
 	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
 	require.NoError(t, err)
 
 	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
 
-	require.ErrorIs(t, err, catalog.ErrClosed)
+	require.ErrorIs(t, err, catalog.ErrRemoved)
 	assert.Len(t, f.outbox.Recorded(), 1)
 }
 
-func TestOnlyAFlagOpenedSinceTheGameShippedCanBeClosed(t *testing.T) {
+func TestAFlagWhoseTimeEndedIsRemovedToo(t *testing.T) {
+	f := newFixture(t)
+	flag, err := f.store.Flag(t.Context(), "r-0000000001")
+	require.NoError(t, err)
+	ended, ok := flag.Expired(openedAt.AddDate(0, 2, 0))
+	require.True(t, ok)
+	require.NoError(t, f.store.Save(t.Context(), ended))
+
+	_, err = f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: "Broke the rules."})
+	require.NoError(t, err)
+
+	kept, err := f.store.Flag(t.Context(), "r-0000000001")
+	require.NoError(t, err)
+	assert.Equal(t, catalog.Removed, kept.TakeSnapshot().State, "nobody may claim it")
+	require.Len(t, f.outbox.Recorded(), 1, "told closed again, so the pages hear it removed")
+}
+
+func TestOnlyAFlagOpenedSinceTheGameShippedCanBeRemoved(t *testing.T) {
 	f := newFixture(t)
 
 	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000002", Note: " Broke the rules. "})
@@ -73,7 +90,7 @@ func TestOnlyAFlagOpenedSinceTheGameShippedCanBeClosed(t *testing.T) {
 	assert.Empty(t, f.outbox.Recorded())
 }
 
-func TestAFlagClosedKeepsTheNoteItsFounderReads(t *testing.T) {
+func TestAFlagRemovedKeepsTheNoteItsHolderReads(t *testing.T) {
 	f := newFixture(t)
 
 	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: " Broke the rules. "})
@@ -84,7 +101,7 @@ func TestAFlagClosedKeepsTheNoteItsFounderReads(t *testing.T) {
 	assert.Equal(t, catalog.Note("Broke the rules."), kept.TakeSnapshot().Note)
 }
 
-func TestAFlagIsNotClosedWithNoNote(t *testing.T) {
+func TestAFlagIsNotRemovedWithNoNote(t *testing.T) {
 	f := newFixture(t)
 
 	_, err := f.useCase.Execute(t.Context(), close_flag_usecase.In{Flag: "r-0000000001", Note: "  "})

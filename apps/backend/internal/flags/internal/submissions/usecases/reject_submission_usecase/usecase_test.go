@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/reject_submission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -23,7 +24,7 @@ var (
 
 func TestARejectionKeepsItsReasonForThePlayer(t *testing.T) {
 	store := submissions.NewMemoryStore()
-	store.Seed(submissions.TestWaiting(id, submissions.AccountID{15: 1}, now.Add(-time.Hour)))
+	store.Seed(submissions.TestWaiting(id, catalog.AccountID{15: 1}, now.Add(-time.Hour)))
 	outbox := &cpatomic.FakeOutbox{}
 	useCase := reject_submission_usecase.New(cptime.NewFixedClock(now), cpatomic.FakeTransactioner{}, store, outbox)
 
@@ -47,7 +48,7 @@ func TestARejectionKeepsItsReasonForThePlayer(t *testing.T) {
 
 func TestOtherWithNoNoteIsNoRejection(t *testing.T) {
 	store := submissions.NewMemoryStore()
-	waiting := submissions.TestWaiting(id, submissions.AccountID{15: 1}, now)
+	waiting := submissions.TestWaiting(id, catalog.AccountID{15: 1}, now)
 	store.Seed(waiting)
 
 	_, err := reject_submission_usecase.New(cptime.NewFixedClock(now), cpatomic.FakeTransactioner{}, store,

@@ -20,8 +20,8 @@ type StoreContractSuite struct {
 
 var (
 	submittedAt = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	ada         = AccountID{15: 1}
-	bob         = AccountID{15: 2}
+	ada         = catalog.AccountID{15: 1}
+	bob         = catalog.AccountID{15: 2}
 )
 
 func (s *StoreContractSuite) SetupTest() {

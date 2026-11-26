@@ -19,8 +19,15 @@ hears or asks it (`TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheSho
 
 - **Before a checkout it asks** `flags.v1.InternalService/GetPayable(account, target)`: may this account buy time for
   this submission or flag now? A submission: its founder alone, while it waits or once approved with no time paid, or
-  opened. A flag: the account whose submission opened it, while it is open or closed less than 30 days ago.
-- **Each payment's time goes to the flags module as a command**, `flags.v1.GrantTime` (a refund's as `TakeBackTime`),
+  opened. A flag: its holder, or any account once its time ended (a claim, which makes the payer its holder; see the
+  flags' [Holders and claims](flags.md#holders-and-claims)); never a removed one. The answer names every target whose
+  time goes to the same flag (`same_flag`: the flag and the submission that opened it).
+- **No second plan while a renewal runs, whoever bought it** (`renewals.NoneRenewing`, over the renewals of every
+  target of `same_flag`): a second plan would charge the holder twice, and another player may not claim a flag whose
+  renewal still runs, a `past_due` one too while Stripe tries the card again.
+- **Each payment's time goes to the flags module as a command**, `flags.v1.GrantTime` with the buyer (`account_id`) and
+  when the order was placed (`ordered_at`, its `starts_now_agreed_at`, which each renewal's invoice repeats), a refund's
+  as `TakeBackTime`,
   through the shop's outbox, in the transaction that keeps the payment. A command in the flags' words, not a
   `shop.v1.TimeBought` event the flags module hears: the shop already asks the flags module, so hearing the shop would
   make a cycle, and the flags module, which planet, chat, scoring, player and alerts hear, stays upstream of all.
@@ -36,8 +43,11 @@ hears or asks it (`TestTheShopSpeaksTheFlagsLanguageAloneAndNoModuleSpeaksTheSho
   again, up to the dead letters, with "failed to refund a rejected flag" in the log: then the operator refunds by hand.
 
 - **A payment the flags refuse is refunded** (`refund_refused_usecase`, on the flags' `TimeRefused`, group
-  `shop-refund-refused`): the payment of its grant (`payments.PaymentOfGrant`), refunded in full unless it was taken
-  back already. Such is a payment that lands after the rejection, its page closed a moment too late.
+  `shop-refund-refused`): first the buyer's renewals of its target that may still charge are cancelled
+  (`renewals.CancellableOf`, `DELETE /v1/subscriptions/{id}`): the order never buys time, and a renewal that runs keeps
+  every other player from claiming the flag. Then the payment of its grant (`payments.PaymentOfGrant`) is refunded in
+  full unless it was taken back already. Such is a payment that lands after the rejection, its page closed a moment
+  too late, or a renewal Stripe charged late, after another player claimed the flag.
 
 The flags' side is in [The flags module](flags.md#paid-time).
 
@@ -58,7 +68,8 @@ The flags' side is in [The flags module](flags.md#paid-time).
   `stripe:` and the payment's id.
 - **`renewals`**: `Renewal`, a Stripe subscription as Stripe told it last (`renewing`, `stopping`, `ended`, the end of
   the period paid). `Heard` keeps the latest word by the event's time. `StoppedBy` stops it for its buyer alone.
-  `NoneRenewing`: no second plan for a target while a renewal runs (one stopping charges no more).
+  `NoneRenewing`: no second plan while a renewal of the flag runs (one stopping charges no more). `CancellableOf`: the
+  buyer's renewals that may still charge.
 - **`checkouts`**: each Checkout Session the shop opened (`shop.checkouts`: the session, its target, when), kept by
   `CreateCheckout` so a rejection closes the pages still open (`Checkout.Expirable`: Stripe closes a page itself after
   a day).
@@ -77,7 +88,8 @@ others any token that names the account (`Identified`).
 - **`CreateCheckout(plan, submission_id | flag, starts_now)`** (`create_checkout_usecase`): the buyer (a guest is
   `PermissionDenied`), the plan's price (`FailedPrecondition` while off), the order (`InvalidArgument` without
   `starts_now`), the flags module's word (`NotFound`, `PermissionDenied`, `FailedPrecondition`), no renewal running
-  for the target (`FailedPrecondition`), then a Checkout Session. The page only goes to its `url`.
+  for any target of the flag, whoever bought it (`FailedPrecondition`), then a Checkout Session. The page only goes to
+  its `url`.
 - **`ListMyRenewals`**: the caller's renewals that renew or stop, the soonest first. None for a guest.
 - **`StopRenewal(renewal_id)`** (`stop_renewal_usecase`): Stripe's `cancel_at_period_end` first, then the renewal kept
   as stopping. Another account's renewal is `NotFound`; an ended one `FailedPrecondition`. No transaction is held over

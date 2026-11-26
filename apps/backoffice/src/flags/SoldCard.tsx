@@ -8,18 +8,17 @@ import {timeOf} from "../components/time.ts"
 import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {countOf} from "../support/labels.ts"
 import {
-    addTime, addTimeRefusalOf, closeFlag, closeNoteProblem, closeRefusalOf, comebackUntil, COMEBACK_DAYS, daysLater, daysOf,
-    leftOf, lengthOf, MAX_CLOSE_NOTE, MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
+    addTime, addTimeRefusalOf, closeFlag, closeNoteProblem, closeRefusalOf, daysLater, daysOf, leftOf, lengthOf,
+    MAX_CLOSE_NOTE, MAX_DAYS, MAX_NAME, nameProblem, renamedOf, renameFlag, renameRefusalOf, Sold,
 } from "./actions.ts"
 import {globeLinkOf, placeWords} from "./pin.ts"
 
 const FIRST_DAYS = "30"
 
-// One sold flag: its picture, its name and code, open or closed and until when, and what is done to it.
+// One sold flag: its picture, its name and code, open, ended or removed and until when, and what is done to it.
 export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sold, onChanged: () => void}) {
-    const {flag, picture, endsAt, closedAt, pin} = sold
+    const {flag, picture, endsAt, closedAt, removed, pin} = sold
     const now = new Date()
-    const comeback = closedAt === undefined ? undefined : comebackUntil(closedAt)
 
     return (
         <li className="card sold-flag">
@@ -28,7 +27,7 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                 <h3 className="sold-name">{flag.name}</h3>
                 {closedAt === undefined
                     ? <span className="status status-good">Open</span>
-                    : <span className="status">Closed</span>}
+                    : <span className="status">{removed ? "Removed" : "Ended"}</span>}
             </div>
             <dl className="facts">
                 <Fact label="Code"><Copyable text={flag.code}/></Fact>
@@ -41,31 +40,25 @@ export function SoldCard({flags, sold, onChanged}: {flags: FlagsAdmin, sold: Sol
                     ? <Fact label="Ends"><When at={endsAt}/> · {leftOf(endsAt, now)}</Fact>
                     : (
                         <>
-                            <Fact label="Closed"><When at={closedAt}/></Fact>
-                            <Fact label="Comes back">
-                                {comeback !== undefined && comeback > now
-                                    ? <>with time added until <When at={comeback}/></>
-                                    : <span className="muted">no more: closed over {COMEBACK_DAYS} days ago</span>}
+                            <Fact label={removed ? "Removed" : "Ended"}><When at={closedAt}/></Fact>
+                            <Fact label="Players">
+                                {removed
+                                    ? <span className="muted">nobody may pay for it; its name is free</span>
+                                    : <>any player may pay for it and hold it</>}
                             </Fact>
                         </>
                     )}
             </dl>
             <div className="sold-buttons">
-                <AddDays
-                    flags={flags}
-                    sold={sold}
-                    open={closedAt === undefined}
-                    late={comeback !== undefined && comeback <= now}
-                    onChanged={onChanged}
-                />
+                <AddDays flags={flags} sold={sold} open={closedAt === undefined} onChanged={onChanged}/>
                 <Rename flags={flags} flag={flag} onChanged={onChanged}/>
-                <Close flags={flags} flag={flag} disabled={closedAt !== undefined} onChanged={onChanged}/>
+                <Remove flags={flags} flag={flag} disabled={removed} onChanged={onChanged}/>
             </div>
         </li>
     )
 }
 
-function Close({flags, flag, disabled, onChanged}: {
+function Remove({flags, flag, disabled, onChanged}: {
     flags: FlagsAdmin, flag: Flag, disabled: boolean, onChanged: () => void,
 }) {
     const [note, setNote] = useState("")
@@ -75,32 +68,27 @@ function Close({flags, flag, disabled, onChanged}: {
         <div className="sold-close">
             {!disabled && (
                 <label className="field">
-                    <span className="muted">Note to its founder · {lengthOf(note)}/{MAX_CLOSE_NOTE}</span>
+                    <span className="muted">Note to its holder · {lengthOf(note)}/{MAX_CLOSE_NOTE}</span>
                     <textarea rows={3} value={note} onChange={event => setNote(event.target.value)}/>
                 </label>
             )}
             {problem !== undefined && <p className="action-refused" role="alert">{problem}</p>}
             <ConfirmAction
-                label="Close"
+                label="Remove"
                 tone="danger"
                 disabled={disabled || lengthOf(note) === 0 || problem !== undefined}
                 question={
                     <>
-                        <p>Close <strong>{flag.name}</strong> now?</p>
+                        <p>Remove <strong>{flag.name}</strong> for good?</p>
                         <p>
-                            Its players must pick another flag and nobody may click for it; its land stays. In a
-                            battle that locks the flags, it plays on until the lock lifts. Its founder reads your note.
-                            Time added within {COMEBACK_DAYS} days opens it again.
+                            Its players must pick another flag and nobody may click or pay for it; its land stays, and
+                            its name is free for a new flag. In a battle that locks the flags, it plays on until the
+                            lock lifts. Its holder reads your note. Only Add days brings it back.
                         </p>
                     </>
                 }
                 run={() => closeFlag(flags, flag.code, note)}
-                said={closed => {
-                    const at = closed.sold?.closedAt?.toDate()
-                    return at === undefined
-                        ? "Closed."
-                        : `Closed. Time added until ${timeOf(comebackUntil(at))} opens it again.`
-                }}
+                said={() => "Removed."}
                 refusal={closeRefusalOf}
                 onDone={onChanged}
             />
@@ -138,8 +126,8 @@ function Rename({flags, flag, onChanged}: {flags: FlagsAdmin, flag: Flag, onChan
     )
 }
 
-function AddDays({flags, sold, open, late, onChanged}: {
-    flags: FlagsAdmin, sold: Sold, open: boolean, late: boolean, onChanged: () => void,
+function AddDays({flags, sold, open, onChanged}: {
+    flags: FlagsAdmin, sold: Sold, open: boolean, onChanged: () => void,
 }) {
     const [typed, setTyped] = useState(FIRST_DAYS)
     const days = daysOf(typed)
@@ -156,7 +144,6 @@ function AddDays({flags, sold, open, late, onChanged}: {
                     min={1}
                     max={MAX_DAYS}
                     value={typed}
-                    disabled={late}
                     onChange={event => setTyped(event.target.value)}
                 />
             </label>
@@ -165,13 +152,13 @@ function AddDays({flags, sold, open, late, onChanged}: {
             )}
             <ConfirmAction
                 label="Add days"
-                disabled={days === undefined || late}
+                disabled={days === undefined}
                 question={days !== undefined && (open
                     ? <p>Add {countOf(days, "day")} to <strong>{flag.name}</strong>? It ends on {timeOf(daysLater(endsAt, days))} instead of {timeOf(endsAt)}.</p>
                     : (
                         <>
                             <p>Open <strong>{flag.name}</strong> again for {countOf(days, "day")}, until {timeOf(daysLater(now, days))}?</p>
-                            <p>Every player sees it again at once, with the land it still holds.</p>
+                            <p>Every player sees it again at once, with the land it still holds and its holder.</p>
                         </>
                     ))}
                 run={async () => ({added: await addTime(flags, flag.code, days ?? 0), reopened: !open})}

@@ -45,25 +45,29 @@
   (`quizzes_get_rules`, `quizzes_save_rule_set`, `quizzes_list_quiz_questions`)
 - `proto/flags/v1/flags.proto` — the catalog of flags (`FlagService/ListFlags`, public: every flag the game ships with,
   then the ones opened since, the closed ones too, each `Flag{code, name, closed}`, and for one opened since `sold`: its
-  `Picture` (public URL, size, `stretch` and focus), `ends_at` and `closed_at`). A flag opened since is `r-` and ten
+  `Picture` (public URL, size, `stretch` and focus), `ends_at`, `closed_at` and, since 2026-11-26, `removed`: closed for
+  good by the operator, never claimed). A flag opened since is `r-` and ten
   letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet keeps in its catalog, and
   `FlagRenamed`, and `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`, `CloseFlag`
-  and `RenameFlag` (`flags_*`), and since 2026-11-24 the review of the players' submissions: `ListSubmissions`
+  (a removal since 2026-11-26) and `RenameFlag` (`flags_*`), and since 2026-11-24 the review of the players' submissions: `ListSubmissions`
   (`KeptSubmission`), `ApproveSubmission`, `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note) and
   `OpenSubmittedFlag`. A sold flag has a `Pin` (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also
   takes a signed-in player's `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (`Submission`, its
-  `SubmissionState`, and a `Closure` per flag it founded that the operator closed: the note `CloseFlag` requires, which
-  the founder alone reads). `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
+  `SubmissionState`, `held`, the codes of the flags it holds, and a `Closure` per flag it holds that the operator
+  removed: the note `CloseFlag` requires, which the holder alone reads). `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
   replaces: nothing changes a submission once decided (`flag` and `Submission.change`, a founder's change of its flag,
   are `reserved` since 2026-11-24, and `FlagMoved` is gone). Planet's
   `Allegiance.closed` says the flag held is closed: its account picks another at once. `FlagService/ListenForEvents` is
   its stream: a heartbeat, and each flag opened, closed or renamed while it is open (`flag_changed`), and a page reads
   `ListFlags` as it opens (see the backend's
   [The flags module](../apps/backend/docs/flags.md)). Since 2026-11-24 `time.proto` is `TimeTarget` (a submission or a
-  flag) and `TimePeriod` (a week, a month, a year), `commands.proto` the shop's `GrantTime` and `TakeBackTime`, and
-  `internal.proto` `InternalService/GetPayable`, which the shop asks before a checkout
+  flag) and `TimePeriod` (a week, a month, a year), `commands.proto` the shop's `GrantTime` (since 2026-11-26 with the
+  payer's `account_id` and the order's `ordered_at`: a payment claims a flag whose time ended) and `TakeBackTime`, and
+  `internal.proto` `InternalService/GetPayable`, which the shop asks before a checkout, answered with `same_flag`, every
+  target whose time goes to that flag
 - `proto/shop/v1/shop.proto` — what a player pays for (`ShopService`): `ListPlans` (none while the shop is off),
-  `CreateCheckout` (a plan for a submission or a flag of the caller's, with `starts_now`, answered by Stripe's page),
+  `CreateCheckout` (a plan for a submission of the caller's, a flag it holds or a flag whose time ended, with
+  `starts_now`, answered by Stripe's page),
   `ListMyRenewals` and `StopRenewal` (see the backend's [The shop](../apps/backend/docs/shop.md))
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`

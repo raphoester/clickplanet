@@ -62,6 +62,7 @@ func TestAPaymentIsKeptAndItsTimeAskedOfTheFlags(t *testing.T) {
 		Target: &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_SubmissionId{
 			SubmissionId: "00000000-0000-0000-0000-000000000001",
 		}},
+		AccountId: orders.AccountID{15: 1}.String(), OrderedAt: timestamppb.New(now.Add(-time.Minute)),
 	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 

@@ -2,7 +2,6 @@ package flagmessage
 
 import (
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -20,27 +19,20 @@ type Messages struct {
 	base string
 }
 
+// Flag is the flag as every page reads it: never its holder or its removal's note.
 func (m Messages) Flag(flag catalog.Snapshot) *flagsv1.Flag {
-	var closedAt *time.Time
-	if flag.State == catalog.Closed {
-		closedAt = &flag.DecidedAt
+	sold := &flagsv1.Sold{
+		Picture: m.Picture(flag.Picture),
+		EndsAt:  timestamppb.New(flag.EndsAt),
+		Pin:     Pin(flag.Pin),
+		Removed: flag.State == catalog.Removed,
+	}
+	if flag.State != catalog.Open {
+		sold.ClosedAt = timestamppb.New(flag.DecidedAt)
 	}
 	return &flagsv1.Flag{
-		Code: flag.ID.String(), Name: flag.Name.String(), Closed: flag.State == catalog.Closed,
-		Sold: m.Sold(flag.Picture, flag.Pin, flag.EndsAt, closedAt),
+		Code: flag.ID.String(), Name: flag.Name.String(), Closed: flag.State != catalog.Open, Sold: sold,
 	}
-}
-
-func (m Messages) Sold(picture pictures.Snapshot, pin catalog.Pin, endsAt time.Time, closedAt *time.Time) *flagsv1.Sold {
-	sold := &flagsv1.Sold{
-		Picture: m.Picture(picture),
-		EndsAt:  timestamppb.New(endsAt),
-		Pin:     Pin(pin),
-	}
-	if closedAt != nil {
-		sold.ClosedAt = timestamppb.New(*closedAt)
-	}
-	return sold
 }
 
 // Picture is a picture made public, at its address.

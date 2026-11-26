@@ -365,7 +365,8 @@ export class Sold extends Message<Sold> {
   endsAt?: Timestamp;
 
   /**
-   * Unset while the flag is open. Time added within 30 days of it opens the flag again.
+   * Unset while the flag is open. A flag closed at its end, not removed, is free: any signed-in player may pay for it,
+   * and so claim it.
    *
    * @generated from field: google.protobuf.Timestamp closed_at = 3;
    */
@@ -377,6 +378,14 @@ export class Sold extends Message<Sold> {
    * @generated from field: flags.v1.Pin pin = 4;
    */
   pin?: Pin;
+
+  /**
+   * The operator removed it, for good: nobody pays for it, and its name is free for a new flag. A removed flag is
+   * closed.
+   *
+   * @generated from field: bool removed = 5;
+   */
+  removed = false;
 
   constructor(data?: PartialMessage<Sold>) {
     super();
@@ -390,6 +399,7 @@ export class Sold extends Message<Sold> {
     { no: 2, name: "ends_at", kind: "message", T: Timestamp },
     { no: 3, name: "closed_at", kind: "message", T: Timestamp },
     { no: 4, name: "pin", kind: "message", T: Pin },
+    { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sold {
@@ -688,12 +698,19 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
   submissions: Submission[] = [];
 
   /**
-   * Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
-   * back. A flag closed at its end has none, nor one closed before the operator gave a note.
+   * Each flag the caller holds that the operator removed.
    *
    * @generated from field: repeated flags.v1.Closure closures = 2;
    */
   closures: Closure[] = [];
+
+  /**
+   * The code of each flag the caller holds: its payment opened the flag or claimed it last. A flag stays held once its
+   * time ended, until another player claims it.
+   *
+   * @generated from field: repeated string held = 3;
+   */
+  held: string[] = [];
 
   constructor(data?: PartialMessage<ListMySubmissionsResponse>) {
     super();
@@ -705,6 +722,7 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "submissions", kind: "message", T: Submission, repeated: true },
     { no: 2, name: "closures", kind: "message", T: Closure, repeated: true },
+    { no: 3, name: "held", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMySubmissionsResponse {
@@ -725,8 +743,8 @@ export class ListMySubmissionsResponse extends Message<ListMySubmissionsResponse
 }
 
 /**
- * Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
- * online platforms ask.
+ * Why the operator removed a flag, in its own words: the flag's holder reads it, as the EU's rules for online platforms
+ * ask.
  *
  * @generated from message flags.v1.Closure
  */

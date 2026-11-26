@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
@@ -26,9 +27,9 @@ var _ catalog.Store = (*Store)(nil)
 
 const columns = `f.id, f.name, f.state::text, f.decided_at, f.ends_at,
 	f.picture_hash, f.picture_width, f.picture_height, f.picture_stretch, f.picture_focus_x, f.picture_focus_y,
-	f.pin_latitude, f.pin_longitude, COALESCE(c.note, '')`
+	f.pin_latitude, f.pin_longitude, h.account_id, COALESCE(c.note, '')`
 
-const from = ` FROM flags f LEFT JOIN closures c ON c.flag = f.id`
+const from = ` FROM flags f LEFT JOIN closures c ON c.flag = f.id LEFT JOIN holders h ON h.flag = f.id`
 
 const (
 	uniqueViolation = "23505"
@@ -79,9 +80,10 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	var kept catalog.Snapshot
 	var picture pictures.Snapshot
 	var focusX, focusY float32
+	var holder uuid.NullUUID
 	if err := scan(&id, &name, &state, &kept.DecidedAt, &kept.EndsAt,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
-		&kept.Pin.Latitude, &kept.Pin.Longitude, &note); err != nil {
+		&kept.Pin.Latitude, &kept.Pin.Longitude, &holder, &note); err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to read a flag: %w", err)
 	}
 	flagID, err := catalog.ParseFlagID(id)
@@ -95,6 +97,9 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
 	kept.ID, kept.Name, kept.State, kept.Picture, kept.Note = flagID, flagName, catalog.State(state), picture,
 		catalog.Note(note)
+	if holder.Valid {
+		kept.Holder = catalog.AccountID(holder.UUID)
+	}
 	kept.DecidedAt, kept.EndsAt = kept.DecidedAt.UTC(), kept.EndsAt.UTC()
 	flag, err := kept.Restore()
 	if err != nil {
@@ -131,6 +136,25 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 		if err := s.keepNote(ctx, kept); err != nil {
 			return err
 		}
+		if err := s.keepHolder(ctx, kept); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) keepHolder(ctx context.Context, kept catalog.Snapshot) error {
+	var err error
+	if kept.Holder == (catalog.AccountID{}) {
+		_, err = s.db.On(ctx).ExecContext(ctx, `DELETE FROM holders WHERE flag = $1`, kept.ID.String())
+	} else {
+		_, err = s.db.On(ctx).ExecContext(ctx, `
+			INSERT INTO holders (flag, account_id) VALUES ($1, $2)
+			ON CONFLICT (flag) DO UPDATE SET account_id = EXCLUDED.account_id
+		`, kept.ID.String(), uuid.UUID(kept.Holder))
+	}
+	if err != nil {
+		return fmt.Errorf("failed to keep the holder of %s: %w", kept.ID, err)
 	}
 	return nil
 }
@@ -146,7 +170,7 @@ func (s *Store) keepNote(ctx context.Context, kept catalog.Snapshot) error {
 		`, kept.ID.String(), kept.Note.String())
 	}
 	if err != nil {
-		return fmt.Errorf("failed to keep the close's note of %s: %w", kept.ID, err)
+		return fmt.Errorf("failed to keep the removal's note of %s: %w", kept.ID, err)
 	}
 	return nil
 }

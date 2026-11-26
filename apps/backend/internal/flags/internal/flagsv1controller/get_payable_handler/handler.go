@@ -14,7 +14,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in get_payable_usecase.In) error
+	Execute(ctx context.Context, in get_payable_usecase.In) ([]grants.Target, error)
 }
 
 func New(useCase UseCase) GetPayableHandler {
@@ -33,19 +33,28 @@ func (h GetPayableHandler) GetPayable(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	err = h.useCase.Execute(ctx, get_payable_usecase.In{Account: req.Msg.GetAccountId(), Target: target})
+	targets, err := h.useCase.Execute(ctx, get_payable_usecase.In{Account: req.Msg.GetAccountId(), Target: target})
 	switch {
-	case errors.Is(err, submissions.ErrInvalidAccount):
+	case errors.Is(err, catalog.ErrInvalidAccount):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, catalog.ErrUnknownFlag):
 		return nil, connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, submissions.ErrNotYours):
+	case errors.Is(err, submissions.ErrNotYours), errors.Is(err, catalog.ErrHeld):
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	case errors.Is(err, submissions.ErrNotPayable), errors.Is(err, submissions.ErrPaidAlready),
-		errors.Is(err, catalog.ErrTooLate):
+		errors.Is(err, catalog.ErrRemoved):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
-	return connect.NewResponse(&flagsv1.GetPayableResponse{}), nil
+	same := make([]*flagsv1.TimeTarget, 0, len(targets))
+	for _, target := range targets {
+		if id, ok := target.Flag(); ok {
+			same = append(same, &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_Flag{Flag: id.String()}})
+			continue
+		}
+		id, _ := target.Submission()
+		same = append(same, &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_SubmissionId{SubmissionId: id.String()}})
+	}
+	return connect.NewResponse(&flagsv1.GetPayableResponse{SameFlag: same}), nil
 }

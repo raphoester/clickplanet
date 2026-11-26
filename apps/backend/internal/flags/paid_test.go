@@ -51,7 +51,7 @@ func TestTheShopsPaymentsOpenAndKeepAFlagAndARefundTakesItsTimeBack(t *testing.T
 	now := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 	clock := cptime.NewFixedClock(now)
 	flags, submitted := postgres_flag_store.New(db), postgres_submission_store.New(db)
-	approved := submissions.TestWaiting(submissions.SubmissionID{15: 1}, submissions.AccountID{15: 1}, now)
+	approved := submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, now)
 	approved.State, approved.Held = submissions.Approved, false
 	require.NoError(t, submitted.Save(t.Context(), submissions.Restored(approved)))
 
@@ -80,6 +80,7 @@ func TestTheShopsPaymentsOpenAndKeepAFlagAndARefundTakesItsTimeBack(t *testing.T
 			Target: &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_SubmissionId{
 				SubmissionId: submissions.SubmissionID{15: 1}.String(),
 			}},
+			AccountId: catalog.AccountID{15: 1}.String(), OrderedAt: timestamppb.New(now.Add(-time.Minute)),
 		}
 	}
 	require.NoError(t, shop.Commands().Send(t.Context(), month("stripe:in_1")))
@@ -107,6 +108,17 @@ func TestTheShopsPaymentsOpenAndKeepAFlagAndARefundTakesItsTimeBack(t *testing.T
 	}))
 	closedFlag := <-page
 	assert.Equal(t, catalog.Closed, closedFlag.State, "a refund of the first month closes the flag it opened")
+
+	clock.Advance(time.Hour)
+	claimer := catalog.AccountID{15: 2}
+	require.NoError(t, shop.Commands().Send(t.Context(), &flagsv1.GrantTime{
+		GrantId: "stripe:cs_3", Period: flagsv1.TimePeriod_TIME_PERIOD_WEEK, PaidAt: timestamppb.New(clock.Now()),
+		Target:    &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_Flag{Flag: flag.ID.String()}},
+		AccountId: claimer.String(), OrderedAt: timestamppb.New(clock.Now()),
+	}))
+	claimed := <-page
+	assert.Equal(t, catalog.Open, claimed.State, "another player claims the flag whose time ended")
+	assert.Equal(t, claimer, claimed.Holder)
 }
 
 // A founder pays as it sends its flag: the time waits for the review, and the operator's approval opens the flag for
@@ -128,7 +140,7 @@ func TestAFlagPaidForBeforeItsReviewOpensWhenItIsApproved(t *testing.T) {
 	drawn, err := pictures.Redraw(pictures.TestPNG(300, 200))
 	require.NoError(t, err)
 	require.NoError(t, gallery.Hold(t.Context(), id.PictureKey(), drawn))
-	waiting := submissions.TestWaiting(id, submissions.AccountID{15: 1}, now)
+	waiting := submissions.TestWaiting(id, catalog.AccountID{15: 1}, now)
 	waiting.Picture = drawn.Picture.TakeSnapshot()
 	require.NoError(t, submitted.Save(t.Context(), submissions.Restored(waiting)))
 
@@ -153,7 +165,8 @@ func TestAFlagPaidForBeforeItsReviewOpensWhenItIsApproved(t *testing.T) {
 
 	require.NoError(t, streams.Commands().Send(t.Context(), &flagsv1.GrantTime{
 		GrantId: "stripe:in_1", Period: flagsv1.TimePeriod_TIME_PERIOD_MONTH, PaidAt: timestamppb.New(now),
-		Target: &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_SubmissionId{SubmissionId: id.String()}},
+		Target:    &flagsv1.TimeTarget{Target: &flagsv1.TimeTarget_SubmissionId{SubmissionId: id.String()}},
+		AccountId: catalog.AccountID{15: 1}.String(), OrderedAt: timestamppb.New(now),
 	}))
 	require.Eventually(t, func() bool {
 		kept, err := submitted.Submission(t.Context(), id)

@@ -29,7 +29,7 @@ func newUseCase(store *submissions.MemoryStore, flags *catalog.MemoryStore, outb
 
 func TestAnApprovedSubmissionOpensItsFlagForEveryPlayerAtItsPin(t *testing.T) {
 	store, flags, outbox := submissions.NewMemoryStore(), catalog.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	approved := submissions.TestWaiting(id, submissions.AccountID{15: 1}, now.Add(-time.Hour))
+	approved := submissions.TestWaiting(id, catalog.AccountID{15: 1}, now.Add(-time.Hour))
 	approved.State, approved.Held = submissions.Approved, false
 	store.Seed(approved)
 
@@ -39,7 +39,7 @@ func TestAnApprovedSubmissionOpensItsFlagForEveryPlayerAtItsPin(t *testing.T) {
 
 	assert.Equal(t, catalog.Snapshot{
 		ID: "r-0000000001", Name: "Rennes", Picture: catalog.TestPicture, Pin: catalog.TestPin, State: catalog.Open,
-		DecidedAt: now, EndsAt: now.Add(7 * 24 * time.Hour),
+		DecidedAt: now, EndsAt: now.Add(7 * 24 * time.Hour), Holder: catalog.AccountID{15: 1},
 	}, flag)
 	kept, err := flags.Flag(t.Context(), "r-0000000001")
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestAnApprovedSubmissionOpensItsFlagForEveryPlayerAtItsPin(t *testing.T) {
 
 func TestAWaitingSubmissionOpensNoFlag(t *testing.T) {
 	store, flags, outbox := submissions.NewMemoryStore(), catalog.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	store.Seed(submissions.TestWaiting(id, submissions.AccountID{15: 1}, now))
+	store.Seed(submissions.TestWaiting(id, catalog.AccountID{15: 1}, now))
 
 	_, err := newUseCase(store, flags, outbox).Execute(t.Context(),
 		open_submitted_flag_usecase.In{Submission: id.String(), EndsAt: now.Add(time.Hour)})

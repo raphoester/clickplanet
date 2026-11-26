@@ -371,7 +371,7 @@ type CreateCheckoutRequest_SubmissionId struct {
 }
 
 type CreateCheckoutRequest_Flag struct {
-	// A flag the caller founded.
+	// A flag the caller holds, or one whose time ended, which the payment claims.
 	Flag string `protobuf:"bytes,3,opt,name=flag,proto3,oneof"`
 }
 

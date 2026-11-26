@@ -49,11 +49,11 @@ const (
 type ShopServiceClient interface {
 	// The plans on sale, with their prices. None while the shop is off. A GET.
 	ListPlans(context.Context, *connect.Request[v1.ListPlansRequest]) (*connect.Response[v1.ListPlansResponse], error)
-	// A Stripe Checkout page that sells the plan for a submission or a flag of the caller's: the page goes to its url,
-	// and Stripe sends the buyer back to the game. For a signed-in account alone. PermissionDenied for a guest, or for
-	// another account's submission or flag; NotFound for none; FailedPrecondition while the shop is off, for a submission
-	// not approved, a flag closed 30 days ago or more, or one whose renewal runs; InvalidArgument for no plan, no target,
-	// or without starts_now.
+	// A Stripe Checkout page that sells the plan for a submission of the caller's, a flag it holds, or a flag whose time
+	// ended (a claim): the page goes to its url, and Stripe sends the buyer back to the game. For a signed-in account
+	// alone. PermissionDenied for a guest, for another account's submission, or for an open flag another account holds;
+	// NotFound for none; FailedPrecondition while the shop is off, for a submission rejected or paid already, a removed
+	// flag, or one whose renewal runs, whoever bought it; InvalidArgument for no plan, no target, or without starts_now.
 	CreateCheckout(context.Context, *connect.Request[v1.CreateCheckoutRequest]) (*connect.Response[v1.CreateCheckoutResponse], error)
 	// The caller's plans that renew, each until the end of its period paid. None for a guest.
 	ListMyRenewals(context.Context, *connect.Request[v1.ListMyRenewalsRequest]) (*connect.Response[v1.ListMyRenewalsResponse], error)
@@ -133,11 +133,11 @@ func (c *shopServiceClient) StopRenewal(ctx context.Context, req *connect.Reques
 type ShopServiceHandler interface {
 	// The plans on sale, with their prices. None while the shop is off. A GET.
 	ListPlans(context.Context, *connect.Request[v1.ListPlansRequest]) (*connect.Response[v1.ListPlansResponse], error)
-	// A Stripe Checkout page that sells the plan for a submission or a flag of the caller's: the page goes to its url,
-	// and Stripe sends the buyer back to the game. For a signed-in account alone. PermissionDenied for a guest, or for
-	// another account's submission or flag; NotFound for none; FailedPrecondition while the shop is off, for a submission
-	// not approved, a flag closed 30 days ago or more, or one whose renewal runs; InvalidArgument for no plan, no target,
-	// or without starts_now.
+	// A Stripe Checkout page that sells the plan for a submission of the caller's, a flag it holds, or a flag whose time
+	// ended (a claim): the page goes to its url, and Stripe sends the buyer back to the game. For a signed-in account
+	// alone. PermissionDenied for a guest, for another account's submission, or for an open flag another account holds;
+	// NotFound for none; FailedPrecondition while the shop is off, for a submission rejected or paid already, a removed
+	// flag, or one whose renewal runs, whoever bought it; InvalidArgument for no plan, no target, or without starts_now.
 	CreateCheckout(context.Context, *connect.Request[v1.CreateCheckoutRequest]) (*connect.Response[v1.CreateCheckoutResponse], error)
 	// The caller's plans that renew, each until the end of its period paid. None for a guest.
 	ListMyRenewals(context.Context, *connect.Request[v1.ListMyRenewalsRequest]) (*connect.Response[v1.ListMyRenewalsResponse], error)

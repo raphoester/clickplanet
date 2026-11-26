@@ -52,18 +52,16 @@ func (q PostgresQuery) Flags(ctx context.Context) (*flagsv1.ListFlagsResponse, e
 			&pin.Latitude, &pin.Longitude); err != nil {
 			return nil, fmt.Errorf("failed to read a flag opened: %w", err)
 		}
-		closed, err := closedOf(state)
+		kept, err := stateOf(state)
 		if err != nil {
 			return nil, fmt.Errorf("the flag %s: %w", code, err)
 		}
 		picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
-		var closedAt *time.Time
-		if closed {
-			closedAt = &decidedAt
-		}
-		flags = append(flags, &flagsv1.Flag{
-			Code: code, Name: name, Closed: closed, Sold: q.messages.Sold(picture, pin, endsAt, closedAt),
+		message := q.messages.Flag(catalog.Snapshot{
+			ID: catalog.FlagID(code), Name: catalog.Name(name), Picture: picture, Pin: pin, State: kept,
+			DecidedAt: decidedAt, EndsAt: endsAt,
 		})
+		flags = append(flags, message)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the flags opened: %w", err)
@@ -71,12 +69,10 @@ func (q PostgresQuery) Flags(ctx context.Context) (*flagsv1.ListFlagsResponse, e
 	return &flagsv1.ListFlagsResponse{Flags: flags}, nil
 }
 
-func closedOf(state string) (bool, error) {
-	switch state {
-	case "open":
-		return false, nil
-	case "closed":
-		return true, nil
+func stateOf(state string) (catalog.State, error) {
+	switch kept := catalog.State(state); kept {
+	case catalog.Open, catalog.Closed, catalog.Removed:
+		return kept, nil
 	}
-	return false, fmt.Errorf("%w: %q", ErrUnknownState, state)
+	return "", fmt.Errorf("%w: %q", ErrUnknownState, state)
 }

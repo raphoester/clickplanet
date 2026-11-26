@@ -58,9 +58,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds days to a flag opened since the game shipped. An open flag ends that much later. A flag closed less than 30
-     * days ago opens again, with the same code, name and picture and the land it still holds, and ends that many days
-     * from now; FailedPrecondition past the 30 days.
+     * Adds days to a flag opened since the game shipped. An open flag ends that much later. A closed flag, whose time
+     * ended or that was removed, opens again, with the same code, name, picture and holder and the land it still holds,
+     * and ends that many days from now. FailedPrecondition for a removed flag whose name a new flag took since.
      *
      * @generated from rpc flags.v1.AdminService.AddTime
      */
@@ -71,10 +71,11 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Closes a flag opened since the game shipped, now, with a note its founder reads: its players must pick another
-     * flag, its land stays, and nobody may click for it. While the rules in force lock the flags (a battle), planet keeps
-     * it playable until the lock lifts. InvalidArgument for no note or one over 500 characters; FailedPrecondition for a
-     * flag closed already.
+     * Removes a flag opened since the game shipped, for good, now, with a note its holder reads: its players must pick
+     * another flag, its land stays, nobody may click or pay for it, and its name is free for a new flag. Open, or closed
+     * at its end. While the rules in force lock the flags (a battle), planet keeps it playable until the lock lifts. Only
+     * AddTime brings it back. InvalidArgument for no note or one over 500 characters; FailedPrecondition for a flag
+     * removed already.
      *
      * @generated from rpc flags.v1.AdminService.CloseFlag
      */

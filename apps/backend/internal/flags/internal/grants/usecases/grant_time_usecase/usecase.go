@@ -83,7 +83,7 @@ func (u *UseCase) grant(ctx context.Context, grant grants.Grant, paid grants.Pai
 		if err != nil {
 			return grant, nil, fmt.Errorf("failed to read the flag: %w", err)
 		}
-		granted, extended, facts, err := grant.ToFlag(flag, paid.Period, now)
+		granted, extended, facts, err := grant.ToFlag(flag, paid, now)
 		if err != nil {
 			return grant, nil, err //nolint:wrapcheck // the grant names it.
 		}
@@ -109,7 +109,7 @@ func (u *UseCase) grant(ctx context.Context, grant grants.Grant, paid grants.Pai
 		return grant, nil, fmt.Errorf("failed to read the flags' names: %w", err)
 	}
 	granted, submission, flag, facts, err := grant.ToSubmission(
-		submission, flag, u.opening, catalog.NamesOf(flags), paid.Period, now)
+		submission, flag, u.opening, catalog.NamesOf(flags), paid, now)
 	if err != nil {
 		return grant, nil, err //nolint:wrapcheck // the grant names it.
 	}

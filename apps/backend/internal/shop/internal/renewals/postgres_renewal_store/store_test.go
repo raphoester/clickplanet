@@ -42,10 +42,6 @@ func (s inTx) Renewal(ctx context.Context, id renewals.SubscriptionID) (renewals
 	return renewal, err
 }
 
-func (s inTx) Bought(ctx context.Context, buyer orders.AccountID) ([]renewals.Renewal, error) {
-	return s.store.Bought(ctx, buyer) //nolint:wrapcheck // the store named it.
-}
-
 func (s inTx) OfTarget(ctx context.Context, target orders.Target) ([]renewals.Renewal, error) {
 	return s.store.OfTarget(ctx, target) //nolint:wrapcheck // the store named it.
 }

@@ -41,10 +41,6 @@ func (m *MemoryStore) Renewal(_ context.Context, id SubscriptionID) (Renewal, er
 	return row.Restore()
 }
 
-func (m *MemoryStore) Bought(_ context.Context, buyer orders.AccountID) ([]Renewal, error) {
-	return m.where(func(row Snapshot) bool { return row.Order.Buyer == buyer })
-}
-
 func (m *MemoryStore) OfTarget(_ context.Context, target orders.Target) ([]Renewal, error) {
 	return m.where(func(row Snapshot) bool { return row.Order.Target == target })
 }

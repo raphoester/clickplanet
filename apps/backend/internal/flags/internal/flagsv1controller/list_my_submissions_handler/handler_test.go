@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/list_my_submissions_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type query struct {
-	asked []submissions.AccountID
+	asked []catalog.AccountID
 }
 
-func (q *query) Mine(_ context.Context, account submissions.AccountID) (*flagsv1.ListMySubmissionsResponse, error) {
+func (q *query) Mine(_ context.Context, account catalog.AccountID) (*flagsv1.ListMySubmissionsResponse, error) {
 	q.asked = append(q.asked, account)
 	return &flagsv1.ListMySubmissionsResponse{Submissions: []*flagsv1.Submission{{Id: "s"}}}, nil
 }
@@ -42,5 +42,5 @@ func TestASignedInAccountReadsItsOwn(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, res.Msg.GetSubmissions(), 1)
-	assert.Equal(t, []submissions.AccountID{{15: 1}}, q.asked)
+	assert.Equal(t, []catalog.AccountID{{15: 1}}, q.asked)
 }

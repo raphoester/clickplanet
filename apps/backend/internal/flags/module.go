@@ -253,7 +253,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return flagsv1connect.NewInternalServiceHandler(flagsv1controller.InternalService{
-			GetPayableHandler: get_payable_handler.New(get_payable_usecase.New(clock, submitted, store)),
+			GetPayableHandler: get_payable_handler.New(get_payable_usecase.New(submitted, store)),
 		}, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount flags.v1.InternalService: %w", err)

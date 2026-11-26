@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/delete_rejected_pictures_usecase"
@@ -16,7 +17,7 @@ import (
 var now = time.Date(2026, 12, 24, 9, 0, 0, 0, time.UTC)
 
 func rejected(id submissions.SubmissionID, at time.Time) submissions.Snapshot {
-	submission := submissions.TestWaiting(id, submissions.AccountID{15: 1}, at)
+	submission := submissions.TestWaiting(id, catalog.AccountID{15: 1}, at)
 	submission.State, submission.DecidedAt = submissions.Rejected, at
 	submission.Rejection = submissions.Rejection{Reason: submissions.NotAPlace}
 	return submission

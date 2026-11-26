@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/postgres_judgement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
@@ -20,7 +21,7 @@ func TestTheWaitingSubmissionsWithNoJudgementAreJudgedTheFirstSentFirst(t *testi
 	submitted, judged := postgres_submission_store.New(db), postgres_judgement_store.New(db)
 	at := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 	for i, minutes := range []int{3, 1, 2, 0} {
-		row := submissions.TestWaiting(submissions.SubmissionID{15: byte(i + 1)}, submissions.AccountID{15: byte(i + 1)},
+		row := submissions.TestWaiting(submissions.SubmissionID{15: byte(i + 1)}, catalog.AccountID{15: byte(i + 1)},
 			at.Add(time.Duration(minutes)*time.Minute))
 		if i == 3 {
 			row.State, row.Held = submissions.Approved, false

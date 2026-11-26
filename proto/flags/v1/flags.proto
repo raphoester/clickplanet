@@ -30,8 +30,8 @@ service FlagService {
   // picture.
   rpc SubmitFlag(SubmitFlagRequest) returns (SubmitFlagResponse);
 
-  // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; and why the
-  // operator closed each flag it founded before its end. None for a guest.
+  // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; the flags
+  // it holds; and why the operator removed each flag it holds. None for a guest.
   rpc ListMySubmissions(ListMySubmissionsRequest) returns (ListMySubmissionsResponse);
 }
 
@@ -72,10 +72,14 @@ message Sold {
   Picture picture = 1;
   // When its time runs out. A closed flag keeps the end it had.
   google.protobuf.Timestamp ends_at = 2;
-  // Unset while the flag is open. Time added within 30 days of it opens the flag again.
+  // Unset while the flag is open. A flag closed at its end, not removed, is free: any signed-in player may pay for it,
+  // and so claim it.
   google.protobuf.Timestamp closed_at = 3;
   // Where the flag starts in Capital Siege, as a country starts on its capital.
   Pin pin = 4;
+  // The operator removed it, for good: nobody pays for it, and its name is free for a new flag. A removed flag is
+  // closed.
+  bool removed = 5;
 }
 
 // A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
@@ -119,13 +123,15 @@ message ListMySubmissionsRequest {}
 
 message ListMySubmissionsResponse {
   repeated Submission submissions = 1;
-  // Each flag the caller founded (one of its submissions opened it) that the operator closed and that has not come
-  // back. A flag closed at its end has none, nor one closed before the operator gave a note.
+  // Each flag the caller holds that the operator removed.
   repeated Closure closures = 2;
+  // The code of each flag the caller holds: its payment opened the flag or claimed it last. A flag stays held once its
+  // time ended, until another player claims it.
+  repeated string held = 3;
 }
 
-// Why the operator closed a flag before its end, in its own words: the flag's founder reads it, as the EU's rules for
-// online platforms ask.
+// Why the operator removed a flag, in its own words: the flag's holder reads it, as the EU's rules for online platforms
+// ask.
 message Closure {
   string flag = 1;
   string note = 2;

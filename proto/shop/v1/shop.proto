@@ -11,11 +11,11 @@ service ShopService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // A Stripe Checkout page that sells the plan for a submission or a flag of the caller's: the page goes to its url,
-  // and Stripe sends the buyer back to the game. For a signed-in account alone. PermissionDenied for a guest, or for
-  // another account's submission or flag; NotFound for none; FailedPrecondition while the shop is off, for a submission
-  // not approved, a flag closed 30 days ago or more, or one whose renewal runs; InvalidArgument for no plan, no target,
-  // or without starts_now.
+  // A Stripe Checkout page that sells the plan for a submission of the caller's, a flag it holds, or a flag whose time
+  // ended (a claim): the page goes to its url, and Stripe sends the buyer back to the game. For a signed-in account
+  // alone. PermissionDenied for a guest, for another account's submission, or for an open flag another account holds;
+  // NotFound for none; FailedPrecondition while the shop is off, for a submission rejected or paid already, a removed
+  // flag, or one whose renewal runs, whoever bought it; InvalidArgument for no plan, no target, or without starts_now.
   rpc CreateCheckout(CreateCheckoutRequest) returns (CreateCheckoutResponse);
 
   // The caller's plans that renew, each until the end of its period paid. None for a guest.
@@ -57,7 +57,7 @@ message CreateCheckoutRequest {
   oneof target {
     // An approved submission of a new flag: the first payment opens its flag.
     string submission_id = 2;
-    // A flag the caller founded.
+    // A flag the caller holds, or one whose time ended, which the payment claims.
     string flag = 3;
   }
   // The buyer asked for the flag to start at once, and knows that the right to cancel ends when it starts.

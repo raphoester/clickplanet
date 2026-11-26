@@ -925,7 +925,7 @@ const DEMO_FLAGS = [
         `<rect width="1" height="1" fill="#d52b1e"/><rect x=".4" y=".15" width=".2" height=".7" fill="#fff"/><rect x=".15" y=".4" width=".7" height=".2" fill="#fff"/>`),
     {latitude: 45.5646, longitude: 5.9178}),
     soldFlag("r-demotyrol1", "Tyrol", new Date(NOW - 41 * DAY), new Date(NOW - 41 * DAY), flagSvgOf(2, 1,
-        `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`), INNSBRUCK),
+        `<rect width="2" height="1" fill="#fff"/><rect y=".5" width="2" height=".5" fill="#c8102e"/>`), INNSBRUCK, true),
 ]
 
 // A photo, as a player might send one for a flag: a lake at dusk, its sky, its hills and the light on the water.

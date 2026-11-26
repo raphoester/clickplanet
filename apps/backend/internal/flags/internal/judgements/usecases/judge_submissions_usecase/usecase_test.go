@@ -61,7 +61,7 @@ func newFixture(t *testing.T, names ...catalog.Name) fixture {
 	for i, name := range names {
 		id := submissions.SubmissionID{15: byte(i + 1)}
 		require.NoError(t, gallery.Hold(t.Context(), id.PictureKey(), drawn))
-		row := submissions.TestWaiting(id, submissions.AccountID{15: byte(i + 1)}, now.Add(time.Duration(i)*time.Minute))
+		row := submissions.TestWaiting(id, catalog.AccountID{15: byte(i + 1)}, now.Add(time.Duration(i)*time.Minute))
 		row.Name, row.Picture = name, drawn.Picture.TakeSnapshot()
 		f.submissions.Seed(row)
 		ids = append(ids, id)
@@ -144,9 +144,26 @@ func TestAnApprovalOfANameTakenSinceIsLeftToTheOperator(t *testing.T) {
 	assert.Equal(t, []catalog.Name{"Bavaria"}, f.judge.asked[0].Taken)
 }
 
+func TestTheJudgeIsToldTheFlagsOpenOrEndedAndNeverTheRemovedOnes(t *testing.T) {
+	f := newFixture(t, "Bavaria")
+	ended, ok := catalog.OpenFlag("r-0000000001", "Savoy", now.AddDate(0, -2, 0)).Expired(now)
+	require.True(t, ok)
+	removed, err := catalog.OpenFlag("r-0000000002", "Bavaria", now.Add(-time.Hour)).Removed("Broke the rules.", now)
+	require.NoError(t, err)
+	require.NoError(t, f.flags.Save(t.Context(), ended, removed, catalog.OpenFlag("r-0000000003", "Tyrol", now)))
+	f.judge.rulings["Bavaria"] = judgements.Ruling{Verdict: judgements.Approve, Why: "Bavaria's lozenges"}
+
+	_, err = f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []catalog.Name{"Savoy", "Tyrol"}, f.judge.asked[0].Taken)
+	assert.Equal(t, submissions.Approved, f.state(t, submissions.SubmissionID{15: 1}).State,
+		"a removed flag's place is free for a new flag")
+}
+
 func TestAFlagTheOperatorDecidedFirstIsNotJudged(t *testing.T) {
 	f := newFixture(t, "Bavaria")
-	decided := submissions.TestWaiting(submissions.SubmissionID{15: 1}, submissions.AccountID{15: 1}, now)
+	decided := submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, now)
 	decided.State, decided.Held = submissions.Approved, false
 	f.submissions.Seed(decided)
 

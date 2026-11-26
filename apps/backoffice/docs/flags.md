@@ -33,27 +33,30 @@ game's own flags are not on this page: they never end.
 ## The list
 
 - **Every sold flag** (`ListFlags`, the game's own left out), each a card: its picture as the server drew it, its
-  name, its code with Copy, its capital (`Sold.pin`, a link that opens the globe there), and Open or Closed. **An open flag** shows its end and the days left (to the nearest day,
-  hours in its last two). **A closed one** shows when it closed, and until when time added opens it again (30 days
-  after the close), or that it no longer can.
+  name, its code with Copy, its capital (`Sold.pin`, a link that opens the globe there), and Open, Ended or Removed.
+  **An open flag** shows its end and the days left (to the nearest day, hours in its last two). **An ended one** (its
+  time ran out, or a refund took it back) shows when it ended, and that any player may pay for it and hold it: a claim.
+  **A removed one** (`Sold.removed`) shows when it was removed, and that nobody may pay for it and its name is free.
 - **By end** (open first, the soonest to end first, then the closed ones, the last closed first) or **By name**. The
   contract has no time a flag opened, so there is no newest first.
 - **Each read also names the flags to the rest of the console** (`learnFlags`, see
   [A country on the page](countries.md)): a flag opened here shows its picture and name on the other pages at once.
 - **The list as last read stays while it is read again**, so each card keeps what the server answered it.
 
-## Days and closing
+## Days and removing
 
 - **Add days** (a whole number from 1 to 3660, 30 at first) asks first. For an open flag: "Add 10 days to Bavaria? It
-  ends on … instead of …". For one closed less than 30 days ago: "Open Savoy again for 30 days, until …?", and every
-  player sees it again with the land it still holds. Then it says the new end ("Open again. It ends on …") and reads
-  the list again. **Past the 30 days it is disabled**; the server's `failed_precondition` says the same.
-- **Close**, on an open flag, needs a **note to its founder** first ("Note to its founder · 0/500", the server's
-  `CloseFlag.note`, 1 to 500 characters once the spaces at its ends are cut; past 500 it says so in red): the founder
-  reads it on its flag's page in the game, and nobody else does. A closed card shows no note field, and Close stays
-  greyed. It asks first: its players must pick another flag, nobody may click for it, its land stays; in a battle that
-  locks the flags it plays on until the lock lifts; its founder reads your note; time added within 30 days opens it
-  again. Then it says until when, and reads the list again. Its `failed_precondition` is "It is closed already".
+  ends on … instead of …". For one ended or removed, however long ago: "Open Savoy again for 30 days, until …?", and
+  every player sees it again with the land it still holds and its holder. Then it says the new end ("Open again. It
+  ends on …") and reads the list again. Its `failed_precondition`: a removed flag whose name a new flag took since,
+  "rename one of them first".
+- **Remove** (the server's `CloseFlag`, for moderation: the EU's rules for online platforms ask for its note), on an
+  open or an ended flag, needs a **note to its holder** first ("Note to its holder · 0/500", the server's
+  `CloseFlag.note`, 1 to 500 characters once the spaces at its ends are cut; past 500 it says so in red): the holder
+  reads it in the game, and nobody else does. A removed card keeps Remove greyed. It asks first: for good, its players
+  must pick another flag, nobody may click or pay for it, its land stays, its name is free for a new flag; in a battle
+  that locks the flags it plays on until the lock lifts; its holder reads your note; only Add days brings it back. Then
+  it says "Removed." and reads the list again. Its `failed_precondition` is "It is removed already".
 
 ## Renaming
 
@@ -70,7 +73,7 @@ already in `img-src` (see [Deploy](deploy.md)): nothing to change in `public/_he
 
 ## In the demo
 
-`npm run demo`: Bavaria and Cornwall open (Cornwall in its last day), Savoy closed 3 days ago, Tyrol closed 41 days
+`npm run demo`: Bavaria and Cornwall open (Cornwall in its last day), Savoy ended 3 days ago, Tyrol removed 41 days
 ago, each picture drawn in the page (SVG), each capital where its place's is, and a few made-up players for Bavaria, so the
 other pages show its picture. The made-up bucket takes a picture in two seconds; `OpenFlag` refuses a picture it does
 not hold, a name of more than 40 characters or another flag's, an end gone by and a capital off the globe, and the flag

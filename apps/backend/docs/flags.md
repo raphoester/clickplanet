@@ -3,10 +3,11 @@
 **The flags module owns the catalog of flags**: the 235 the game ships with, and the flags sold since. Step 1 of the
 regional flags plan (2026-11-23) made the list live: a flag opened after the server starts is known everywhere with no
 deploy. Step 2 lets the operator open one by hand, with a picture and an end, add time to it and close it; it closes by
-itself at its end, and comes back within 30 days. Since 2026-11-24 the operator renames one. Step 3 (2026-11-24) lets a
+itself at its end. Since 2026-11-24 the operator renames one. Step 3 (2026-11-24) lets a
 signed-in player submit a flag, and the operator approve or reject it ([Submissions](#submissions)). Step 4
 (2026-11-24) lets its founder pay: the shop tells each payment's time, and the first opens the flag
-([Paid time](#paid-time)). The first real one opens when the owner says so.
+([Paid time](#paid-time)). Since 2026-11-26 **a flag is held by whoever pays for it** ([Holders and claims](#holders-and-claims)):
+once its time ends, any signed-in player may pay for it and hold it, and the operator's close is a removal, for good.
 
 ## The catalog
 
@@ -14,9 +15,11 @@ signed-in player submit a flag, and the operator approve or reject it ([Submissi
   `generated/flags/countries.json` by `make flags` (`check-flags` in CI and in the pre-push hook) and embedded:
   `cpflags.BuiltIn()` (in the page's order, with each English name) and `cpflags.IsBuiltIn`. Never a list kept by hand:
   it replaced `shared/cpcountries` and its `data.go`.
-- **A flag opened since** is a row of `flags.flags`: `id`, `name`, `state` (`flag_state`: `open` or `closed`),
-  `decided_at`, when it took that state, `ends_at`, its picture (`picture_hash`, `_width`, `_height`, `_stretch`,
-  `_focus_x`, `_focus_y`) and its pin (`pin_latitude`, `pin_longitude`). **A flag is closed, never deleted**: the season
+- **A flag opened since** is a row of `flags.flags`: `id`, `name`, `state` (`flag_state`: `open`, `closed` at its end
+  or by a refund, or `removed` by the operator), `decided_at`, when it took that state, `ends_at`, its picture
+  (`picture_hash`, `_width`, `_height`, `_stretch`, `_focus_x`, `_focus_y`) and its pin (`pin_latitude`,
+  `pin_longitude`). Its holder is a row of `flags.holders` ([Holders and claims](#holders-and-claims)). **A flag is
+  closed, never deleted**: the season
   standings, the Hall of Fame, the map history and the videos still name it. A flag opened by mistake that nobody played
   for was deleted by hand in postgres (`flags.flags` and `planet.heard_flags`) on 2026-11-24; there is no call for it.
 - **Its id is `catalog.FlagID`**: `r-` and ten letters or digits (`r-k3p9x2ma0b`), drawn at random. A flag the game ships
@@ -25,8 +28,10 @@ signed-in player submit a flag, and the operator approve or reject it ([Submissi
   `gb-eng`, `gb-sct`, `gb-wls`; below), so its land, players, room and points stay its own.
 - **Its name is `catalog.Name`**: 1 to 40 characters, trimmed, no control character, in English. It is not translated.
   **Two flags never share a name**, whatever its case, a flag the game ships with included (`catalog.Names`, at the open,
-  at a rename, and at a submission's approval and opening), and `flags_name_key`, a unique index on `lower(name)`, holds
-  it against two calls at once.
+  at a rename, at a submission's approval and opening, and at a removed flag's return), and `flags_name_key`, a unique
+  index on `lower(name)`, holds it against two calls at once. **A removed flag's name is free** for a new flag: the
+  names and the index (`WHERE state <> 'removed'`) count the open and the closed flags alone. A closed flag keeps its
+  name: a player may claim it.
 - **Its capital is `catalog.Pin`**: a latitude from -90 to 90 and a longitude from -180 to 180, in degrees. It is where
   the flag will start in Capital Siege (step 6), as a country starts on its capital; the pages and the backoffice call
   it the capital, the code and the wire `pin`. **A point, never a tile**: each board
@@ -45,12 +50,14 @@ renamed_at}`, and of a submission's verdict `SubmissionApproved{submission_id, a
 ([Paid time](#paid-time)), through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
 The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
 operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
-opening, comeback and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
+opening, claim, return and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
 approved, and went with it (`20261124145305_no_changes` deleted any left in the outbox; the enum keeps its value, as
 postgres drops none).
 
 **At each boot it tells every flag again** (`restate_flags_usecase`), as the antibot tells planet every running ban again
-(`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed one as `FlagClosed` alone. A module that
+(`bans.Book.Restate`): an open flag as `FlagOpened`, with its name now, a closed or removed one as `FlagClosed` alone.
+**A removal is `FlagClosed`**, told again at its time for a flag closed already, so the pages hear it removed; planet
+keeps it closed. A module that
 subscribes after a flag was told hears it at the next boot, with no hand migration. With no flag opened, it tells
 nothing.
 
@@ -111,9 +118,9 @@ land stays, shields too: the game never removes land by itself, and rivals take 
 ## The stream
 
 **The flags module tells the pages itself**, on a stream of its own: `flags.v1.FlagService/ListenForEvents`, a
-`heartbeat` at once and every `httpServer.streamHeartbeat`, `flag_changed`, each flag opened, closed or renamed while the
-stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`). It reads no token: every page hears the
-same.
+`heartbeat` at once and every `httpServer.streamHeartbeat`, `flag_changed`, each flag opened, closed, removed or
+renamed while the stream is open, as the catalog holds it now (`Flag{code, name, closed, sold}`, `Sold.removed` for a
+removed one). It reads no token: every page hears the same, never a flag's holder.
 
 - **The module hears its own facts** (`flags-streams-opened`, `flags-streams-closed`, `flags-streams-renamed`) and
   tells each to the open streams (`tell_streams_usecase`), the flag read from its table, so a close heard before its opening still tells the flag
@@ -138,14 +145,16 @@ step.
 `flags.v1.FlagService/ListFlags`, public, and `flags.v1.AdminService/ListFlags`, for the backoffice and Claude
 (`flags_list_flags`): every flag the game ships with, in the page's order, then the flags opened since, by name, the
 closed ones with `closed`. A flag opened since carries `sold`: its picture (public URL, size, `stretch` and focus), its
-`ends_at`, its `pin` and, once closed, `closed_at`. One query (`flags_query`), no cache header: the page reads it again each time
+`ends_at`, its `pin`, once closed `closed_at`, and `removed` for one the operator removed: a closed flag not removed is
+free to claim. One query (`flags_query`), no cache header: the page reads it again each time
 its stream opens, and a cached answer would not hold a flag opened while it was down.
 
 ## The operator's calls
 
 `flags.v1.AdminService`, on the backoffice's Flags page and as Claude's tools (`flags_create_flag_upload`,
 `flags_open_flag`, `flags_add_time`, `flags_close_flag`, `flags_rename_flag`). **Every player sees a flag opened at
-once, and a closed flag is never deleted: open one only when the owner says so.** Each change reads the flag
+once, and a closed flag is never deleted: open one only when the owner says so.** A flag opened by hand has no holder:
+nobody pays for it until its time ends, then any player may claim it. Each change reads the flag
 `FOR UPDATE` in its transaction, so two changes at once never undo each other (a rename as the runner closes the flag
 at its end keeps it closed).
 
@@ -156,18 +165,23 @@ at its end keeps it closed).
   end in the past, a name taken) can be tried again with the same file. `catalog.Opening` draws the id and checks the
   end is ahead.
 - **`AddTime(code, days)`** (`add_time_usecase`, 1 to 3,660 days): an open flag ends that much later, and tells nobody.
-  **A flag closed less than 30 days ago comes back** (`Flag.TimeAdded`): the same code, name and picture, the land it
-  still holds, open from now until that many days from now, told as `FlagOpened`. Past the 30 days,
-  `catalog.ErrTooLate` (`FailedPrecondition`): the place is free for a new flag.
-- **`CloseFlag(code, note)`** (`close_flag_usecase`): now, as a flag that broke the rules, **with a note its founder
-  reads** (the owner, 2026-11-24: a free note, no list of reasons; every close by hand, a flag with no founder too).
-  `catalog.Note`: 1 to 500 characters once the spaces at its ends are cut, `ErrInvalidNote` (`InvalidArgument`) for
-  none. The EU's rules for online platforms ask for this statement of reasons, as for a rejection. `catalog.ErrClosed`
-  for one closed already. The note is a row of `flags.closures` (`flag`, `note`), which only a flag the operator closed
-  has (`20261124133507_flag_closures`): the flag store writes it from the flag's snapshot, and deletes it when the flag
-  comes back (`Flag.TimeAdded`). A flag closed at its end has none, and so has each flag closed before the note
-  existed (no backfill: production's Bavaria was the owner's test). It is told to nobody: `FlagClosed` carries no
-  note, and planet and the pages need none.
+  **A closed or removed flag comes back** (`Flag.TimeAdded`), however long ago: the same code, name, picture and
+  holder, the land it still holds, open from now until that many days from now, told as `FlagOpened`; a removed one's
+  note goes. **A removed flag whose name a new flag took since** is `catalog.ErrNameTaken` (`FailedPrecondition`):
+  rename one of them first.
+- **`CloseFlag(code, note)`** (`close_flag_usecase`): **a removal, for good** (the owner, 2026-11-26), labelled Remove on
+  the backoffice and in the tool's description: now, as a flag that broke the rules, open or closed at its end, **with
+  a note its holder reads** (the owner, 2026-11-24: a free note, no list of reasons; every removal, a flag with no
+  holder too). Nobody pays for a removed flag (`catalog.ErrRemoved`), and its name is free for a new flag; only
+  `AddTime` brings it back. `catalog.Note`: 1 to 500 characters once the spaces at its ends are cut, `ErrInvalidNote`
+  (`InvalidArgument`) for none. The EU's rules for online platforms ask for this statement of reasons, as for a
+  rejection. `catalog.ErrRemoved` (`FailedPrecondition`) for one removed already. The note is a row of `flags.closures`
+  (`flag`, `note`), which a removed flag alone has (`Snapshot.Restore` refuses one without the other): the flag store
+  writes it from the flag's snapshot, and deletes it when the flag comes back. It is told to nobody: `FlagClosed`
+  carries no note, and planet and the pages need none. **The migration that brought the removals**
+  (`20261126153620_flag_removed`, the enum value alone, since postgres uses a new value only once it is committed, then
+  `20261126153621_flag_holders`) made each flag closed with a note removed; a flag closed with none (production's
+  test Bavaria, closed before the notes existed) stays closed, free to claim.
 - **`RenameFlag(code, name)`** (`rename_flag_usecase`): open or closed; `catalog.ErrNameTaken` or `ErrInvalidName`
   (`InvalidArgument`) for a name another flag has or no name. Told as `FlagRenamed`: the pages show it at once, and the
   code, the picture, the land and the players stay.
@@ -228,9 +242,9 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
   `InvalidArgument`, pictures off or a replacement of one decided `FailedPrecondition`.
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
   rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
-  for a guest. Beside them, `closures`: the note of each flag the account founded (opened from one of its
-  submissions) that the operator closed and that has not come back. **Only its founder reads it**: `ListFlags` and the
-  stream, which every page reads, carry none. **The notice is in the game, never by email**: the page reads it (see the frontend's
+  for a guest. Beside them, `held`: the code of each flag the account holds now (`flags.holders`), and `closures`: the
+  note of each of those the operator removed. **Only its holder reads it**: `ListFlags` and the stream, which every
+  page reads, carry none. **The notice is in the game, never by email**: the page reads it (see the frontend's
   [Flag submissions](../../frontend/docs/flag-submissions.md)).
 
 ### The operator's calls
@@ -272,24 +286,29 @@ asks and commands in the flags' words, and the flags module hears no module (see
 
 - **`flags.v1.InternalService/GetPayable(account_id, target)`** (`get_payable_usecase`), before the shop makes a
   checkout: a submission (`TimeTarget.submission_id`) its founder alone pays for, while it waits or once approved with
-  no time paid, or once opened (`Submission.PayableBy`; `ErrPaidAlready` for time paid already, `ErrNotPayable` for a
-  rejected one); a flag (`TimeTarget.flag`) the account whose submission opened it
-  (`submissions.FoundedBy`), while it is open or closed less than 30 days ago (`Flag.Payable`). `NotFound`,
-  `PermissionDenied`, `FailedPrecondition`.
-- **`flags.v1.GrantTime{grant_id, target, period, paid_at}`**, a command (`grant_time_handler`, group `handler` of
-  `commands:flags.v1.GrantTime`), granted by `grant_time_usecase` in one transaction:
+  no time paid, or once opened, as its flag (`Submission.PayableBy`; `ErrPaidAlready` for time paid already,
+  `ErrNotPayable` for a rejected one); a flag (`TimeTarget.flag`) its holder, or any account once its time ended
+  (`Flag.PayableBy`: `ErrHeld`, `PermissionDenied`, for an open flag another account holds or one opened by hand;
+  `ErrRemoved`, `FailedPrecondition`, for a removed one). It answers `same_flag`: the target asked and the flag or the
+  submission that opened it (`Store.Opened`), so the shop sells no second plan while a renewal of either runs, whoever
+  bought it ([The shop](shop.md)). `NotFound` for neither.
+- **`flags.v1.GrantTime{grant_id, target, period, paid_at, account_id, ordered_at}`**, a command (`grant_time_handler`,
+  group `handler` of `commands:flags.v1.GrantTime`), granted by `grant_time_usecase` in one transaction:
   - a **submission that waits holds the time** (`Grant.ToSubmission`, `flags.time_held`): nothing opens, and the
     submission reads `paid` (`ListMySubmissions`, `Submission.Paid`, read from the grants, never saved with it);
-  - an **approved submission** opens its flag (`Submission.Open`, as `OpenSubmittedFlag`) until now plus the period,
-    and `FlagOpened` is recorded;
-  - an **opened submission**, or a **flag**, ends a period later (`Flag.Extended`): from its end while it is open, a
-    renewal too; from now if it closed less than 30 days ago, and then `FlagOpened` is recorded, as `AddTime` does.
+  - an **approved submission** opens its flag (`Submission.Open`, as `OpenSubmittedFlag`), held by its founder, until
+    now plus the period, and `FlagOpened` is recorded;
+  - an **opened submission**, or a **flag**, is paid for by `account_id` (`Flag.Paid`, [Holders and claims](#holders-and-claims)):
+    its holder's ends a period later from its end while it is open, a renewal too, or opens from now once closed;
+    another account's claims a closed flag, open from now and held by it; `FlagOpened` is recorded at each opening.
   - The period (`grants.Period`) is a week, or a calendar month or year (`AddDate`), as Stripe bills a plan.
 - **Once per payment**: `flags.time_grants` keeps each grant by its id (`stripe:` and the payment's), its flag and how
   much later the flag ended for it (`added`), under an advisory lock on the id. A grant told again grants nothing.
 - **`flags.v1.TakeBackTime{grant_id}`** (`take_back_time_usecase`): a refund in full or a dispute lost. The flag ends
   `added` sooner (`Flag.Shortened`), and closes now when that end is past, told as `FlagClosed` (never at the past end,
-  which could be before its opening: planet keeps the fact with the latest time). A closed flag stays as it is. Kept in
+  which could be before its opening: planet keeps the fact with the latest time). A closed flag stays as it is, and so
+  does a flag that opened again since the grant: that time was spent, so an old holder's refund never cuts the time
+  of the player who claimed the flag after. Kept in
   `flags.time_takebacks`: told twice, it takes back once; told before its grant (two streams, no order between them),
   the grant comes to nothing.
 - **The time held opens the flag at its approval** (`release_held_time_usecase`, on `SubmissionApproved`, group
@@ -297,17 +316,46 @@ asks and commands in the flags' words, and the flags module hears no module (see
   opens the flag, the next ones end it a period later, then `FlagOpened`. So the time starts at the approval, never at
   the payment. Told again, the grants released are held no more, and nothing opens twice. A refund before the review
   takes the held time back with nothing to shorten.
-- **A payment the rules refuse** (`grants.Refuses`: a submission rejected or gone, a flag closed 30 days ago or more,
-  a name another flag took since the approval) buys nothing for good: it is kept as taken back (`Grant.Refused`, so
-  its refund takes nothing back), and `TimeRefused` tells the shop, which refunds it in full. Logged as a warning,
-  "a payment granted no time: the shop refunds it". The shop checked it before the checkout, so only a race leaves
-  one: a payment that lands after the judge rejected the flag, its page closed a moment too late.
+- **A payment the rules refuse** (`grants.Refuses`: a submission rejected or gone, a removed flag, an open flag another
+  account holds, a flag whose time ended after the order, a name another flag took since the approval) buys nothing
+  for good: it is kept as taken back (`Grant.Refused`, so its refund takes nothing back), and `TimeRefused` tells the
+  shop, which refunds it in full and cancels the buyer's renewal of it. Logged as a warning, "a payment granted no
+  time: the shop refunds it". The shop checked it before the checkout, so only a race or a late renewal leaves one: a
+  payment that lands after the judge rejected the flag, its page closed a moment too late; two players claiming one
+  flag at once; a renewal Stripe charged late, after another player claimed the flag.
 - **The submission's read is locked** (`FOR UPDATE OF s`) in the transaction that changes it: a payment and the
   operator's `OpenSubmittedFlag` never open one flag twice.
 
 `paid_test.go` sends the shop's commands through Redis: the first month opens the approved submission's flag for an
-open page, a renewal told twice adds one month, and refunds take each month back, the first closing the flag; a month
-paid while the flag waits opens it at its approval, two days later, for a month from then.
+open page, a renewal told twice adds one month, and refunds take each month back, the first closing the flag, which
+another account then claims; a month paid while the flag waits opens it at its approval, two days later, for a month
+from then.
+
+## Holders and claims
+
+**A flag lives only while someone pays for it** (the owner, 2026-11-26). Until then a founder kept its flag: a closed
+Bavaria came back for its founder alone, for 30 days, and its name was taken for good, so no new Bavaria could open.
+
+- **Its holder** (`catalog.Flag.holder`, a row of `flags.holders`: `flag`, `account_id`): the account whose payment
+  opened it (a submission's founder) or claimed it last. A flag opened by hand (`OpenFlag`; Brittany, England, Scotland
+  and Wales) has none. It stays once the time ended, until another account claims the flag, and on a removed flag, so
+  the holder reads its note. The migration (`20261126153621_flag_holders`) gave each flag opened from a submission its
+  founder. A deleted account's row keeps its id, as its submissions do.
+- **While a flag is open, its holder alone adds time** (`Flag.PayableBy`, `ErrHeld`): paying for an open flag another
+  account holds is a later step.
+- **Once its time ended, any signed-in account may claim it, forever** (`Flag.Paid`): a payment for the flag (shop
+  target `flag`) opens the same flag, its code, name, picture, pin, land and players, with no new review, and makes the
+  payer its holder. The old holder may claim it back the same way. The shop refuses a claim while any renewal of the
+  flag or of the submission that opened it still runs, a `past_due` one too while Stripe tries the card again.
+- **A payment ordered before the flag's time ended claims nothing** (`ErrOrderedBefore`, the order's `ordered_at`
+  against the flag's `decided_at`): a late renewal of a plan bought by the old holder, charged after another account
+  claimed the flag, is refused, refunded and its renewal cancelled, open or closed again since. The holder's own late
+  renewal still opens its flag again.
+- **A removed flag is no one's to buy** (`ErrRemoved`), and its name is free.
+
+`flag_test.go` holds each rule; `grant_time_usecase`'s tests a claim by another account, the holder changing, the old
+holder's late renewal refused once another claimed the flag, open or closed again, and its refund leaving the claim's
+time; `get_payable_usecase`'s who may pay; the shop's `create_checkout_usecase` a claim refused while a renewal runs.
 
 ## The judge
 
@@ -319,7 +367,9 @@ package and store. Off with no key (`flags.judge.anthropic.apiKey`): the operato
   the first sent first, five a round: paid or not, so a flag paid a minute later is decided already. A round that
   fails (Anthropic down) waits twice as long before the next, up to 5 minutes; the submission is asked again.
 - **What it sees** (`judgements.Cases`): the name, the capital, the picture held in private (`Gallery.Held`, checked
-  against its hash) and the names of every flag opened since the game shipped.
+  against its hash) and the names of every flag opened since the game shipped, open or closed at its end, never a
+  removed one: its place is free for a new flag. The page sends a player whose name is a closed flag's to its claim
+  before anything is sent; another spelling of a flag in the game is `exists`.
 - **What it is told** (`claude_flag_judge/instructions.md`): the review rule, the flag a place is known by. Approve
   only a real place below a country, its own flag, readable on a tile, nothing hateful, no flag of the game for the
   same place in another spelling, a capital inside it. Reject only when sure, with one of the operator's reasons and a
@@ -398,8 +448,8 @@ Production, in order, each with the owner's yes:
 1. Put the picture in the bucket: `clickplanet-media`, key `flags/pictures/ed47508c67e67af2c0711725441736fbe62b614fb9b9c587a05efc51023c3eb6.png`,
    `Content-Type: image/png`, `Cache-Control: public, max-age=31536000, immutable`. The file is on the PR's assets branch.
 2. Deploy: frontend first, then the backend (see [A server restart reloads the page](../../../docs/reload-on-restart.md)).
-3. Then the owner's call: keep it until a date (`flags_add_time`, `xb`, the days past its 30), or close it now
-   (`flags_close_flag`, `xb`); within 30 days of a close, `flags_add_time` brings it back.
+3. Then the owner's call: keep it until a date (`flags_add_time`, `xb`, the days past its 30), or remove it now
+   (`flags_close_flag`, `xb`); `flags_add_time` brings it back.
 
 ## England, Scotland and Wales, from the build to the sold flags
 
@@ -433,8 +483,8 @@ Production, in order, each with the owner's yes:
    `e044e22d0d52a24b10503b26b85c66d0c9223e2ddd07842b65d0c9b00ab0a5f8`, Wales
    `625234995a5a9c1da4e98805b1f62053d49ee570cc82c79494ae5e6914fb32d5`. The files are on the PR's assets branch.
 2. Deploy: frontend first, then the backend.
-3. Then the owner's call for each: keep it longer (`flags_add_time`), or close it (`flags_close_flag`); within 30 days of
-   a close, `flags_add_time` brings it back.
+3. Then the owner's call for each: keep it longer (`flags_add_time`), or remove it (`flags_close_flag`);
+   `flags_add_time` brings it back. Since 2026-11-26, once its time ends, any player may claim it.
 
 ## The pool
 

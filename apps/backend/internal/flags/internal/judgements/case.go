@@ -21,7 +21,8 @@ type Flags interface {
 	Flags(ctx context.Context) ([]catalog.Flag, error)
 }
 
-// Cases reads what the judge sees of a submission: the submission, its picture held in private, and the flags' names.
+// Cases reads what the judge sees of a submission: the submission, its picture held in private, and the names of the
+// flags in the game, open or closed at their end. A removed flag's place is free for a new flag.
 type Cases struct {
 	Submissions Submissions
 	Pictures    Pictures
@@ -51,7 +52,9 @@ func (c Cases) Case(ctx context.Context, id submissions.SubmissionID) (Case, err
 	}
 	taken := make([]catalog.Name, 0, len(flags))
 	for _, flag := range flags {
-		taken = append(taken, flag.TakeSnapshot().Name)
+		if kept := flag.TakeSnapshot(); kept.State != catalog.Removed {
+			taken = append(taken, kept.Name)
+		}
 	}
 	return Case{Name: kept.Name, Pin: kept.Pin, Picture: png, Taken: taken}, nil
 }

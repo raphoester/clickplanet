@@ -27,11 +27,11 @@ var (
 )
 
 // Refuses is true for what makes a payment buy nothing for good: a submission rejected or gone, a name another flag
-// took since, a flag closed 30 days ago or more.
+// took since, a removed flag, an open flag another account holds, a flag whose time ended after the order.
 func Refuses(err error) bool {
 	for _, refusal := range []error{
-		submissions.ErrUnknownSubmission, submissions.ErrNotApproved, catalog.ErrUnknownFlag, catalog.ErrTooLate,
-		catalog.ErrNameTaken, catalog.ErrEnded, ErrNotTheFlag,
+		submissions.ErrUnknownSubmission, submissions.ErrNotApproved, catalog.ErrUnknownFlag, catalog.ErrRemoved,
+		catalog.ErrHeld, catalog.ErrOrderedBefore, catalog.ErrNameTaken, catalog.ErrEnded, ErrNotTheFlag,
 	} {
 		if errors.Is(err, refusal) {
 			return true
@@ -109,6 +109,14 @@ func ParseTarget(submission, flag string) (Target, error) {
 	return Target{}, fmt.Errorf("%w: submission %q, flag %q", ErrInvalidTarget, submission, flag)
 }
 
+func SubmissionTarget(id submissions.SubmissionID) Target {
+	return Target{submission: id}
+}
+
+func FlagTarget(id catalog.FlagID) Target {
+	return Target{flag: id}
+}
+
 // Submission is the submission the time is for, when it is for one.
 func (t Target) Submission() (submissions.SubmissionID, bool) {
 	return t.submission, t.flag == ""
@@ -119,15 +127,18 @@ func (t Target) Flag() (catalog.FlagID, bool) {
 	return t.flag, t.flag != ""
 }
 
-// Paid is a payment as the shop tells it: what it is for, how much time it bought, and when.
+// Paid is a payment as the shop tells it: what it is for, how much time it bought, who paid, when the order was
+// placed and when it was paid.
 type Paid struct {
-	Grant  GrantID
-	Target Target
-	Period Period
-	At     time.Time
+	Grant     GrantID
+	Target    Target
+	Period    Period
+	By        catalog.AccountID
+	OrderedAt time.Time
+	At        time.Time
 }
 
-func ParsePaid(grant, submission, flag string, period Period, at time.Time) (Paid, error) {
+func ParsePaid(grant, submission, flag string, period Period, by string, orderedAt, at time.Time) (Paid, error) {
 	id, err := ParseGrantID(grant)
 	if err != nil {
 		return Paid{}, err
@@ -139,7 +150,11 @@ func ParsePaid(grant, submission, flag string, period Period, at time.Time) (Pai
 	if err := period.check(); err != nil {
 		return Paid{}, err
 	}
-	return Paid{Grant: id, Target: target, Period: period, At: at}, nil
+	account, err := catalog.ParseAccountID(by)
+	if err != nil {
+		return Paid{}, err //nolint:wrapcheck // the parse names it.
+	}
+	return Paid{Grant: id, Target: target, Period: period, By: account, OrderedAt: orderedAt, At: at}, nil
 }
 
 // Grant is a payment's time, on the flag it went to, from its payment to a refund that takes it back. A payment taken
@@ -177,17 +192,17 @@ func (g Grant) TakenBackAlready() bool {
 }
 
 // ToSubmission grants the time of a payment for a submission: one that waits holds it until its approval, an approved
-// one opens its flag for the period from now, an opened one adds the period to its flag, read beside it (the zero flag
-// otherwise).
+// one opens its flag for the period from now, an opened one pays for its flag, read beside it (the zero flag
+// otherwise), as a payment for the flag.
 func (g Grant) ToSubmission(
-	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, period Period,
+	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, paid Paid,
 	now time.Time,
 ) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
 	if submission.Waiting() {
-		g.held, g.submission, g.period, g.heldAt = true, submission.TakeSnapshot().ID, period, now
+		g.held, g.submission, g.period, g.heldAt = true, submission.TakeSnapshot().ID, paid.Period, now
 		return g, submission, flag, nil, nil
 	}
-	return g.toDecided(submission, flag, opening, names, period, now)
+	return g.toDecided(submission, flag, opening, names, paid, now)
 }
 
 // Released grants the time held for a submission once it is approved, from now: its flag opens for the period, or ends
@@ -201,11 +216,15 @@ func (g Grant) Released(
 	if submission.Waiting() {
 		return g, submission, flag, nil, fmt.Errorf("%w: %s", ErrStillWaiting, g.submission)
 	}
-	return g.toDecided(submission, flag, opening, names, g.period, now)
+	founded := Paid{
+		Grant: g.id, Target: SubmissionTarget(g.submission), Period: g.period,
+		By: submission.TakeSnapshot().Account, OrderedAt: g.heldAt, At: g.heldAt,
+	}
+	return g.toDecided(submission, flag, opening, names, founded, now)
 }
 
 func (g Grant) toDecided(
-	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, period Period,
+	submission submissions.Submission, flag catalog.Flag, opening catalog.Opening, names catalog.Names, paid Paid,
 	now time.Time,
 ) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
 	opened, ok := submission.OpenedFlag()
@@ -213,21 +232,21 @@ func (g Grant) toDecided(
 		if flag.TakeSnapshot().ID != opened {
 			return g, submission, flag, nil, fmt.Errorf("%w: %s", ErrNotTheFlag, opened)
 		}
-		granted, extended, facts, err := g.ToFlag(flag, period, now)
+		granted, extended, facts, err := g.ToFlag(flag, paid, now)
 		return granted, submission, extended, facts, err
 	}
-	submission, flag, err := submission.Open(opening, names, period.After(now))
+	submission, flag, err := submission.Open(opening, names, paid.Period.After(now))
 	if err != nil {
 		return g, submission, flag, nil, err //nolint:wrapcheck // the submission names it.
 	}
-	g.granted, g.flag, g.added, g.grantedAt = true, flag.TakeSnapshot().ID, period.After(now).Sub(now), now
+	g.granted, g.flag, g.added, g.grantedAt = true, flag.TakeSnapshot().ID, paid.Period.After(now).Sub(now), now
 	return g, submission, flag, flag.Facts(), nil
 }
 
-// ToFlag grants the time of a payment to a flag: an open one ends a period later, one closed less than 30 days ago
-// opens again for the period, and is told opened.
-func (g Grant) ToFlag(flag catalog.Flag, period Period, now time.Time) (Grant, catalog.Flag, []proto.Message, error) {
-	extended, added, err := flag.Extended(period, now)
+// ToFlag grants the time of a payment to a flag: its holder's open flag ends a period later; a closed one opens again
+// for the period, held by its payer, and is told opened.
+func (g Grant) ToFlag(flag catalog.Flag, paid Paid, now time.Time) (Grant, catalog.Flag, []proto.Message, error) {
+	extended, added, err := flag.Paid(paid.By, paid.OrderedAt, paid.Period, now)
 	if err != nil {
 		return g, flag, nil, err //nolint:wrapcheck // the flag names it.
 	}
@@ -239,8 +258,8 @@ func (g Grant) ToFlag(flag catalog.Flag, period Period, now time.Time) (Grant, c
 }
 
 // TakenBack is the grant once its payment was refunded or lost in a dispute. Once granted, the flag it went to is read
-// beside it and ends that much sooner, told closed when that end is past; before, held or not, the grant comes to
-// nothing.
+// beside it and ends that much sooner, told closed when that end is past, unless it opened again since: that time was
+// spent. Before, held or not, the grant comes to nothing.
 func (g Grant) TakenBack(flag catalog.Flag, now time.Time) (Grant, catalog.Flag, []proto.Message, error) {
 	g.takenBack, g.takenBackAt = true, now
 	if !g.granted {
@@ -249,7 +268,7 @@ func (g Grant) TakenBack(flag catalog.Flag, now time.Time) (Grant, catalog.Flag,
 	if flag.TakeSnapshot().ID != g.flag {
 		return g, flag, nil, fmt.Errorf("%w: %s", ErrNotTheFlag, g.flag)
 	}
-	shortened := flag.Shortened(g.added, now)
+	shortened := flag.Shortened(g.added, g.grantedAt, now)
 	if flag.TakeSnapshot().State == shortened.TakeSnapshot().State {
 		return g, shortened, nil, nil
 	}

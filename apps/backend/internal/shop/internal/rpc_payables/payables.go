@@ -32,26 +32,35 @@ type Payables struct {
 	flags Flags
 }
 
-func (p Payables) Payable(ctx context.Context, buyer orders.AccountID, target orders.Target) error {
+// Payable is every target whose time goes to the same flag, when the buyer may pay for the target.
+func (p Payables) Payable(ctx context.Context, buyer orders.AccountID, target orders.Target) ([]orders.Target, error) {
 	asked := &flagsv1.TimeTarget{}
 	if kind, id := target.Kept(); kind == orders.SubmissionTarget {
 		asked.Target = &flagsv1.TimeTarget_SubmissionId{SubmissionId: id}
 	} else {
 		asked.Target = &flagsv1.TimeTarget_Flag{Flag: id}
 	}
-	_, err := p.flags.GetPayable(ctx, connect.NewRequest(&flagsv1.GetPayableRequest{
+	answer, err := p.flags.GetPayable(ctx, connect.NewRequest(&flagsv1.GetPayableRequest{
 		AccountId: buyer.String(), Target: asked,
 	}))
 	switch connect.CodeOf(err) {
 	case connect.CodeNotFound, connect.CodeInvalidArgument:
-		return fmt.Errorf("%w: %w", ErrUnknown, err)
+		return nil, fmt.Errorf("%w: %w", ErrUnknown, err)
 	case connect.CodePermissionDenied:
-		return fmt.Errorf("%w: %w", ErrNotYours, err)
+		return nil, fmt.Errorf("%w: %w", ErrNotYours, err)
 	case connect.CodeFailedPrecondition:
-		return fmt.Errorf("%w: %w", ErrNotPayable, err)
+		return nil, fmt.Errorf("%w: %w", ErrNotPayable, err)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to ask the flags module: %w", err)
+		return nil, fmt.Errorf("failed to ask the flags module: %w", err)
 	}
-	return nil
+	same := make([]orders.Target, 0, len(answer.Msg.GetSameFlag()))
+	for _, told := range answer.Msg.GetSameFlag() {
+		kept, err := orders.ParseTarget(told.GetSubmissionId(), told.GetFlag())
+		if err != nil {
+			return nil, fmt.Errorf("the flags module named a target the shop cannot keep: %w", err)
+		}
+		same = append(same, kept)
+	}
+	return same, nil
 }

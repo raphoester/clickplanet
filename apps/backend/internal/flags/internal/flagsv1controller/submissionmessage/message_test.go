@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
@@ -22,7 +23,7 @@ func (links) HeldURL(key string, ttl time.Duration) (string, error) {
 var (
 	at       = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 	messages = submissionmessage.New(flagmessage.New("https://media.test/"), links{})
-	waiting  = submissions.TestWaiting(submissions.SubmissionID{15: 1}, submissions.AccountID{15: 1}, at)
+	waiting  = submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, at)
 	public   = "https://media.test/flags/pictures/" + waiting.Picture.Hash + ".png"
 )
 
