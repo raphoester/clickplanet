@@ -100,9 +100,11 @@ capital, `useMapShot` asks the globe for a shot (`Globe.previewFlag`), the name 
 - **The globe flies to the capital** at the zoom a fly-down plays at (`flownZoomsOf`'s most, a tile 28 CSS px), behind
   the modal, and stays there. Once the flight ended and the picture is in the atlas, the capital is the tile under the
   pin, and it and 3 rings of tiles around it (`groundAround`, about 37 on land) wear the picture for one frame, under a
-  flag code no flag has (`preview-1`, one per picture: each takes a sold flag's number for the page's life). The frame
-  is read (`captureRequests`, as the share's photo) and the tiles go back to what they show at once (`repaint`): paint
-  only, as a ghost, so no count, version or read sees them. A pin at sea shows the sea.
+  flag code no flag has (`preview-1`, one per picture: each takes a sold flag's number for the page's life), **with no
+  shield**: the badges of the shields players put there covered the new flag (the owner, 2026-11-26, at Bavaria). The
+  frame is read (`captureRequests`, as the share's photo) and the tiles go back to what they show at once (`repaint`,
+  their shields from `shielded`): paint only, as a ghost, so no count, version or read sees them. A pin at sea shows
+  the sea.
 - **The shot is the drawing buffer cropped around the capital** (`flagShooter`, `cropAround`): 560 x 280 CSS px, the
   widest card, at most the screen. The card shows it at that size, centred in a box of 2 wide by 1 high, so a tile on
   the card is a tile's size in the game on every screen; the crown is a DOM crown on the capital's pixel.
