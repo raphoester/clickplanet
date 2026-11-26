@@ -56,6 +56,14 @@ export class GetPayableRequest extends Message<GetPayableRequest> {
  * @generated from message flags.v1.GetPayableResponse
  */
 export class GetPayableResponse extends Message<GetPayableResponse> {
+  /**
+   * Every target whose time goes to the same flag: the target asked, and the flag or the submission that opened it. A
+   * renewal of any of them, whoever bought it, still pays for the flag: no second plan is sold while one runs.
+   *
+   * @generated from field: repeated flags.v1.TimeTarget same_flag = 1;
+   */
+  sameFlag: TimeTarget[] = [];
+
   constructor(data?: PartialMessage<GetPayableResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -64,6 +72,7 @@ export class GetPayableResponse extends Message<GetPayableResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "flags.v1.GetPayableResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "same_flag", kind: "message", T: TimeTarget, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPayableResponse {

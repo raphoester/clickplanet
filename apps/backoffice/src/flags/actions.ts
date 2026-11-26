@@ -13,7 +13,6 @@ export const NO_SUCH_FLAG = "No flag is kept under this code."
 export const MAX_NAME = 40
 export const MAX_BYTES = 5 * 1024 * 1024
 export const MAX_DAYS = 3660
-export const COMEBACK_DAYS = 30
 export const MAX_CLOSE_NOTE = 500
 
 const HOUR_MS = 3_600_000
@@ -21,8 +20,10 @@ const DAY_MS = 24 * HOUR_MS
 
 export type Order = "end" | "name"
 
-// A sold flag as the page shows it.
-export type Sold = {flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined, pin: Place | undefined}
+// A sold flag as the page shows it: closed at its end (any player may claim it) or removed, once closed.
+export type Sold = {
+    flag: Flag, picture: string, endsAt: Date, closedAt: Date | undefined, removed: boolean, pin: Place | undefined,
+}
 
 export function soldOf(flags: readonly Flag[]): Sold[] {
     return flags.flatMap(flag => flag.sold === undefined ? [] : [{
@@ -30,6 +31,7 @@ export function soldOf(flags: readonly Flag[]): Sold[] {
         picture: flag.sold.picture?.url ?? "",
         endsAt: flag.sold.endsAt?.toDate() ?? new Date(0),
         closedAt: flag.sold.closedAt?.toDate(),
+        removed: flag.sold.removed,
         pin: flag.sold.pin === undefined ? undefined : {latitude: flag.sold.pin.latitude, longitude: flag.sold.pin.longitude},
     }])
 }
@@ -56,11 +58,6 @@ export function leftOf(endsAt: Date, now: Date): string {
 
 export function daysLater(from: Date, days: number): Date {
     return new Date(from.getTime() + days * DAY_MS)
-}
-
-// Until when time added opens a closed flag again.
-export function comebackUntil(closedAt: Date): Date {
-    return daysLater(closedAt, COMEBACK_DAYS)
 }
 
 export type Draft = {name: string, file: File | undefined, endsAt: string, latitude: string, longitude: string}
@@ -157,11 +154,11 @@ export const openRefusalOf = refusalWith({failedPrecondition: PICTURES_OFF})
 export const renameRefusalOf = refusalWith({notFound: NO_SUCH_FLAG})
 
 export const addTimeRefusalOf = refusalWith({
-    failedPrecondition: `Closed over ${COMEBACK_DAYS} days ago: time added no longer opens it.`,
+    failedPrecondition: "A new flag took its name since it was removed: rename one of them first.",
     notFound: NO_SUCH_FLAG,
 })
 
-export const closeRefusalOf = refusalWith({failedPrecondition: "It is closed already.", notFound: NO_SUCH_FLAG})
+export const closeRefusalOf = refusalWith({failedPrecondition: "It is removed already.", notFound: NO_SUCH_FLAG})
 
 function refusalWith(meanings: Meanings): (err: unknown) => string {
     return err => err instanceof Refused ? err.message : wordsOf(err, meanings)

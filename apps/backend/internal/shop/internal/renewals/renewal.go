@@ -94,15 +94,27 @@ func (r Renewal) StoppedBy(buyer orders.AccountID, at time.Time) (Renewal, bool,
 	return r, false, fmt.Errorf("%w: %s", ErrEnded, r.id)
 }
 
-// NoneRenewing is nil when no renewal runs for the target: a second one would charge its buyer twice. One stopping
-// charges no more.
-func NoneRenewing(kept []Renewal, target orders.Target) error {
+// NoneRenewing is nil when none of the renewals runs: one still pays for the flag, whoever bought it, so a second
+// plan would charge twice, and another player may not claim it, even while Stripe retries a card. One stopping charges
+// no more.
+func NoneRenewing(kept []Renewal) error {
 	for _, renewal := range kept {
-		if renewal.state == Renewing && renewal.order.Target == target {
+		if renewal.state == Renewing {
 			return fmt.Errorf("%w: %s", ErrRenewing, renewal.id)
 		}
 	}
 	return nil
+}
+
+// CancellableOf is each subscription of the buyer's, among the renewals, that may still charge.
+func CancellableOf(kept []Renewal, buyer orders.AccountID) []SubscriptionID {
+	var ids []SubscriptionID
+	for _, renewal := range kept {
+		if id, ok := renewal.Cancellable(); ok && renewal.order.Buyer == buyer {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // Cancellable is the subscription to cancel while it may still charge.

@@ -20,7 +20,7 @@ import (
 var (
 	now    = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 	upload = pictures.UploadID{1}
-	ada    = submissions.AccountID{15: 1}
+	ada    = catalog.AccountID{15: 1}
 )
 
 type fixture struct {

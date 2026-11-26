@@ -35,7 +35,7 @@ func (h AddTimeHandler) AddTime(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, catalog.ErrUnknownFlag):
 		return nil, connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, catalog.ErrTooLate):
+	case errors.Is(err, catalog.ErrNameTaken):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.

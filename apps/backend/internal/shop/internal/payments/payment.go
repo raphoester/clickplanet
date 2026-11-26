@@ -118,7 +118,8 @@ func Pay(charged Charged) (Payment, *flagsv1.GrantTime, error) {
 	}
 	return payment, &flagsv1.GrantTime{
 		GrantId: charged.ID.GrantID(), Target: target, Period: periodOf(charged.Order.Plan),
-		PaidAt: timestamppb.New(charged.At),
+		PaidAt: timestamppb.New(charged.At), AccountId: charged.Order.Buyer.String(),
+		OrderedAt: timestamppb.New(charged.Order.AgreedAt),
 	}, nil
 }
 

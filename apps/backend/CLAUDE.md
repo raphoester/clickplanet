@@ -190,8 +190,8 @@ and says what is in it. Read the doc before you change its area.
 - [The flags module](docs/flags.md) — the catalog: the flags the game ships with (the page's file, `make flags`) and the
   ones opened since (`r-` ids, no two with one name, closed never deleted); `FlagOpened` and `FlagClosed` through its outbox and again at
   each boot; the catalog planet alone keeps from them (playable or known), the others checking a code's shape
-  (`cpflags`); the operator's calls (open with a picture and an end, add days, close, rename), the close at the end date and
-  the comeback within 30 days; an early close's note, which the founder alone reads; a closed flag's players changing at once, its land kept, its room read-only, a battle's
+  (`cpflags`); the operator's calls (open with a picture and an end, add days, remove for good, rename), the close at the
+  end date; a removal's note, which the holder alone reads; a closed flag's players changing at once, its land kept, its room read-only, a battle's
   lock keeping it playable; the pictures drawn again, public on media.clickplanet.lol; its own stream to the page;
   Brittany, then England, Scotland and Wales, moved from the build to the sold flags under their codes (`xb`,
   `gb-eng`, `gb-sct`, `gb-wls`), and the production steps of each move; each sold flag's pin (a point, never a tile),
@@ -200,12 +200,14 @@ and says what is in it. Read the doc before you change its area.
   rejection with a reason (the picture
   deleted 30 days later), and the opening of an approved one by hand; the paid time: `GetPayable`, the shop's
   `GrantTime` (the first payment opens the flag, each one adds its week, month or year, once per payment) and
-  `TakeBackTime` (a refund ends the flag that much sooner); the judge, a Claude model that approves or rejects the clear
+  `TakeBackTime` (a refund ends the flag that much sooner); the holder, whoever pays for it, and the claim of a flag
+  whose time ended by any player, forever; the judge, a Claude model that approves or rejects the clear
   flags as they are sent, the rest left to the operator.
-- [The shop](docs/shop.md) — the founder pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
+- [The shop](docs/shop.md) — a player pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
   once, a month or a year that renews; off with no Stripe key; the Checkout Session, Stripe's signed events at
   `/stripe/webhook` acted on once each, what each event does and what Stripe's pages leave open (refunds, disputes),
-  stopping a renewal; downstream of the flags, which it asks and commands in their words.
+  stopping a renewal; no claim while a renewal runs, a refused payment's renewal cancelled; downstream of the flags,
+  which it asks and commands in their words.
 - [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
   beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
   with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the

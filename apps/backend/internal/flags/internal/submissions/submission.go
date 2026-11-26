@@ -72,7 +72,7 @@ func ParseDraft(name string, latitude, longitude float64, replaces string) (Draf
 // new flag to its opening.
 type Submission struct {
 	id      SubmissionID
-	account AccountID
+	account catalog.AccountID
 	flag    catalog.FlagID
 	name    catalog.Name
 	pin     catalog.Pin
@@ -90,7 +90,7 @@ type Submission struct {
 // Submit is the account's new submission, refused while another of its submissions waits. It may replace the one
 // that waits, never one the operator decided: the ids it replaces are deleted unreviewed, with their pictures.
 func Submit(
-	id SubmissionID, account AccountID, draft Draft, drawn pictures.Drawn, earlier []Submission, at time.Time,
+	id SubmissionID, account catalog.AccountID, draft Draft, drawn pictures.Drawn, earlier []Submission, at time.Time,
 ) (Submission, []SubmissionID, error) {
 	var replaced []SubmissionID
 	for _, submission := range earlier {
@@ -143,8 +143,8 @@ func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, err
 	return s, nil
 }
 
-// Open opens the flag of an approved submission, at its pin, with its name and picture, unless a flag took its name
-// since.
+// Open opens the flag of an approved submission, at its pin, with its name and picture, held by its founder, unless a
+// flag took its name since.
 func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt time.Time) (Submission, catalog.Flag, error) {
 	if s.state != Approved {
 		return s, catalog.Flag{}, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrNotApproved)
@@ -152,7 +152,7 @@ func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt ti
 	if err := names.Free(s.name, ""); err != nil {
 		return s, catalog.Flag{}, err //nolint:wrapcheck // the names say which.
 	}
-	flag, err := opening.Open(s.name, s.picture, s.pin, endsAt)
+	flag, err := opening.OpenFor(s.account, s.name, s.picture, s.pin, endsAt)
 	if err != nil {
 		return s, catalog.Flag{}, err //nolint:wrapcheck // the opening names it.
 	}
@@ -163,8 +163,8 @@ func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt ti
 
 // PayableBy is nil when the account may pay for the submission: its founder, while it waits with no time paid (the
 // time is held until its approval), once approved with none (the payment opens its flag), or opened (the time goes to
-// its flag).
-func (s Submission) PayableBy(account AccountID) error {
+// its flag, as the flag's rules say).
+func (s Submission) PayableBy(account catalog.AccountID) error {
 	if s.account != account {
 		return fmt.Errorf("%w: %s", ErrNotYours, s.id)
 	}
@@ -190,20 +190,6 @@ func (s Submission) Waiting() bool {
 // OpenedFlag is the flag opened from the submission, once one was.
 func (s Submission) OpenedFlag() (catalog.FlagID, bool) {
 	return s.flag, s.state == Opened
-}
-
-// FoundedBy is nil when one of the account's submissions opened the flag: its founder.
-func FoundedBy(founded []Submission, flag catalog.FlagID) error {
-	for _, submission := range founded {
-		if submission.opened(flag) {
-			return nil
-		}
-	}
-	return fmt.Errorf("%w: %s", ErrNotYours, flag)
-}
-
-func (s Submission) opened(flag catalog.FlagID) bool {
-	return s.state == Opened && s.flag == flag
 }
 
 // Facts is what the other modules hear of a verdict: an approval opens a paid flag, a rejection refunds it.
@@ -241,7 +227,7 @@ func (s Submission) TakeSnapshot() Snapshot {
 
 type Snapshot struct {
 	ID      SubmissionID
-	Account AccountID
+	Account catalog.AccountID
 	// The flag opened from it; empty until then.
 	Flag        catalog.FlagID
 	Name        catalog.Name

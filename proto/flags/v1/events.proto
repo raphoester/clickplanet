@@ -19,7 +19,8 @@ message FlagOpened {
   Pin pin = 4;
 }
 
-// No player may play for the flag from closed_at. It stays in the catalog: history still names it.
+// No player may play for the flag from closed_at: its time ended, or the operator removed it. It stays in the catalog:
+// history still names it. A flag removed after its end is told closed again.
 message FlagClosed {
   string flag = 1;
   google.protobuf.Timestamp closed_at = 2;
@@ -46,7 +47,7 @@ message SubmissionRejected {
 }
 
 // A payment the rules refused bought no time: a submission rejected or replaced, a name another flag took since, a
-// flag closed 30 days ago or more. The shop refunds it.
+// removed flag, an open flag another account holds, or a flag whose time ended after the order. The shop refunds it.
 message TimeRefused {
   string grant_id = 1;
   google.protobuf.Timestamp refused_at = 2;

@@ -21,7 +21,8 @@ import (
 
 var (
 	now     = time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
-	founder = submissions.AccountID{15: 1}
+	founder = catalog.AccountID{15: 1}
+	other   = catalog.AccountID{15: 2}
 	id      = submissions.SubmissionID{15: 1}
 )
 
@@ -53,9 +54,14 @@ func (f fixture) approve() {
 	f.submissions.Seed(approved)
 }
 
+// paid is the founder's payment, ordered a minute before.
 func paid(t *testing.T, grant string, target grants.Target, period grants.Period) grants.Paid {
 	t.Helper()
-	return grants.Paid{Grant: grants.GrantID(grant), Target: target, Period: period, At: now}
+	return paidBy(grant, target, period, founder, now.Add(-time.Minute))
+}
+
+func paidBy(grant string, target grants.Target, period grants.Period, by catalog.AccountID, orderedAt time.Time) grants.Paid {
+	return grants.Paid{Grant: grants.GrantID(grant), Target: target, Period: period, By: by, OrderedAt: orderedAt, At: now}
 }
 
 func submissionTarget(t *testing.T) grants.Target {
@@ -119,9 +125,9 @@ func TestALaterPaymentForTheSubmissionAddsItsPeriodToItsFlag(t *testing.T) {
 	assert.Len(t, f.outbox.Recorded(), 1, "the others know it open already")
 }
 
-func TestAPaymentForAFlagAddsItsPeriodToItsEnd(t *testing.T) {
+func TestThePaymentOfAFlagsHolderAddsItsPeriodToItsEnd(t *testing.T) {
 	f := newFixture()
-	require.NoError(t, f.flags.Save(t.Context(), catalog.OpenFlag("r-0000000001", "Rennes", now)))
+	require.NoError(t, f.flags.Save(t.Context(), catalog.HeldFlag("r-0000000001", "Rennes", founder, now)))
 
 	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Year)))
 
@@ -129,11 +135,17 @@ func TestAPaymentForAFlagAddsItsPeriodToItsEnd(t *testing.T) {
 	assert.Empty(t, f.outbox.Recorded())
 }
 
-func TestAPaymentWithinThirtyDaysOpensAClosedFlagAgain(t *testing.T) {
+// ended is Rennes, held by the founder, whose time ended two years ago.
+func (f fixture) ended(t *testing.T) {
+	t.Helper()
+	flag, ok := catalog.HeldFlag("r-0000000001", "Rennes", founder, now.AddDate(-2, 0, 0)).Expired(now.AddDate(-2, 1, 0))
+	require.True(t, ok)
+	require.NoError(t, f.flags.Save(t.Context(), flag))
+}
+
+func TestTheHoldersPaymentOpensItsFlagAgainHoweverLongAgoItEnded(t *testing.T) {
 	f := newFixture()
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-40*24*time.Hour)).Closed("Broke the rules.", now.Add(-10*24*time.Hour))
-	require.NoError(t, err)
-	require.NoError(t, f.flags.Save(t.Context(), closed))
+	f.ended(t)
 
 	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Week)))
 
@@ -147,18 +159,100 @@ func TestAPaymentWithinThirtyDaysOpensAClosedFlagAgain(t *testing.T) {
 	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
 }
 
-func TestAPaymentPastTheThirtyDaysGrantsNothing(t *testing.T) {
+func TestAnotherAccountsPaymentClaimsAFlagWhoseTimeEnded(t *testing.T) {
 	f := newFixture()
-	closed, err := catalog.OpenFlag("r-0000000001", "Rennes", now.Add(-90*24*time.Hour)).Closed("Broke the rules.", now.Add(-30*24*time.Hour))
+	f.ended(t)
+
+	require.NoError(t, f.grant.Execute(t.Context(),
+		paidBy("stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Week, other, now.Add(-time.Minute))))
+
+	flag := f.flag(t, "r-0000000001")
+	assert.Equal(t, catalog.Open, flag.State)
+	assert.Equal(t, other, flag.Holder, "the claim makes the payer its holder")
+	assert.Equal(t, now.AddDate(0, 0, 7), flag.EndsAt)
+	assert.Equal(t, catalog.Name("Rennes"), flag.Name, "the same flag, with no review")
+	require.Len(t, f.outbox.Recorded(), 1)
+}
+
+func TestALateRenewalOfTheOldHolderIsRefusedOnceAnotherAccountClaimedTheFlag(t *testing.T) {
+	f := newFixture()
+	f.ended(t)
+	f.submissions.Seed(opened(founder))
+	require.NoError(t, f.grant.Execute(t.Context(),
+		paidBy("stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Month, other, now.Add(-time.Minute))))
+
+	err := f.grant.Execute(t.Context(),
+		paidBy("stripe:in_9", submissionTarget(t), grants.Month, founder, now.AddDate(-2, 0, 0)))
+
+	require.ErrorIs(t, err, grants.ErrRefused)
+	require.ErrorIs(t, err, catalog.ErrHeld)
+	assert.Equal(t, now.AddDate(0, 1, 0), f.flag(t, "r-0000000001").EndsAt, "the claim's month alone")
+	assert.Equal(t, other, f.flag(t, "r-0000000001").Holder)
+}
+
+func TestALateRenewalOrderedBeforeTheFlagEndedClaimsNothing(t *testing.T) {
+	f := newFixture()
+	f.ended(t)
+	f.submissions.Seed(opened(founder))
+	require.NoError(t, f.grant.Execute(t.Context(),
+		paidBy("stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Week, other, now.Add(-time.Minute))))
+	f.clock.Advance(30 * 24 * time.Hour)
+	expired, ok := f.flagged(t, "r-0000000001").Expired(f.clock.Now())
+	require.True(t, ok)
+	require.NoError(t, f.flags.Save(t.Context(), expired))
+
+	err := f.grant.Execute(t.Context(),
+		paidBy("stripe:in_9", submissionTarget(t), grants.Month, founder, now.AddDate(-2, 0, 0)))
+
+	require.ErrorIs(t, err, catalog.ErrOrderedBefore, "the founder's plan was bought before the claim")
+	assert.Equal(t, catalog.Closed, f.flag(t, "r-0000000001").State)
+	assert.Equal(t, other, f.flag(t, "r-0000000001").Holder)
+}
+
+func TestARefundOfTheOldHoldersPaymentLeavesTheClaimsTime(t *testing.T) {
+	f := newFixture()
+	f.approve()
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Week)))
+	f.clock.Advance(8 * 24 * time.Hour)
+	expired, ok := f.flagged(t, "r-0000000001").Expired(f.clock.Now())
+	require.True(t, ok)
+	require.NoError(t, f.flags.Save(t.Context(), expired))
+	claim := paidBy("stripe:cs_2", flagTarget(t, "r-0000000001"), grants.Month, other, f.clock.Now())
+	claim.At = f.clock.Now()
+	require.NoError(t, f.grant.Execute(t.Context(), claim))
+
+	require.NoError(t, f.takeBack.Execute(t.Context(), "stripe:cs_1"))
+
+	flag := f.flag(t, "r-0000000001")
+	assert.Equal(t, catalog.Open, flag.State, "the founder's week was spent before the claim")
+	assert.Equal(t, f.clock.Now().AddDate(0, 1, 0), flag.EndsAt)
+}
+
+func TestAPaymentForARemovedFlagGrantsNothing(t *testing.T) {
+	f := newFixture()
+	removed, err := catalog.HeldFlag("r-0000000001", "Rennes", founder, now.Add(-40*24*time.Hour)).Removed("Broke the rules.", now.Add(-10*24*time.Hour))
 	require.NoError(t, err)
-	require.NoError(t, f.flags.Save(t.Context(), closed))
+	require.NoError(t, f.flags.Save(t.Context(), removed))
 
 	err = f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", flagTarget(t, "r-0000000001"), grants.Week))
 
 	require.ErrorIs(t, err, grants.ErrRefused)
-	require.ErrorIs(t, err, catalog.ErrTooLate)
-	assert.Equal(t, catalog.Closed, f.flag(t, "r-0000000001").State)
+	require.ErrorIs(t, err, catalog.ErrRemoved)
+	assert.Equal(t, catalog.Removed, f.flag(t, "r-0000000001").State)
 	f.refused(t, "stripe:cs_1")
+}
+
+func opened(account catalog.AccountID) submissions.Snapshot {
+	row := submissions.TestWaiting(id, account, now.AddDate(-2, 0, -1))
+	row.State, row.Held, row.Flag = submissions.Opened, false, "r-0000000001"
+	return row
+}
+
+func (f fixture) flagged(t *testing.T, id catalog.FlagID) catalog.Flag {
+	t.Helper()
+	flag, err := f.flags.Flag(t.Context(), id)
+	require.NoError(t, err)
+	return flag
 }
 
 // refused checks the payment bought nothing for good, and that the shop is told to refund it.

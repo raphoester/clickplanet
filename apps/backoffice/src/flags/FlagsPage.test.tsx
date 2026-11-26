@@ -47,7 +47,7 @@ function fill(name: string, ends: Date, latitude = "48.1173", longitude = "-1.67
 }
 
 describe("FlagsPage", () => {
-    it("lists the sold flags alone, each open one with its days left and each closed one with its comeback", async () => {
+    it("lists the sold flags alone, each open one with its days left and each ended one free to claim", async () => {
         const admin = new FakeAdmin()
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
 
@@ -62,11 +62,10 @@ describe("FlagsPage", () => {
             .toBe("https://clickplanet.lol/play?lat=48.1374&lon=11.5755&zoom=20")
 
         const savoy = await card("Savoy")
-        expect(within(savoy).getByText("Closed", {selector: ".status"})).toBeTruthy()
+        expect(within(savoy).getByText("Ended", {selector: ".status"})).toBeTruthy()
         expect(within(savoy).getByText(timeOf(later(-3)))).toBeTruthy()
-        expect(within(savoy).getByText(timeOf(later(27)))).toBeTruthy()
-        expect((within(savoy).getByRole("button", {name: "Close"}) as HTMLButtonElement).disabled).toBe(true)
-        expect(within(savoy).queryByLabelText(/^Note to its founder/)).toBeNull()
+        expect(within(savoy).getByText("any player may pay for it and hold it")).toBeTruthy()
+        expect(within(savoy).getByLabelText(/^Note to its holder/)).toBeTruthy()
 
         expect(screen.getByText("2 sold flags, 1 open")).toBeTruthy()
         expect(screen.queryByRole("heading", {name: "France"})).toBeNull()
@@ -220,7 +219,7 @@ describe("FlagsPage", () => {
         expect(admin.askedFor("listFlags")).toHaveLength(2)
     })
 
-    it("opens a flag closed less than 30 days ago again", async () => {
+    it("opens a flag whose time ended again", async () => {
         const admin = new FakeAdmin()
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const savoy = await card("Savoy")
@@ -235,52 +234,61 @@ describe("FlagsPage", () => {
         expect(within(savoy).getByText("Open", {selector: ".status"})).toBeTruthy()
     })
 
-    it("adds no days to a flag closed over 30 days ago", async () => {
+    it("shows a removed flag, which only Add days brings back while no new flag took its name", async () => {
         const admin = new FakeAdmin()
-        admin.flags.listed = [soldFlag("r-tyrol00001", "Tyrol", later(-40), later(-40))]
+        admin.flags.listed = [
+            soldFlag("r-tyrol00001", "Tyrol", later(-40), later(-40), undefined, undefined, true),
+            soldFlag("r-tyrol00002", "TYROL", later(20)),
+        ]
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const tyrol = await card("Tyrol")
 
-        expect(within(tyrol).getByText("no more: closed over 30 days ago")).toBeTruthy()
-        expect((within(tyrol).getByRole("button", {name: "Add days"}) as HTMLButtonElement).disabled).toBe(true)
+        expect(within(tyrol).getByText("Removed", {selector: ".status"})).toBeTruthy()
+        expect(within(tyrol).getByText("nobody may pay for it; its name is free")).toBeTruthy()
+        expect((within(tyrol).getByRole("button", {name: "Remove"}) as HTMLButtonElement).disabled).toBe(true)
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Add days"}))
+        fireEvent.click(within(tyrol).getByRole("button", {name: "Yes, add days"}))
+
+        expect(await within(tyrol).findByText("A new flag took its name since it was removed: rename one of them first."))
+            .toBeTruthy()
     })
 
-    it("closes an open flag once asked, and reads the list again", async () => {
+    it("removes an open flag once asked, and reads the list again", async () => {
         const admin = new FakeAdmin()
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const bavaria = await card("Bavaria")
 
-        const close = within(bavaria).getByRole("button", {name: "Close"}) as HTMLButtonElement
-        expect(close.disabled).toBe(true)
-        const note = within(bavaria).getByLabelText(/^Note to its founder/) as HTMLTextAreaElement
+        const remove = within(bavaria).getByRole("button", {name: "Remove"}) as HTMLButtonElement
+        expect(remove.disabled).toBe(true)
+        const note = within(bavaria).getByLabelText(/^Note to its holder/) as HTMLTextAreaElement
         fireEvent.change(note, {target: {value: "x".repeat(501)}})
         expect(within(bavaria).getByText("A note of 500 characters at most.")).toBeTruthy()
-        expect(close.disabled).toBe(true)
+        expect(remove.disabled).toBe(true)
         fireEvent.change(note, {target: {value: "  A club's crest, not a place.  "}})
-        expect(within(bavaria).getByText("Note to its founder · 28/500")).toBeTruthy()
+        expect(within(bavaria).getByText("Note to its holder · 28/500")).toBeTruthy()
 
-        fireEvent.click(close)
-        expect(within(bavaria).getByRole("group", {name: "Close"}).textContent).toContain("Its founder reads your note")
+        fireEvent.click(remove)
+        expect(within(bavaria).getByRole("group", {name: "Remove"}).textContent).toContain("Its holder reads your note")
         expect(admin.askedFor("closeFlag")).toEqual([])
-        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, remove"}))
 
-        expect(await within(bavaria).findByText(`Closed. Time added until ${timeOf(later(30))} opens it again.`)).toBeTruthy()
+        expect(await within(bavaria).findByText("Removed.")).toBeTruthy()
         expect(admin.askedFor("closeFlag")).toEqual([{code: "r-k3p9x2ma0b", note: "A club's crest, not a place."}])
-        expect(await within(bavaria).findByText("Closed", {selector: ".status"})).toBeTruthy()
+        expect(await within(bavaria).findByText("Removed", {selector: ".status"})).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(2)
     })
 
-    it("says the server's refusal of a close", async () => {
+    it("says the server's refusal of a removal", async () => {
         const admin = new FakeAdmin()
         admin.refuse("closeFlag", Code.FailedPrecondition)
         render(<FlagsPage flags={admin.flags} put={putting(admin)}/>)
         const bavaria = await card("Bavaria")
 
-        fireEvent.change(within(bavaria).getByLabelText(/^Note to its founder/), {target: {value: "Broke the rules."}})
-        fireEvent.click(within(bavaria).getByRole("button", {name: "Close"}))
-        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, close"}))
+        fireEvent.change(within(bavaria).getByLabelText(/^Note to its holder/), {target: {value: "Broke the rules."}})
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Remove"}))
+        fireEvent.click(within(bavaria).getByRole("button", {name: "Yes, remove"}))
 
-        expect(await within(bavaria).findByText("It is closed already.")).toBeTruthy()
+        expect(await within(bavaria).findByText("It is removed already.")).toBeTruthy()
         expect(admin.askedFor("listFlags")).toHaveLength(1)
     })
 

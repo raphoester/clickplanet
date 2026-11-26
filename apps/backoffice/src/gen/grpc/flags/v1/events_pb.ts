@@ -69,7 +69,8 @@ export class FlagOpened extends Message<FlagOpened> {
 }
 
 /**
- * No player may play for the flag from closed_at. It stays in the catalog: history still names it.
+ * No player may play for the flag from closed_at: its time ended, or the operator removed it. It stays in the catalog:
+ * history still names it. A flag removed after its end is told closed again.
  *
  * @generated from message flags.v1.FlagClosed
  */
@@ -258,7 +259,7 @@ export class SubmissionRejected extends Message<SubmissionRejected> {
 
 /**
  * A payment the rules refused bought no time: a submission rejected or replaced, a name another flag took since, a
- * flag closed 30 days ago or more. The shop refunds it.
+ * removed flag, an open flag another account holds, or a flag whose time ended after the order. The shop refunds it.
  *
  * @generated from message flags.v1.TimeRefused
  */

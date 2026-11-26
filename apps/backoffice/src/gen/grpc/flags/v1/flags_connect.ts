@@ -70,8 +70,8 @@ export const FlagService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; and why the
-     * operator closed each flag it founded before its end. None for a guest.
+     * The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; the flags
+     * it holds; and why the operator removed each flag it holds. None for a guest.
      *
      * @generated from rpc flags.v1.FlagService.ListMySubmissions
      */

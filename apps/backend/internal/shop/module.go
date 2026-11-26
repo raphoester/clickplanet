@@ -121,9 +121,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to flags.v1.SubmissionRejected: %w", err)
 	}
-	// A payment the flags module refused bought nothing: it is refunded.
+	// A payment the flags module refused bought nothing: it is refunded, and its renewal cancelled.
 	refused, err := cpredis.Subscribe(ctx, streams, "shop-refund-refused", refused_subscriber.New(
-		log_refund_refused.New(refund_refused_usecase.New(paid, stripeAPI), props.Logger)))
+		log_refund_refused.New(refund_refused_usecase.New(paid, renewed, stripeAPI), props.Logger)))
 	if err != nil {
 		_ = streams.Close()
 		_ = db.Close()

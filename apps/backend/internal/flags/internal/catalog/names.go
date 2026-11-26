@@ -10,8 +10,8 @@ import (
 
 var ErrNameTaken = errors.New("another flag has this name")
 
-// Names is every name a player reads for a flag, the game's own and the ones opened since: two flags never share one,
-// whatever its case.
+// Names is every name a player reads for a flag, the game's own and the ones opened since, open or closed: two flags
+// never share one, whatever its case. A removed flag's name is free for a new flag.
 type Names struct {
 	taken map[string]FlagID
 }
@@ -23,7 +23,9 @@ func NamesOf(flags []Flag) Names {
 		taken[strings.ToLower(flag.Name)] = ""
 	}
 	for _, flag := range flags {
-		taken[strings.ToLower(flag.name.String())] = flag.id
+		if flag.state != Removed {
+			taken[strings.ToLower(flag.name.String())] = flag.id
+		}
 	}
 	return Names{taken: taken}
 }

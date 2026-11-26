@@ -6,12 +6,13 @@ import (
 	"connectrpc.com/connect"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type Query interface {
-	Mine(ctx context.Context, account submissions.AccountID) (*flagsv1.ListMySubmissionsResponse, error)
+	Mine(ctx context.Context, account catalog.AccountID) (*flagsv1.ListMySubmissionsResponse, error)
 }
 
 func New(query Query) ListMySubmissionsHandler {

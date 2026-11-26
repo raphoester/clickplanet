@@ -28,7 +28,7 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 			at := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
 			flag := catalog.OpenFlag("r-0000000001", "Rennes", at)
 			require.NoError(t, postgres_flag_store.New(db).Save(t.Context(), flag))
-			submission := submissions.Restored(submissions.TestWaiting(paidFor, submissions.AccountID{7}, at))
+			submission := submissions.Restored(submissions.TestWaiting(paidFor, catalog.AccountID{7}, at))
 			require.NoError(t, postgres_submission_store.New(db).Save(t.Context(), submission))
 			return inTx{db: db, store: postgres_grant_store.New(db)}
 		},

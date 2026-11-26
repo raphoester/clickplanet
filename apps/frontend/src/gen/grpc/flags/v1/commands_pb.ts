@@ -8,9 +8,9 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { TimePeriod, TimeTarget } from "./time_pb.js";
 
 /**
- * Time paid for. An approved submission's flag opens for the period; an open flag ends a period later; a flag closed
- * less than 30 days ago opens again for the period. grant_id names the payment: told twice, it grants once, and one
- * taken back before it came grants nothing.
+ * Time paid for. An approved submission's flag opens for the period; the holder's open flag ends a period later; a
+ * flag whose time ended opens again for the period, and its payer holds it from then, when the order was placed after
+ * it ended. grant_id names the payment: told twice, it grants once, and one taken back before it came grants nothing.
  *
  * @generated from message flags.v1.GrantTime
  */
@@ -35,6 +35,20 @@ export class GrantTime extends Message<GrantTime> {
    */
   paidAt?: Timestamp;
 
+  /**
+   * The account that paid.
+   *
+   * @generated from field: string account_id = 5;
+   */
+  accountId = "";
+
+  /**
+   * When the order was placed: each renewal of a plan names its first order.
+   *
+   * @generated from field: google.protobuf.Timestamp ordered_at = 6;
+   */
+  orderedAt?: Timestamp;
+
   constructor(data?: PartialMessage<GrantTime>) {
     super();
     proto3.util.initPartial(data, this);
@@ -47,6 +61,8 @@ export class GrantTime extends Message<GrantTime> {
     { no: 2, name: "target", kind: "message", T: TimeTarget },
     { no: 3, name: "period", kind: "enum", T: proto3.getEnumType(TimePeriod) },
     { no: 4, name: "paid_at", kind: "message", T: Timestamp },
+    { no: 5, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "ordered_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantTime {

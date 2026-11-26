@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -19,7 +20,7 @@ type Gallery interface {
 }
 
 type Submissions interface {
-	Founded(ctx context.Context, account submissions.AccountID) ([]submissions.Submission, error)
+	Founded(ctx context.Context, account catalog.AccountID) ([]submissions.Submission, error)
 	Save(ctx context.Context, submissions ...submissions.Submission) error
 	DeleteWaiting(ctx context.Context, id submissions.SubmissionID) error
 }

@@ -223,7 +223,7 @@ export class CreateCheckoutRequest extends Message<CreateCheckoutRequest> {
     case: "submissionId";
   } | {
     /**
-     * A flag the caller founded.
+     * A flag the caller holds, or one whose time ended, which the payment claims.
      *
      * @generated from field: string flag = 3;
      */

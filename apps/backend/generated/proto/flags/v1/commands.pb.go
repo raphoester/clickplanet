@@ -22,15 +22,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Time paid for. An approved submission's flag opens for the period; an open flag ends a period later; a flag closed
-// less than 30 days ago opens again for the period. grant_id names the payment: told twice, it grants once, and one
-// taken back before it came grants nothing.
+// Time paid for. An approved submission's flag opens for the period; the holder's open flag ends a period later; a
+// flag whose time ended opens again for the period, and its payer holds it from then, when the order was placed after
+// it ended. grant_id names the payment: told twice, it grants once, and one taken back before it came grants nothing.
 type GrantTime struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	GrantId       string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
-	Target        *TimeTarget            `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
-	Period        TimePeriod             `protobuf:"varint,3,opt,name=period,proto3,enum=flags.v1.TimePeriod" json:"period,omitempty"`
-	PaidAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=paid_at,json=paidAt,proto3" json:"paid_at,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	GrantId string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	Target  *TimeTarget            `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Period  TimePeriod             `protobuf:"varint,3,opt,name=period,proto3,enum=flags.v1.TimePeriod" json:"period,omitempty"`
+	PaidAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=paid_at,json=paidAt,proto3" json:"paid_at,omitempty"`
+	// The account that paid.
+	AccountId string `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// When the order was placed: each renewal of a plan names its first order.
+	OrderedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=ordered_at,json=orderedAt,proto3" json:"ordered_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -89,6 +93,20 @@ func (x *GrantTime) GetPeriod() TimePeriod {
 func (x *GrantTime) GetPaidAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.PaidAt
+	}
+	return nil
+}
+
+func (x *GrantTime) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GrantTime) GetOrderedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OrderedAt
 	}
 	return nil
 }
@@ -152,12 +170,16 @@ var File_flags_v1_commands_proto protoreflect.FileDescriptor
 
 const file_flags_v1_commands_proto_rawDesc = "" +
 	"\n" +
-	"\x17flags/v1/commands.proto\x12\bflags.v1\x1a\x13flags/v1/time.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
+	"\x17flags/v1/commands.proto\x12\bflags.v1\x1a\x13flags/v1/time.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x91\x02\n" +
 	"\tGrantTime\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12,\n" +
 	"\x06target\x18\x02 \x01(\v2\x14.flags.v1.TimeTargetR\x06target\x12,\n" +
 	"\x06period\x18\x03 \x01(\x0e2\x14.flags.v1.TimePeriodR\x06period\x123\n" +
-	"\apaid_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06paidAt\"d\n" +
+	"\apaid_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06paidAt\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x05 \x01(\tR\taccountId\x129\n" +
+	"\n" +
+	"ordered_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\torderedAt\"d\n" +
 	"\fTakeBackTime\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x129\n" +
 	"\n" +
@@ -188,12 +210,13 @@ var file_flags_v1_commands_proto_depIdxs = []int32{
 	2, // 0: flags.v1.GrantTime.target:type_name -> flags.v1.TimeTarget
 	3, // 1: flags.v1.GrantTime.period:type_name -> flags.v1.TimePeriod
 	4, // 2: flags.v1.GrantTime.paid_at:type_name -> google.protobuf.Timestamp
-	4, // 3: flags.v1.TakeBackTime.decided_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 3: flags.v1.GrantTime.ordered_at:type_name -> google.protobuf.Timestamp
+	4, // 4: flags.v1.TakeBackTime.decided_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_commands_proto_init() }

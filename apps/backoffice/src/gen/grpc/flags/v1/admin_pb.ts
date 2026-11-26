@@ -323,9 +323,8 @@ export class CloseFlagRequest extends Message<CloseFlagRequest> {
   code = "";
 
   /**
-   * Required, 1 to 500 characters: why the flag closes before its end, in the operator's own words. Its founder reads
-   * it, as the EU's rules for online platforms ask; nobody else does. Time added within 30 days opens the flag again
-   * and drops the note.
+   * Required, 1 to 500 characters: why the flag is removed, in the operator's own words. Its holder reads it, as the
+   * EU's rules for online platforms ask; nobody else does. AddTime opens the flag again and drops the note.
    *
    * @generated from field: string note = 2;
    */

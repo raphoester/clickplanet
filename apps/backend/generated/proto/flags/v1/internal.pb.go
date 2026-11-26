@@ -75,7 +75,10 @@ func (x *GetPayableRequest) GetTarget() *TimeTarget {
 
 // The account may pay.
 type GetPayableResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every target whose time goes to the same flag: the target asked, and the flag or the submission that opened it. A
+	// renewal of any of them, whoever bought it, still pays for the flag: no second plan is sold while one runs.
+	SameFlag      []*TimeTarget `protobuf:"bytes,1,rep,name=same_flag,json=sameFlag,proto3" json:"same_flag,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,6 +113,13 @@ func (*GetPayableResponse) Descriptor() ([]byte, []int) {
 	return file_flags_v1_internal_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *GetPayableResponse) GetSameFlag() []*TimeTarget {
+	if x != nil {
+		return x.SameFlag
+	}
+	return nil
+}
+
 var File_flags_v1_internal_proto protoreflect.FileDescriptor
 
 const file_flags_v1_internal_proto_rawDesc = "" +
@@ -118,8 +128,9 @@ const file_flags_v1_internal_proto_rawDesc = "" +
 	"\x11GetPayableRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12,\n" +
-	"\x06target\x18\x02 \x01(\v2\x14.flags.v1.TimeTargetR\x06target\"\x14\n" +
-	"\x12GetPayableResponse2_\n" +
+	"\x06target\x18\x02 \x01(\v2\x14.flags.v1.TimeTargetR\x06target\"G\n" +
+	"\x12GetPayableResponse\x121\n" +
+	"\tsame_flag\x18\x01 \x03(\v2\x14.flags.v1.TimeTargetR\bsameFlag2_\n" +
 	"\x0fInternalService\x12L\n" +
 	"\n" +
 	"GetPayable\x12\x1b.flags.v1.GetPayableRequest\x1a\x1c.flags.v1.GetPayableResponse\"\x03\x90\x02\x01B\xae\x01\n" +
@@ -145,13 +156,14 @@ var file_flags_v1_internal_proto_goTypes = []any{
 }
 var file_flags_v1_internal_proto_depIdxs = []int32{
 	2, // 0: flags.v1.GetPayableRequest.target:type_name -> flags.v1.TimeTarget
-	0, // 1: flags.v1.InternalService.GetPayable:input_type -> flags.v1.GetPayableRequest
-	1, // 2: flags.v1.InternalService.GetPayable:output_type -> flags.v1.GetPayableResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: flags.v1.GetPayableResponse.same_flag:type_name -> flags.v1.TimeTarget
+	0, // 2: flags.v1.InternalService.GetPayable:input_type -> flags.v1.GetPayableRequest
+	1, // 3: flags.v1.InternalService.GetPayable:output_type -> flags.v1.GetPayableResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_internal_proto_init() }
