@@ -3,39 +3,7 @@
     max-width: 560px;
 }
 
-.shop-product {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    padding: 3px;
-    text-align: left;
-}
-
-.shop-product-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-}
-
-.shop-product-picture {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 64px;
-    height: 56px;
-    font-size: 48px;
-}
-
-.shop-product-picture img {
-    max-width: 100%;
-    max-height: 100%;
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: var(--radius-xs);
-    box-shadow: var(--drop-xs);
-}
-
-/* The product with no flag of the player's yet: a gold coin. */
+/* The region's flag for sale: a gold coin. */
 .shop-coin {
     display: flex;
     align-items: center;
@@ -48,31 +16,6 @@
     border: var(--outline) solid var(--ink);
     border-radius: 50%;
     box-shadow: var(--drop-s), inset -3px -4px 0 var(--gold-shade), inset 3px 3px 0 color-mix(in srgb, var(--text) 55%, transparent);
-}
-
-.shop-product-title {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-1);
-    min-width: 0;
-}
-
-.shop-product-name {
-    margin: 0;
-    padding-top: 3px;
-    font-family: var(--font-display);
-    font-size: var(--display-l);
-    font-weight: normal;
-    line-height: 1.05;
-    color: var(--text);
-    text-shadow: var(--text-drop);
-    overflow-wrap: anywhere;
-}
-
-.shop-product-line {
-    font-size: var(--text-m);
-    color: var(--text-soft);
 }
 
 .shop-perks {
@@ -288,81 +231,6 @@
     flex: 1 1 auto;
 }
 
-.shop-go {
-    width: 100%;
-}
-
-.shop-note {
-    margin: 0;
-    font-size: var(--text-m);
-    color: var(--text-soft);
-    text-align: center;
-}
-
-/* A new flag's way to the globe; gold up to where it is. */
-.shop-steps {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.shop-step {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-1);
-    font-weight: 600;
-    font-size: var(--text-xs);
-    line-height: 1.2;
-    color: var(--text-muted);
-    text-align: center;
-}
-
-.shop-step + .shop-step::before {
-    content: "";
-    position: absolute;
-    top: 10px;
-    right: calc(50% + 15px);
-    width: calc(100% + var(--space-2) - 30px);
-    height: 4px;
-    background: var(--panel-sunk);
-    border-radius: var(--radius-pill);
-}
-
-.shop-step--done + .shop-step::before {
-    background: var(--gold);
-}
-
-.shop-step-coin {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    width: 24px;
-    height: 24px;
-    color: var(--text-muted);
-    background: var(--panel-sunk);
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: 50%;
-    font-weight: 700;
-}
-
-.shop-step--now,
-.shop-step--done {
-    color: var(--text);
-}
-
-.shop-step--now .shop-step-coin,
-.shop-step--done .shop-step-coin {
-    color: var(--gold-ink);
-    background: var(--gold);
-    box-shadow: inset -2px -2px 0 var(--gold-shade);
-}
-
 .shop-trust {
     display: flex;
     align-items: center;
@@ -396,10 +264,6 @@
 @media (max-width: 480px) {
     .modal-content.shop-modal {
         padding: var(--space-4);
-    }
-
-    .shop-product-name {
-        font-size: var(--display-m);
     }
 
     .shop-plan-amount {

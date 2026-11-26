@@ -26,14 +26,12 @@ afterEach(() => {
 })
 
 describe("returnFromShop", () => {
-    it("says a payment, closes the flag's place and the shop, and reads the submissions every 3 seconds until the flag opens", () => {
-        useFlagForm.getState().show()
-        useScreen.getState().setShopOpen(true)
+    it("says a payment, closes the flag's place, and reads the submissions every 3 seconds until the flag opens", () => {
+        useFlagForm.getState().open()
         const stop = returnFromShop("paid")
 
         expect(newestNews(useNews.getState())).toMatchObject({kind: "shop", back: "paid"})
         expect(useFlagForm.getState().shown).toBe(false)
-        expect(useScreen.getState().shopOpen).toBe(false)
 
         vi.advanceTimersByTime(PAID_READ_EVERY_MS * 2)
         expect(refresh).toHaveBeenCalledTimes(2)

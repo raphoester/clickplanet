@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest"
-import {FlagCatalog, type SoldFlag} from "./flags.ts"
+import type {SoldFlag} from "./flags.ts"
 import type {Submission} from "./flagSubmissions.ts"
 import {
-    awaitsPayment, bestValueOf, canAddTime, COMEBACK_MS, flagRenewal, flagTimeOf, offerOf, payable, pickedOf, PlanPrice,
+    awaitsPayment, bestValueOf, canAddTime, COMEBACK_MS, flagRenewal, flagTimeOf, payable, pickedOf, PlanPrice,
     Renewal, savingOf, perDayOf,
 } from "./shop.ts"
 
@@ -97,49 +97,5 @@ describe("the plans side by side", () => {
         expect(pickedOf(PLANS, "week")).toBe(WEEK)
         expect(pickedOf([WEEK, MONTH], "year")).toBe(MONTH)
         expect(pickedOf([], "week")).toBeUndefined()
-    })
-})
-
-describe("offerOf", () => {
-    const FLAG = "r-k3p9x2ma0b"
-    const catalog = (changes: Partial<SoldFlag> = {}, closed = false) =>
-        FlagCatalog.BUILT_IN.withFlags([{code: FLAG, name: "Bavaria", closed, sold: sold(changes)}])
-    const opened = submission({id: "s-0", state: "opened", flag: FLAG})
-
-    it("sells the opening of an approved flag not paid first", () => {
-        expect(offerOf([submission({id: "s-2", state: "waiting"}), submission(), opened], catalog(), [], NOW))
-            .toEqual({kind: "open", submission: submission()})
-    })
-
-    it("sells a flag sent the time it starts with once approved", () => {
-        const waiting = submission({state: "waiting"})
-        expect(offerOf([waiting, opened], catalog(), [], NOW)).toEqual({kind: "pay", submission: waiting})
-    })
-
-    it("sells nothing more for a flag paid, while it is checked and as it opens", () => {
-        const paid = submission({state: "waiting", paid: true})
-        const approved = submission({paid: true})
-        expect(offerOf([paid, opened], catalog(), [], NOW)).toEqual({kind: "checking", submission: paid})
-        expect(offerOf([approved, opened], catalog(), [], NOW)).toEqual({kind: "checking", submission: approved})
-    })
-
-    it("sells time for a founded flag, open, closed less than 30 days ago, or whose renewal stops", () => {
-        expect(offerOf([opened], catalog(), [], NOW))
-            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "open", endsAt: NOW + 5}})
-        expect(offerOf([opened], catalog({closedAt: NOW - 1}, true), [], NOW))
-            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "closed", closedAt: NOW - 1}})
-        expect(offerOf([opened], catalog(), [renewal({state: "stopping"})], NOW))
-            .toEqual({kind: "addTime", flag: FLAG, time: {kind: "stopping", renewal: renewal({state: "stopping"})}})
-    })
-
-    it("sells no second plan while a renewal runs", () => {
-        expect(offerOf([opened], catalog(), [renewal()], NOW))
-            .toEqual({kind: "renewing", flag: FLAG, time: {kind: "renews", renewal: renewal()}})
-    })
-
-    it("sells a new flag to an account with none to pay for", () => {
-        expect(offerOf([], catalog(), [], NOW)).toEqual({kind: "new"})
-        expect(offerOf([submission({state: "rejected"})], catalog(), [], NOW)).toEqual({kind: "new"})
-        expect(offerOf([opened], catalog({closedAt: NOW - COMEBACK_MS}, true), [], NOW)).toEqual({kind: "new"})
     })
 })

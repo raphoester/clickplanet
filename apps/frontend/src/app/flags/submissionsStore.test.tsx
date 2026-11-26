@@ -6,7 +6,7 @@ import {Submission} from "../../domain/flagSubmissions.ts"
 import {FlagCatalog} from "../../domain/flags.ts"
 import {newestNews, useNews} from "../news/newsStore.ts"
 import {useFlags} from "./flagsStore.ts"
-import {useFlagSubmissions, useFlagSubmissionsFeed, Who} from "./submissionsStore.ts"
+import {useFlagSubmissions, useFlagSubmissionsFeed, useVerdictReads, VERDICT_READ_EVERY_MS, VERDICT_READ_FOR_MS, Who} from "./submissionsStore.ts"
 
 const TOLD_KEY = "clickplanet-flag-submissions-told"
 
@@ -157,5 +157,38 @@ describe("the flag submissions feed", () => {
         act(() => useFlagSubmissions.getState().submitted(submission("b")))
 
         expect(useFlagSubmissions.getState().submissions.map(({id}) => id)).toEqual(["b", "a"])
+    })
+
+    it("puts a change sent in the place of the submission it replaced", async () => {
+        feed(submitterOf([submission("a"), submission("x", {state: "rejected"})]))
+        await settled()
+
+        act(() => useFlagSubmissions.getState().submitted(submission("b"), "a"))
+
+        expect(useFlagSubmissions.getState().submissions.map(({id}) => id)).toEqual(["b", "x"])
+    })
+})
+
+describe("the verdict reads", () => {
+    afterEach(() => vi.useRealTimers())
+
+    it("read the submissions every 3 seconds while one waits, for two minutes at most", () => {
+        vi.useFakeTimers()
+        const refresh = vi.fn()
+        useFlagSubmissions.setState({refresh})
+        const {rerender, unmount} = renderHook(({waiting}: {waiting: boolean}) => useVerdictReads(waiting), {initialProps: {waiting: true}})
+
+        vi.advanceTimersByTime(VERDICT_READ_EVERY_MS * 2)
+        expect(refresh).toHaveBeenCalledTimes(2)
+
+        rerender({waiting: false})
+        vi.advanceTimersByTime(VERDICT_READ_EVERY_MS * 3)
+        expect(refresh, "no read once it is decided").toHaveBeenCalledTimes(2)
+
+        rerender({waiting: true})
+        vi.advanceTimersByTime(VERDICT_READ_FOR_MS + VERDICT_READ_EVERY_MS * 5)
+        expect(refresh).toHaveBeenCalledTimes(2 + VERDICT_READ_FOR_MS / VERDICT_READ_EVERY_MS - 1)
+        unmount()
+        useFlagSubmissions.setState(useFlagSubmissions.getInitialState(), true)
     })
 })

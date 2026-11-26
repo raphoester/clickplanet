@@ -1,4 +1,5 @@
 import type {Pin} from "../../domain/flags.ts"
+import type {PinnedPlace} from "./flagFormStore.ts"
 import {t, translator} from "../../i18n/page.ts"
 
 export function coordinatesOf({latitude, longitude}: Pin): string {
@@ -9,4 +10,8 @@ export function coordinatesOf({latitude, longitude}: Pin): string {
         longitude: degrees(longitude),
         east: longitude >= 0 ? "yes" : "no",
     })
+}
+
+export function capitalOf({pin, place}: PinnedPlace): string {
+    return place ?? coordinatesOf(pin)
 }

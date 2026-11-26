@@ -20,8 +20,6 @@ export type PlanOfferProps = {
     toCheckout: (url: string) => void
     // Back to what was there before the plans.
     onBack?: () => void
-    // A checkout that failed before this offer showed.
-    failed?: PayFailure
 }
 
 const FAILURES: Record<PayFailure, Key> = {
@@ -33,12 +31,12 @@ const FAILURES: Record<PayFailure, Key> = {
 }
 
 // The plans, the buyer's consent that the time starts once the flag is approved or at once, and Pay, to Stripe's page.
-export default function PlanOffer({shop, plans, target, toCheckout, onBack, failed}: PlanOfferProps) {
+export default function PlanOffer({shop, plans, target, toCheckout, onBack}: PlanOfferProps) {
     const chosen = useShop((store) => store.chosen)
     const choose = useShop((store) => store.choose)
     const [agreed, setAgreed] = useState(false)
     const [paying, setPaying] = useState(false)
-    const [failure, setFailure] = useState<PayFailure | undefined>(failed)
+    const [failure, setFailure] = useState<PayFailure>()
     const picked = pickedOf(plans, chosen)
 
     if (picked === undefined) return null

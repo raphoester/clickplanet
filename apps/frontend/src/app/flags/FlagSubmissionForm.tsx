@@ -1,6 +1,5 @@
 import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError} from "../../backends/flags.ts"
-import {Shop, ShopRefusedError} from "../../backends/shop.ts"
 import {
     flagNameLength,
     flagNameOf,
@@ -12,28 +11,22 @@ import {
     pictureFileRefusal,
     pictureShapeRefusal,
 } from "../../domain/flagSubmissions.ts"
-import {pickedOf} from "../../domain/shop.ts"
 import {t, translator} from "../../i18n/page.ts"
-import {rich} from "../../i18n/rich.tsx"
 import {Key} from "../../i18n/translator.ts"
 import Modal from "../components/Modal.tsx"
 import {CrownIcon, PictureIcon} from "../components/icons.tsx"
 import {useScreen} from "../hud/screenStore.ts"
-import Money from "../shop/Money.tsx"
-import {Consent, FinePrint} from "../shop/PayTerms.tsx"
-import PlanCards from "../shop/PlanCards.tsx"
-import {useShop} from "../shop/shopStore.ts"
 import {sizeLine} from "../support/attachmentLines.ts"
+import {capitalOf, coordinatesOf} from "./coordinates.ts"
+import FlagCard from "./FlagCard.tsx"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
+import FlagPitch from "./FlagPitch.tsx"
 import {useFlagSubmissions} from "./submissionsStore.ts"
-import {coordinatesOf} from "./coordinates.ts"
+import {usePreview} from "./usePreview.ts"
 import "./FlagSubmission.css"
 
 export type FlagSubmissionFormProps = {
     submitter: FlagSubmitter
-    shop: Shop
-    // Stripe's page.
-    toCheckout: (url: string) => void
 }
 
 type Failure = SubmissionRefusal | "upload-failed" | "failed"
@@ -42,8 +35,6 @@ type State =
     | {kind: "writing", failure?: Failure}
     | {kind: "uploading", fraction: number}
     | {kind: "sending"}
-    // Sent, and its payment page asked for.
-    | {kind: "paying"}
 
 const FAILURES: Record<Failure, Key> = {
     "no-session": "support.failure.noSession",
@@ -79,18 +70,15 @@ function readyToSend(draft: Draft, problem: PictureProblem | undefined): boolean
     return isValidFlagName(draft.name) && draft.pinned !== undefined && problem === undefined && draft.file !== undefined
 }
 
-// While the shop sells, the flag is paid as it is sent: the form ends with the plans, the consent and Pay.
-export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSubmissionFormProps) {
+// Step 1, with no price: the flag made and seen as the players will see it. Next sends it, and the review starts while
+// it is paid for.
+export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps) {
     const draft = useFlagForm((form) => form.draft)
     const edit = useFlagForm((form) => form.edit)
     const aim = useFlagForm((form) => form.aim)
     const close = useFlagForm((form) => form.close)
-    const sent = useFlagForm((form) => form.sent)
-    const plans = useShop((store) => store.plans)
-    const chosen = useShop((store) => store.chosen)
-    const choose = useShop((store) => store.choose)
+    const showPaywall = useFlagForm((form) => form.showPaywall)
     const [state, setState] = useState<State>({kind: "writing"})
-    const [agreed, setAgreed] = useState(false)
     const [problem, setProblem] = useState<PictureProblem>()
     const closing = useRef<AbortController>()
     const input = useRef<HTMLInputElement>(null)
@@ -108,8 +96,7 @@ export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSu
 
     const change = draft.replaces !== undefined
     const busy = state.kind !== "writing"
-    const picked = pickedOf(plans, chosen)
-    const canSend = !busy && readyToSend(draft, problem) && (picked === undefined || agreed)
+    const canSend = !busy && readyToSend(draft, problem)
     const length = flagNameLength(draft.name)
     const failure = state.kind === "writing" ? state.failure : undefined
 
@@ -158,22 +145,20 @@ export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSu
                 name: flagNameOf(draft.name), uploadId, pin: pinned.pin, replaces: draft.replaces,
             })
             if (signal?.aborted) return
-            useFlagSubmissions.getState().submitted(submission)
-            if (picked === undefined) {
-                sent()
-                return
-            }
-            setState({kind: "paying"})
-            try {
-                toCheckout(await shop.checkout({plan: picked.plan, target: {kind: "submission", id: submission.id}, startsNow: true}))
-            } catch (e) {
-                if (!(e instanceof ShopRefusedError)) console.error("could not open the payment page", e)
-                if (!signal?.aborted) sent(e instanceof ShopRefusedError ? e.refusal : "failed")
-            }
+            useFlagSubmissions.getState().submitted(submission, draft.replaces)
+            showPaywall(submission, draft)
         } catch (e) {
             if (signal?.aborted) return
             if (!(e instanceof SubmissionRefusedError)) console.error("could not send the flag", e)
-            setState({kind: "writing", failure: e instanceof SubmissionRefusedError ? e.refusal : "failed"})
+            const refusal = e instanceof SubmissionRefusedError ? e.refusal : "failed"
+            // Reviewed while it was changed: its verdict, on its paywall.
+            const reviewed = refusal === "decided" ? replacedOf(draft) : undefined
+            if (reviewed) {
+                useFlagSubmissions.getState().refresh()
+                showPaywall(reviewed)
+                return
+            }
+            setState({kind: "writing", failure: refusal})
         }
     }
 
@@ -184,21 +169,19 @@ export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSu
                 return t("flagSubmission.uploading", {percent: translator().number(state.fraction, {style: "percent"})})
             case "sending":
                 return t("flagSubmission.sending")
-            case "paying":
-                return t("common.loading")
             case "writing":
-                return picked ? rich("shop.payPrice", {price: <Money price={picked}/>}) : t("common.send")
+                return t("common.next")
         }
     }
 
     return <Modal title={change ? t("flagSubmission.changeTitle") : t("flagSubmission.add")}
-                  className={picked ? "shop-modal" : undefined}
                   stayOnBackdropClick={busy || draft.name !== "" || draft.file !== undefined || draft.pinned !== undefined}
                   footer={<button type="submit" form={formId} className="button button-action support-wide" disabled={!canSend}>
                       {sendLabel()}
                   </button>}
                   onClose={close}>
         <form id={formId} className="support-form flag-form" onSubmit={submit} aria-busy={busy}>
+            {!change && <FlagPitch/>}
             <div className="flag-form-label-row">
                 <label className="menu-label" htmlFor={nameId}>{t("flagSubmission.name")}</label>
                 <span id={counterId}
@@ -272,30 +255,13 @@ export default function FlagSubmissionForm({submitter, shop, toCheckout}: FlagSu
                     </button>
                 </div>}
 
-            {picked && <>
-                <span className="menu-label">{t("shop.plans")}</span>
-                <PlanCards plans={plans} picked={picked.plan} disabled={busy} onPick={choose}/>
-                <Consent agreed={agreed} disabled={busy} onAgree={setAgreed}/>
-            </>}
+            <FlagCard name={flagNameOf(draft.name)} picture={preview} capital={draft.pinned && capitalOf(draft.pinned)}/>
 
             {failure && <p className="support-notice" role="alert">{t(FAILURES[failure])}</p>}
-            {picked && <FinePrint renews={picked.renews}/>}
         </form>
     </Modal>
 }
 
-function usePreview(file: File | undefined): string | undefined {
-    const [url, setUrl] = useState<string>()
-
-    useEffect(() => {
-        if (!file) {
-            setUrl(undefined)
-            return
-        }
-        const made = URL.createObjectURL(file)
-        setUrl(made)
-        return () => URL.revokeObjectURL(made)
-    }, [file])
-
-    return url
+function replacedOf({replaces}: Draft) {
+    return useFlagSubmissions.getState().submissions.find(({id}) => id === replaces)
 }

@@ -126,7 +126,6 @@ import {useFlagSubmissionsFeed} from "../flags/submissionsStore.ts";
 import FlagSubmissionPlace from "../flags/FlagSubmissionPlace.tsx";
 import {Shop} from "../../backends/shop.ts";
 import {useShopFeed} from "../shop/shopStore.ts";
-import ShopModal from "../shop/ShopModal.tsx";
 import {useShopReturn} from "../shop/shopReturn.ts";
 import type {ShopReturn} from "../../domain/shopReturn.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
@@ -492,6 +491,8 @@ export default function PlayScreen(props: PlayScreenProps) {
         playerInfo: backends.playerInfo,
         listenForClicks: accepted.listenForClicks,
         clips: backends.clips,
+        shop: backends.shop,
+        toCheckout: backends.toCheckout,
     }
     const share = {
         address,
@@ -622,7 +623,6 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
         <ClosedFlagModal allegiance={allegiance} onPick={pickCountry}/>
-        {ready && <ShopModal shop={backends.shop} toCheckout={backends.toCheckout}/>}
         {ready && <FlagSubmissionPlace account={backends.account}
                                         submitter={backends.flagSubmissions}
                                         shop={backends.shop}

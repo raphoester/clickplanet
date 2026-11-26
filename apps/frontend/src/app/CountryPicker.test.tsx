@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render} from "@testing-library/react"
+import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import CountryPicker from "./CountryPicker.tsx"
+import {useFlagForm} from "./flags/flagFormStore.ts"
 import {useFlags} from "./flags/flagsStore.ts"
+import {useFlagSubmissions} from "./flags/submissionsStore.ts"
 import type {ListedFlag} from "../domain/flags.ts"
 
 const BAVARIA: ListedFlag = {code: "r-k3p9x2ma0b", name: "Bavaria", closed: false}
@@ -12,6 +14,8 @@ const SAVOY: ListedFlag = {code: "r-0a1b2c3d4e", name: "Savoy", closed: true}
 afterEach(() => {
     cleanup()
     useFlags.getState().serve(undefined)
+    useFlagForm.setState(useFlagForm.getInitialState(), true)
+    useFlagSubmissions.setState(useFlagSubmissions.getInitialState(), true)
 })
 
 // Read off the options' ids and words: a query by role over 240 options takes seconds.
@@ -51,5 +55,25 @@ describe("CountryPicker", () => {
 
         expect(optionOf(container, BAVARIA.code)).toBeNull()
         expect(optionOf(container, "de")).not.toBeNull()
+    })
+
+    it("ends with the way to a region's flag, which a search that finds no country brings up, named as typed", async () => {
+        useFlagSubmissions.setState({who: "player", submissions: [], read: true})
+        render(<CountryPicker country={{code: "fr"}} setCountry={vi.fn()}/>)
+        expect(screen.getByRole("button", {name: "Add your region's flag"})).not.toBeNull()
+
+        await userEvent.type(screen.getByPlaceholderText("Search a country"), "Bavaria")
+        expect(screen.queryByRole("button", {name: "Add your region's flag"})).toBeNull()
+        await userEvent.click(screen.getByRole("button", {name: "Put “Bavaria” on the map"}))
+
+        expect(useFlagForm.getState()).toMatchObject({shown: true, step: {kind: "make"}, draft: {name: "Bavaria"}})
+    })
+
+    it("keeps the way to a region's flag while the list is locked", () => {
+        act(() => useFlagSubmissions.setState({who: "player"}))
+        render(<CountryPicker country={{code: "fr"}} allegiance={{countryId: "fr", changeableAt: Date.now() + 60_000}} setCountry={vi.fn()}/>)
+
+        expect(screen.queryByPlaceholderText("Search a country")).toBeNull()
+        expect(screen.getByRole("button", {name: "Add your region's flag"})).not.toBeNull()
     })
 })

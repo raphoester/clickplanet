@@ -18,6 +18,8 @@ import ProgressTab from "./ProgressTab.tsx"
 import ClipsSwitch from "../clips/ClipsSwitch.tsx"
 import {ClipsNameBackend} from "../../backends/clips.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {Shop} from "../../backends/shop.ts"
+import YourFlags from "../flags/YourFlags.tsx"
 import {t, translator} from "../../i18n/page.ts"
 import {Key} from "../../i18n/translator.ts"
 import "./Account.css"
@@ -32,6 +34,9 @@ export type AccountPanelProps = {
     playerInfo: PlayerInfoBackend
     listenForClicks?: ListenForClicks
     clips: ClipsNameBackend
+    shop: Shop
+    // Stripe's page.
+    toCheckout: (url: string) => void
 }
 
 type Tab = "progress" | "settings"
@@ -68,13 +73,14 @@ export default function AccountPanel(props: AccountPanelProps) {
                                stats={name && props.state.accountId
                                    ? {backend: props.playerInfo, accountId: props.state.accountId}
                                    : undefined}
-                               listenForClicks={props.listenForClicks}/>
+                               listenForClicks={props.listenForClicks}
+                               flags={<YourFlags shop={props.shop} toCheckout={props.toCheckout} folded/>}/>
                 : <AccountSettings {...props}/>}
         </div>
     </div>
 }
 
-export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Omit<AccountPanelProps, "playerInfo">) {
+export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Omit<AccountPanelProps, "playerInfo" | "shop" | "toCheckout">) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))

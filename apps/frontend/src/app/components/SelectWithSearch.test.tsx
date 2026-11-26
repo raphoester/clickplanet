@@ -122,4 +122,24 @@ describe("SelectWithSearch", () => {
         expect(search).toHaveProperty("value", "")
         expect(optionNames()).toEqual(["France", "Japan", "Germany"])
     })
+
+    it("shows its footer under the list, and in its place what a search found no value for", async () => {
+        const user = userEvent.setup()
+        render(<SelectWithSearch values={VALUES}
+                                 selected={VALUES[0]}
+                                 onChange={vi.fn()}
+                                 footer={<p>footer</p>}
+                                 noMatch={(search) => <p>{`none for ${search}`}</p>}/>)
+        const search = screen.getByPlaceholderText("Search a country")
+        expect(screen.getByText("footer")).not.toBeNull()
+
+        await user.type(search, "Fra")
+        expect(screen.getByText("footer"), "the selection matches").not.toBeNull()
+
+        await user.clear(search)
+        await user.type(search, "Bavaria")
+        expect(screen.queryByText("footer")).toBeNull()
+        expect(screen.getByText("none for Bavaria")).not.toBeNull()
+        expect(optionNames(), "the selection stays").toEqual(["France"])
+    })
 })

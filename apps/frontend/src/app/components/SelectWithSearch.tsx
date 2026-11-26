@@ -1,4 +1,4 @@
-import {KeyboardEvent, useEffect, useRef, useState} from "react";
+import {KeyboardEvent, ReactNode, useEffect, useRef, useState} from "react";
 import {matchesSearch, type Value, visibleOptions} from "./visibleOptions.ts";
 import {SearchIcon} from "./icons.tsx";
 import CountryFlag from "./CountryFlag.tsx";
@@ -10,6 +10,9 @@ type SelectWithSearchProps = {
     selected?: Value,
     values: Value[],
     onChange: (value: Value) => void
+    // Under the list, unless a search matches no value: then what the search found none for, under the search.
+    footer?: ReactNode
+    noMatch?: (search: string) => ReactNode
 }
 
 export default function SelectWithSearch(props: SelectWithSearchProps) {
@@ -17,6 +20,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
     const listRef = useRef<HTMLDivElement>(null)
 
     const options = visibleOptions(props.values, props.selected, search)
+    const unmatched = search.trim() !== "" && !props.values.some((v) => matchesSearch(v, search))
 
     const [activeCode, setActiveCode] = useState<string | undefined>(props.selected?.code ?? props.values[0]?.code)
     const activeIndex = Math.max(options.findIndex((v) => v.code === activeCode), 0)
@@ -93,6 +97,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                 autoComplete="off"
             />
         </div>
+        {unmatched && props.noMatch?.(search)}
         <div
             ref={listRef}
             role="listbox"
@@ -116,5 +121,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                 </div>
             ))}
         </div>
+        {!unmatched && props.footer}
     </div>
 }

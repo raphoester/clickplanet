@@ -1,8 +1,24 @@
-.flag-entry {
+/* A door to the region's flag, gold as the shop's. */
+.flag-entry,
+.flag-entry:hover {
     flex-shrink: 0;
     width: 100%;
     min-height: 48px;
     margin-top: var(--space-3);
+    color: var(--gold-ink);
+    background: var(--gold);
+    box-shadow: var(--drop-s), inset 0 -3px 0 var(--gold-shade);
+}
+
+.flag-entry svg {
+    color: var(--gold-ink);
+}
+
+/* The search found no country: the flag's door comes up under it. */
+.flag-entry--typed,
+.flag-entry--typed:hover {
+    min-height: 56px;
+    font-size: var(--text-l);
 }
 
 .flag-entry-name {
@@ -121,46 +137,122 @@
     font-variant-numeric: tabular-nums;
 }
 
+.flag-pitch {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-1);
+    text-align: left;
+}
+
+.flag-pitch .shop-coin {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+}
+
+.flag-pitch-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    padding-top: var(--space-1);
+}
+
+.flag-pitch-line {
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: var(--text);
+}
+
+.flag-pitch .shop-perks {
+    gap: var(--space-1);
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+/* The flag as the players will see it: tiles wearing its picture, its name and its capital. */
+.flag-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.flag-form .flag-card {
+    margin-top: var(--space-2);
+}
+
+.flag-card-tiles {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+}
+
+.flag-card-tiles svg {
+    display: block;
+}
+
+.flag-card-ground {
+    fill: var(--panel-sunk);
+}
+
+.flag-card-crown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    color: var(--gold);
+    filter: drop-shadow(0 2px 0 var(--ink));
+    transform: translate(-50%, -62%);
+}
+
+.flag-card-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: var(--space-1);
+    min-width: 0;
+    text-align: left;
+}
+
+.flag-card-text > .flag-state {
+    align-self: flex-start;
+    margin-top: var(--space-1);
+}
+
+.flag-card-name {
+    overflow-wrap: anywhere;
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: var(--text);
+}
+
+.flag-card-name--empty {
+    color: var(--text-faint);
+}
+
+.flag-card-capital {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+.flag-card-capital > svg {
+    flex-shrink: 0;
+    color: var(--gold);
+}
+
 .flag-status {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     padding: 3px;
     text-align: left;
-}
-
-.flag-status-card {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-height: 56px;
-    padding: var(--space-2) var(--space-3);
-}
-
-.flag-status-picture {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 48px;
-    height: 32px;
-    color: var(--text-soft);
-    font-size: 40px;
-}
-
-.flag-status-picture img {
-    max-width: 100%;
-    max-height: 100%;
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: var(--radius-xs);
-}
-
-.flag-status-name {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-weight: 700;
-    font-size: var(--text-l);
 }
 
 .flag-status-line {
@@ -216,8 +308,21 @@
 
 .flag-founded-flag {
     display: flex;
+    align-items: center;
     flex-shrink: 0;
+    color: var(--text-soft);
     font-size: 26px;
+}
+
+.flag-founded-flag img {
+    height: 22px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-xs);
+}
+
+.flag-founded-appeal {
+    flex-basis: 100%;
+    margin-bottom: var(--space-1);
 }
 
 .flag-founded-text {

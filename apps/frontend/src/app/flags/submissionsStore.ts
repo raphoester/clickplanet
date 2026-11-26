@@ -2,7 +2,7 @@ import {useEffect} from "react"
 import {create} from "zustand"
 import {FlagSubmitter} from "../../backends/flags.ts"
 import {FlagCatalog} from "../../domain/flags.ts"
-import {foundedFlags, latestOf, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
+import {foundedFlags, Submission, untold, withTold} from "../../domain/flagSubmissions.ts"
 import {useNews} from "../news/newsStore.ts"
 import {useFlags} from "./flagsStore.ts"
 import {keepTold, toldSubmissions} from "./toldSubmissions.ts"
@@ -20,8 +20,8 @@ type FlagSubmissionsStore = {
     // None forgets the list.
     serve: (submitter: FlagSubmitter | undefined) => void
     refresh: () => void
-    // The answer of a send, before the next read says it.
-    submitted: (submission: Submission) => void
+    // The answer of a send, before the next read says it, in the place of the one it replaced.
+    submitted: (submission: Submission, replaced?: string) => void
 }
 
 export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
@@ -70,14 +70,34 @@ export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
             read()
         },
         refresh: read,
-        submitted: (submission) => {
+        submitted: (submission, replaced) => {
             if (submitter === undefined) return
-            set(({submissions}) => ({submissions: [submission, ...submissions.filter(({id}) => id !== submission.id)]}))
+            set(({submissions}) => ({
+                submissions: [submission, ...submissions.filter(({id}) => id !== submission.id && id !== replaced)],
+            }))
         },
     }
 })
 
-export const latestSubmission = (store: FlagSubmissionsStore): Submission | undefined => latestOf(store.submissions)
+export const VERDICT_READ_EVERY_MS = 3_000
+export const VERDICT_READ_FOR_MS = 120_000
+
+// The judge reviews a flag within seconds of its send, paid or not: while the paywall shows one that waits, its verdict
+// is read again, for a while.
+export function useVerdictReads(waiting: boolean, now: () => number = Date.now): void {
+    useEffect(() => {
+        if (!waiting) return
+        const until = now() + VERDICT_READ_FOR_MS
+        const timer = setInterval(() => {
+            if (now() >= until) {
+                clearInterval(timer)
+                return
+            }
+            useFlagSubmissions.getState().refresh()
+        }, VERDICT_READ_EVERY_MS)
+        return () => clearInterval(timer)
+    }, [waiting, now])
+}
 
 // A signed-in account's submissions: read at once, each time the flags stream opens, and when the form opens; each
 // decision the page sees first is told once on the news line.

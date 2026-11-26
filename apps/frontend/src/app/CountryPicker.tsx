@@ -64,14 +64,17 @@ export default function CountryPicker(props: CountryPickerProps) {
     return <>
         <p className="country-picker-rule" role="status">{ruleLineOf(locked, now)}</p>
         {failed && <p className="country-picker-failed" role="alert">{t("picker.failed")}</p>}
-        {!locked && <div className="country-picker-list" aria-busy={sending || undefined}>
-            <SelectWithSearch
-                onChange={(value) => pick({code: value.code})}
-                selected={values.find((value) => value.code === props.country.code)}
-                values={values}
-            />
-        </div>}
-        <FlagSubmissionEntry/>
+        {locked
+            ? <FlagSubmissionEntry/>
+            : <div className="country-picker-list" aria-busy={sending || undefined}>
+                <SelectWithSearch
+                    onChange={(value) => pick({code: value.code})}
+                    selected={values.find((value) => value.code === props.country.code)}
+                    values={values}
+                    footer={<FlagSubmissionEntry/>}
+                    noMatch={(typed) => <FlagSubmissionEntry typed={typed}/>}
+                />
+            </div>}
     </>
 }
 

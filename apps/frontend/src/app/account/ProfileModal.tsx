@@ -26,6 +26,7 @@ import {useFronts, useTitles} from "./useProgress.ts"
 import DeleteAccountModal from "./DeleteAccountModal.tsx"
 import {t, translator} from "../../i18n/page.ts"
 import LevelProgress from "../level/LevelProgress.tsx"
+import YourFlags from "../flags/YourFlags.tsx"
 import "./ProfileModal.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -43,7 +44,7 @@ export type ProfileModalProps = YouPlaceProps & {
 // The desktop's "You". A signed-in player sees its own card at full width: the worn title and the stats on top,
 // the medals, the tracks and the fronts under them, and the account beside. What is long (every rank of a track,
 // every country fought) opens on demand, so the card reads at a glance. A guest sees only the sign-in.
-export default function ProfileModal({account: store, linkedMultiplier, playerInfo, listenForClicks, clips, country, onClose}: ProfileModalProps) {
+export default function ProfileModal({account: store, linkedMultiplier, playerInfo, listenForClicks, clips, shop, toCheckout, country, onClose}: ProfileModalProps) {
     const account = useAccount(store)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -78,6 +79,7 @@ export default function ProfileModal({account: store, linkedMultiplier, playerIn
                  country={country}
                  stats={name && account.accountId ? {backend: playerInfo, accountId: account.accountId} : undefined}
                  listenForClicks={listenForClicks}
+                 flags={<YourFlags shop={shop} toCheckout={toCheckout} onAway={onClose}/>}
                  aside={<ProfileAccount state={account}
                                         store={store}
                                         clips={clips}
@@ -91,10 +93,11 @@ type ProfileProps = {
     country?: Country
     stats?: {backend: PlayerInfoBackend, accountId: string}
     listenForClicks?: ListenForClicks
+    flags: React.ReactNode
     aside: React.ReactNode
 }
 
-function Profile({account, store, country, stats, listenForClicks, aside}: ProfileProps) {
+function Profile({account, store, country, stats, listenForClicks, flags, aside}: ProfileProps) {
     const [titles, reread] = useTitles(store, account.me, listenForClicks)
     const fronts = useFronts(store, account.me, listenForClicks)
     const dashboard = titles.kind === "ready" ? titles.dashboard : undefined
@@ -114,6 +117,7 @@ function Profile({account, store, country, stats, listenForClicks, aside}: Profi
 
         <div className="profile-columns">
             <div className="profile-main">
+                {flags}
                 {titles.kind === "loading" && <p className="account-text" role="status">{t("common.loading")}</p>}
                 {titles.kind === "failed" && <p className="account-failure" role="alert">{t("profile.titlesFailed")}</p>}
                 {dashboard && <Medals worn={dashboard.worn} wearable={dashboard.wearable} store={store} onWorn={reread}/>}
