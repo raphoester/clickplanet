@@ -198,7 +198,7 @@ export default function Moments(props: MomentsProps) {
                               onOpen={() => {
                                   sale.seen(current.sale)
                                   dismiss()
-                                  useFlagForm.getState().open()
+                                  useFlagForm.getState().openShop()
                               }}
                               onClose={() => {
                                   sale.seen(current.sale)
