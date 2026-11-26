@@ -108,6 +108,11 @@ function businessOf(metrics: Analytics): Business | undefined {
     }
 }
 
+// Out under 7 days ago, so its reading still changes: a snapshot a day reads every post at 6 days and some hours.
+export function youngOf(post: Post, now: Date): boolean {
+    return now.getTime() - post.publishedAt.getTime() < WEEK_HOURS * 3_600_000
+}
+
 export function dayOf(at: Date): string {
     return at.toISOString().slice(0, 10)
 }
@@ -206,4 +211,8 @@ export function arrivalDaysOf(counts: ArrivalCount[], since: Date, now: Date): A
         days.push({day, tiktok: of(ArrivalSource.TIKTOK), youtube: of(ArrivalSource.YOUTUBE)})
     }
     return days.reverse()
+}
+
+export function arrivalTotalsOf(days: ArrivalDay[]): {tiktok: number, youtube: number} {
+    return days.reduce((sum, day) => ({tiktok: sum.tiktok + day.tiktok, youtube: sum.youtube + day.youtube}), {tiktok: 0, youtube: 0})
 }

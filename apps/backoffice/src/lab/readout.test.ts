@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {ArrivalCount, ArrivalSource} from "../gen/grpc/auth/v1/admin_pb.ts"
-import {armOf, arrivalDaysOf, medianOf, Post, postsOf, readingsOf} from "./readout.ts"
+import {armOf, arrivalDaysOf, arrivalTotalsOf, medianOf, Post, postsOf, readingsOf, youngOf} from "./readout.ts"
 
 const SINCE = new Date("2026-11-20T00:00:00Z")
 
@@ -71,6 +71,14 @@ describe("postsOf", () => {
         expect(young.business).toBeUndefined()
         expect(video.business).toEqual({heldAt2s: 0.65, toTheEnd: 0.2159, averageWatchSeconds: 6.59})
         expect(photos.business).toEqual({heldAt2s: undefined, toTheEnd: 0.1609, averageWatchSeconds: 7.39})
+    })
+})
+
+describe("youngOf", () => {
+    it("tells a post out under 7 days ago, even when its last row is at 6 days", () => {
+        const read = post("control", "2026-11-20", 500, {ageHours: 162})
+        expect(youngOf(read, new Date("2026-11-27T11:59:00Z"))).toBe(true)
+        expect(youngOf(read, new Date("2026-11-27T12:00:00Z"))).toBe(false)
     })
 })
 
@@ -147,5 +155,15 @@ describe("arrivalDaysOf", () => {
             {day: "2026-11-21", tiktok: 0, youtube: 0},
             {day: "2026-11-20", tiktok: 4, youtube: 0},
         ])
+    })
+})
+
+describe("arrivalTotalsOf", () => {
+    it("adds up each platform's arrivals over the days", () => {
+        expect(arrivalTotalsOf([
+            {day: "2026-11-22", tiktok: 1, youtube: 4},
+            {day: "2026-11-21", tiktok: 0, youtube: 0},
+            {day: "2026-11-20", tiktok: 2, youtube: 6},
+        ])).toEqual({tiktok: 3, youtube: 10})
     })
 })

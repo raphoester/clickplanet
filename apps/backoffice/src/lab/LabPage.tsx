@@ -4,9 +4,17 @@ import {AuthAdmin, PublishingAdmin} from "../clients.ts"
 import {documentsOf} from "../clips/actions.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {useCall} from "../useCall.ts"
+import {ArrivalsChart} from "./ArrivalsChart.tsx"
+import {colorOf, experimentsOf, logTicksOf} from "./chart.ts"
+import {count, daysOf, momentOf, percent, rate, secondsOf} from "./format.ts"
+import {Key, Legend} from "./Legend.tsx"
 import {
-    Arm, ArrivalDay, arrivalDaysOf, BREAKOUT, dayOf, LAB_START, Platform, PLATFORMS, Post, postsOf, Reading, readingsOf,
+    Arm, ArrivalDay, arrivalDaysOf, BREAKOUT, CONTROL, dayOf, LAB_START, Platform, PLATFORMS, Post, postsOf, Reading,
+    readingsOf, youngOf,
 } from "./readout.ts"
+import {SignsChart} from "./SignsChart.tsx"
+import {ViewsByDayChart} from "./ViewsByDayChart.tsx"
+import {ViewsChart} from "./ViewsChart.tsx"
 
 const NAMES: Record<Platform, string> = {tiktok: "TikTok", youtube: "YouTube"}
 
@@ -52,63 +60,111 @@ export function LabPage({publishing, auth, now = clock}: {publishing: Publishing
             {posts.state === "loading" && <p className="muted">Reading the snapshots…</p>}
             {posts.state === "failed" && <FailureNotice failure={posts} onRetry={readAgain}/>}
             {posts.state === "done" && PLATFORMS.map(platform => (
-                <PlatformReadout key={platform} platform={platform} posts={posts.value}/>
+                <PlatformReadout key={platform} platform={platform} posts={posts.value} since={since} now={opened}
+                                 experiments={experimentsOf(posts.value)}/>
             ))}
             <section className="panel" aria-label="Arrivals">
                 <h2>Arrivals</h2>
                 {arrivals.state === "loading" && <p className="muted">Counting…</p>}
                 {arrivals.state === "failed" && <FailureNotice failure={arrivals} onRetry={countAgain}/>}
-                {arrivals.state === "done" && <Arrivals days={arrivals.value}/>}
+                {arrivals.state === "done" && <>
+                    <ArrivalsChart days={arrivals.value} today={today}/>
+                    <details className="chart-table">
+                        <summary>Table</summary>
+                        <Arrivals days={arrivals.value}/>
+                    </details>
+                </>}
             </section>
         </section>
     )
 }
 
-function PlatformReadout({platform, posts}: {platform: Platform, posts: Post[]}) {
+type ReadoutProps = {platform: Platform, posts: Post[], since: string, now: Date, experiments: string[]}
+
+function PlatformReadout({platform, posts, since, now, experiments}: ReadoutProps) {
+    const [hovered, setHovered] = useState<string | undefined>(undefined)
+    const [picked, setPicked] = useState<string | undefined>(undefined)
     const readings = readingsOf(posts, platform)
-    const shown = posts.filter(post => post.platform === platform)
+    const theirs = posts.filter(post => post.platform === platform)
     const tiktok = platform === "tiktok"
+    const paint = (experiment: string) => colorOf(experiment, experiments)
+    const ticks = logTicksOf(Math.max(BREAKOUT[platform], ...theirs.map(post => post.views)))
+    const pointed = theirs.find(post => post.postId === (hovered ?? picked))
+    const keys: Key[] = [
+        ...readings.map(({experiment}) => ({
+            label: experiment.experiment, mark: "dot" as const, color: paint(experiment.experiment),
+        })),
+        {label: CONTROL, mark: "dot", color: paint(CONTROL)},
+        {label: "Median", mark: "median"},
+        {label: "Under 7 days", mark: "young"},
+        {label: "Breakout", mark: "breakout"},
+    ]
+    const charts = {
+        ticks, breakout: BREAKOUT[platform], now, colorOf: paint, shown: pointed?.postId, onHover: setHovered, onPick: setPicked,
+    }
+
     return (
         <section className="panel" aria-label={NAMES[platform]}>
             <h2>{NAMES[platform]}</h2>
             {readings.length === 0
                 ? <p className="muted">No lab post.</p>
-                : (
-                    <div className="scroll-x">
-                        <table className="table lab-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Experiment</th>
-                                    <th scope="col">Days</th>
-                                    <th scope="col" className="num">Posts</th>
-                                    <th scope="col" className="num">Median views</th>
-                                    <th scope="col" className="num">Best</th>
-                                    <th scope="col" className="num" title={`${count(BREAKOUT[platform])} views or more at 7 days`}>
-                                        Breakouts
-                                    </th>
-                                    {tiktok && <>
-                                        <th scope="col" className="num">Held at 2 s</th>
-                                        <th scope="col" className="num">To the end</th>
-                                        <th scope="col" className="num">Average watch</th>
-                                        <th scope="col" className="num">Comments /1k</th>
-                                        <th scope="col" className="num">Shares /1k</th>
-                                        <th scope="col" className="num">Follows /1k</th>
-                                        <th scope="col" className="num">Saves /1k</th>
-                                    </>}
-                                    {!tiktok && <th scope="col" className="num">Likes /1k</th>}
-                                </tr>
-                            </thead>
-                            {readings.map(reading => (
-                                <tbody key={reading.experiment.experiment}>
-                                    <ArmRow arm={reading.experiment} reading={reading} tiktok={tiktok}/>
-                                    <ArmRow arm={reading.control} tiktok={tiktok}/>
-                                </tbody>
-                            ))}
-                        </table>
-                    </div>
-                )}
-            {shown.length > 0 && <PostList posts={shown} tiktok={tiktok}/>}
+                : <>
+                    <Legend keys={keys}/>
+                    <p className="readout" aria-live="polite">
+                        {pointed === undefined
+                            ? <>{theirs.length} posts, {theirs.filter(post => youngOf(post, now)).length} under 7 days</>
+                            : <>{pointed.experiment}, {momentOf(pointed.publishedAt)}: <b>{count(pointed.views)}</b> views
+                                at {Math.round(pointed.ageHours)}&nbsp;h
+                                {pointed.url !== "" && <> · <a href={pointed.url} target="_blank" rel="noreferrer">open</a></>}</>}
+                    </p>
+                    <ViewsChart readings={readings} {...charts}/>
+                    <ViewsByDayChart posts={theirs} since={since} today={dayOf(now)} {...charts}/>
+                    <SignsChart platform={platform} readings={readings} colorOf={paint}/>
+                    <details className="chart-table">
+                        <summary>Table</summary>
+                        <ReadingTable platform={platform} readings={readings}/>
+                    </details>
+                </>}
+            {theirs.length > 0 && <PostList posts={theirs} tiktok={tiktok}/>}
         </section>
+    )
+}
+
+function ReadingTable({platform, readings}: {platform: Platform, readings: Reading[]}) {
+    const tiktok = platform === "tiktok"
+    return (
+        <div className="scroll-x">
+            <table className="table lab-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Experiment</th>
+                        <th scope="col">Days</th>
+                        <th scope="col" className="num">Posts</th>
+                        <th scope="col" className="num">Median views</th>
+                        <th scope="col" className="num">Best</th>
+                        <th scope="col" className="num" title={`${count(BREAKOUT[platform])} views or more at 7 days`}>
+                            Breakouts
+                        </th>
+                        {tiktok && <>
+                            <th scope="col" className="num">Held at 2 s</th>
+                            <th scope="col" className="num">To the end</th>
+                            <th scope="col" className="num">Average watch</th>
+                            <th scope="col" className="num">Comments /1k</th>
+                            <th scope="col" className="num">Shares /1k</th>
+                            <th scope="col" className="num">Follows /1k</th>
+                            <th scope="col" className="num">Saves /1k</th>
+                        </>}
+                        {!tiktok && <th scope="col" className="num">Likes /1k</th>}
+                    </tr>
+                </thead>
+                {readings.map(reading => (
+                    <tbody key={reading.experiment.experiment}>
+                        <ArmRow arm={reading.experiment} reading={reading} tiktok={tiktok}/>
+                        <ArmRow arm={reading.control} tiktok={tiktok}/>
+                    </tbody>
+                ))}
+            </table>
+        </div>
     )
 }
 
@@ -204,30 +260,4 @@ function Arrivals({days}: {days: ArrivalDay[]}) {
             </tbody>
         </table>
     )
-}
-
-const DAY = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "short", timeZone: "UTC"})
-
-// 20 Nov, 20–23 Nov, 30 Nov – 2 Dec.
-function daysOf(first: string, last: string): string {
-    const from = DAY.format(new Date(`${first}T00:00:00Z`))
-    if (first === last) return from
-    const to = DAY.format(new Date(`${last}T00:00:00Z`))
-    return first.slice(0, 7) === last.slice(0, 7) ? `${from.split(" ")[0]}–${to}` : `${from} – ${to}`
-}
-
-function count(value: number | undefined): string {
-    return value === undefined ? "—" : Math.round(value).toLocaleString("en-US")
-}
-
-function percent(value: number | undefined): string {
-    return value === undefined ? "—" : `${Math.round(value * 100)}%`
-}
-
-function secondsOf(value: number | undefined): string {
-    return value === undefined ? "—" : `${value.toFixed(1)} s`
-}
-
-function rate(value: number | undefined): string {
-    return value === undefined ? "—" : value.toFixed(1)
 }

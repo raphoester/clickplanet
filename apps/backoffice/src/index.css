@@ -17,6 +17,15 @@
     --heat-1: #f28c28;
     --heat-2: #d9461f;
     --heat-3: #8e1616;
+    --lab-1: #2a78d6;
+    --lab-2: #eb6834;
+    --lab-3: #1baf7a;
+    --lab-4: #eda100;
+    --lab-5: #e87ba4;
+    --lab-6: #008300;
+    --lab-control: #565e6a;
+    --lab-tiktok: #6250d6;
+    --lab-youtube: #e34948;
     --radius: 10px;
     --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -44,6 +53,15 @@
         --heat-1: #cc4a1f;
         --heat-2: #f2862e;
         --heat-3: #ffd166;
+        --lab-1: #3987e5;
+        --lab-2: #d95926;
+        --lab-3: #199e70;
+        --lab-4: #c98500;
+        --lab-5: #d55181;
+        --lab-6: #0ca30c;
+        --lab-control: #a3a9b2;
+        --lab-tiktok: #9085e9;
+        --lab-youtube: #e66767;
     }
 }
 
@@ -2338,6 +2356,117 @@ a.button {
 .lab-table .lab-control th {
     font-weight: 400;
     color: var(--muted);
+}
+
+.lab .readout {
+    min-height: 3em;
+}
+
+.lab-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+}
+
+.lab-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lab-legend svg {
+    display: block;
+    overflow: visible;
+}
+
+.lab-key {
+    color: var(--muted);
+}
+
+.lab-name {
+    fill: var(--text);
+    font-size: 12px;
+}
+
+.lab-name-control {
+    fill: var(--muted);
+}
+
+.lab-value {
+    fill: var(--text);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab-value-note {
+    fill: var(--muted);
+}
+
+.lab-dot {
+    fill: var(--arm);
+    stroke: var(--surface);
+    stroke-width: 2;
+}
+
+.lab-dot-young {
+    fill: var(--surface);
+    stroke: var(--arm);
+    stroke-width: 1.75;
+}
+
+.lab-dot-shown {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 1.5;
+}
+
+.lab-median {
+    stroke: var(--text);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.lab-median-halo {
+    stroke: var(--surface);
+    stroke-width: 6;
+    stroke-linecap: round;
+}
+
+.lab-breakout {
+    stroke: var(--muted);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+}
+
+.lab-bar {
+    fill: var(--arm);
+}
+
+.lab-bar-filling {
+    fill: var(--surface);
+    stroke: var(--arm);
+    stroke-width: 1.5;
+}
+
+.lab-band {
+    fill: var(--line);
+    opacity: 0.5;
+}
+
+.lab-signs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 20px;
+}
+
+@media (min-width: 720px) {
+    .lab-signs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 }
 
 /* A sold flag's picture, where an emoji flag goes. */
