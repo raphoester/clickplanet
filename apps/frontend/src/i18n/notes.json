@@ -321,7 +321,7 @@
   "shop.sale": "A link to the page of the terms for buying time for a regional flag.",
   "shop.refunds": "A link to the page that says when a payment is refunded.",
   "shop.plans": "The label of the group of plan cards a player picks from, read by screen readers.",
-  "shop.bestValue": "A small badge on the plan that costs least per day. Keep it under 12 characters.",
+  "shop.bestValue": "A small badge on the plan that costs least per day, no wider than a plan card on a small phone: one or two short words, 10 characters at most.",
   "shop.cadence.once": "Under a plan's price: it is paid once and does not renew. Keep it short.",
   "shop.cadence.week": "Under a plan's price: it is paid again each week. Keep it short.",
   "shop.cadence.month": "Under a plan's price: it is paid again each month. Keep it short.",

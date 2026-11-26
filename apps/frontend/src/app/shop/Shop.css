@@ -269,6 +269,11 @@
     .shop-plan-amount {
         font-size: var(--display-l);
     }
+
+    /* No wider than its card: a phone's plan cards are under 100px wide. */
+    .shop-plan-ribbon {
+        padding-inline: var(--space-1);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
