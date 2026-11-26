@@ -34,12 +34,12 @@ var (
 				Flags: []posts.FrontFlag{{
 					Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}, Solidity: 0.86,
 					FlippedByContinent: map[string]int{"Middle East": 2400},
-					Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}},
+					Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}}, Players: 7,
 				}},
 				Bombs: 3, Score: 3886.5,
 			}},
-			Tours:  []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
-			Places: []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200}}},
+			Tours:  []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}, Players: 3}},
+			Places: []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200}, Players: 2}},
 			Sagas: []posts.Saga{{
 				Kind: posts.CountryPlace, Code: "cn", Continent: "East Asia", Tiles: 18622, Holder: "de", Share: 0.98,
 				Since: at.Add(-25 * 24 * time.Hour), Until: at,
@@ -302,6 +302,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndThePostsTold(t *
 				TookFrom           map[string]int `json:"tookFrom"`
 				Solidity           float64        `json:"solidity"`
 				FlippedByContinent map[string]int `json:"flippedByContinent"`
+				Players            int            `json:"players"`
 				Fighters           []struct {
 					Number int    `json:"number"`
 					Name   string `json:"name"`
@@ -314,6 +315,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndThePostsTold(t *
 			Flag               string         `json:"flag"`
 			NextTook           int            `json:"nextTook"`
 			FlippedByContinent map[string]int `json:"flippedByContinent"`
+			Players            int            `json:"players"`
 		} `json:"tours"`
 		Places []struct {
 			Place              int            `json:"place"`
@@ -321,6 +323,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndThePostsTold(t *
 			Continent          string         `json:"continent"`
 			Share              float64        `json:"share"`
 			FlippedByContinent map[string]int `json:"flippedByContinent"`
+			Players            int            `json:"players"`
 		} `json:"places"`
 		Sagas       []json.RawMessage `json:"sagas"`
 		Paths       json.RawMessage   `json:"paths"`
@@ -349,7 +352,10 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndThePostsTold(t *
 	require.Len(t, written.Fronts[0].Flags[0].Fighters, 1)
 	assert.Equal(t, "BraveFox42", written.Fronts[0].Flags[0].Fighters[0].Name)
 	assert.Equal(t, 812, written.Fronts[0].Flags[0].Fighters[0].Took)
+	assert.Equal(t, 7, written.Fronts[0].Flags[0].Players)
 	assert.Equal(t, 1, written.Tours[0].Tour)
+	assert.Equal(t, 3, written.Tours[0].Players)
+	assert.Equal(t, 2, written.Places[0].Players)
 	assert.Equal(t, 9000, written.Tours[0].NextTook)
 	assert.Equal(t, map[string]int{"South Asia": 6246}, written.Tours[0].FlippedByContinent)
 	assert.Equal(t, 1, written.Places[0].Place)

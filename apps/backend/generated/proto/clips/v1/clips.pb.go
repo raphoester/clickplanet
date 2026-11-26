@@ -1198,7 +1198,9 @@ type FrontFlag struct {
 	// continent.
 	FlippedByContinent map[string]uint32 `protobuf:"bytes,8,rep,name=flipped_by_continent,json=flippedByContinent,proto3" json:"flipped_by_continent,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	// The players of the cast who took the most for it here, most first.
-	Fighters      []*TopFighter `protobuf:"bytes,9,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	Fighters []*TopFighter `protobuf:"bytes,9,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	// How many players of the cast took for it here: a guest is in no cast, so there may be more.
+	Players       uint32 `protobuf:"varint,10,opt,name=players,proto3" json:"players,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1296,6 +1298,13 @@ func (x *FrontFlag) GetFighters() []*TopFighter {
 	return nil
 }
 
+func (x *FrontFlag) GetPlayers() uint32 {
+	if x != nil {
+		return x.Players
+	}
+	return 0
+}
+
 // A player of the cast, and the tiles it took from another flag.
 type TopFighter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1374,7 +1383,9 @@ type Tour struct {
 	// tour shows.
 	FlippedByContinent map[string]uint32 `protobuf:"bytes,10,rep,name=flipped_by_continent,json=flippedByContinent,proto3" json:"flipped_by_continent,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	// The players of the cast who took the most for the flag in the stretch, most first.
-	Fighters      []*TopFighter `protobuf:"bytes,11,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	Fighters []*TopFighter `protobuf:"bytes,11,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	// How many players of the cast took for the flag in the stretch.
+	Players       uint32 `protobuf:"varint,12,opt,name=players,proto3" json:"players,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1486,6 +1497,13 @@ func (x *Tour) GetFighters() []*TopFighter {
 	return nil
 }
 
+func (x *Tour) GetPlayers() uint32 {
+	if x != nil {
+		return x.Players
+	}
+	return 0
+}
+
 // What the map is at the end: the flag holding the most of a place.
 type Place struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1506,7 +1524,9 @@ type Place struct {
 	// The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
 	FlippedByContinent map[string]uint32 `protobuf:"bytes,10,rep,name=flipped_by_continent,json=flippedByContinent,proto3" json:"flipped_by_continent,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	// The players of the cast who took the most of the place for the holder in the window, most first.
-	Fighters      []*TopFighter `protobuf:"bytes,11,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	Fighters []*TopFighter `protobuf:"bytes,11,rep,name=fighters,proto3" json:"fighters,omitempty"`
+	// How many players of the cast took of the place for the holder in the window.
+	Players       uint32 `protobuf:"varint,12,opt,name=players,proto3" json:"players,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1616,6 +1636,13 @@ func (x *Place) GetFighters() []*TopFighter {
 		return x.Fighters
 	}
 	return nil
+}
+
+func (x *Place) GetPlayers() uint32 {
+	if x != nil {
+		return x.Players
+	}
+	return 0
 }
 
 type Seasonal struct {
@@ -3623,7 +3650,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1a9\n" +
 	"\vTakersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xee\x03\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x88\x04\n" +
 	"\tFrontFlag\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1c\n" +
 	"\tcontinent\x18\x02 \x01(\tR\tcontinent\x12\x12\n" +
@@ -3633,7 +3660,9 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\ttook_from\x18\x06 \x03(\v2!.clips.v1.FrontFlag.TookFromEntryR\btookFrom\x12\x1a\n" +
 	"\bsolidity\x18\a \x01(\x01R\bsolidity\x12]\n" +
 	"\x14flipped_by_continent\x18\b \x03(\v2+.clips.v1.FrontFlag.FlippedByContinentEntryR\x12flippedByContinent\x120\n" +
-	"\bfighters\x18\t \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x1a;\n" +
+	"\bfighters\x18\t \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x12\x18\n" +
+	"\aplayers\x18\n" +
+	" \x01(\rR\aplayers\x1a;\n" +
 	"\rTookFromEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aE\n" +
@@ -3644,7 +3673,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"TopFighter\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04took\x18\x03 \x01(\rR\x04took\"\xb0\x05\n" +
+	"\x04took\x18\x03 \x01(\rR\x04took\"\xca\x05\n" +
 	"\x04Tour\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
@@ -3657,7 +3686,8 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x05bombs\x18\t \x01(\rR\x05bombs\x12X\n" +
 	"\x14flipped_by_continent\x18\n" +
 	" \x03(\v2&.clips.v1.Tour.FlippedByContinentEntryR\x12flippedByContinent\x120\n" +
-	"\bfighters\x18\v \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x1a>\n" +
+	"\bfighters\x18\v \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x12\x18\n" +
+	"\aplayers\x18\f \x01(\rR\aplayers\x1a>\n" +
 	"\x10ByContinentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1a;\n" +
@@ -3666,7 +3696,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aE\n" +
 	"\x17FlippedByContinentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x83\x04\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x9d\x04\n" +
 	"\x05Place\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1c\n" +
@@ -3679,7 +3709,8 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\achanged\x18\t \x01(\rR\achanged\x12Y\n" +
 	"\x14flipped_by_continent\x18\n" +
 	" \x03(\v2'.clips.v1.Place.FlippedByContinentEntryR\x12flippedByContinent\x120\n" +
-	"\bfighters\x18\v \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x1a9\n" +
+	"\bfighters\x18\v \x03(\v2\x14.clips.v1.TopFighterR\bfighters\x12\x18\n" +
+	"\aplayers\x18\f \x01(\rR\aplayers\x1a9\n" +
 	"\vRivalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aE\n" +

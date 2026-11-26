@@ -195,6 +195,8 @@ message FrontFlag {
   map<string, uint32> flipped_by_continent = 8;
   // The players of the cast who took the most for it here, most first.
   repeated TopFighter fighters = 9;
+  // How many players of the cast took for it here: a guest is in no cast, so there may be more.
+  uint32 players = 10;
 }
 
 // A player of the cast, and the tiles it took from another flag.
@@ -221,6 +223,8 @@ message Tour {
   map<string, uint32> flipped_by_continent = 10;
   // The players of the cast who took the most for the flag in the stretch, most first.
   repeated TopFighter fighters = 11;
+  // How many players of the cast took for the flag in the stretch.
+  uint32 players = 12;
 }
 
 // What the map is at the end: the flag holding the most of a place.
@@ -243,6 +247,8 @@ message Place {
   map<string, uint32> flipped_by_continent = 10;
   // The players of the cast who took the most of the place for the holder in the window, most first.
   repeated TopFighter fighters = 11;
+  // How many players of the cast took of the place for the holder in the window.
+  uint32 players = 12;
 }
 
 message Seasonal {

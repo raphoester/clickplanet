@@ -247,9 +247,21 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   telling a friend; and deadpan, the absurd said flat. **The writer's instructions hold what every tone keeps**: written
   for the ear, short sentences, words a teen knows, numbers as people say them, only what the facts say, and none of
   the turns that give a machine away ("in a stunning turn of events", "little did they know", "buckle up", "it's not
-  just X, it's Y", "only time will tell", a sentence opened on "Honestly"). Since round 1 they also hold **one thread**
-  (one thing told as a story, not a list of facts), three countries at most, and 45 to 65 words. The bench counts each
-  script's words, its length spoken, and any such turn it still has; it refuses none.
+  just X, it's Y", "only time will tell", "history repeats itself", a sentence opened on "Honestly"). Since round 1
+  they also hold **one thread** (one thing told as a story, not a list of facts), three countries at most, and 45 to 65
+  words. Since 2026-11-26 they hold **history and memes, now and then** (the owner, after a school class of Turkish
+  players took the Balkans from one Bulgarian): when the map repeats a real conquest, the heir's flag over about the same
+  land going the same way, one sentence may call back to it ("About six hundred years ago, the Ottomans rolled through
+  the Balkans"); a country meme years old and still used may set the angle or the title ("A CLASSIC FRENCH WIN"), a
+  swear with stars in the title alone ("WHAT THE F*** IS A KILOMETER"), since the voice reads every letter of a line.
+  The joke takes the side it fits, the winner too; old empires may be praised (Alexander, Genghis Khan, Rome, the
+  Ottomans, Napoleon) and a land claim is fine; never a war going on now (Russia and Ukraine, Israel and Palestine), a
+  joke about victims (a massacre, a genocide, a famine), the Nazis, a player's name, "Serbia Strong" or "Remove Kebab",
+  and never two episodes in a row. Two or three examples show the shape, no list of memes. Songs and sounds are out: no
+  route of the API attaches a chosen song. The editor's teasers may do the same; its headline stays plain. The facts
+  give each side's **`players`**, how many players of the cast took for it there, so "ten Turks against one Bulgarian"
+  is said from them. The bench counts each script's words, its length spoken, and any such turn it still has (a star
+  in a line too); it refuses none.
 - **The models**: Claude Haiku 5.5, the editor's ($0.10 and $0.50 a million tokens in and out), Sonnet 5.5 ($2 and
   $10) and Opus 5.5 ($4 and $20). A script is a small call, one story and its tone: about $0.05 on Opus, so one episode
   a day is under $2 a month on any of them, inside the $10 ceiling. Which writes like a person is the bench's to show.
@@ -276,7 +288,8 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   ten previews on 2026-11-23, the clip renderer with the voice laid over it with ffmpeg, before the renderer played a
   voice (it does since the same day, `--voice`). **The owner signed one off on 2026-11-25: the storyteller, written by
   Sonnet 5.5, said by Adam at 1.15**, and the war report is an experiment of the lab since the merge of PR 4. The bench
-  stays, to try a change of tone, model or voice before it posts.
+  stays, to try a change of tone, model or voice before it posts. 4. history and memes, the writer's instructions of
+  2026-11-26 against the ones before, on the winner, 3 stories: 9 scripts, run 2026-11-26 (the lab's log).
 
 ## What it costs
 
@@ -343,3 +356,13 @@ words are tuned on real stories, in several tones, and compared by the owner, be
   3, Opus 2, Haiku 1**; in the storyteller's sets Sonnet 2, Haiku 1, Opus 0; in the commentator's Opus 2, Sonnet 1. No
   notes. **Signed off the same day: the storyteller, written by Sonnet 5.5, said by Adam at 1.15.** On from the merge
   of PR 4.
+  Round 4 on 2026-11-26, in a session: history and memes. The findings of clips run 45838101116 (until
+  2026-11-26T14:21Z, season 1 day 26), made again by the generator with `players` and otherwise the same, three
+  stories: front 1 (Turkey takes Bulgaria, Greece and Serbia, mostly from Bulgaria: 17 Turkish players against 3
+  Bulgarian ones, one of whom took 2,512 of Bulgaria's 2,728 tiles), saga 12 (Germany rules Brazil since the new map)
+  and saga 2 (Sweden rules Africa since 2026-11-21), each by Sonnet 5.5 in the storyteller's tone, said by Adam at
+  1.15, once with the writer's instructions before that day and twice with the new ones: 9 scripts of 48 to 73 words,
+  15 to 21 s. Both new Turkey scripts called back to the Ottomans in one sentence and said the players ("one Bulgarian
+  fought them almost alone", "fewer than twenty Turkish players"); no Brazil or Sweden script called back to anything
+  or used a meme. One script took the count as exact ("fewer than twenty", where a guest is not counted), so the
+  instructions now say `players` is at least that many; one called the Bulgarian player "he". The owner listens blind on a page, one set of three a story; the verdict is to come.

@@ -1,5 +1,5 @@
 import {BoardScale, scaledCount} from "../boardScale.ts"
-import {Cast, Take, TopFighter, topFightersOf} from "./cast.ts"
+import {Cast, playersOf, Take, TopFighter, topFightersOf} from "./cast.ts"
 import {ranked, tally, TileChange} from "./changes.ts"
 import {Point} from "./geometry.ts"
 import {Flip, flippedTo} from "./look.ts"
@@ -43,6 +43,8 @@ export type FrontFlag = {
     // The tiles of the landmasses whose painted flag switched to the flag on the front, by continent.
     flippedByContinent: Counts
     fighters: TopFighter[]
+    // How many players of the cast took for it on the front.
+    players: number
 }
 
 export type FrontFacts = {
@@ -60,6 +62,7 @@ export type TourFacts = {
     // The tiles of the landmasses whose painted flag switched to the flag, by continent: all a tour shows from far.
     flippedByContinent: Counts
     fighters: TopFighter[]
+    players: number
 }
 
 // The flag holding the most of a place as the map stands, and what changed hands to it or from it there in the window.
@@ -74,7 +77,9 @@ export type PlaceFacts = {
     share: number
     rivals: Counts
     changed: number
+    // The holder's.
     fighters: TopFighter[]
+    players: number
 }
 
 const MOST_COUNTRIES = 6
@@ -168,13 +173,16 @@ export function frontFactsOf(
     }
     const takers = ranked(took).slice(0, SOLID_FLAGS).map(([flag]) => flag)
     const touched = new Set(changes.map(({tile}) => tile))
-    const flags = ranked(involved).slice(0, MOST_FLAGS).map(([code]): FrontFlag => ({
-        code, continent: ground.regionOf(code), took: took.get(code) ?? 0, filled: filled.get(code) ?? 0, lost: lost.get(code) ?? 0,
-        tookFrom: top(tally(captured.flatMap(({from, to}) => to === code ? [from] : [])), MOST_HOLDERS),
-        solidity: takers.includes(code) ? solidityAfter(code, moves, after, pointOf) : 1,
-        flippedByContinent: flippedByContinentOf(flips, code, continentOf),
-        fighters: topFightersOf(cast, cast.takes.filter(({tile, flag}) => flag === code && touched.has(tile))),
-    }))
+    const flags = ranked(involved).slice(0, MOST_FLAGS).map(([code]): FrontFlag => {
+        const takes = cast.takes.filter(({tile, flag}) => flag === code && touched.has(tile))
+        return {
+            code, continent: ground.regionOf(code), took: took.get(code) ?? 0, filled: filled.get(code) ?? 0, lost: lost.get(code) ?? 0,
+            tookFrom: top(tally(captured.flatMap(({from, to}) => to === code ? [from] : [])), MOST_HOLDERS),
+            solidity: takers.includes(code) ? solidityAfter(code, moves, after, pointOf) : 1,
+            flippedByContinent: flippedByContinentOf(flips, code, continentOf),
+            fighters: topFightersOf(cast, takes), players: playersOf(takes),
+        }
+    })
 
     return {tilesChanged: moves.length, captured: captured.length, countries, flags}
 }
@@ -192,13 +200,14 @@ export function tourFactsOf(
 ): TourFacts {
     const taken = changes.filter((change): change is TileChange & {from: string} => change.to === flag && change.from !== undefined && change.from !== flag)
     const touched = new Set(changes.map(({tile}) => tile))
+    const takes = cast.takes.filter((take) => take.flag === flag && touched.has(take.tile))
     return {
         took: taken.length,
         byContinent: top(tally(taken.flatMap(({tile}) => continentOf(tile) ?? [])), Infinity),
         tookFrom: top(tally(taken.map(({from}) => from)), MOST_HOLDERS),
         solidity: solidityAfter(flag, changes, after, pointOf),
         flippedByContinent: flippedByContinentOf(flips, flag, continentOf),
-        fighters: topFightersOf(cast, cast.takes.filter((take) => take.flag === flag && touched.has(take.tile))),
+        fighters: topFightersOf(cast, takes), players: playersOf(takes),
     }
 }
 
@@ -253,9 +262,10 @@ export function placesOf(
         const changed = fights.get(key) ?? 0
         if (changed === 0) return []
         const ground = grounds.get(key) ?? 0
+        const takes = holdersTakes.get(key) ?? []
         return [{
             ...placeOf(key, regionOf), tiles: ground, holder, held: count, share: count / Math.max(1, ground), rivals, changed,
-            fighters: topFightersOf(cast, holdersTakes.get(key) ?? []),
+            fighters: topFightersOf(cast, takes), players: playersOf(takes),
         }]
     }).sort((a, b) => b.held - a.held)
 }

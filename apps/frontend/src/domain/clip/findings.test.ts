@@ -79,16 +79,17 @@ describe("the facts of a front", () => {
         ])
     })
 
-    it("names each flag's top fighters by what they took for it on the front's tiles", () => {
+    it("names each flag's top fighters and counts its players by what they took for it on the front's tiles", () => {
         const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 7), take(3, "fr", 8), take(2, "pw", 12), take(3, "pw", 9))
 
-        const fighters = frontFactsOf(changes, opening, after, ground, pointOf, [], cast).flags.map(({code, fighters}) => [code, fighters])
+        const flags = frontFactsOf(changes, opening, after, ground, pointOf, [], cast).flags
 
-        expect(fighters).toEqual([
+        expect(flags.map(({code, fighters}) => [code, fighters])).toEqual([
             ["pw", [{number: 1, name: "BraveFox42", took: 2}, {number: 2, name: "StormWolf", took: 1}, {number: 3, name: "Toto", took: 1}]],
             ["fr", [{number: 3, name: "Toto", took: 1}]],
             ["de", []],
         ])
+        expect(flags.map(({code, players}) => `${code} ${players}`)).toEqual(["pw 3", "fr 1", "de 0"])
     })
 })
 
@@ -123,9 +124,10 @@ describe("the facts of a tour", () => {
     it("names the flag's top fighters by what they took for it on the tour's tiles", () => {
         const cast = castOf(take(2, "pw", 1), take(2, "pw", 11), take(1, "pw", 2), take(1, "de", 7), take(3, "pw", 4))
 
-        expect(tourFactsOf("pw", changes, after, continentOf, pointOf, [], cast).fighters).toEqual([
-            {number: 2, name: "StormWolf", took: 2}, {number: 1, name: "BraveFox42", took: 1},
-        ])
+        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, [], cast)
+
+        expect(facts.fighters).toEqual([{number: 2, name: "StormWolf", took: 2}, {number: 1, name: "BraveFox42", took: 1}])
+        expect(facts.players).toBe(2)
     })
 })
 
@@ -166,7 +168,7 @@ describe("the places held", () => {
         expect(places.map(({kind, continent}) => `${kind} ${continent ?? ""}`)).toEqual(["world ", "continent Europe", "country Europe"])
     })
 
-    it("names the holder's top fighters by what they took for it of the place", () => {
+    it("names the holder's top fighters and counts its players by what they took for it of the place", () => {
         const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 1050), take(3, "dz", 1150), take(3, "fr", 3))
 
         const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw"), change(1101, "fr", "dz")], regionOf, cast, EARTH_1_SCALE)
@@ -177,6 +179,7 @@ describe("the places held", () => {
             ["country", "Europe", ["1:2"]],
             ["continent", "Africa", ["3:1"]],
         ])
+        expect(places.map(({players}) => players)).toEqual([2, 2, 1, 1])
     })
 
     it("tells a holding from a place: the holder, its share, the next holders as its victims", () => {
