@@ -407,7 +407,7 @@ func TestTheProductionShopRunsBlackFriday(t *testing.T) {
 
 	assert.Equal(t, shop.SaleConfig{
 		Coupon: "BLACKFRIDAY2026", PercentOff: 50,
-		From:  time.Date(2026, 11, 27, 9, 0, 0, 0, time.UTC),
+		From:  time.Date(2026, 11, 26, 17, 15, 0, 0, time.UTC),
 		Until: time.Date(2026, 11, 30, 22, 59, 0, 0, time.UTC),
 	}, config.Shop.Stripe.Sale)
 }

@@ -127,7 +127,7 @@ standard terms; no page says Stripe asks the buyer to waive the 14 days for cont
 ## A sale
 
 **A sale takes a Stripe coupon off every plan, from one moment until another** (Black Friday 2026, the owner's call on
-2026-11-26: 50% off from Fri 27 Nov 09:00 UTC until Mon 30 Nov 22:59 UTC, 23:59 in Paris; the shop had made no sale yet,
+2026-11-26: 50% off from Thu 26 Nov 17:15 UTC (planned for Fri 27 Nov 09:00 UTC, started at once by the owner) until Mon 30 Nov 22:59 UTC, 23:59 in Paris; the shop had made no sale yet,
 so it is also a price test). `shop.stripe.sale` in the config: the coupon's id, its percent off, `from` and `until`.
 None, no sale; a sale given in part refuses the boot.
 

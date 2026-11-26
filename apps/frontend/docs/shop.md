@@ -86,7 +86,7 @@ a claim (target the flag; see [A flag's pay page](flag-submissions.md#a-flags-pa
 ## A sale
 
 **While a sale runs, every price the shop shows is the sale's, and the game says how long it lasts** (Black Friday 2026,
-50% off from Fri 27 Nov 09:00 UTC until Mon 30 Nov 22:59 UTC; the backend's [A sale](../../backend/docs/shop.md#a-sale)).
+50% off from Thu 26 Nov 17:15 UTC (planned for Fri 27 Nov 09:00 UTC, started at once by the owner) until Mon 30 Nov 22:59 UTC; the backend's [A sale](../../backend/docs/shop.md#a-sale)).
 `ListPlans` answers the plans at their full price and the sale's raw facts (`percent_off`, `ends_at`); a page of an
 older build ignores them and shows the full prices, which Stripe's page then lowers. The store drops the sale at its end
 by itself, so the tags, the clock and the nudge go at the second it ends, with no read. A page loaded before the sale
