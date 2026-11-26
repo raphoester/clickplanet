@@ -158,8 +158,10 @@ ARGENTINA TO BULGARIA" and "ARGENTINA IS BULGARIA'S NOW". Upper case, 86 letters
   most. "DEFEND FRANCE" for a country under attack, "PICK A SIDE" for two flags at war, "FIGHT BACK" against a flag
   taking the world. `callFlags` are the flags it asks to fight for, from `names` or a continent's own flag ("eu");
   none when it asks everyone.
-- **The anthem** plays under the whole clip: usually the attacker's, the continent's when a continent strikes back
-  together, the loser's when the call asks to fight for it. Only one of `anthems`; empty for none.
+- **The anthem** plays under the whole clip, and a YouTube Short has no other sound, so every story has one: usually
+  the attacker's, the continent's when a continent strikes back together, the loser's when the call asks to fight for
+  it, the attacker's for two flags at war ("PICK A SIDE"). Only one of `anthems`; empty only when no flag of the story
+  is in it. "POLAND HOLDS MALAYSIA AS MALAYSIA ATTACKS" went out silent, though `pl` and `my` were both in `anthems`.
 
 ## The look
 

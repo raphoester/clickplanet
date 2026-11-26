@@ -362,7 +362,9 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   "GENERATIONAL DOWNFALL OF CHINA". The look was a threshold on the landmasses that switched (the frontend's
   [Clips](../../frontend/docs/clips.md)). The model writes them from the same facts; the `Pick` carries them to the
   render, which draws them, plays the look, and puts the teasers in the `Clip`. Only a day won and a call-up keep the
-  generator's own, since no editor writes them: their own words, and a dive.
+  generator's own, since no editor writes them: their own words, and a dive. From 2026-11-12 to 2026-11-26 the editor
+  left `anthem` empty on 2 of 120 clips whose anthems we had, and a YouTube Short gets no other sound: the
+  instructions now say every story has one, the attacker's for two flags at war, and no code fills it in.
 - **The editor chooses the players a clip names** (2026-10-28): each flag of a front, each tour and each place's
   holder comes with its top fighters of the cast (`Fighter`: number, name, tiles taken; the frontend's
   [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's
