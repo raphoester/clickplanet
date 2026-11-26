@@ -125,7 +125,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   sold since they left the build; the fake's `openFlag`, `addTime`, `closeFlag`, `renameFlag`.
 - [Flag submissions](docs/flag-submissions.md) — one flow from every door (the shop's, the picker's gold row, the
   picker's search that finds no country): step 1 makes the region's flag with no price (a name, a picture, its capital:
-  a pin aimed on the globe as a rally) and shows it on a flat card of tiles, Next sends it and the judge reviews it,
+  a pin aimed on the globe as a rally) and shows it on the game's map at its capital, a shot of the globe with the
+  flag on the tiles around it for one frame, Next sends it and the judge reviews it,
   step 2 is the paywall with the verdict as it comes (Approved, or Rejected with Fix it, before any payment), a flag on
   its way resumed there; a guest sees the sign-in buttons; "Your flags" in the profile, each flag's state, time, Change,
   Add time and Stop renewal; each decision and a close told once on the news line; the fake's `approveSubmission`,

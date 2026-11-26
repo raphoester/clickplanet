@@ -17,7 +17,9 @@ import {coarseTolerancesOf, createBorderLines, loadBorderLines, loadProvinceLine
 import {FlagAtlas} from "./flagAtlas.ts";
 import {useFlags} from "../flags/flagsStore.ts";
 import type {PinnedPlace} from "../flags/flagFormStore.ts";
-import {pinAt} from "../../domain/flagSubmissions.ts";
+import {pinAt, pointOfPin} from "../../domain/flagSubmissions.ts";
+import type {FlagPicture, Pin} from "../../domain/flags.ts";
+import {groundAround} from "../../domain/flagShot.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals, withSeats} from "./capitals.ts";
@@ -298,6 +300,10 @@ const GHOSTS_SIGHT = 0.7
 
 const TAP_AIM_EVERY_SECONDS = 1
 
+// A new flag shown before it is in the game: on its capital and the rings of tiles around it, under a code no flag has.
+const PREVIEW_RINGS = 3
+const PREVIEW_CODE = "preview-"
+
 export type Shot = {
     direction: GlobePoint
     zoom: number
@@ -409,9 +415,14 @@ export type Globe = {
     setMissions(targets: readonly MissionTarget[]): void
     flyToMission(target: MissionTarget): void
     capture(): Promise<CapturedFrame>
+    // The map at a new flag's capital, at a tile's playing size, its picture on the tiles around it for one frame.
+    previewFlag(pin: Pin, picture: FlagPicture): Promise<FlagShot>
     graphics(): GraphicsReport
     dispose(): void
 }
+
+// The frame, and the capital's pixel in it.
+export type FlagShot = {frame: CapturedFrame, at: {x: number, y: number}}
 
 type CaptureRequest = {
     resolve: (frame: CapturedFrame) => void
@@ -520,8 +531,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const slots = new FlagSlots(invalidate, () => frames.wake())
+    const shownPictures = new Set<string>()
     // A sold flag's picture reached the atlas: the tiles, the grounds it leads and the slots take it.
     const atlas = new FlagAtlas(invalidate, (code, number) => {
+        shownPictures.add(code)
         field.showFlag(number)
         territories.showFlag(code)
         provinceFrames.showFlag(code)
@@ -2244,6 +2257,50 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
+    // Paint only, as a ghost: the tiles go back to what they show as soon as the frame is read.
+    type Preview = {code: string, direction: GlobePoint, resolve: (shot: FlagShot) => void, reject: (reason: Error) => void, ground?: number[]}
+    const previewCodes = new Map<string, string>()
+    let preview: Preview | undefined
+
+    const endPreview = () => {
+        const ground = preview?.ground
+        preview = undefined
+        if (ground) repaint(ground)
+    }
+
+    const flyToPreview = (direction: GlobePoint) => {
+        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio(), scale)
+        fly({direction, zoom: Math.min(most, maxZoom)})
+    }
+
+    // Once the flight ended and the picture is in the atlas: the capital is the tile under the pin.
+    const drivePreview = (moving: boolean) => {
+        const job = preview
+        if (!job || job.ground || flight || moving || !shownPictures.has(job.code)) return
+        const facing = camera.position.clone().normalize().dot(new THREE.Vector3(job.direction.x, job.direction.y, job.direction.z))
+        if (facing < 0.99) {
+            flyToPreview(job.direction)
+            return
+        }
+        const {width, height} = renderer.domElement
+        const projected = new THREE.Vector3(job.direction.x, job.direction.y, job.direction.z).project(camera)
+        const at = {x: (projected.x + 1) / 2 * width, y: (1 - projected.y) / 2 * height}
+        const capital = picker.pick(camera, at.x, at.y)
+        job.ground = capital === undefined ? [] : groundAround(capital, PREVIEW_RINGS, (tile) => neighbourhood().of(tile))
+        field.setOwners(job.ground.map((tile) => ({tile, country: job.code})))
+        captureRequests.push({
+            resolve: (frame) => {
+                if (preview === job) endPreview()
+                job.resolve({frame, at})
+            },
+            reject: (reason) => {
+                if (preview === job) endPreview()
+                job.reject(reason)
+            },
+        })
+        invalidate()
+    }
+
     const ghostSight = (): Sight | undefined => {
         const {width, height} = renderer.domElement
         const centre = surfacePoint(width / 2, height / 2)?.normalize()
@@ -2319,6 +2376,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             slots.upload(renderer)
             atlas.upload(renderer)
         }
+        drivePreview(motion === "moving")
         driveGhosts(seconds)
         driveTap(seconds)
         const boxed = driveBonusBox(seconds)
@@ -2488,6 +2546,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             captureRequests.push({resolve, reject})
             invalidate()
         }),
+        previewFlag: (pin: Pin, picture: FlagPicture) => new Promise<FlagShot>((resolve, reject) => {
+            if (lifetime.signal.aborted) {
+                reject(new Error("the globe is no longer running"))
+                return
+            }
+            const was = preview
+            endPreview()
+            was?.reject(new DOMException("another preview was asked for", "AbortError"))
+            const code = previewCodes.get(picture.url) ?? `${PREVIEW_CODE}${previewCodes.size + 1}`
+            previewCodes.set(picture.url, code)
+            atlas.want(new Map([[code, picture]]))
+            const direction = pointOfPin(pin)
+            preview = {code, direction, resolve, reject}
+            flyToPreview(direction)
+            invalidate()
+        }),
         graphics: () => graphicsReportOf(renderer.getContext()),
         dispose: () => {
             lifetime.abort()
@@ -2495,6 +2569,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             for (const request of takeCaptureRequests()) {
                 request.reject(new Error("the globe was disposed before the frame was read"))
             }
+            preview?.reject(new Error("the globe was disposed before the flag was shown"))
+            preview = undefined
 
             stopAnimation()
             cleanUpdatesListener()

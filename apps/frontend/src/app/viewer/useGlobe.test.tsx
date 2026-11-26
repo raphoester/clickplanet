@@ -37,7 +37,7 @@ function fakeGlobe(): Globe & {
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), setBattle: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setVirusAimed: vi.fn(), setMineAimed: vi.fn(), setTrapAimed: vi.fn(), setRallyAimed: vi.fn(), setPinAimed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), setBattle: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setVirusAimed: vi.fn(), setMineAimed: vi.fn(), setTrapAimed: vi.fn(), setRallyAimed: vi.fn(), setPinAimed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), previewFlag: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {

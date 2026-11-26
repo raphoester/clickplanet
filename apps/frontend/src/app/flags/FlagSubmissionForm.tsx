@@ -22,11 +22,13 @@ import FlagCard from "./FlagCard.tsx"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import FlagPitch from "./FlagPitch.tsx"
 import {useFlagSubmissions} from "./submissionsStore.ts"
+import {FlagShooter, useMapShot} from "./mapShot.ts"
 import {usePreview} from "./usePreview.ts"
 import "./FlagSubmission.css"
 
 export type FlagSubmissionFormProps = {
     submitter: FlagSubmitter
+    shooter: FlagShooter
 }
 
 type Failure = SubmissionRefusal | "upload-failed" | "failed"
@@ -72,7 +74,7 @@ function readyToSend(draft: Draft, problem: PictureProblem | undefined): boolean
 
 // Step 1, with no price: the flag made and seen as the players will see it. Next sends it, and the review starts while
 // it is paid for.
-export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps) {
+export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionFormProps) {
     const draft = useFlagForm((form) => form.draft)
     const edit = useFlagForm((form) => form.edit)
     const aim = useFlagForm((form) => form.aim)
@@ -86,6 +88,7 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
     const nameId = useId()
     const counterId = useId()
     const preview = usePreview(draft.file)
+    const shot = useMapShot(shooter, draft.pinned?.pin, problem ? undefined : draft.file)
 
     // Made here and not once per component: StrictMode runs the cleanup once before the form is ever used.
     useEffect(() => {
@@ -255,7 +258,7 @@ export default function FlagSubmissionForm({submitter}: FlagSubmissionFormProps)
                     </button>
                 </div>}
 
-            <FlagCard name={flagNameOf(draft.name)} picture={preview} capital={draft.pinned && capitalOf(draft.pinned)}/>
+            <FlagCard name={flagNameOf(draft.name)} shot={shot} picture={preview} capital={draft.pinned && capitalOf(draft.pinned)}/>
 
             {failure && <p className="support-notice" role="alert">{t(FAILURES[failure])}</p>}
         </form>

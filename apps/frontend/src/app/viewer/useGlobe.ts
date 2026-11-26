@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {createGlobe, Globe} from './globe.ts';
+import {createGlobe, FlagShot, Globe} from './globe.ts';
+import type {FlagPicture, Pin} from '../../domain/flags.ts';
 import {Halo} from './atmosphere.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
@@ -275,6 +276,12 @@ export function useGlobe(options: UseGlobeOptions) {
         return globe.capture()
     }, [])
 
+    const previewFlag = useCallback((pin: Pin, picture: FlagPicture): Promise<FlagShot> => {
+        const globe = globeRef.current
+        if (!globe) return Promise.reject(new Error("the globe is not running yet"))
+        return globe.previewFlag(pin, picture)
+    }, [])
+
     const graphics = useCallback((): GraphicsReport => globeRef.current?.graphics() ?? NO_GRAPHICS, [])
 
     const territoryOf = useCallback((place: Place): Territory | undefined => globeRef.current?.territoryOf(place), [])
@@ -296,6 +303,7 @@ export function useGlobe(options: UseGlobeOptions) {
         tileDeltas,
         tilesCount,
         capture,
+        previewFlag,
         graphics,
         toggleBomb,
         toggleVirus,

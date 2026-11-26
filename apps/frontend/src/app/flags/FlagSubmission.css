@@ -171,48 +171,61 @@
     color: var(--text-soft);
 }
 
-/* The flag as the players will see it: tiles wearing its picture, its name and its capital. */
+/* The flag as the players will see it: the game's map around its capital, its name and its capital. */
 .flag-card {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: var(--space-3);
-    padding: var(--space-3);
+    padding: var(--space-2);
 }
 
 .flag-form .flag-card {
     margin-top: var(--space-2);
 }
 
-.flag-card-tiles {
+.flag-card-map {
     position: relative;
-    display: block;
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    aspect-ratio: 2 / 1;
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
 }
 
-.flag-card-tiles svg {
+.flag-card-shot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
     display: block;
+    max-width: none;
+    transform: translate(-50%, -50%);
 }
 
-.flag-card-ground {
-    fill: var(--panel-sunk);
+.flag-card-picture {
+    display: block;
+    height: 50%;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-xs);
 }
 
 .flag-card-crown {
     position: absolute;
-    top: 50%;
-    left: 50%;
     display: flex;
     color: var(--gold);
     filter: drop-shadow(0 2px 0 var(--ink));
-    transform: translate(-50%, -62%);
+    transform: translate(-50%, -70%);
+    pointer-events: none;
 }
 
 .flag-card-text {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
     gap: var(--space-1);
     min-width: 0;
+    padding: 0 var(--space-1) var(--space-1);
     text-align: left;
 }
 

@@ -16,6 +16,7 @@ import {useFlagForm} from "./flagFormStore.ts"
 import {useFlags} from "./flagsStore.ts"
 import FlagSubmissionEntry from "./FlagSubmissionEntry.tsx"
 import FlagSubmissionPlace from "./FlagSubmissionPlace.tsx"
+import {FlagShooter} from "./mapShot.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 
 const PIN = {latitude: 48.1, longitude: 11.6}
@@ -51,6 +52,9 @@ async function accountOf(linked: Provider[]) {
     await store.load()
     return store
 }
+
+// The globe is in no test: its shot never comes.
+const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
 
 const submitter = (): FlagSubmitter => ({uploadPicture: vi.fn(), submitFlag: vi.fn(), mySubmissions: vi.fn(async () => [])})
 
@@ -127,7 +131,7 @@ describe("FlagSubmissionEntry", () => {
 
 describe("FlagSubmissionPlace", () => {
     const place = (account: AccountStore, sells: Shop = shop(), toCheckout = vi.fn()) =>
-        render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={sells} toCheckout={toCheckout}/>)
+        render(<FlagSubmissionPlace account={account} submitter={submitter()} shooter={NEVER_SHOT} shop={sells} toCheckout={toCheckout}/>)
 
     it("shows a guest the region's flag and the sign-in buttons, never the form", async () => {
         const account = await accountOf([])
@@ -207,7 +211,7 @@ describe("the paywall", () => {
         useShop.setState({plans: PLANS})
         useFlagForm.setState({draft: typed})
         useFlagForm.getState().showPaywall(sent, typed)
-        return render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={sells} toCheckout={toCheckout}/>)
+        return render(<FlagSubmissionPlace account={account} submitter={submitter()} shooter={NEVER_SHOT} shop={sells} toCheckout={toCheckout}/>)
     }
 
     it("shows the flag made, the plans once, and pays before the verdict", async () => {
@@ -217,7 +221,7 @@ describe("the paywall", () => {
         const user = userEvent.setup()
 
         expect(document.querySelector(".flag-card")?.textContent).toBe("BavariaUpper BavariaWaiting")
-        expect(document.querySelector(".flag-card image")?.getAttribute("href")).toBe("blob:preview")
+        expect(document.querySelector(".flag-card img")?.getAttribute("src")).toBe("blob:preview")
         expect(screen.getByRole("status").textContent).toBe("We check it after you pay.")
         expect(screen.getAllByRole("radiogroup")).toHaveLength(1)
         expect(screen.getByRole("radio", {name: /1 year/}).getAttribute("aria-checked")).toBe("true")
@@ -246,7 +250,7 @@ describe("the paywall", () => {
         act(() => read([submission({state: "approved", picture: PICTURE})]))
 
         expect(document.querySelector(".flag-card")?.textContent).toBe("BavariaUpper BavariaApproved")
-        expect(document.querySelector(".flag-card image")?.getAttribute("href")).toBe(PICTURE.url)
+        expect(document.querySelector(".flag-card img")?.getAttribute("src")).toBe(PICTURE.url)
         expect(screen.getByRole("status").textContent).toBe("Approved! Pick a plan to open it.")
         expect(screen.queryByRole("button", {name: "Back"})).toBeNull()
         await user.click(screen.getByRole("button", {name: "Pay €60"}))
@@ -276,7 +280,7 @@ describe("the paywall", () => {
         const account = await accountOf(["google"])
         read([submission({state: "approved"})])
         useFlagForm.getState().open()
-        render(<FlagSubmissionPlace account={account} submitter={submitter()} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagSubmissionPlace account={account} submitter={submitter()} shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
 
         act(() => read([submission({state: "rejected", rejection: {reason: "other", note: ""}})]))
         await userEvent.setup().click(screen.getByRole("button", {name: "Fix it"}))

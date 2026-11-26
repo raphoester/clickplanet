@@ -14,6 +14,7 @@ import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
 import {appealOf} from "./appeal.ts"
 import SubmissionLine from "./SubmissionLine.tsx"
 import {useFlagSubmissions, useVerdictReads} from "./submissionsStore.ts"
+import {FlagShooter, useMapShot} from "./mapShot.ts"
 import {usePreview} from "./usePreview.ts"
 import "./FlagSubmission.css"
 
@@ -21,6 +22,8 @@ export type FlagPaywallProps = {
     // As sent or found: a newer read of it wins.
     submission: Submission
     typed?: Draft
+    // The map at the capital with the flag on it.
+    shooter: FlagShooter
     shop: Shop
     // Stripe's page.
     toCheckout: (url: string) => void
@@ -28,7 +31,7 @@ export type FlagPaywallProps = {
 
 // Step 2: the flag made, its review's verdict as it comes, and the plans once. Pay never waits for the verdict; a
 // rejection shows before any payment.
-export default function FlagPaywall({submission: sent, typed, shop, toCheckout}: FlagPaywallProps) {
+export default function FlagPaywall({submission: sent, typed, shooter, shop, toCheckout}: FlagPaywallProps) {
     const read = useFlagSubmissions((store) => store.submissions.find(({id}) => id === sent.id))
     const back = useFlagForm((form) => form.back)
     const close = useFlagForm((form) => form.close)
@@ -36,6 +39,7 @@ export default function FlagPaywall({submission: sent, typed, shop, toCheckout}:
     const plans = useShop((store) => store.plans)
     const submission = read ?? sent
     const preview = usePreview(typed?.file)
+    const shot = useMapShot(shooter, typed?.pinned?.pin ?? submission.pin, typed?.file ?? submission.picture)
     useVerdictReads(submission.state === "waiting")
 
     const shown = shownOf(submission, catalog)
@@ -53,6 +57,7 @@ export default function FlagPaywall({submission: sent, typed, shop, toCheckout}:
     return <Modal title={t("flagSubmission.yours")} footer={footer} onClose={close} className={offered ? "shop-modal" : undefined}>
         <div className="flag-status">
             <FlagCard name={submission.name}
+                      shot={shot}
                       picture={submission.picture?.url ?? preview}
                       capital={capital}
                       chip={<SubmissionStateChip state={shown.state}/>}/>

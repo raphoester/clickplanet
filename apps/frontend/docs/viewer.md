@@ -5,7 +5,8 @@
   Every size tied to the tiles reads that board's scale, the shaders' too (`virusLift`, `leastFlagRadius`): see [Sized
   by the board](board-scale.md). Returns a `Globe` handle: `tilesCount`,
   `tilesRead`, the setters `PlayScreen` pushes state through (`setCountry`, `setMapView`, `setSwitch`, …), the
-  camera's flights, `capture()` and `dispose()`. Its loop draws on demand — see [Drawing only when
+  camera's flights, `capture()`, `previewFlag(pin, picture)` (a new flag on the map at its capital for one frame: see
+  [Flag submissions](flag-submissions.md#the-flag-card)) and `dispose()`. Its loop draws on demand — see [Drawing only when
   something changed](render-on-demand.md).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
   must not depend on anything that changes per render**; the selected country and

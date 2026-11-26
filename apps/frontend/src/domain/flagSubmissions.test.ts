@@ -9,6 +9,7 @@ import {
     pictureFileRefusal,
     pictureShapeRefusal,
     pinAt,
+    pointOfPin,
     shownOf,
     Submission,
     untold,
@@ -63,6 +64,17 @@ describe("pinAt", () => {
         expect(pinAt({x: 0, y: 5, z: 0}).latitude).toBeCloseTo(90, 6)
         const phi = 48 * Math.PI / 180, lambda = 11.5 * Math.PI / 180
         close(pinAt({x: -Math.cos(phi) * Math.cos(lambda), y: Math.sin(phi), z: Math.cos(phi) * Math.sin(lambda)}), 48, 11.5)
+    })
+})
+
+describe("pointOfPin", () => {
+    it("puts a pin back on the sphere where pinAt read it", () => {
+        for (const pin of [{latitude: 48.14, longitude: 11.58}, {latitude: -33.9, longitude: 151.2}, {latitude: 0, longitude: -179}]) {
+            const back = pinAt(pointOfPin(pin))
+            expect(back.latitude).toBeCloseTo(pin.latitude, 9)
+            expect(back.longitude).toBeCloseTo(pin.longitude, 9)
+        }
+        expect(pointOfPin({latitude: 90, longitude: 0}).y).toBeCloseTo(1, 12)
     })
 })
 
