@@ -31,17 +31,18 @@ stop only when they get it at once. Every word you write is for them.
   - `flags`: the flags fighting on it, each with its own `continent`, what it `took` from another flag, `filled` off
     empty ground, `lost`, whom it took from (`tookFrom`), the `solidity` of what it took (from 0, lines drawn across
     someone's land, to 1, land taken whole), the tiles of the landmasses whose painted flag switched to it, by
-    continent (`flippedByContinent`), and its `fighters`: the players who took the most for it, each with its
-    `number`, its `name` and what it `took`.
+    continent (`flippedByContinent`), its `players`, at least how many players took tiles for it there (a guest is not
+    counted), and its `fighters`: the players who took the most for it, each with its `number`, its `name` and what it
+    `took`.
   - `bombs`, `spreads`, `enclosures`: power-ups going off in sight. A bomb is a spectacle.
   - `score`: how busy it was. The order of `fronts` is by it.
 - `tours`: each flag taking land across the whole map in a stretch: what it `took`, where (`byContinent`), from whom,
-  what the next flag took in the same stretch (`nextTook`), its solidity, `flippedByContinent` and `fighters`. A
+  what the next flag took in the same stretch (`nextTook`), its solidity, `flippedByContinent`, `players` and `fighters`. A
   tour's camera stays far out, where a viewer sees only each landmass's big painted flag: a flag far ahead of the next,
   switching big landmasses on two continents or more, is taking over the world; less is not.
 - `places`: the map at the end, the world, each continent and each big country, with its `holder`, how much it holds
   (`held`, `share`), the next holders (`rivals`), how many of its tiles `changed` hands to or from the holder in the
-  window, `flippedByContinent` and `fighters`. A flag holding its own country is no news.
+  window, `flippedByContinent`, and the holder's `players` and `fighters`. A flag holding its own country is no news.
 - `sagas`: each place over the whole season, from the map every hour. Its `contenders`, oldest first: every flag that
   held a tenth of it or more, from `since` (the first hour it did) to `until` (when it fell under a tenth for the last
   time; none while it still holds a tenth), with its `peak` and its `share` now. Its `reigns`, oldest first: each flag
@@ -150,6 +151,14 @@ must understand the headline alone.
 One is the post's title: on YouTube it is read alone, in a list. Two or three, each the story in other plain words,
 as clear and as true as the headline, never the headline itself: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL LOSES
 ARGENTINA TO BULGARIA" and "ARGENTINA IS BULGARIA'S NOW". Upper case, 86 letters at most.
+
+**History and memes, now and then.** When the map repeats a real conquest (the heir's flag over about the same land,
+going the same way), or a country meme that is years old and still used fits it, one teaser of the story may say so,
+still naming who and where: "TURKEY TAKES THE BALKANS LIKE THE OTTOMANS DID", "A CLASSIC FRENCH WIN IN SPAIN", "THE USA
+TAKES INDIA. WHAT THE F*** IS A KILOMETER" (a swear with stars). Either side the joke fits, the winner included; old
+empires may be praised, and a land claim is fine. Never a war going on now (Russia and Ukraine, Israel and Palestine), a
+joke about victims (a massacre, a genocide, a famine), the Nazis, "Serbia Strong" or "Remove Kebab". Most runs have
+none: read `told`. The headline stays plain.
 
 ## The line, the call and the anthem
 

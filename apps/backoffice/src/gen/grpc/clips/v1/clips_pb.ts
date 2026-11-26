@@ -1046,6 +1046,13 @@ export class FrontFlag extends Message<FrontFlag> {
    */
   fighters: TopFighter[] = [];
 
+  /**
+   * How many players of the cast took for it here: a guest is in no cast, so there may be more.
+   *
+   * @generated from field: uint32 players = 10;
+   */
+  players = 0;
+
   constructor(data?: PartialMessage<FrontFlag>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1063,6 +1070,7 @@ export class FrontFlag extends Message<FrontFlag> {
     { no: 7, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 8, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 9, name: "fighters", kind: "message", T: TopFighter, repeated: true },
+    { no: 10, name: "players", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FrontFlag {
@@ -1201,6 +1209,13 @@ export class Tour extends Message<Tour> {
    */
   fighters: TopFighter[] = [];
 
+  /**
+   * How many players of the cast took for the flag in the stretch.
+   *
+   * @generated from field: uint32 players = 12;
+   */
+  players = 0;
+
   constructor(data?: PartialMessage<Tour>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1220,6 +1235,7 @@ export class Tour extends Message<Tour> {
     { no: 9, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 10, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 11, name: "fighters", kind: "message", T: TopFighter, repeated: true },
+    { no: 12, name: "players", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Tour {
@@ -1314,6 +1330,13 @@ export class Place extends Message<Place> {
    */
   fighters: TopFighter[] = [];
 
+  /**
+   * How many players of the cast took of the place for the holder in the window.
+   *
+   * @generated from field: uint32 players = 12;
+   */
+  players = 0;
+
   constructor(data?: PartialMessage<Place>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1333,6 +1356,7 @@ export class Place extends Message<Place> {
     { no: 9, name: "changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 10, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 11, name: "fighters", kind: "message", T: TopFighter, repeated: true },
+    { no: 12, name: "players", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Place {

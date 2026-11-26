@@ -35,6 +35,11 @@ export function topFightersOf(cast: Cast, takes: Iterable<Take>): TopFighter[] {
     return ranked(cast, takes).slice(0, MOST_FIGHTERS)
 }
 
+// How many players of the cast made the takes.
+export function playersOf(takes: Iterable<Take>): number {
+    return new Set(Array.from(takes, ({fighter}) => fighter)).size
+}
+
 // The players the editor named, each under the side it took the most for in what the clip plays (takes), the sides in
 // their order and the most first on each. sideOf: the side a flag fights on, when not its own. One who took nothing for
 // a side there is not named.

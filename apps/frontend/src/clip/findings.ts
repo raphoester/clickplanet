@@ -95,19 +95,19 @@ export function findingsOf(found: Found): Findings {
             flags: front.flags.map((flag) => ({
                 code: flag.code, continent: flag.continent ?? "", took: flag.took, filled: flag.filled, lost: flag.lost,
                 tookFrom: flag.tookFrom, solidity: rounded(flag.solidity, 2), flippedByContinent: flag.flippedByContinent,
-                fighters: flag.fighters,
+                fighters: flag.fighters, players: flag.players,
             })),
             bombs: front.bombs, spreads: front.spreads, enclosures: front.enclosures, score: rounded(front.score, 1),
         })),
         tours: found.tours.map((tour) => new Tour({
             flag: tour.flag, since: at(tour.since), until: at(tour.until), took: tour.took, byContinent: tour.byContinent,
             tookFrom: tour.tookFrom, nextTook: tour.nextTook, solidity: rounded(tour.solidity, 2), bombs: tour.bombs,
-            flippedByContinent: tour.flippedByContinent, fighters: tour.fighters,
+            flippedByContinent: tour.flippedByContinent, fighters: tour.fighters, players: tour.players,
         })),
         places: found.places.map((place) => new PlaceWritten({
             kind: place.kind, code: place.code ?? "", continent: place.continent ?? "", tiles: place.tiles, holder: place.holder,
             held: place.held, share: rounded(place.share, 3), rivals: place.rivals, changed: place.changed,
-            flippedByContinent: place.flippedByContinent, fighters: place.fighters,
+            flippedByContinent: place.flippedByContinent, fighters: place.fighters, players: place.players,
         })),
         sagas: found.sagas.map((saga) => new Saga({
             kind: saga.kind, code: saga.code ?? "", continent: saga.continent ?? "", tiles: saga.tiles,

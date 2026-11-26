@@ -54,6 +54,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 			ByContinent: countsOf(tour.GetByContinent()), TookFrom: countsOf(tour.GetTookFrom()), NextTook: int(tour.GetNextTook()),
 			Solidity: tour.GetSolidity(), Bombs: int(tour.GetBombs()),
 			FlippedByContinent: countsOf(tour.GetFlippedByContinent()), Fighters: fightersOf(tour.GetFighters()),
+			Players: int(tour.GetPlayers()),
 		})
 	}
 	for _, place := range written.GetPlaces() {
@@ -61,7 +62,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 			Kind: posts.PlaceKind(place.GetKind()), Code: place.GetCode(), Continent: place.GetContinent(), Tiles: int(place.GetTiles()),
 			Holder: place.GetHolder(), Held: int(place.GetHeld()), Share: place.GetShare(), Rivals: countsOf(place.GetRivals()),
 			Changed: int(place.GetChanged()), FlippedByContinent: countsOf(place.GetFlippedByContinent()),
-			Fighters: fightersOf(place.GetFighters()),
+			Fighters: fightersOf(place.GetFighters()), Players: int(place.GetPlayers()),
 		})
 	}
 	for _, saga := range written.GetSagas() {
@@ -100,7 +101,7 @@ func frontOf(written *clipsv1.Front) posts.Front {
 		front.Flags = append(front.Flags, posts.FrontFlag{
 			Code: flag.GetCode(), Continent: flag.GetContinent(), Took: int(flag.GetTook()), Filled: int(flag.GetFilled()), Lost: int(flag.GetLost()),
 			TookFrom: countsOf(flag.GetTookFrom()), Solidity: flag.GetSolidity(), FlippedByContinent: countsOf(flag.GetFlippedByContinent()),
-			Fighters: fightersOf(flag.GetFighters()),
+			Fighters: fightersOf(flag.GetFighters()), Players: int(flag.GetPlayers()),
 		})
 	}
 	return front

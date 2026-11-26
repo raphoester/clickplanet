@@ -27,6 +27,8 @@ func TestTheFactsOfAFrontAreItAloneAsTheEditorReadItWithTheNames(t *testing.T) {
 	assert.ElementsMatch(t, []string{"now", "names", "front"}, keysOf(facts))
 	assert.Equal(t, map[string]any{"fr": "France", "tr": "Turkey"}, facts["names"])
 	assert.InDelta(t, 9844, facts["front"].(map[string]any)["tilesChanged"], 0)
+	// How many played for each side: "ten Turks against one Bulgarian".
+	assert.InDelta(t, 7, facts["front"].(map[string]any)["flags"].([]any)[0].(map[string]any)["players"], 0)
 }
 
 func TestTheFactsOfASagaHoldThePathsOfItsFlagsAlone(t *testing.T) {

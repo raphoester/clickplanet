@@ -114,6 +114,7 @@ type flag struct {
 	TookFrom           map[string]int `json:"tookFrom"`
 	Solidity           float64        `json:"solidity"`
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Players            int            `json:"players,omitempty"`
 	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
@@ -136,6 +137,7 @@ type tour struct {
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
 	Solidity           float64        `json:"solidity"`
 	Bombs              int            `json:"bombs"`
+	Players            int            `json:"players,omitempty"`
 	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
@@ -151,6 +153,7 @@ type place struct {
 	Rivals             map[string]int `json:"rivals"`
 	Changed            int            `json:"changed"`
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Players            int            `json:"players,omitempty"`
 	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
@@ -285,7 +288,7 @@ func tourOf(number int, found posts.Tour) tour {
 		Tour: number, Flag: found.Flag, Since: found.Since.UTC(), Until: found.Until.UTC(), Hours: hoursOf(found.Since, found.Until),
 		Took: found.Took, ByContinent: found.ByContinent, TookFrom: found.TookFrom, NextTook: found.NextTook,
 		FlippedByContinent: found.FlippedByContinent, Solidity: found.Solidity, Bombs: found.Bombs,
-		Fighters: fightersOf(found.Fighters),
+		Players: found.Players, Fighters: fightersOf(found.Fighters),
 	}
 }
 
@@ -294,7 +297,7 @@ func placeOf(number int, found posts.Place) place {
 		Place: number, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles,
 		Holder: found.Holder, Held: found.Held, Share: found.Share, Rivals: found.Rivals, Changed: found.Changed,
 		FlippedByContinent: found.FlippedByContinent,
-		Fighters:           fightersOf(found.Fighters),
+		Players:            found.Players, Fighters: fightersOf(found.Fighters),
 	}
 }
 
@@ -429,7 +432,7 @@ func frontOf(number int, found posts.Front) front {
 		written.Flags = append(written.Flags, flag{
 			Code: f.Code, Continent: f.Continent, Took: f.Took, Filled: f.Filled, Lost: f.Lost, TookFrom: f.TookFrom, Solidity: f.Solidity,
 			FlippedByContinent: f.FlippedByContinent,
-			Fighters:           fightersOf(f.Fighters),
+			Players:            f.Players, Fighters: fightersOf(f.Fighters),
 		})
 	}
 	return written

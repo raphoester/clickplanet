@@ -22,9 +22,12 @@ func TestAScriptIsMeasuredAsItIsSaid(t *testing.T) {
 func TestTheTurnsThatGiveAMachineAwayAreFoundAndSoAreTheSignsAVoiceReadsBadly(t *testing.T) {
 	script := narration.Script{Script: posts.Script{Lines: []string{
 		"In a stunning turn of events, Palau took 68% of Russia — and only time will tell!", "Buckle up!",
+		"History repeats itself: what the f*** is a kilometer?",
 	}}}
 
-	assert.Equal(t, []string{"buckle up", "only time will tell", "turn of events", "a dash", "a digit", "exclamation marks"}, script.Tells())
+	assert.Equal(t, []string{
+		"buckle up", "history repeats itself", "only time will tell", "turn of events", "a dash", "a digit", "exclamation marks", "a star",
+	}, script.Tells())
 }
 
 func TestAWriterIsNamedByItsFamilyOrItsID(t *testing.T) {
