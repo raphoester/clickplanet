@@ -33,7 +33,7 @@ export default function PlanCards({plans, sale, picked, onPick, disabled}: PlanC
                            onClick={() => onPick(price.plan)}>
                 {price.plan === best && <span className="shop-plan-ribbon">{t("shop.bestValue")}</span>}
                 <span className="shop-plan-name">{planName(price.plan)}</span>
-                {sale && <s className="shop-plan-was"><Money price={price}/></s>}
+                {sale && <Money price={price} className="shop-plan-was" struck/>}
                 <Money price={paid} className="shop-plan-amount"/>
                 <span className="shop-plan-cadence">{sale ? saleCadenceOf(price) : cadenceOf(price)}</span>
                 <span className="shop-plan-deal">

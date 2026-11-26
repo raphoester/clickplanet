@@ -60,7 +60,7 @@ export default function SaleNudge({sale, onOpen, onClose}: SaleNudgeProps) {
                 <ul className="sale-nudge-plans">
                     {plans.map((price) => <li key={price.plan} className="sale-nudge-plan">
                         <span className="sale-nudge-plan-name">{planName(price.plan)}</span>
-                        <s className="sale-nudge-was"><Money price={price}/></s>
+                        <Money price={price} className="sale-nudge-was" struck/>
                         <Money price={salePriceOf(price, sale)} className="sale-nudge-now"/>
                     </li>)}
                 </ul>
