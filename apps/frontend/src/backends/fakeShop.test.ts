@@ -71,12 +71,12 @@ describe("FakeShop", () => {
         const id = await approved(submissions)
 
         expect(await shop.checkout({plan: "month", target: {kind: "submission", id}, startsNow: true})).toBe(`${ORIGIN}/play?shop=paid`)
-        expect((await submissions.mySubmissions())[0].state).toBe("approved")
+        expect((await submissions.myFlags()).submissions[0].state).toBe("approved")
         expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "submission", id}, startsNow: true}))).toBe("unavailable")
 
         await vi.advanceTimersByTimeAsync(LANDS_MS)
 
-        const [opened] = await submissions.mySubmissions()
+        const {submissions: [opened]} = await submissions.myFlags()
         expect(opened.state).toBe("opened")
         const sold = (await flags.listFlags()).find(({code}) => code === opened.flag)?.sold
         expect(sold?.endsAt).toBeGreaterThanOrEqual(Date.now() + 29 * DAY_MS)
@@ -90,13 +90,13 @@ describe("FakeShop", () => {
 
         await shop.checkout({plan: "year", target: {kind: "submission", id: sent.id}, startsNow: true})
         await vi.advanceTimersByTimeAsync(LANDS_MS)
-        expect(await submissions.mySubmissions()).toMatchObject([{state: "waiting", paid: true}])
+        expect((await submissions.myFlags()).submissions).toMatchObject([{state: "waiting", paid: true}])
         expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "submission", id: sent.id}, startsNow: true}))).toBe("unavailable")
         expect(await submissions.submitFlag({name: "Bayern", uploadId: await upload(), pin: PIN, replaces: sent.id})
             .then(() => "sent", () => "refused")).toBe("refused")
 
         await submissions.approve()
-        const [opened] = await submissions.mySubmissions()
+        const {submissions: [opened]} = await submissions.myFlags()
         expect(opened).toMatchObject({state: "opened", paid: false})
         expect((await flags.listFlags()).find(({code}) => code === opened.flag)?.sold?.endsAt).toBeGreaterThan(Date.now() + 364 * DAY_MS)
 
@@ -104,14 +104,14 @@ describe("FakeShop", () => {
         await shop.checkout({plan: "week", target: {kind: "submission", id: other.id}, startsNow: true})
         await vi.advanceTimersByTimeAsync(LANDS_MS)
         submissions.reject("exists")
-        expect((await submissions.mySubmissions())[0]).toMatchObject({state: "rejected", paid: false})
+        expect((await submissions.myFlags()).submissions[0]).toMatchObject({state: "rejected", paid: false})
     })
 
     it("adds a week to a founded flag, and refuses more while its renewal runs", async () => {
         const {shop, submissions, flags} = await setup()
         const id = await approved(submissions)
         await submissions.openApproved(id, 7)
-        const [{flag}] = await submissions.mySubmissions()
+        const {submissions: [{flag}]} = await submissions.myFlags()
         const endsAt = () => flags.listFlags().then((listed) => listed.find(({code}) => code === flag)?.sold?.endsAt ?? 0)
         const before = await endsAt()
 
@@ -123,6 +123,39 @@ describe("FakeShop", () => {
         await shop.checkout({plan: "year", target: {kind: "flag", flag}, startsNow: true})
         await vi.advanceTimersByTimeAsync(LANDS_MS)
         expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "flag", flag}, startsNow: true}))).toBe("unavailable")
+    })
+
+    it("claims a flag whose time ended for any player, never a removed one, nor while another's renewal runs", async () => {
+        const {shop, submissions, flags} = await setup()
+        const free = "xb"
+        expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "flag", flag: free}, startsNow: true}))).toBe("not-yours")
+
+        flags.end(free)
+        shop.renewElsewhere(free, true)
+        expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "flag", flag: free}, startsNow: true}))).toBe("unavailable")
+        shop.renewElsewhere(free, false)
+
+        await shop.checkout({plan: "week", target: {kind: "flag", flag: free}, startsNow: true})
+        await vi.advanceTimersByTimeAsync(LANDS_MS)
+        expect((await submissions.myFlags()).held).toEqual([{code: free}])
+        expect((await flags.listFlags()).find(({code}) => code === free)?.closed).toBe(false)
+
+        flags.remove(free, "Broke the rules.")
+        expect((await submissions.myFlags()).held).toEqual([{code: free, removalNote: "Broke the rules."}])
+        expect(await refusalOf(shop.checkout({plan: "week", target: {kind: "flag", flag: free}, startsNow: true}))).toBe("unavailable")
+    })
+
+    it("lets a flag another player claimed leave the account's flags", async () => {
+        const {submissions, flags} = await setup()
+        const id = await approved(submissions)
+        await submissions.openApproved(id, 7)
+        const {submissions: [{flag}]} = await submissions.myFlags()
+        expect((await submissions.myFlags()).held).toEqual([{code: flag}])
+
+        flags.end(flag)
+        expect(flags.claimElsewhere(flag)).toBe(true)
+
+        expect((await submissions.myFlags()).held).toEqual([])
     })
 
     it("stops a renewal, and its time stays", async () => {

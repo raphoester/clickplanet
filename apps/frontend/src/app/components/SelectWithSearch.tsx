@@ -10,8 +10,8 @@ type SelectWithSearchProps = {
     selected?: Value,
     values: Value[],
     onChange: (value: Value) => void
-    // Under the list, unless a search matches no value: then what the search found none for, under the search.
-    footer?: ReactNode
+    // Under the list, given the search, unless it matches no value: then what the search found none for, under it.
+    footer?: (search: string) => ReactNode
     noMatch?: (search: string) => ReactNode
 }
 
@@ -121,6 +121,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                 </div>
             ))}
         </div>
-        {!unmatched && props.footer}
+        {!unmatched && props.footer?.(search)}
     </div>
 }

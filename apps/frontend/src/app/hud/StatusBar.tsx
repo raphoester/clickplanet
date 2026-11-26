@@ -24,7 +24,7 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
     const boardOpen = useScreen((screen) => screen.sheet === "board")
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
     const selling = useShop((store) => store.plans.length > 0)
-    const openFlag = useFlagForm((form) => form.open)
+    const openShop = useFlagForm((form) => form.openShop)
 
     const name = translator().country(country.code)
 
@@ -46,7 +46,7 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
                                 className="icon-button status-bar-shop shop-shine"
                                 aria-label={t("menu.shop")}
                                 aria-haspopup="dialog"
-                                onClick={() => openFlag()}>
+                                onClick={openShop}>
                 <ShopIcon/>
             </button>}
         </div>

@@ -6,8 +6,6 @@ const BUILT_IN: readonly ListedFlag[] = Object.entries(countriesData).map(([code
 
 const CODE_LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
 const DAY_MS = 24 * 60 * 60 * 1000
-// Time added within this long of a close opens the flag again.
-const COMEBACK_MS = 30 * DAY_MS
 const MAX_NAME = 40
 
 // A flag's picture, as the server would have drawn it from an upload.
@@ -28,13 +26,19 @@ const LEFT_THE_BUILD: readonly {code: string, name: string, hash: string, height
         focusX: 0.5, focusY: 0.4711, pin: {latitude: 51.499995, longitude: -3.225008}},
 ]
 
-// `openFlag("Bavaria")`, `addTime(code, days)`, `closeFlag(code, note)` and `renameFlag(code, name)` on the console, each told
-// as the flags module's stream tells it. Nothing closes a flag when its time runs out: closeFlag does.
+// What a payment for a flag did, or why it bought nothing.
+export type Paid = "longer" | "reopened" | "claimed" | "unknown" | "removed" | "held"
+
+// `openFlag("Bavaria")`, `addTime(code, days)`, `endFlag(code)`, `claimElsewhere(code)`, `removeFlag(code, note)` and
+// `renameFlag(code, name)` on the console, each told as the flags module's stream tells it. Nothing ends a flag when its
+// time runs out: endFlag does.
 export class FakeFlagsBackend implements FlagLister, FlagStream {
     private readonly sold: ListedFlag[]
     private readonly listeners = new Set<FlagHandlers>()
     private readonly closings = new Set<(closed: ReadonlySet<string>) => void>()
-    private readonly closeNotes = new Map<string, string>()
+    private readonly removalNotes = new Map<string, string>()
+    // The flags the page's account holds: its payment opened them or claimed them last.
+    private readonly held = new Set<string>()
 
     constructor(private readonly paint: FlagPainter, private readonly now: () => number = Date.now) {
         this.sold = LEFT_THE_BUILD.map(({code, name, hash, height, focusX, focusY, pin}) => ({code, name, closed: false, sold: {
@@ -65,8 +69,11 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         return () => this.closings.delete(onClosed)
     }
 
-    // A submission opened brings its own picture and pin; the console's openFlag has its picture painted from its name.
-    public async open(name: string, days = 30, from: {picture?: FlagPicture, pin?: Pin} = {}): Promise<{code: string} | {refused: NameRefusal}> {
+    // A submission opened brings its own picture and pin, and is held by its founder; the console's openFlag has its
+    // picture painted from its name, and no holder.
+    public async open(
+        name: string, days = 30, from: {picture?: FlagPicture, pin?: Pin, held?: boolean} = {},
+    ): Promise<{code: string} | {refused: NameRefusal}> {
         const trimmed = name.trim()
         const refused = this.nameRefusalOf(trimmed, undefined)
         if (refused !== undefined) return {refused}
@@ -74,8 +81,34 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         const picture = from.picture ?? await this.paint(trimmed)
         const flag: ListedFlag = {code, name: trimmed, closed: false, sold: {picture, endsAt: this.now() + days * DAY_MS, pin: from.pin}}
         this.sold.push(flag)
+        if (from.held) this.held.add(code)
         this.tell(flag)
         return {code}
+    }
+
+    // The page's account's flags, each with the note of its removal.
+    public heldFlags(): {code: string, removalNote?: string}[] {
+        return [...this.held].map((code) => {
+            const removalNote = this.removalNotes.get(code)
+            return removalNote === undefined ? {code} : {code, removalNote}
+        })
+    }
+
+    public holds(code: string): boolean {
+        return this.held.has(code)
+    }
+
+    // As a payment of the page's account: its own flag ends later, or opens again; a flag whose time ended opens for it.
+    public pay(code: string, days: number): Paid {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined) return "unknown"
+        if (flag.sold.removed) return "removed"
+        const holds = this.held.has(code)
+        if (!flag.closed && !holds) return "held"
+        const paid = this.timeAdded(flag, days)
+        if (holds) return paid
+        this.held.add(code)
+        return "claimed"
     }
 
     // As the stream would open again after a drop: the page reads what changed while it was closed.
@@ -83,37 +116,57 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         this.listeners.forEach(({onOpened}) => onOpened())
     }
 
-    // An open flag ends later; one closed less than 30 days ago opens again, ending that many days from now.
-    public addTime(code: string, days: number): "longer" | "reopened" | "unknown" | "too late" {
+    // The operator's: an open flag ends later; a closed or removed one opens again, ending that many days from now, its
+    // holder kept; a removed one only while no other flag took its name.
+    public addTime(code: string, days: number): "longer" | "reopened" | "unknown" | "taken" {
         const flag = this.sold.find((sold) => sold.code === code)
         if (flag?.sold === undefined) return "unknown"
-        const now = this.now()
+        if (flag.sold.removed && this.nameRefusalOf(flag.name, code) === "taken") return "taken"
+        return this.timeAdded(flag, days)
+    }
+
+    // Its time ends now, as at its end: any player may pay for it and hold it.
+    public end(code: string): boolean {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined || flag.closed) return false
+        flag.closed = true
+        flag.sold = {...flag.sold, endsAt: this.now(), closedAt: this.now()}
+        this.tell(flag)
+        return true
+    }
+
+    // Another player pays for a flag whose time ended: it opens again for them, and leaves the page's account's flags.
+    public claimElsewhere(code: string, days = 30): boolean {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined || !flag.closed || flag.sold.removed) return false
+        this.held.delete(code)
+        this.timeAdded(flag, days)
+        return true
+    }
+
+    // The operator's removal, open or closed at its end: for good, with the note its holder reads.
+    public remove(code: string, note: string): boolean {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined || flag.sold.removed || note.trim() === "") return false
+        flag.closed = true
+        this.removalNotes.set(code, note.trim())
+        flag.sold = {...flag.sold, closedAt: this.now(), removed: true}
+        this.tell(flag)
+        return true
+    }
+
+    private timeAdded(flag: ListedFlag, days: number): "longer" | "reopened" {
+        if (flag.sold === undefined) throw new Error(`${flag.code} is no sold flag`)
         if (!flag.closed) {
             flag.sold = {...flag.sold, endsAt: flag.sold.endsAt + days * DAY_MS}
             this.tell(flag)
             return "longer"
         }
-        if (now - (flag.sold.closedAt ?? 0) > COMEBACK_MS) return "too late"
         flag.closed = false
-        this.closeNotes.delete(code)
-        flag.sold = {picture: flag.sold.picture, endsAt: now + days * DAY_MS}
+        this.removalNotes.delete(flag.code)
+        flag.sold = {picture: flag.sold.picture, endsAt: this.now() + days * DAY_MS, pin: flag.sold.pin}
         this.tell(flag)
         return "reopened"
-    }
-
-    // The note its founder reads, as ListMySubmissions answers it.
-    public close(code: string, note: string): boolean {
-        const flag = this.sold.find((sold) => sold.code === code)
-        if (flag?.sold === undefined || flag.closed || note.trim() === "") return false
-        flag.closed = true
-        this.closeNotes.set(code, note.trim())
-        flag.sold = {...flag.sold, closedAt: this.now()}
-        this.tell(flag)
-        return true
-    }
-
-    public closeNoteOf(code: string): string | undefined {
-        return this.closeNotes.get(code)
     }
 
     // Open or closed: its code, picture and land stay.
@@ -132,7 +185,8 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         if (name === "") return "empty"
         if ([...name].length > MAX_NAME) return "too long"
         const lower = name.toLowerCase()
-        const taken = [...BUILT_IN, ...this.sold].some((flag) => flag.code !== renamed && flag.name.toLowerCase() === lower)
+        const taken = [...BUILT_IN, ...this.sold]
+            .some((flag) => flag.code !== renamed && !flag.sold?.removed && flag.name.toLowerCase() === lower)
         return taken ? "taken" : undefined
     }
 

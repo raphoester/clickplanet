@@ -113,8 +113,9 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.unlockFlag()` ends the
 wait for another flag; `lockFlags()` locks the flags as a battle's rule set does, and `openFlags()` opens them (see
 [The flag played for](flag.md)); `openFlag("Bavaria", days)` opens a sold flag with a picture, `addTime(code, days)`
-ends it later or brings it back, `closeFlag(code)` closes it, and `renameFlag(code, name)` renames it (see [The list of
-flags](flag-catalog.md#in-fake-mode)); once `signIn()` has signed in, a flag sent from the flag picker waits until
+ends it later or brings it back, `endFlag(code)` ends its time (any player may claim it), `claimElsewhere(code)` has
+another player claim it, `renewingElsewhere(code)` keeps another player's renewal running on it, `removeFlag(code)`
+removes it, and `renameFlag(code, name)` renames it (see [The list of flags](flag-catalog.md#in-fake-mode)); once `signIn()` has signed in, a flag sent from the flag picker waits until
 `approveSubmission()`, `rejectSubmission("hateful", "note")` or, after an approval, `openSubmission(days)`, and
 `refuseSubmissions("waiting")` refuses the next sends (see [Flag submissions](flag-submissions.md#in-fake-mode)),
 and `fakeBackend.shareClicks()` as the

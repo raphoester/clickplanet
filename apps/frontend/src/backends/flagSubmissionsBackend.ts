@@ -5,7 +5,7 @@ import {
     Submission as SubmissionPb,
     SubmissionState as SubmissionStatePb,
 } from "../gen/grpc/flags/v1/flags_pb.ts"
-import {RejectionReason, Submission, SubmissionState} from "../domain/flagSubmissions.ts"
+import {MyFlags, NO_FLAGS, RejectionReason, Submission, SubmissionState} from "../domain/flagSubmissions.ts"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {pictureOf, pinOf} from "./flagsBackend.ts"
 import {putFile, PutFile} from "./putFile.ts"
@@ -31,10 +31,9 @@ const REASONS: Record<RejectionReasonPb, RejectionReason> = {
 }
 
 // A state this build does not know is dropped: a new enum value must not break an old tab.
-export function submissionOf(submission: SubmissionPb, closeNotes: ReadonlyMap<string, string> = new Map()): Submission | undefined {
+export function submissionOf(submission: SubmissionPb): Submission | undefined {
     const state = STATES[submission.state]
     if (state === undefined) return undefined
-    const closeNote = state === "opened" ? closeNotes.get(submission.flag) : undefined
     return {
         id: submission.id,
         name: submission.name,
@@ -47,7 +46,6 @@ export function submissionOf(submission: SubmissionPb, closeNotes: ReadonlyMap<s
             ? {rejection: {reason: REASONS[submission.rejection.reason] ?? "other", note: submission.rejection.note}}
             : {},
         ...submission.picture && submission.picture.url !== "" ? {picture: pictureOf(submission.picture)} : {},
-        ...closeNote !== undefined ? {closeNote} : {},
         paid: submission.paid,
     }
 }
@@ -78,16 +76,23 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
         return submission
     }
 
-    public async mySubmissions(): Promise<Submission[]> {
+    // A removal's note goes on the flag held it is for.
+    public async myFlags(): Promise<MyFlags> {
         const token = await this.session.identity()
-        if (!token) return []
+        if (!token) return NO_FLAGS
         const headers = new Headers({[SESSION_HEADER]: token})
         try {
             const res = await retrying(() => this.client.listMySubmissions({}, {headers}), "ListMySubmissions")
-            const closeNotes = new Map(res.closures.map(({flag, note}) => [flag, note]))
-            return res.submissions.flatMap((submission) => submissionOf(submission, closeNotes) ?? [])
+            const notes = new Map(res.closures.map(({flag, note}) => [flag, note]))
+            return {
+                submissions: res.submissions.flatMap((submission) => submissionOf(submission) ?? []),
+                held: res.held.map((code) => {
+                    const removalNote = notes.get(code)
+                    return removalNote === undefined ? {code} : {code, removalNote}
+                }),
+            }
         } catch (e) {
-            if (e instanceof ConnectError && [Code.Unimplemented, Code.Unauthenticated].includes(e.code)) return []
+            if (e instanceof ConnectError && [Code.Unimplemented, Code.Unauthenticated].includes(e.code)) return NO_FLAGS
             throw e
         }
     }

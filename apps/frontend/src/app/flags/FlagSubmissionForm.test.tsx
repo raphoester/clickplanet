@@ -6,9 +6,11 @@ import userEvent from "@testing-library/user-event"
 import {FlagSubmitter, SubmissionRefusedError, SubmittedFlag} from "../../backends/flags.ts"
 import {UploadOptions} from "../../backends/support.ts"
 import {Submission} from "../../domain/flagSubmissions.ts"
+import {FlagCatalog} from "../../domain/flags.ts"
 import type {PlanPrice} from "../../domain/shop.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {useShop} from "../shop/shopStore.ts"
+import {useFlags} from "./flagsStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
 import {FlagShooter} from "./mapShot.ts"
@@ -27,7 +29,7 @@ function bucket() {
         uploads.push({options, land: resolve, fail: () => reject(new Error("the bucket hung up"))})
     }))
     const submitFlag = vi.fn(async (sent: SubmittedFlag) => waiting(sent))
-    const submitter: FlagSubmitter = {uploadPicture, submitFlag, mySubmissions: vi.fn(async () => [])}
+    const submitter: FlagSubmitter = {uploadPicture, submitFlag, myFlags: vi.fn(async () => ({submissions: [], held: []}))}
     return {submitter, uploads, uploadPicture, submitFlag}
 }
 
@@ -48,7 +50,7 @@ const fileInput = () => document.querySelector("input[type=file]") as HTMLInputE
 beforeEach(() => {
     URL.createObjectURL = vi.fn(() => "blob:preview")
     URL.revokeObjectURL = vi.fn()
-    useFlagSubmissions.getState().serve({uploadPicture: vi.fn(), submitFlag: vi.fn(), mySubmissions: vi.fn(async () => [])})
+    useFlagSubmissions.getState().serve({uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []}))})
 })
 
 afterEach(() => {
@@ -200,6 +202,40 @@ describe("FlagSubmissionForm", () => {
         expect(useFlagForm.getState().draft).toEqual({name: "Bavaria", file, pinned: {pin: PIN}})
         expect(nameField().value).toBe("Bavaria")
         expect(sendButton().disabled).toBe(false)
+    })
+
+    it("takes a name of a flag whose time ended to its claim, never to a new flag", async () => {
+        useFlags.setState({catalog: FlagCatalog.BUILT_IN.withFlags([{
+            code: "r-k3p9x2ma0b", name: "Bavaria", closed: true,
+            sold: {picture: {url: "https://media.test/b.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}, endsAt: 1, closedAt: 1},
+        }])})
+        useFlagForm.getState().compose({name: "bavaria ", file: png(), pinned: {pin: PIN}})
+        render(<FlagSubmissionForm submitter={bucket().submitter} shooter={NEVER_SHOT}/>)
+
+        expect(screen.getByRole("status").textContent).toBe("Bavaria is free. Claim it.Claim it")
+        expect(sendButton().disabled).toBe(true)
+        await userEvent.setup().click(screen.getByRole("button", {name: "Claim it"}))
+
+        expect(useFlagForm.getState().step).toEqual({kind: "flag", flag: "r-k3p9x2ma0b", fromHub: false})
+        useFlags.setState({catalog: FlagCatalog.BUILT_IN})
+    })
+
+    it("sends a new flag in the place of the one that waits unpaid, and alone once that one was reviewed", async () => {
+        const {submitter, uploads, uploadPicture, submitFlag} = bucket()
+        submitFlag.mockRejectedValueOnce(new SubmissionRefusedError("decided"))
+        useFlagForm.getState().compose({name: "Swabia", file: png(), pinned: {pin: PIN}, replaces: "s-1", replacing: "Sardinia"})
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
+        const user = userEvent.setup()
+
+        expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
+        expect(screen.getByText("This replaces Sardinia, which waits.")).not.toBeNull()
+        await user.click(sendButton())
+        await act(async () => uploads[0].land("u-1"))
+        await act(async () => uploads[1].land("u-2"))
+
+        expect(uploadPicture).toHaveBeenCalledTimes(2)
+        expect(submitFlag.mock.calls.map(([sent]) => [sent.uploadId, sent.replaces])).toEqual([["u-1", "s-1"], ["u-2", undefined]])
+        expect(useFlagForm.getState().step).toMatchObject({kind: "pay", submission: {name: "Swabia"}})
     })
 
     it("says a picture that did not go up, and sends nothing", async () => {

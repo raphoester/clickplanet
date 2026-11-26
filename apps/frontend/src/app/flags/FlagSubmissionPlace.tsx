@@ -10,7 +10,9 @@ import {CrownIcon} from "../components/icons.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import {useShop} from "../shop/shopStore.ts"
 import {useFlagForm} from "./flagFormStore.ts"
+import FlagHub from "./FlagHub.tsx"
 import FlagPaywall from "./FlagPaywall.tsx"
+import FlagPayScreen from "./FlagPayScreen.tsx"
 import FlagPitch from "./FlagPitch.tsx"
 import FlagSubmissionForm from "./FlagSubmissionForm.tsx"
 import {FlagShooter} from "./mapShot.ts"
@@ -28,8 +30,9 @@ export type FlagSubmissionPlaceProps = {
     toCheckout: (url: string) => void
 }
 
-// The one way to a region's flag, which every door opens: the flag made, then paid for, or a guest's sign-in. Mounted
-// with the game, so what was typed stays while the form is put aside to aim the pin.
+// The one way to a region's flag, which every door opens: the account's flags, a flag made then paid for, a flag's time
+// or its claim, or a guest's sign-in. Mounted with the game, so what was typed stays while the form is put aside to aim
+// the pin.
 export default function FlagSubmissionPlace({account: store, submitter, shooter, shop, toCheckout}: FlagSubmissionPlaceProps) {
     const shown = useFlagForm((form) => form.shown)
     const step = useFlagForm((form) => form.step)
@@ -68,10 +71,14 @@ export default function FlagSubmissionPlace({account: store, submitter, shooter,
             return <Modal title={t("flagSubmission.add")} onClose={close}>
                 <p className="flag-status-line" role="status">{t("common.loading")}</p>
             </Modal>
+        case "hub":
+            return <FlagHub shop={shop}/>
         case "make":
             return <FlagSubmissionForm submitter={submitter} shooter={shooter}/>
         case "pay":
             return <FlagPaywall submission={step.submission} typed={step.typed} shooter={shooter} shop={shop} toCheckout={toCheckout}/>
+        case "flag":
+            return <FlagPayScreen flag={step.flag} fromHub={step.fromHub} shooter={shooter} shop={shop} toCheckout={toCheckout}/>
     }
 }
 

@@ -1,5 +1,6 @@
 import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError} from "../../backends/flags.ts"
+import type {Pin} from "../../domain/flags.ts"
 import {
     flagNameLength,
     flagNameOf,
@@ -21,6 +22,7 @@ import {capitalOf, coordinatesOf} from "./coordinates.ts"
 import FlagCard from "./FlagCard.tsx"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import FlagPitch from "./FlagPitch.tsx"
+import {useFlags} from "./flagsStore.ts"
 import {useFlagSubmissions} from "./submissionsStore.ts"
 import {FlagShooter, useMapShot} from "./mapShot.ts"
 import {usePreview} from "./usePreview.ts"
@@ -80,6 +82,8 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
     const aim = useFlagForm((form) => form.aim)
     const close = useFlagForm((form) => form.close)
     const showPaywall = useFlagForm((form) => form.showPaywall)
+    const payFor = useFlagForm((form) => form.payFor)
+    const catalog = useFlags((store) => store.catalog)
     const [state, setState] = useState<State>({kind: "writing"})
     const [problem, setProblem] = useState<PictureProblem>()
     const closing = useRef<AbortController>()
@@ -97,9 +101,11 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
         return () => controller.abort()
     }, [])
 
-    const change = draft.replaces !== undefined
+    const change = draft.replaces !== undefined && draft.replacing === undefined
+    // A place has one flag: a name of a flag whose time ended is that flag's claim, never a new flag.
+    const free = catalog.claimableNamed(flagNameOf(draft.name))
     const busy = state.kind !== "writing"
-    const canSend = !busy && readyToSend(draft, problem)
+    const canSend = !busy && free === undefined && readyToSend(draft, problem)
     const length = flagNameLength(draft.name)
     const failure = state.kind === "writing" ? state.failure : undefined
 
@@ -125,35 +131,24 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
         if (!canSend || pinned === undefined) return
 
         const signal = closing.current?.signal
-        let uploadId = ""
         try {
-            if (draft.file) {
-                setState({kind: "uploading", fraction: 0})
-                try {
-                    uploadId = await submitter.uploadPicture(draft.file, {
-                        signal,
-                        onProgress: (fraction) => setState({kind: "uploading", fraction}),
-                    })
-                } catch (e) {
-                    if (signal?.aborted) return
-                    if (e instanceof SubmissionRefusedError) throw e
-                    console.error("could not upload the flag's picture", e)
-                    setState({kind: "writing", failure: "upload-failed"})
-                    return
-                }
-            }
-            if (signal?.aborted) return
-            setState({kind: "sending"})
-            const submission = await submitter.submitFlag({
-                name: flagNameOf(draft.name), uploadId, pin: pinned.pin, replaces: draft.replaces,
-            })
-            if (signal?.aborted) return
-            useFlagSubmissions.getState().submitted(submission, draft.replaces)
-            showPaywall(submission, draft)
+            await send(pinned.pin, signal, draft.replaces)
         } catch (e) {
             if (signal?.aborted) return
             if (!(e instanceof SubmissionRefusedError)) console.error("could not send the flag", e)
             const refusal = e instanceof SubmissionRefusedError ? e.refusal : "failed"
+            // A new flag in the place of one reviewed meanwhile: that one no longer waits, and nothing is replaced.
+            if (refusal === "decided" && draft.replacing !== undefined) {
+                useFlagSubmissions.getState().refresh()
+                try {
+                    await send(pinned.pin, signal, undefined)
+                } catch (again) {
+                    if (signal?.aborted) return
+                    if (!(again instanceof SubmissionRefusedError)) console.error("could not send the flag", again)
+                    setState({kind: "writing", failure: again instanceof SubmissionRefusedError ? again.refusal : "failed"})
+                }
+                return
+            }
             // Reviewed while it was changed: its verdict, on its paywall.
             const reviewed = refusal === "decided" ? replacedOf(draft) : undefined
             if (reviewed) {
@@ -163,6 +158,32 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
             }
             setState({kind: "writing", failure: refusal})
         }
+    }
+
+    // Each send uploads the picture again: the server may have used or dropped an upload it refused.
+    const send = async (pin: Pin, signal: AbortSignal | undefined, replaces: string | undefined) => {
+        let uploadId = ""
+        if (draft.file) {
+            setState({kind: "uploading", fraction: 0})
+            try {
+                uploadId = await submitter.uploadPicture(draft.file, {
+                    signal,
+                    onProgress: (fraction) => setState({kind: "uploading", fraction}),
+                })
+            } catch (e) {
+                if (signal?.aborted) return
+                if (e instanceof SubmissionRefusedError) throw e
+                console.error("could not upload the flag's picture", e)
+                setState({kind: "writing", failure: "upload-failed"})
+                return
+            }
+        }
+        if (signal?.aborted) return
+        setState({kind: "sending"})
+        const submission = await submitter.submitFlag({name: flagNameOf(draft.name), uploadId, pin, replaces})
+        if (signal?.aborted) return
+        useFlagSubmissions.getState().submitted(submission, replaces)
+        showPaywall(submission, draft)
     }
 
     const shown = preview
@@ -185,6 +206,9 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
                   onClose={close}>
         <form id={formId} className="support-form flag-form" onSubmit={submit} aria-busy={busy}>
             {!change && <FlagPitch/>}
+            {draft.replacing !== undefined && <p className="flag-form-replaces">
+                {t("flagSubmission.replaces", {flag: draft.replacing})}
+            </p>}
             <div className="flag-form-label-row">
                 <label className="menu-label" htmlFor={nameId}>{t("flagSubmission.name")}</label>
                 <span id={counterId}
@@ -201,6 +225,12 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
                    readOnly={busy}
                    aria-describedby={counterId}
                    onChange={(e) => edit({name: e.target.value})}/>
+            {free && <div className="panel-box flag-form-claim" role="status">
+                <span>{t("flagSubmission.claimable", {flag: translator().country(free)})}</span>
+                <button type="button" className="button button-mini button-action" aria-haspopup="dialog" onClick={() => payFor(free)}>
+                    {t("flagSubmission.claim")}
+                </button>
+            </div>}
 
             <span className="menu-label">{t("flagSubmission.picture")}</span>
             <div className="flag-form-picture">

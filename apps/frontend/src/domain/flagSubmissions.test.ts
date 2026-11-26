@@ -2,14 +2,13 @@ import {describe, expect, it} from "vitest"
 import {
     changeable,
     flagNameLength,
-    foundedFlags,
     isValidFlagName,
     MAX_PICTURE_BYTES,
-    onItsWayOf,
     pictureFileRefusal,
     pictureShapeRefusal,
     pinAt,
     pointOfPin,
+    replacedByNewOf,
     shownOf,
     Submission,
     untold,
@@ -79,10 +78,10 @@ describe("pointOfPin", () => {
 })
 
 describe("the account's submissions", () => {
-    it("hold the new flag on its way, waiting or approved and not open yet, the newest first", () => {
-        expect(onItsWayOf([submission("a", {state: "rejected"}), submission("o", {state: "opened", flag: "r-aaaaaaaaaa"})])).toBeUndefined()
-        expect(onItsWayOf([submission("b"), submission("a", {state: "rejected"})])?.id).toBe("b")
-        expect(onItsWayOf([submission("c", {state: "rejected"}), submission("b", {state: "approved", paid: true})])?.id).toBe("b")
+    it("give a new flag the place of the one that waits unpaid, never of one paid or decided", () => {
+        expect(replacedByNewOf([submission("b"), submission("a", {state: "rejected"})])?.id).toBe("b")
+        expect(replacedByNewOf([submission("b", {paid: true})])).toBeUndefined()
+        expect(replacedByNewOf([submission("b", {state: "approved"}), submission("a", {state: "rejected"})])).toBeUndefined()
     })
 
     it("change while it waits and is not paid, never once paid or decided", () => {
@@ -92,27 +91,26 @@ describe("the account's submissions", () => {
         expect(changeable(submission("a", {state: "rejected"}))).toBe(false)
     })
 
-    it("name the flags the account founded, the newest first: each opened from one of them", () => {
-        expect(foundedFlags([
-            submission("c", {state: "waiting"}),
-            submission("b", {flag: "r-bbbbbbbbbb", state: "opened"}),
-            submission("a", {flag: "r-aaaaaaaaaa", state: "opened"}),
-            submission("x", {state: "approved"}),
-        ])).toEqual(["r-bbbbbbbbbb", "r-aaaaaaaaaa"])
-    })
-
     it("tell each decision once, and a submission approved, opened, then its flag closed thrice", () => {
         const approved = [submission("b", {state: "approved"}), submission("a", {state: "rejected"}), submission("w")]
-        expect(untold(approved, {}, FlagCatalog.BUILT_IN).map(({id}) => id)).toEqual(["b", "a"])
+        const held = [{code: "r-aaaaaaaaaa"}]
+        expect(untold(approved, {}, FlagCatalog.BUILT_IN, held).map(({id}) => id)).toEqual(["b", "a"])
 
-        const told = withTold({}, untold(approved, {}, FlagCatalog.BUILT_IN))
-        expect(untold(approved, told, FlagCatalog.BUILT_IN)).toEqual([])
+        const told = withTold({}, untold(approved, {}, FlagCatalog.BUILT_IN, held))
+        expect(untold(approved, told, FlagCatalog.BUILT_IN, held)).toEqual([])
 
         const opened = [submission("b", {state: "opened", flag: "r-aaaaaaaaaa"}), ...approved.slice(1)]
-        expect(untold(opened, told, catalogOf(false)).map(({id, state}) => [id, state])).toEqual([["b", "opened"]])
+        expect(untold(opened, told, catalogOf(false), held).map(({id, state}) => [id, state])).toEqual([["b", "opened"]])
 
-        const toldOpened = withTold(told, untold(opened, told, catalogOf(false)))
-        expect(untold(opened, toldOpened, catalogOf(true)).map(({id, state}) => [id, state])).toEqual([["b", "closed"]])
+        const toldOpened = withTold(told, untold(opened, told, catalogOf(false), held))
+        expect(untold(opened, toldOpened, catalogOf(true), held).map(({id, state}) => [id, state])).toEqual([["b", "closed"]])
+    })
+
+    it("tell nothing of a flag another player claimed since", () => {
+        const opened = [submission("b", {state: "opened", flag: "r-aaaaaaaaaa"})]
+        const told = withTold({}, untold(opened, {}, catalogOf(true), [{code: "r-aaaaaaaaaa"}]))
+
+        expect(untold(opened, told, catalogOf(false), [])).toEqual([])
     })
 })
 

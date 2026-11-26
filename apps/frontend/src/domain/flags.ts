@@ -7,8 +7,8 @@ export type FlagPicture = {url: string, width: number, height: number, stretch: 
 export type Pin = {latitude: number, longitude: number}
 
 // A flag opened since the build: its picture, when its time runs out, in milliseconds since the epoch, and where it
-// starts in Capital Siege.
-export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number, pin?: Pin}
+// starts in Capital Siege. Closed at its end, any player may pay for it and hold it; removed by the operator, nobody.
+export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number, pin?: Pin, removed?: boolean}
 
 export type ListedFlag = {code: string, name: string, closed: boolean, sold?: SoldFlag}
 
@@ -71,6 +71,22 @@ export class FlagCatalog {
 
     soldOf(code: string): SoldFlag | undefined {
         return this.sold.get(code)
+    }
+
+    // Closed at its end, not removed: any signed-in player may pay for it, and so hold it.
+    claimable(code: string): boolean {
+        return this.closed.has(code) && this.sold.has(code) && !this.sold.get(code)?.removed
+    }
+
+    claimableCodes(): string[] {
+        return [...this.sold.keys()].filter((code) => this.claimable(code))
+    }
+
+    // The claimable flag of that name, whatever its case: a place has one flag.
+    claimableNamed(name: string): string | undefined {
+        const lower = name.trim().toLowerCase()
+        if (lower === "") return undefined
+        return this.claimableCodes().find((code) => this.opened.get(code)?.toLowerCase() === lower)
     }
 
     // Every flag sold, closed ones too: a closed flag still holds land.

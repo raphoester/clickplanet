@@ -201,19 +201,22 @@ describe("the flags store", () => {
         expect(fake.addTime(code, 3)).toBe("longer")
         expect(flagCatalog().soldOf(code)?.endsAt).toBe(10 * DAY_MS)
 
-        fake.close(code, "Broke the rules.")
+        fake.end(code)
         expect(flagCatalog().playable(code)).toBe(false)
         expect(flagCatalog().knows(code)).toBe(true)
+        expect(flagCatalog().claimable(code)).toBe(true)
         expect(flagCatalog().pictures().get(code)).toEqual(PICTURE)
 
-        now = 29 * DAY_MS
+        now = 400 * DAY_MS
         expect(fake.addTime(code, 5)).toBe("reopened")
         expect(flagCatalog().playable(code)).toBe(true)
-        expect(flagCatalog().soldOf(code)?.endsAt).toBe(34 * DAY_MS)
+        expect(flagCatalog().soldOf(code)?.endsAt).toBe(405 * DAY_MS)
 
-        fake.close(code, "Broke the rules.")
-        now = 60 * DAY_MS
-        expect(fake.addTime(code, 5)).toBe("too late")
+        fake.remove(code, "Broke the rules.")
+        expect(flagCatalog().claimable(code)).toBe(false)
+        expect(flagCatalog().soldOf(code)?.removed).toBe(true)
+        expect(await fake.open("BAVARIA")).toEqual({code: expect.any(String)})
+        expect(fake.addTime(code, 5)).toBe("taken")
         expect(listFlags).toHaveBeenCalledTimes(2)
         stop()
     })
@@ -235,7 +238,7 @@ describe("the flags store", () => {
 
         expect(fake.rename(bavaria, " Bayern ")).toBe("renamed")
         expect(ENGLISH_TRANSLATOR.country(bavaria)).toBe("Bayern")
-        fake.close(savoy, "Broke the rules.")
+        fake.remove(savoy, "Broke the rules.")
         expect(fake.rename(savoy, "savoy")).toBe("renamed")
         expect(ENGLISH_TRANSLATOR.country(savoy)).toBe("savoy")
         expect(listFlags).toHaveBeenCalledTimes(2)

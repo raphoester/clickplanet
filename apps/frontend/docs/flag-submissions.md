@@ -10,24 +10,28 @@ server's Claude judge reviews it while the player is on step 2, the paywall (the
 **The player changes it while it waits and is not paid, never once paid or decided** (the owner, 2026-11-24: a
 "Change" on an approved flag "shouldn't be allowed"). The backend's side is `flags.v1.FlagService`'s
 `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (see the contract in `proto/flags/v1/flags.proto`); the
-payment is the shop's (see [The shop](shop.md)).
+payment is the shop's (see [The shop](shop.md)). **A flag lives while someone pays for it** (the owner, 2026-11-26):
+its holder adds time, and once its time ends any player may claim it (the backend's
+[Holders and claims](../../backend/docs/flags.md#holders-and-claims)).
 
 ## The doors
 
-**Every door opens the same flow** (`useFlagForm.open`): once the account's submissions are read, the flag on its way
-(`onItsWayOf`: waiting, or approved and not open yet) on step 2, or else a new flag on step 1. "Loading…" until the
-first read. A founder's door opens a new flag: its founded flags are in its profile.
+**Every door opens the same flow**, once the account's submissions are read ("Loading…" until the first read):
 
-- **The shop's**: the phone's status-bar bag and the desktop rail's Shop, while the shop sells (see
-  [The shop](shop.md#its-doors)).
+- **The shop's** (`useFlagForm.openShop`): the phone's status-bar bag and the desktop rail's Shop, while the shop sells
+  (see [The shop](shop.md#its-doors)). It opens [Your flags](#your-flags) when the account holds a flag or sent one
+  that did not open, and step 1 when it has none (the owner, 2026-11-26: the door opened the account's abandoned,
+  approved Sardinia on its paywall, with no way to another flag).
 - **The flag picker's row** (`FlagSubmissionEntry`, at the end of `CountryPicker`'s list, the desktop menu's and the
   phone's Board sheet): always "Add your region's flag", gold with the shop door's shine (`shop-shine`, none under
-  reduced motion). It never shows a submission: until 2026-11-26 it showed the latest one ("Bavaria · Closed"), and a
-  founder lost its way to a new flag. It shows even while the picker's list is locked.
+  reduced motion), and step 1 (`useFlagForm.open`). It never shows a submission: until 2026-11-26 it showed the latest
+  one ("Bavaria · Closed"), and a founder lost its way to a new flag. It shows even while the picker's list is locked.
 - **The picker's search that finds no country** (`SelectWithSearch`'s `noMatch`; the selected country, which the list
   always keeps, does not count): the row comes up under the search, larger, "Put “Bavaria” on the map", in place of
-  the one under the list, and the text typed is the flag's name on step 1 (cut at its ends).
-- **The profile's "Your flags"**: Change and Pay (below).
+  the one under the list, and the text typed is the flag's name on step 1 (cut at its ends). **When the search finds
+  a flag whose time ended** (`FlagCatalog.claimableCodes`, matched as the picker matches a name), the row is "Bavaria is
+  free. Claim it." and opens [its pay page](#a-flags-pay-page) as a claim (`useFlagForm.payFor`). A removed flag is never
+  offered: its name is free for a new flag.
 - **Who sees the row** is `useFlagSubmissions.who`, which `PlayScreen` hands `useFlagSubmissionsFeed`: `player` for a
   signed-in (linked) account, `guest` for a guest the server offers sign-in to, `nobody` otherwise (the account not
   read, or no provider offered), and then no row.
@@ -42,11 +46,12 @@ form is put aside while the pin is aimed, and on a phone the sheet that held the
 stores:
 
 - **`useFlagForm`** (`flagFormStore.ts`): whether the flow is open (`shown`), its `step` (`door` until the submissions
-  are read, `make`, or `pay` with the submission as sent and what was typed for it), the pin aimed (`aiming`), and the
-  `Draft`: the name, the `File`, the pin with the place's name, and the submission that waits, which a change replaces.
-  What was typed stays while the form is aside, and on step 2 for Back and Fix it.
-- **`useFlagSubmissions`** (`submissionsStore.ts`): the account's submissions, the newest first, and whether a read
-  ended.
+  are read, `hub` for Your flags, `make`, `pay` with the submission as sent and what was typed for it, or `flag` for a
+  flag's pay page), the pin aimed (`aiming`), and the `Draft`: the name, the `File`, the pin with the place's name, and
+  the submission that waits, which a change or a new flag replaces. What was typed stays while the form is aside, and
+  on step 2 for Back and Fix it.
+- **`useFlagSubmissions`** (`submissionsStore.ts`): the account's submissions, the newest first, the flags it holds
+  (`held`, each removed one with its note), and whether a read ended.
 
 Opening it reads the submissions and the shop's plans again.
 
@@ -56,6 +61,13 @@ Opening it reads the submissions and the shop's plans again.
 
 - **The head** (`FlagPitch`), over a new flag only: the shop's gold coin, "Put your region on the map" and its three
   perks.
+- **A new flag never dead-ends.** The server keeps one submission waiting at a time, so a new flag takes the place of
+  the one that waits unpaid (`replacedByNewOf`, `Draft.replaces` and `Draft.replacing`), and says so under the head:
+  "This replaces Sardinia, which waits." An approved one not paid does not block a new flag. If the judge decides the
+  one it replaces while the player types, the send is refused `decided` and sent again at once with nothing replaced.
+  A paid one that waits is not replaced: the server refuses the send (`waiting`), and it is reviewed within seconds.
+- **A place has one flag**: a name that is a flag whose time ended (`FlagCatalog.claimableNamed`, whatever its case)
+  shows "Bavaria is free. Claim it." under the name with Claim it, its pay page, and Next stays off.
 - **The name**: 1 to 40 characters once the spaces at its ends are cut, counted as code points (`flagNameLength`, the
   server's `catalog.ParseName`); "7/40" beside its label, red past 40.
 - **The picture**: one file, shown as picked. Its type (PNG, JPEG, WebP) and size (5 MB) are checked as it is picked
@@ -138,39 +150,48 @@ verdict.** While the flag waits, the page reads `ListMySubmissions` every 3 seco
 - **The picture typed stays for the visit**: a door that finds the flag after a reload has its name and its capital,
   and the picture is picked again for a change: the page keeps none.
 
-## Your flags, in the profile
+## Your flags
 
-**`YourFlags` lists each submission of the account, the newest first** (desktop: the first section of
-`ProfileModal`'s main column; phone: a fold of the You sheet's Progress tab; nothing for an account that sent none).
-It reads the submissions and the renewals again as it shows.
+**The shop's door opens `FlagHub`, "Your flags"** (the owner, 2026-11-26: "Your flags" left the profile, the desktop
+`ProfileModal` and the phone You sheet, where it had moved that morning). "Add a new flag" on top (step 1, in the place
+of the one that waits unpaid), then a row per flag the account holds, then a row per submission whose flag did not
+open, each with one action that opens its own page: **never the plans inside the list.** It reads the submissions and
+the renewals again as it shows.
 
+- **A flag held** (`ListMySubmissionsResponse.held`, the account's payment opened it or claimed it last): its flag, its
+  time line (`flagTimeOf`, see [The shop](shop.md#time-for-a-flag-held)), its chip (Open, Closed or Removed), and Add
+  time ([its pay page](#a-flags-pay-page)) or Stop renewal. A removed one has no action, and quotes the operator's note.
+  A flag another player claimed is no longer held: it leaves the list.
 - **A flag sent**: its picture once approved, its name, the step 2 line, its chip; Change while it waits and is not paid
   (step 1 as a change, from what was sent); Pay while the shop sells and it is not paid (its paywall); a rejection's
-  note and the appeal.
-- **A flag founded** (opened from one of its submissions): its flag, its time line (`flagTimeOf`, see
-  [The shop](shop.md#time-for-a-founded-flag)), its chip (Open or Closed), Add time or Stop renewal, and the operator's
-  note while it is closed. No Change: nothing changes a flag once the operator approved it.
-- **Change and Pay close the profile's modal first**: one dialog at a time.
+  reason, note and appeal.
+
+## A flag's pay page
+
+**Add time and a claim open `FlagPayScreen`, the same page as a new flag's paywall**, a modal: the flag card with the
+game's map at its capital (`FlagCard`, `useMapShot` from the flag's public picture and pin), its chip, then the plans
+(`PlanOffer`, target the flag). Titled "Add time" for a flag the account holds, with its time line, or "Claim Bavaria"
+for one it does not. Back goes to Your flags when it came from there. **Nothing is offered** for a removed flag, nor
+for an open one another account holds (a claim that came too late). The server refuses a claim while another player's
+renewal of the flag still runs ("You can't pay for this flag now.", see [The shop](shop.md#the-offer)).
 
 ### What the player reads
 
 **Once a submission opened its flag, the page shows the flag's state now, not the submission's** (`shownOf` in
 `domain/flagSubmissions.ts`): the server keeps the submission `opened` for good, and the flag lives on in the flags
-module, which closes it at its end, at the operator's `CloseFlag`, and opens it again at an `AddTime` within 30 days. So
-an opened submission whose flag the list of flags holds closed reads Closed, a muted chip, in "Your flags", and Open
-again once its flag comes back.
+module, which closes it at its end, removes it at the operator's `CloseFlag`, and opens it again for whoever pays. So
+an opened submission whose flag the list of flags holds closed reads Closed.
 
-**Why the operator closed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
-founded that the operator closed and that has not come back; see the backend's [flags module](../../backend/docs/flags.md)):
-`ConnectFlagSubmissions` puts each note on the submission that opened its flag (`Submission.closeNote`), so the store
-holds submissions alone. "Your flags" quotes it on that flag's row while the flag reads Closed. A flag closed at its
-end, or before the notes existed, has none: the date alone. **The page reads the submissions again when a flag the
-account founded closes or comes back** (`useFlagSubmissionsFeed`, on the list of flags), so the note shows at once. The
-note is the operator's, in English, never translated.
+**Why the operator removed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
+holds that the operator removed; see the backend's [flags module](../../backend/docs/flags.md)): `ConnectFlagSubmissions`
+puts each note on its flag held (`Held.removalNote`). Your flags quotes it on that flag's row. **The page reads the
+submissions again when a flag the account holds closes or comes back** (`useFlagSubmissionsFeed`, on the list of
+flags), so the note shows at once and a flag claimed by another leaves the list. The note is the operator's, in
+English, never translated.
 
 **When the page reads them** (`useFlagSubmissionsFeed`): at once for a signed-in account, each time the flags stream
-opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the flow or the profile
-opens, every 3 seconds while the paywall shows a flag that waits, and every 3 seconds for a while after a payment (see
+opens (`useFlags.openings`, which the flags store counts as it reads the list again), when the flow opens, every 3
+seconds while the paywall shows a flag that waits, and every 3 seconds for a while after a payment (see
 [The shop](shop.md#back-from-stripe)). One read at a time, one queued behind it; a read that fails keeps what is shown.
 A guest reads none, and a sign-out forgets them.
 
@@ -179,8 +200,9 @@ flag Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in th
 game!", "Your flag Bavaria is closed.". The first time the page sees a submission in a decided state, the newest one is
 told, and each one's state as the player reads it is kept in `localStorage` under `clickplanet-flag-submissions-told`
 (`{id: state}`, `closed` among them), so an approval, an opening then a close is told thrice, a comeback again, and a
-reload tells nothing again. A browser that keeps nothing tells nothing. **Nothing is told before the list of flags is
-read** (`useFlags.read`): an opened flag would be told open, then closed. The page looks again when the submissions or
+reload tells nothing again. A browser that keeps nothing tells nothing. **Nothing is told of a flag another player
+claimed since** (`untold` skips an opened submission whose flag the account no longer holds). **Nothing is told before
+the list of flags is read** (`useFlags.read`): an opened flag would be told open, then closed. The page looks again when the submissions or
 the list of flags change, so a close the flags stream tells is told at once.
 
 ## In fake mode
@@ -203,9 +225,16 @@ The fake shop pays for the flag on the paywall (see [The shop](shop.md#in-fake-m
 of an approved one without the plans.
 
 After each verdict the fake says the flags stream opened again (`FakeFlagsBackend.reopen`), so the page reads it at once
-and the news line tells it, as the real page would at the stream's next opening. Then `closeFlag(code, note)` (the code
-`openSubmission` answers; a note by default) closes it as the operator would, with the note its founder reads in "Your
-flags", and `addTime(code, 7)` brings it back.
+and the news line tells it, as the real page would at the stream's next opening. The fake keeps which flags the page's
+account holds: the ones its submissions opened and the ones it claimed. Then, with the code `openSubmission` answers:
+
+- `endFlag(code)`: its time ends now. It reads Closed in Your flags, with Add time, and any player may claim it: the
+  picker's search for its name offers "Bavaria is free. Claim it.". `endFlag("xb")` frees Brittany, which nobody holds.
+- `claimElsewhere(code)`: another player claims a flag whose time ended: it opens again and leaves Your flags.
+- `renewingElsewhere(code)`: another player's renewal still runs on it, so a claim is refused;
+  `renewingElsewhere(code, false)` lets it through.
+- `removeFlag(code, note)`: the operator's removal (a note by default), quoted in Your flags; `addTime(code, 7)` brings it
+  back.
 
 ## Not built yet
 

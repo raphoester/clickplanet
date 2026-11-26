@@ -1,5 +1,5 @@
 import type {FlagPicture} from "../domain/flags.ts"
-import {flagNameOf, isValidFlagName, pictureFileRefusal, RejectionReason, Submission} from "../domain/flagSubmissions.ts"
+import {flagNameOf, isValidFlagName, MyFlags, pictureFileRefusal, RejectionReason, Submission} from "../domain/flagSubmissions.ts"
 import {FakeFlagsBackend, NameRefusal} from "./fakeFlagsBackend.ts"
 import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {UploadOptions} from "./support.ts"
@@ -79,14 +79,16 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         return {...submission}
     }
 
-    public async mySubmissions(): Promise<Submission[]> {
+    public async myFlags(): Promise<MyFlags> {
         await this.wait(this.delayMs / 4)
-        if (!await this.linked()) return []
-        return this.kept.map(({submission, paidDays}) => {
-            const paid = paidDays !== undefined && (submission.state === "waiting" || submission.state === "approved")
-            const closeNote = submission.state === "opened" ? this.flags.closeNoteOf(submission.flag) : undefined
-            return closeNote === undefined ? {...submission, paid} : {...submission, paid, closeNote}
-        })
+        if (!await this.linked()) return {submissions: [], held: []}
+        return {
+            submissions: this.kept.map(({submission, paidDays}) => {
+                const paid = paidDays !== undefined && (submission.state === "waiting" || submission.state === "approved")
+                return {...submission, paid}
+            }),
+            held: this.flags.heldFlags(),
+        }
     }
 
     // As the shop's payment for a flag that waits: its time is held until the approval.
@@ -134,7 +136,7 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         const kept = this.kept.find(({submission}) => submission.id === id)
         if (!kept || kept.submission.state !== "approved") return {refused: "not approved"}
         const {name, pin, picture} = kept.submission
-        const opened = await this.flags.open(name, days, {picture, pin})
+        const opened = await this.flags.open(name, days, {picture, pin, held: true})
         if ("refused" in opened) return opened
         kept.paidDays = undefined
         this.decide(kept, {state: "opened", flag: opened.code})

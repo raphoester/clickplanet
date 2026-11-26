@@ -56,7 +56,7 @@ async function accountOf(linked: Provider[]) {
 // The globe is in no test: its shot never comes.
 const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
 
-const submitter = (): FlagSubmitter => ({uploadPicture: vi.fn(), submitFlag: vi.fn(), mySubmissions: vi.fn(async () => [])})
+const submitter = (): FlagSubmitter => ({uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []}))})
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({
     plans: vi.fn(async () => []),
@@ -78,8 +78,8 @@ const PICTURE = {url: "https://media.clickplanet.lol/flags/pictures/ab.png", wid
 const png = () => new File(["png"], "bavaria.png", {type: "image/png"})
 
 // The store as a read answered it.
-function read(submissions: Submission[]) {
-    useFlagSubmissions.setState({submissions, read: true})
+function read(submissions: Submission[], held: {code: string}[] = []) {
+    useFlagSubmissions.setState({submissions, held, read: true})
 }
 
 beforeEach(() => {
@@ -118,10 +118,28 @@ describe("FlagSubmissionEntry", () => {
         view.unmount()
     })
 
+    it("offers the claim of a flag whose time ended that the picker's search finds", () => {
+        useFlagSubmissions.setState({who: "player"})
+        read([])
+        useFlags.setState({catalog: FlagCatalog.BUILT_IN.withFlags([
+            {code: FLAG, name: "Bavaria", closed: true, sold: {picture: PICTURE, endsAt: 1, closedAt: 1}},
+            {code: "r-0a1b2c3d4e", name: "Bavarian Forest", closed: true, sold: {picture: PICTURE, endsAt: 1, closedAt: 1, removed: true}},
+        ])})
+        render(<FlagSubmissionEntry search="bava" unmatched/>)
+        expect(screen.getByRole("button").textContent).toBe("Bavaria is free. Claim it.")
+        cleanup()
+        render(<FlagSubmissionEntry search="bava"/>)
+
+        expect(screen.getByRole("button").textContent).toBe("Bavaria is free. Claim it.")
+        fireEvent.click(screen.getByRole("button"))
+        expect(useFlagForm.getState()).toMatchObject({shown: true, step: {kind: "flag", flag: FLAG, fromHub: false}})
+        useFlags.setState({catalog: FlagCatalog.BUILT_IN})
+    })
+
     it("names the flag as the picker's search typed it", () => {
         useFlagSubmissions.setState({who: "player"})
         read([])
-        render(<FlagSubmissionEntry typed=" Bavaria"/>)
+        render(<FlagSubmissionEntry search=" Bavaria" unmatched/>)
 
         expect(screen.getByRole("button").textContent).toBe("Put “Bavaria” on the map")
         fireEvent.click(screen.getByRole("button"))
@@ -157,16 +175,46 @@ describe("FlagSubmissionPlace", () => {
         }
     })
 
-    it("opens a door on the paywall of the flag on its way, sent or approved", async () => {
+    it("opens the picker's doors on a new flag, which takes the place of the one that waits unpaid, and says so", async () => {
         const account = await accountOf(["google"])
-        for (const sent of [submission(), submission({state: "approved"}), submission({paid: true})]) {
-            read([sent, submission({id: "s-0", state: "opened", flag: FLAG})])
+        read([submission(), submission({id: "s-0", state: "opened", flag: FLAG})], [{code: FLAG}])
+        useFlagForm.getState().open("Swabia")
+        const view = place(account)
+
+        expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
+        expect(screen.getByText("This replaces Bavaria, which waits.")).not.toBeNull()
+        expect(useFlagForm.getState().draft).toEqual({name: "Swabia", replaces: "s-1", replacing: "Bavaria"})
+        view.unmount()
+
+        for (const sent of [submission({state: "approved"}), submission({paid: true})]) {
+            read([sent])
             useFlagForm.getState().open("Swabia")
-            const view = place(account)
-            expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
-            expect(document.querySelector(".flag-card-name")?.textContent).toBe("Bavaria")
-            view.unmount()
+            const again = place(account)
+            expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
+            expect(useFlagForm.getState().draft).toEqual({name: "Swabia"})
+            again.unmount()
         }
+    })
+
+    it("opens the shop's door on the account's flags, or on a new flag when it has none", async () => {
+        const account = await accountOf(["google"])
+        read([])
+        useFlagForm.getState().openShop()
+        const view = place(account)
+        expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
+        view.unmount()
+
+        read([submission({state: "approved"})])
+        useShop.setState({plans: PLANS})
+        useFlagForm.getState().openShop()
+        place(account)
+        const user = userEvent.setup()
+        expect(screen.getByRole("dialog", {name: "Your flags"})).not.toBeNull()
+        expect(screen.getByText("Bavaria")).not.toBeNull()
+
+        await user.click(screen.getByRole("button", {name: "Add a new flag"}))
+        expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
+        expect(screen.queryByText(/This replaces/)).toBeNull()
     })
 
     it("waits for the account's submissions before it opens a door's step", async () => {
@@ -279,7 +327,7 @@ describe("the paywall", () => {
     it("fixes a rejection found by a door from what was sent, the picture picked again", async () => {
         const account = await accountOf(["google"])
         read([submission({state: "approved"})])
-        useFlagForm.getState().open()
+        useFlagForm.getState().showPaywall(submission({state: "approved"}))
         render(<FlagSubmissionPlace account={account} submitter={submitter()} shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
 
         act(() => read([submission({state: "rejected", rejection: {reason: "other", note: ""}})]))

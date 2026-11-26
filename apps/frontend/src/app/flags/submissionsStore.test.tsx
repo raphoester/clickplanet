@@ -16,9 +16,14 @@ const submission = (id: string, changes: Partial<Submission> = {}): Submission =
     id, name: "Bavaria", flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false, ...changes,
 })
 
-function submitterOf(...answers: Submission[][]): FlagSubmitter & {mySubmissions: ReturnType<typeof vi.fn>} {
-    const mySubmissions = vi.fn(async () => answers.length > 1 ? answers.shift()! : answers[0])
-    return {mySubmissions, uploadPicture: vi.fn(), submitFlag: vi.fn()}
+// Each flag a submission opened is held by its founder.
+function submitterOf(...answers: Submission[][]): FlagSubmitter & {myFlags: ReturnType<typeof vi.fn>} {
+    const myFlags = vi.fn(async () => {
+        const submissions = answers.length > 1 ? answers.shift()! : answers[0]
+        const held = submissions.filter(({state}) => state === "opened").map(({flag}) => ({code: flag}))
+        return {submissions, held}
+    })
+    return {myFlags, uploadPicture: vi.fn(), submitFlag: vi.fn()}
 }
 
 function feed(submitter: FlagSubmitter, who: Who = "player") {
@@ -55,7 +60,7 @@ describe("the flag submissions feed", () => {
         act(() => useFlags.setState(({openings}) => ({openings: openings + 1})))
         await settled()
 
-        expect(submitter.mySubmissions).toHaveBeenCalledTimes(2)
+        expect(submitter.myFlags).toHaveBeenCalledTimes(2)
         expect(useFlagSubmissions.getState().submissions.map(({state}) => state)).toEqual(["rejected"])
     })
 
@@ -63,7 +68,7 @@ describe("the flag submissions feed", () => {
         const submitter = submitterOf([submission("a")])
         const view = feed(submitter, "guest")
         await settled()
-        expect(submitter.mySubmissions).not.toHaveBeenCalled()
+        expect(submitter.myFlags).not.toHaveBeenCalled()
         expect(useFlagSubmissions.getState().who).toBe("guest")
 
         view.rerender({who: "player"})
@@ -89,7 +94,9 @@ describe("the flag submissions feed", () => {
         await settled()
         expect(newestNews(useNews.getState())).toBeUndefined()
 
-        act(() => useFlagSubmissions.setState({submissions: [submission("a", {state: "opened", flag: "r-k3p9x2ma0b"})]}))
+        act(() => useFlagSubmissions.setState({
+            submissions: [submission("a", {state: "opened", flag: "r-k3p9x2ma0b"})], held: [{code: "r-k3p9x2ma0b"}],
+        }))
         const opened = newestNews(useNews.getState())
         expect(opened?.kind === "submission" && opened.submission.state).toBe("opened")
     })
@@ -115,24 +122,24 @@ describe("the flag submissions feed", () => {
         expect(newestNews(useNews.getState())).toBeUndefined()
     })
 
-    it("reads the submissions again when a flag the account founded closes or comes back, and for no other flag", async () => {
+    it("reads the submissions again when a flag the account holds closes or comes back, and for no other flag", async () => {
         flagsRead(false)
         const submitter = submitterOf([submission("a", {state: "opened", flag: BAVARIA})])
         feed(submitter)
         await settled()
-        expect(submitter.mySubmissions).toHaveBeenCalledTimes(1)
+        expect(submitter.myFlags).toHaveBeenCalledTimes(1)
 
         act(() => useFlags.setState(({catalog}) => ({catalog: catalog.withFlags([{code: "r-0000000002", name: "Tyrol", closed: true}])})))
         await settled()
-        expect(submitter.mySubmissions).toHaveBeenCalledTimes(1)
+        expect(submitter.myFlags).toHaveBeenCalledTimes(1)
 
         act(() => flagsRead(true))
         await settled()
-        expect(submitter.mySubmissions).toHaveBeenCalledTimes(2)
+        expect(submitter.myFlags).toHaveBeenCalledTimes(2)
 
         act(() => flagsRead(false))
         await settled()
-        expect(submitter.mySubmissions).toHaveBeenCalledTimes(3)
+        expect(submitter.myFlags).toHaveBeenCalledTimes(3)
     })
 
     it("tells nothing for a submission that waits, and nothing when the browser keeps nothing", async () => {
@@ -148,6 +155,18 @@ describe("the flag submissions feed", () => {
         await settled()
         expect(newestNews(useNews.getState())).toBeUndefined()
         vi.restoreAllMocks()
+    })
+
+    it("tells nothing of a flag the account no longer holds: another player claimed it", async () => {
+        flagsRead(true)
+        feed(submitterOf([submission("a", {state: "opened", flag: BAVARIA})]))
+        await settled()
+        useNews.setState(useNews.getInitialState(), true)
+
+        act(() => useFlagSubmissions.setState({held: []}))
+        act(() => flagsRead(false))
+
+        expect(newestNews(useNews.getState())).toBeUndefined()
     })
 
     it("puts a submission sent first, before the next read says it", async () => {
