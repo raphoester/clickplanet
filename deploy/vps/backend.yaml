@@ -405,6 +405,13 @@ shop:
       week: {priceId: price_1UfNUYLHEylmuTbaiJs2fSwB, amount: 400, currency: eur}
       month: {priceId: price_1UfNUZLHEylmuTbaf3Z0QASO, amount: 1000, currency: eur}
       year: {priceId: price_1UfNUaLHEylmuTba8MZfjsvG, amount: 6000, currency: eur}
+    # Black Friday 2026: half off every plan's first payment. The coupon is limited to the flags' products and redeemable
+    # until the sale's end; past it the plans sell at full price again, with no deploy.
+    sale:
+      coupon: BLACKFRIDAY2026
+      percentOff: 50
+      from: "2026-11-27T09:00:00Z"
+      until: "2026-11-30T22:59:00Z"
 
 support:
   database:

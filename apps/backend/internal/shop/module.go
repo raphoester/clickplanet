@@ -80,7 +80,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 	catalog, err := config.Stripe.catalog()
 	if err != nil {
-		return fmt.Errorf("shop.stripe.plans: %w", err)
+		return fmt.Errorf("shop.stripe: %w", err)
 	}
 	var stripeAPI gateway = stripe_gateway.Off{}
 	if config.Stripe.on() {
@@ -115,7 +115,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	paid, renewed, opened := postgres_payment_store.New(db), postgres_renewal_store.New(db), postgres_checkout_store.New(db)
 	// A flag rejected after it was paid for is refunded, and its renewal cancelled.
 	rejected, err := cpredis.Subscribe(ctx, streams, "shop-refund-rejected", rejected_subscriber.New(
-		log_refund_rejected.New(refund_rejected_usecase.New(clock, opened, paid, renewed, stripeAPI), props.Logger)))
+		log_refund_rejected.New(refund_rejected_usecase.New(clock, opened, paid, renewed, stripeAPI), props.Logger),
+	))
 	if err != nil {
 		_ = streams.Close()
 		_ = db.Close()
@@ -136,7 +137,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err := props.RPC.Mount(
 		func(options ...connect.HandlerOption) (string, http.Handler) {
 			return shopv1connect.NewShopServiceHandler(shopv1controller.ShopService{
-				ListPlansHandler: list_plans_handler.New(catalog),
+				ListPlansHandler: list_plans_handler.New(catalog, clock),
 				CreateCheckoutHandler: create_checkout_handler.New(create_checkout_usecase.New(
 					clock, catalog, rpc_payables.New(flags),
 					create_checkout_usecase.Stores{Renewals: renewed, Checkouts: opened}, stripeAPI,
@@ -187,6 +188,19 @@ type StripeConfig struct {
 	// The game's page Stripe sends the buyer back to, with ?shop=paid or ?shop=cancelled.
 	ReturnURL string
 	Plans     PlansConfig
+	// None: no sale.
+	Sale SaleConfig
+}
+
+// A Stripe coupon taken off every plan's first payment, from one moment until another.
+type SaleConfig struct {
+	// Made by the owner in Stripe, limited to the flags' products, redeemable until Until.
+	Coupon string
+	// What the coupon takes off, as the page shows it: 50 is half.
+	PercentOff uint32
+	From       time.Time
+	// The end, excluded: the coupon's redeem_by.
+	Until time.Time
 }
 
 // Each plan's Stripe price, and what it charges, taxes included, as the page shows it.
@@ -216,7 +230,12 @@ func (c StripeConfig) catalog() (plans.Catalog, error) {
 	if !c.on() {
 		return plans.Catalog{}, nil
 	}
-	return plans.NewCatalog( //nolint:wrapcheck // the catalog names each price.
+	sale, err := c.Sale.sale()
+	if err != nil {
+		return plans.Catalog{}, fmt.Errorf("sale: %w", err)
+	}
+	catalog, err := plans.NewCatalog(
+		sale,
 		plans.Price{
 			Plan: plans.Week, ID: plans.PriceID(c.Plans.Week.PriceID), Amount: c.Plans.Week.Amount,
 			Currency: c.Plans.Week.Currency,
@@ -230,6 +249,19 @@ func (c StripeConfig) catalog() (plans.Catalog, error) {
 			Currency: c.Plans.Year.Currency,
 		},
 	)
+	if err != nil {
+		return plans.Catalog{}, fmt.Errorf("plans: %w", err)
+	}
+	return catalog, nil
+}
+
+func (c SaleConfig) sale() (plans.Sale, error) {
+	if c == (SaleConfig{}) {
+		return plans.Sale{}, nil
+	}
+	return plans.SaleSnapshot{ //nolint:wrapcheck // the sale names what is wrong.
+		Coupon: plans.CouponID(c.Coupon), PercentOff: c.PercentOff, From: c.From, Until: c.Until,
+	}.Restore()
 }
 
 func (c Config) Validate() error {
@@ -260,7 +292,7 @@ func (c Config) Validate() error {
 			"https://clickplanet.lol/play", stripeConfig.ReturnURL))
 	}
 	if _, err := stripeConfig.catalog(); err != nil {
-		errs = append(errs, fmt.Errorf("shop.stripe.plans: %w", err))
+		errs = append(errs, fmt.Errorf("shop.stripe: %w", err))
 	}
 	return errors.Join(errs...)
 }
