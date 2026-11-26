@@ -63,12 +63,42 @@ describe("LabPage", () => {
         expect(cellsOf(youtube, "control")).toEqual(["1", "1,673", "1,673", "0", "6.0"])
     })
 
+    it("charts each experiment's views and signs against its control's", async () => {
+        const admin = lab()
+        render(<LabPage publishing={admin} auth={admin} now={() => NOW}/>)
+
+        const youtube = await screen.findByRole("region", {name: "YouTube"})
+        const label = (name: RegExp) => within(youtube).getByRole("img", {name}).getAttribute("aria-label")
+        expect(label(/^Views:/)).toBe("Views: far-invasion median 6,940, its control 1,673")
+        expect(label(/^Views by day:/)).toBe("Views by day: 4 posts")
+        expect(label(/^Likes/)).toBe("Likes /1k: far-invasion 1.5, control 6.0")
+
+        const tiktok = screen.getByRole("region", {name: "TikTok"})
+        expect(within(tiktok).getByRole("img", {name: /^Held at 2 s:/}).getAttribute("aria-label"))
+            .toBe("Held at 2 s: carousel —, control 65%")
+    })
+
+    it("names a post tapped on the chart, with its link", async () => {
+        const admin = lab()
+        render(<LabPage publishing={admin} auth={admin} now={() => NOW}/>)
+
+        const youtube = await screen.findByRole("region", {name: "YouTube"})
+        expect(within(youtube).getByText("4 posts, 4 under 7 days")).toBeTruthy()
+        const views = within(youtube).getByRole("img", {name: /^Views:/})
+        fireEvent.pointerUp(views.parentElement!, {clientX: 444, clientY: 33})
+
+        const readout = within(youtube).getByText(/^far-invasion, 20 Nov 19:46:/)
+        expect(readout.textContent).toBe("far-invasion, 20 Nov 19:46: 12,617 views at 62\u00a0h · open")
+        expect(within(readout).getByRole("link", {name: "open"}).getAttribute("href")).toBe("https://example.test/f1")
+    })
+
     it("counts each day's arrivals by platform, the newest first", async () => {
         const admin = lab()
         render(<LabPage publishing={admin} auth={admin} now={() => NOW}/>)
 
         const arrivals = await screen.findByRole("region", {name: "Arrivals"})
-        await within(arrivals).findByText("23 Nov")
+        await within(arrivals).findByRole("table")
+        expect(within(arrivals).getByRole("img").getAttribute("aria-label")).toBe("Arrivals: 5 from TikTok, 9 from YouTube")
         expect(within(arrivals).getAllByRole("row").slice(1).map(row => row.textContent)).toEqual([
             "23 Nov00", "22 Nov09", "21 Nov50", "20 Nov00",
         ])

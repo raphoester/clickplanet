@@ -8,7 +8,8 @@ const DAY = 24 * HOUR
 type MadeUp = {postId: string, platform: "tiktok" | "youtube", experiment: string, at: number, views: number}
 
 // Ten days of the lab, made up: on TikTok far invasion, the carousel and the control each day; on YouTube the control
-// half the time. A snapshot a day at 08:17 UTC, each post's views climbing to where it settles.
+// half the time; the war report on both for the last two days, too young for TikTok's signs. A snapshot a day at
+// 08:17 UTC, each post's views climbing to where it settles. One day has no arrival from either platform.
 export function labOf(now: number, roll: () => number): {rows: StatsRow[], arrivals: ArrivalCount[]} {
     const today = Math.floor(now / DAY) * DAY
     const posts: MadeUp[] = []
@@ -19,8 +20,14 @@ export function labOf(now: number, roll: () => number): {rows: StatsRow[], arriv
             posts.push({postId: `lab-${day}-${hour}`, platform: "tiktok", experiment, at: start + hour * HOUR, views})
         }
         for (const [hour, experiment] of [[9, "control"], [12, "far-invasion"], [15, "control"], [17, "carousel"], [20, "control"], [22, "far-invasion"]] as const) {
-            const views = 700 + Math.floor(roll() * (experiment === "carousel" ? 600 : 2500))
+            const views = experiment === "far-invasion" && day === 4 && hour === 22
+                ? 15_000
+                : 700 + Math.floor(roll() * (experiment === "carousel" ? 600 : 2500))
             posts.push({postId: `lab-${day}-${hour}`, platform: "youtube", experiment, at: start + hour * HOUR, views})
+        }
+        if (day <= 1) {
+            posts.push({postId: `lab-${day}-11`, platform: "tiktok", experiment: "war-report", at: start + 11 * HOUR, views: 200 + Math.floor(roll() * 300)})
+            posts.push({postId: `lab-${day}-19`, platform: "youtube", experiment: "war-report", at: start + 19 * HOUR, views: 250 + Math.floor(roll() * 400)})
         }
     }
 
@@ -36,10 +43,12 @@ export function labOf(now: number, roll: () => number): {rows: StatsRow[], arriv
 
     const arrivals = Array.from({length: 11}, (_, back) => {
         const day = new Date(today - back * DAY).toISOString().slice(0, 10)
+        const unknown = new ArrivalCount({day, source: ArrivalSource.UNKNOWN, accounts: 30 + Math.floor(roll() * 20)})
+        if (back === 3) return [unknown]
         return [
-            new ArrivalCount({day, source: ArrivalSource.TIKTOK, accounts: 2 + Math.floor(roll() * 6)}),
-            new ArrivalCount({day, source: ArrivalSource.YOUTUBE, accounts: 4 + Math.floor(roll() * 9)}),
-            new ArrivalCount({day, source: ArrivalSource.UNKNOWN, accounts: 30 + Math.floor(roll() * 20)}),
+            new ArrivalCount({day, source: ArrivalSource.TIKTOK, accounts: Math.floor(roll() * 3)}),
+            new ArrivalCount({day, source: ArrivalSource.YOUTUBE, accounts: 3 + Math.floor(roll() * 4)}),
+            unknown,
         ]
     }).flat().reverse()
 

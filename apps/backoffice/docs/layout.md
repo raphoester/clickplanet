@@ -56,7 +56,9 @@ src/
                     memory)
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file, every row of a window), table.ts (its columns)
   lab/              The Lab: LabPage over readout.ts (each post at 7 days, each experiment against its control, the
-                    arrivals' days)
+                    arrivals' days); ViewsChart, ViewsByDayChart and PostDots (the posts as dots), SignsChart (a panel
+                    per sign), ArrivalsChart, Legend; chart.ts (the log ticks, an experiment's color, the dots' lanes,
+                    the dot under the pointer, the arrival bars, a bar's path), format.ts (the numbers as written)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   flags/            Flags, the sold flags: FlagsPage (the list), OpenPanel (open one), SoldCard (one, with Add days,
                     Rename and Close), actions.ts (the open's steps, the refusals, days left, the order), pin.ts (a
