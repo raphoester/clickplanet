@@ -2257,7 +2257,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
-    // Paint only, as a ghost: the tiles go back to what they show as soon as the frame is read.
+    // Paint only, as a ghost: the tiles go back to what they show as soon as the frame is read. They wear no shield
+    // meanwhile: the badges of the players' shields there covered the new flag (the owner, 2026-11-26, at Bavaria).
     type Preview = {code: string, direction: GlobePoint, resolve: (shot: FlagShot) => void, reject: (reason: Error) => void, ground?: number[]}
     const previewCodes = new Map<string, string>()
     let preview: Preview | undefined
@@ -2265,7 +2266,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const endPreview = () => {
         const ground = preview?.ground
         preview = undefined
-        if (ground) repaint(ground)
+        if (!ground) return
+        field.setShields(ground.map((tile) => ({tile, shields: shielded.shieldsOf(tile), was: 0})))
+        repaint(ground)
     }
 
     const flyToPreview = (direction: GlobePoint) => {
@@ -2288,6 +2291,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const capital = picker.pick(camera, at.x, at.y)
         job.ground = capital === undefined ? [] : groundAround(capital, PREVIEW_RINGS, (tile) => neighbourhood().of(tile))
         field.setOwners(job.ground.map((tile) => ({tile, country: job.code})))
+        field.setShields(job.ground.map((tile) => ({tile, shields: 0, was: shielded.shieldsOf(tile)})))
         captureRequests.push({
             resolve: (frame) => {
                 if (preview === job) endPreview()
