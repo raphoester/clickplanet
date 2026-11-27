@@ -7,8 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 )
 
 const (
@@ -35,6 +38,11 @@ func (s *stack) rest(until time.Time) {
 	s.clock.Advance(until.Sub(s.clock.Now()))
 }
 
+// A rotator that never reads certain: its ring is read, and judged with another watchdog's verdict alone.
+func rotatorOnlySuspects(_ *guard.Config, set *antibotv1.Rules) {
+	set.Rotator.CertainSpans = proto.Uint32(0)
+}
+
 func (s *stack) rotate(r *rand.Rand, lasting time.Duration) {
 	for start := s.clock.Now(); s.clock.Now().Sub(start) < lasting; {
 		cycle := s.clock.Now()
@@ -49,35 +57,35 @@ func (s *stack) rotate(r *rand.Rand, lasting time.Duration) {
 }
 
 func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
-	s := newStack(t)
+	s := newStack(t, rotatorOnlySuspects)
 	s.signIn("desktop-one", "desktop-two", "phone", "student")
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 10))
 
 	s.rotate(r, 3*time.Hour+45*time.Minute)
-	require.Empty(t, s.reports, "under four hours of turns ban nobody")
+	require.Empty(t, s.reports, "suspect turns of a ring never warned ban nobody")
 
 	s.rest(s.clock.Now().Add(20 * time.Minute))
 
 	var swept bool
 	for tile := uint32(180000); tile < 180400 && !swept; tile++ {
 		s.clock.Advance(time.Second)
-		swept = s.clickAs(sharedAddress, "desktop-one", tile, "PL")
+		swept = s.clickAs(sharedAddress, "desktop-two", tile, "PL")
 	}
 	require.True(t, swept, "a sweep on one account of the ring is two watchdogs")
 
-	assert.True(t, s.clickAs(sharedAddress, "desktop-two", 1, "PL"))
+	assert.True(t, s.clickAs(sharedAddress, "desktop-one", 1, "PL"))
 	assert.True(t, s.clickAs(sharedAddress, "phone", 1, "PL"), "the phone never swept, and is banned with the hand that holds it")
 
 	banned := map[string]string{}
 	for _, report := range s.reports {
 		banned[report.Account] = report.Alongside
 	}
-	assert.Len(t, banned, 3)
-	assert.Empty(t, banned["desktop-one"])
-	assert.Equal(t, "desktop-one", banned["desktop-two"])
-	assert.Equal(t, "desktop-one", banned["phone"])
+	assert.Len(t, banned, 3, "desktop-two shares a minute with each of the others")
+	assert.Empty(t, banned["desktop-two"])
+	assert.Equal(t, "desktop-two", banned["desktop-one"])
+	assert.Equal(t, "desktop-two", banned["phone"])
 
 	verdicts := s.verdicts(sharedAddress)
 	assert.Equal(t, detect.Suspect, verdicts["rotator"])
@@ -89,8 +97,8 @@ func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
 	assert.True(t, s.clickAs(homeLine, "phone", 1, "PL"), "and the phone is dropped on any network")
 }
 
-func TestTakingTurnsUnderFourHoursBansNobody(t *testing.T) {
-	s := newStack(t)
+func TestSuspectTurnsOfARingNeverWarnedBanNobody(t *testing.T) {
+	s := newStack(t, rotatorOnlySuspects)
 	s.signIn("desktop-one", "desktop-two", "phone")
 
 	//nolint:gosec // seeded test PRNG
@@ -106,10 +114,10 @@ func TestTakingTurnsUnderFourHoursBansNobody(t *testing.T) {
 	reading := examination.Readings[9]
 	assert.Equal(t, "rotator", reading.Watchdog)
 	assert.Equal(t, "suspect", reading.Level)
-	assert.Regexp(t, `^rotation accounts=3 byChance=\d+ flag=PL sharedSeconds=0 sharedSlots=\d+$`, reading.Evidence)
+	assert.Regexp(t, `^rotation accounts=2 byChance=\d+ flag=PL sharedSeconds=0 sharedSpans=\d+$`, reading.Evidence, "the phone shares minutes with desktop-two alone")
 }
 
-func TestFourHoursOfTurnsWarnTheAccountsTheRotatorIsSureOf(t *testing.T) {
+func TestFiftyMinutesOfTurnsWarnTheAccountsTheRotatorIsSureOf(t *testing.T) {
 	s := newStack(t)
 	s.signIn("desktop-one", "desktop-two", "phone", "student")
 
@@ -117,7 +125,7 @@ func TestFourHoursOfTurnsWarnTheAccountsTheRotatorIsSureOf(t *testing.T) {
 	r := rand.New(rand.NewPCG(10, 11))
 
 	start := s.clock.Now()
-	for len(s.warnings) == 0 && s.clock.Now().Sub(start) < 5*time.Hour {
+	for len(s.warnings) == 0 && s.clock.Now().Sub(start) < 2*time.Hour {
 		cycle := s.clock.Now()
 		s.burst(r, sharedAddress, "desktop-one", "PL", 25*time.Second, 500*time.Millisecond)
 		s.rest(cycle.Add(45 * time.Second))
@@ -129,14 +137,14 @@ func TestFourHoursOfTurnsWarnTheAccountsTheRotatorIsSureOf(t *testing.T) {
 
 	require.Len(t, s.warnings, 2)
 	assert.Empty(t, s.reports, "a ring is warned before it is banned")
-	assert.InDelta(t, 4*time.Hour, s.clock.Now().Sub(start), float64(10*time.Minute))
+	assert.InDelta(t, 48*time.Minute, s.clock.Now().Sub(start), float64(5*time.Minute), "ten spans, one in each five minutes")
 	assert.Equal(t, []string{"rotator suspect", "rotator certain"}, s.rises, "no other watchdog read anything")
 
 	warned := map[string]string{}
 	for _, report := range s.warnings {
 		warned[report.Account] = report.Alongside
 	}
-	assert.Len(t, warned, 2, "the phone's few seconds a slot are not yet sure")
+	assert.Len(t, warned, 2, "the phone's few seconds a span are not yet sure")
 	assert.Contains(t, warned, "desktop-one")
 	assert.Contains(t, warned, "desktop-two")
 }

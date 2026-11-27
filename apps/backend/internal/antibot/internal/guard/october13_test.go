@@ -41,15 +41,15 @@ func TestThePairOfOctober13TakingTurnsAtACadenceIsNotBanned(t *testing.T) {
 	r := rand.New(rand.NewPCG(10, 13))
 
 	s.takeTurns(r, polishLine, "PL", 2*time.Hour+30*time.Minute, "desktop", "laptop")
-	require.Equal(t, []string{"rotator suspect"}, s.rises)
+	require.Empty(t, s.rises, "35 seconds between the bursts: no minute holds both accounts")
 
 	assert.False(t, s.keepTime(r, polishLine, "laptop", "PL", 200*time.Millisecond, 580*time.Millisecond, 200))
 	assert.Empty(t, s.reports, "in production a cadence beside the turns banned the pair")
-	assert.Equal(t, []string{"rotator suspect", "metronome suspect"}, s.rises)
+	assert.Equal(t, []string{"metronome suspect"}, s.rises)
 
 	examination := s.examine(polishLine, "laptop")
 	assert.Regexp(t, `^cadence clicks=\d+ median=\S+ spread=3\d\d\.?\d*ms sustained=\S+$`, examination.Readings[2].Evidence)
-	assert.Regexp(t, `^rotation accounts=2 `, examination.Readings[9].Evidence)
+	assert.Equal(t, "clear", examination.Readings[9].Level)
 	assert.Equal(t, 1, examination.Suspects, "turns are never a suspect")
 	assert.False(t, examination.Guilty)
 }

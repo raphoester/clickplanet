@@ -3,6 +3,7 @@ package rotator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"math/bits"
 	"sort"
@@ -19,27 +20,37 @@ type Rules struct {
 	Enabled bool
 
 	Window time.Duration
+	Span   time.Duration
 
 	MinSeconds  int
 	MinByChance float64
 	MaxShare    float64
 
-	MinSlots        int
-	CertainSlots    int
+	MinSpans        int
+	CertainSpans    int
 	CertainByChance float64
 }
 
 func (r Rules) Validate() error {
 	return errors.Join(
 		detect.Positive("window", r.Window),
+		detect.Positive("span", r.Span),
+		wholeSeconds("span", r.Span),
 		detect.Positive("minSeconds", r.MinSeconds),
 		detect.Positive("minByChance", r.MinByChance),
 		detect.Positive("maxShare", r.MaxShare),
 		detect.Share("maxShare", r.MaxShare),
-		detect.NotNegative("minSlots", r.MinSlots),
-		detect.NotNegative("certainSlots", r.CertainSlots),
+		detect.NotNegative("minSpans", r.MinSpans),
+		detect.NotNegative("certainSpans", r.CertainSpans),
 		detect.AtLeast("certainByChance", r.CertainByChance, "minByChance", r.MinByChance),
 	)
+}
+
+func wholeSeconds(name string, value time.Duration) error {
+	if value%time.Second == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s is %v, and must be whole seconds", name, value)
 }
 
 type Config struct {
@@ -75,7 +86,7 @@ func New(config Config, rules func() Rules, clock cptime.Clock, onShare func(sha
 		rules:    rules,
 		clock:    clock,
 		onShare:  onShare,
-		span:     int64(config.Slot / time.Second),
+		seconds:  int64(config.Slot / time.Second),
 		accounts: make(map[accountID]*account),
 	}
 }
@@ -85,7 +96,7 @@ type Watchdog struct {
 	rules   func() Rules
 	clock   cptime.Clock
 	onShare func(float64)
-	span    int64
+	seconds int64
 
 	mu       sync.Mutex
 	accounts map[accountID]*account
@@ -124,6 +135,30 @@ func (m marks) count() int {
 	return n
 }
 
+func (m marks) countIn(from, to int64) int {
+	if m == nil {
+		return 0
+	}
+	n := 0
+	for i := from / 64; i <= (to-1)/64; i++ {
+		n += bits.OnesCount64(m[i] & within(i, from, to))
+	}
+	return n
+}
+
+// The bits of word i that are seconds of [from, to).
+func within(i, from, to int64) uint64 {
+	lo, hi := max(from-i*64, 0), min(to-i*64, 64)
+	if lo >= hi {
+		return 0
+	}
+	ones := ^uint64(0)
+	if hi-lo < 64 {
+		ones = 1<<(hi-lo) - 1
+	}
+	return ones << lo
+}
+
 func (w *Watchdog) Name() string { return Name }
 
 func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
@@ -160,7 +195,7 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		clicked = make(marks, w.words())
 		a.slots[at] = clicked
 	}
-	clicked.mark(click.At.Unix() - int64(at)*w.span)
+	clicked.mark(click.At.Unix() - int64(at)*w.seconds)
 }
 
 func (w *Watchdog) Committed(detect.Click) {}
@@ -210,9 +245,9 @@ func (w *Watchdog) ForgetTurns(account string, until time.Time) {
 	}
 }
 
-func (w *Watchdog) slotOf(at time.Time) slot { return slot(at.Unix() / w.span) }
+func (w *Watchdog) slotOf(at time.Time) slot { return slot(at.Unix() / w.seconds) }
 
-func (w *Watchdog) words() int { return int((w.span + 63) / 64) }
+func (w *Watchdog) words() int { return int((w.seconds + 63) / 64) }
 
 // The ring is the partners at the reading's level: a certain reading names no account it only suspects.
 func (w *Watchdog) judgeLocked(a *account, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
@@ -224,7 +259,7 @@ func (w *Watchdog) judgeLocked(a *account, now time.Time, rules Rules) (detect.V
 		if b == a || !paired(a, b) {
 			continue
 		}
-		if level := rules.level(w.sharingOf(from, rules.MinSeconds, a, b)); level > detect.Clear {
+		if level := rules.level(w.sharingOf(from, rules, a, b)); level > detect.Clear {
 			partners[level] = append(partners[level], b)
 			verdict = max(verdict, level)
 		}
@@ -243,14 +278,14 @@ func (w *Watchdog) judgeLocked(a *account, now time.Time, rules Rules) (detect.V
 	}
 
 	ring = append([]*account{a}, ring...)
-	together := w.sharingOf(from, rules.MinSeconds, ring...)
+	together := w.sharingOf(from, rules, ring...)
 
 	return verdict, detect.Evidence{
 		Rule: "rotation",
 		Fields: []detect.Field{
 			{Key: "accounts", Value: len(ring)},
 			{Key: "flag", Value: a.flag()},
-			{Key: "sharedSlots", Value: together.slots},
+			{Key: "sharedSpans", Value: together.spans},
 			{Key: "sharedSeconds", Value: together.seconds},
 			{Key: "byChance", Value: math.Round(together.byChance)},
 		},
@@ -283,19 +318,20 @@ func (a *account) flag() string {
 }
 
 type sharing struct {
-	slots    int
+	spans    int
 	seconds  int
 	byChance float64
 }
 
 func (s sharing) share() float64 { return float64(s.seconds) / s.byChance }
 
-func (w *Watchdog) sharingOf(from slot, minSeconds int, accounts ...*account) sharing {
+// Chance is counted per span: a minute where one account alone clicked adds none.
+func (w *Watchdog) sharingOf(from slot, rules Rules, accounts ...*account) sharing {
 	var (
-		shared   sharing
-		products int
-		once     = make(marks, w.words())
-		twice    = make(marks, w.words())
+		shared sharing
+		span   = int64(rules.Span / time.Second)
+		once   = make(marks, w.words())
+		twice  = make(marks, w.words())
 	)
 
 	for i, first := range accounts {
@@ -304,39 +340,47 @@ func (w *Watchdog) sharingOf(from slot, minSeconds int, accounts ...*account) sh
 				continue
 			}
 
-			clear(once)
-			clear(twice)
-			present, sum, squares := 0, 0, 0
-
-			for _, member := range accounts[i:] {
-				clicked := member.slots[at]
-				n := clicked.count()
-				if n < minSeconds {
-					continue
-				}
-
-				present++
-				sum += n
-				squares += n * n
-				for j, word := range clicked {
-					twice[j] |= once[j] & word
-					once[j] |= word
+			for start := int64(0); start < w.seconds; start += span {
+				end := min(start+span, w.seconds)
+				if counted, seconds, pairs := spanOf(accounts[i:], at, start, end, rules.MinSeconds, once, twice); counted {
+					shared.spans++
+					shared.seconds += seconds
+					shared.byChance += float64(pairs) / float64(end-start)
 				}
 			}
-
-			if present < 2 {
-				continue
-			}
-
-			shared.slots++
-			shared.seconds += twice.count()
-			products += (sum*sum - squares) / 2
 		}
 	}
 
-	shared.byChance = float64(products) / float64(w.span)
-
 	return shared
+}
+
+// pairs is the sum of a·b over every two accounts that clicked in minSeconds seconds of the span.
+func spanOf(accounts []*account, at slot, start, end int64, minSeconds int, once, twice marks) (counted bool, seconds, pairs int) {
+	clear(once)
+	clear(twice)
+	present, sum, squares := 0, 0, 0
+
+	for _, member := range accounts {
+		clicked := member.slots[at]
+		n := clicked.countIn(start, end)
+		if n < minSeconds {
+			continue
+		}
+
+		present++
+		sum += n
+		squares += n * n
+		for j := start / 64; j <= (end-1)/64; j++ {
+			word := clicked[j] & within(j, start, end)
+			twice[j] |= once[j] & word
+			once[j] |= word
+		}
+	}
+
+	if present < 2 {
+		return false, 0, 0
+	}
+	return true, twice.count(), (sum*sum - squares) / 2
 }
 
 func held(accounts []*account, at slot) bool {
@@ -356,9 +400,9 @@ func (r Rules) level(s sharing) detect.Verdict {
 	}
 
 	switch {
-	case r.CertainSlots > 0 && s.slots >= r.CertainSlots && s.byChance >= r.CertainByChance:
+	case r.CertainSpans > 0 && s.spans >= r.CertainSpans && s.byChance >= r.CertainByChance:
 		return detect.Certain
-	case r.MinSlots > 0 && s.slots >= r.MinSlots:
+	case r.MinSpans > 0 && s.spans >= r.MinSpans:
 		return detect.Suspect
 	default:
 		return detect.Clear
@@ -405,7 +449,7 @@ func (w *Watchdog) sharesLocked(from slot, rules Rules) []float64 {
 			if a.id >= b.id || (!a.last.After(w.sweptAt) && !b.last.After(w.sweptAt)) || !paired(a, b) {
 				continue
 			}
-			if together := w.sharingOf(from, rules.MinSeconds, a, b); rules.readable(together) {
+			if together := w.sharingOf(from, rules, a, b); rules.readable(together) {
 				shares = append(shares, together.share())
 			}
 		}

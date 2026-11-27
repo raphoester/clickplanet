@@ -32,18 +32,20 @@ func TestSweepReportsEachPairChanceCouldHaveShown(t *testing.T) {
 		share float64
 	}{
 		"one hand shares no second":          {turn: inTurns, share: 0},
-		"two people share what chance gives": {turn: sideBySide, share: 5 / (40 * 40 / 300.0)},
+		"two people share what chance gives": {turn: sideBySide, share: 5 / (40 * 25 / 60.0)},
 	} {
 		t.Run(name, func(t *testing.T) {
 			clock := newClock()
 
 			var shares []float64
-			unbounded := func() Rules { return Rules{Window: 24 * time.Hour, MinSeconds: 15, MinByChance: 90, MaxShare: 0.05} }
+			unbounded := func() Rules {
+				return Rules{Window: 24 * time.Hour, Span: time.Minute, MinSeconds: 3, MinByChance: 200, MaxShare: 0.05}
+			}
 			w := New(Config{}, unbounded, clock, func(share float64) { shares = append(shares, share) })
 
 			play(w, clock, 10, tc.turn)
 			w.sweep()
-			assert.Empty(t, shares, "chance has not had its 90 seconds yet")
+			assert.Empty(t, shares, "chance has not had its 200 seconds yet")
 
 			play(w, clock, 10, tc.turn)
 			w.sweep()

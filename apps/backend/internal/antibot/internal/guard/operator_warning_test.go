@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 )
 
-func TestAnOperatorsWarningBansTheRingOnTwoHoursOfTurnsAfterIt(t *testing.T) {
+func TestAnOperatorsWarningBansTheRingOnTenSharedMinutesAfterIt(t *testing.T) {
 	s := newStack(t)
 	s.signIn("lynx", "zebra")
 
@@ -23,23 +23,23 @@ func TestAnOperatorsWarningBansTheRingOnTwoHoursOfTurnsAfterIt(t *testing.T) {
 		func() (string, string) { return russianAddress, "zebra" },
 	}
 
-	s.switchTabs(r, 2*time.Hour, tabs, 4*time.Second, 10*time.Second)
-	require.Empty(t, s.warnings, "under four hours of turns")
-	require.Empty(t, s.reports, "a ring never warned is not banned on a suspect reading")
+	s.switchTabs(r, 7*time.Minute, tabs, 4*time.Second, 10*time.Second)
+	require.Empty(t, s.warnings, "under ten shared minutes")
+	require.Empty(t, s.reports)
 
 	warning, given, err := s.guard.Warn(t.Context(), "lynx")
 	require.NoError(t, err)
 	require.True(t, given)
 	assert.Equal(t, []warnings.Warning{warning}, s.feed.Published(), "the page shows it at once")
 
-	s.switchTabs(r, 110*time.Minute, tabs, 4*time.Second, 10*time.Second)
+	s.switchTabs(r, 4*time.Minute, tabs, 4*time.Second, 10*time.Second)
 	require.Empty(t, s.reports, "the turns before the warning never ban")
 
 	s.switchTabs(r, 30*time.Minute, tabs, 4*time.Second, 10*time.Second)
 
 	assert.ElementsMatch(t, []string{"lynx", "zebra"}, s.reported(), "the ring falls with the account warned")
-	assert.WithinRange(t, s.clock.Now(), warning.At.Add(115*time.Minute), warning.At.Add(130*time.Minute),
-		"24 slots of turns after the slot of the warning")
+	assert.WithinRange(t, s.clock.Now(), warning.At.Add(5*time.Minute), warning.At.Add(15*time.Minute),
+		"ten shared minutes of turns after the slot of the warning")
 	assert.Empty(t, s.warnings, "the jury warns no ring that holds a warned account")
 	assert.Equal(t, warning.At, s.examine("", "lynx").WarnedAt)
 }

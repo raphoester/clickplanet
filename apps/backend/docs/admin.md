@@ -220,7 +220,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
   several accounts, where the rotator read nothing yet. It is `Guard.Warn`, the jury's own path (`Jury.Warn`): the
   warning is kept (`antibot.warnings`), published to the page, which shows it at once, and the rotator forgets the
   account's turns up to it. Nothing is refused. From then on a ring with the account in it is banned on a `suspect`
-  reading of turns, about two hours of them after the warning.
+  reading of turns, ten shared minutes of them after the warning.
   - **An account, never a scope** (`bans.ParseAccount`): a warning is an account's. A malformed or empty id is
     `InvalidArgument`.
   - **Once, ever**: an account warned before, by the jury or by hand, is not warned again. The answer is the first

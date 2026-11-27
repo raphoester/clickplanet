@@ -129,17 +129,18 @@ the rule, before any ban.
 - **The jury warns** on turns alone (the `rotator` at `certain`, no other watchdog guilty) when no account of the ring
   was ever warned: each account of the ring is warned (`warnings.Book.Warn`), and nobody is banned. No other verdict
   is warned: a warning would tell a script where the line is.
-- **The jury bans** on turns alone when an account of the ring was warned before, from `suspect`: `rotator.minSlots`
-  (24 shared slots, about two hours) with `minByChance` (90). A new account beside a warned one is the same person. A
-  suspect reading of a ring never warned still counts for nothing.
-- **The turns before the warning never ban.** The rotator keeps 24 hours of slots, and the four hours that earned the
+- **The jury bans** on turns alone when an account of the ring was warned before, from `suspect`: `rotator.minSpans`
+  (10 shared minutes) with `minByChance` (15). A new account beside a warned one is the same person. A suspect reading
+  of a ring never warned still counts for nothing.
+- **The turns before the warning never ban.** The rotator keeps 24 hours of slots, and the turns that earned the
   warning are in them: the main account's next click would read `certain` again, even if it stopped. So the jury tells
   the rotator to forget each warned account's slots up to the slot of its warning (`rotator.ForgetTurns`), and every
-  reading is judged again. The ban comes 115 to 125 minutes of turns after the warning. A ring that stops plays on.
+  reading is judged again. The ban comes ten shared minutes of turns after the slot of the warning: 5 to 15 minutes
+  for a hand that changes account every minute. A ring that stops plays on.
 - **The operator warns by hand too** (`WarnPlayer`, since 2026-11-12): one account, for a player known to play several
   that the rotator has not read `certain`, such as one who said so in the chat. It runs the jury's own path
   (`Jury.Warn`: the book keeps and shows the warning, the rotator forgets the account's turns up to it), so what
-  follows is the same: its ring is banned on a `suspect` reading, about two hours of turns after the warning. Only
+  follows is the same: its ring is banned on a `suspect` reading, ten shared minutes of turns after the warning. Only
   that account is warned; the jury warns no ring that holds a warned account, it bans it. Not enforced, it is refused
   and nothing is kept; an account warned before answers its first warning. See [Operator tools](admin.md).
 - **A boot forgets them again.** The evidence saved before a warning comes back after a crash, so `Guard.Load`, after
@@ -161,7 +162,7 @@ the rule, before any ban.
   `antibot_warnings_total`, and `warned_at` and `warning_acknowledged_at` in `InspectPlayer`. Its `guilty` reads the ring
   as warned when the account examined was.
 - `TestACertainReadingOfTurnsWarnsTheRingAndBansNobody` and `TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork` pin
-  the jury; `TestAnOperatorsWarningBansTheRingOnTwoHoursOfTurnsAfterIt` the operator's warning; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
+  the jury; `TestAnOperatorsWarningBansTheRingOnTenSharedMinutesAfterIt` the operator's warning; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
   `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard; `listen_for_warnings_usecase`'s tests the
   stream.
 
@@ -210,7 +211,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`scraper`** — reads the whole map again and again, which the web app never does.
 - **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
 - **`hopper`** — aims all over the globe: click after click lands a continent away from the last.
-- **`rotator`** — plays several accounts with one hand: they share the same five minutes for hours, and almost never the same second.
+- **`rotator`** — plays several accounts with one hand: they share the same minutes, and almost never the same second.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -256,8 +257,10 @@ all through a tile war. Rotation beats the rate limit; it is not a bot signal.
   for nothing. It still reads, logs, shows in `InspectPlayer` and feeds `click_rotation_share`.
 - **Its ring still falls with a guilty caller**: when other watchdogs find one account
   guilty, the accounts it rotates with are banned with it (`Evidence.Accomplices`).
-- `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsNotBanned` and
-  `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two.
+- `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsWarnedNotBanned` and
+  `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two. Since 2026-11-26 the phone's
+  turns read `certain` in about ten minutes, and it is warned (two accounts are against the rules); the PC waited a
+  minute between its accounts, and reads nothing.
 
 **Certain turns act alone, since 2026-11-03.** The game's rule is now "two accounts, a ban".
 On 11-03 chat accused Russia, and two people of it were playing two accounts each; nothing
@@ -908,50 +911,55 @@ scope's bucket is ten accounts wide, so a second account doubles the clicks. On
 scope and changed account each time a bank was empty. They are people, not scripts,
 and every other watchdog read `clear`.
 
-- **The signal is two clocks.** Time is cut in slots of `slot` (5m). Two accounts
-  **share a slot** when each clicked in `minSeconds` (15) different seconds of it. A
-  **shared second** is one both clicked in. One hand shares many slots and almost no
-  second: in the ledger, one group of three shared 101 of 118 slots and 3 of 11,700
-  seconds, and two other groups 62 and 23 slots and no second.
-- **The bound is on what chance gives.** Two people with `a` and `b` active seconds
-  in a slot share about `a·b/slot` of them by chance. A pair is read once that sum,
-  over the slots it shares inside `window` (24h), reaches `minByChance` (90), and it
-  **rotates** when its shared seconds are at most `maxShare` (5%) of it. A share of
-  the active seconds would not do: two slow players share few seconds too.
-- **Set from those numbers.** A household of two shared about 10% of its active
-  seconds and a school of 13 to 21 players about 7%, which is what chance gives two
-  players at their pace; the three groups shared 0.03%, 0 and 0. So people read near
-  1 and one hand under 0.01, and the bound is 20 times under the people.
-- **`minByChance` is what keeps luck out.** Two people who each click in one block
-  of seconds per slot can miss each other for a while. Simulated, the worst such
-  pair, judged at the first moment it can be, reads once in 400 times.
-- **`minSlots` (24) shared slots read `suspect`**: two hours of shared slots, since an
-  hour of turns happens. The jury counts it for nothing: beside another watchdog it
-  banned children (see suspect turns never count, above). On a ring warned before, it bans.
-  `TestTakingTurnsUnderFourHoursBansNobody` pins it.
-- **`certainSlots` (48) shared slots, where chance gives `certainByChance` (300) shared
-  seconds, read `certain`**, and that warns a ring alone, once. Both, since 2026-11-03: four hours of
-  turns in the window, and enough seconds that luck is no answer. Slow turns need more
-  slots: 37 seconds each a slot reach 300 at 66 (`TestSlowTurnsAreCertainOnlyOnceChanceIsSure`).
-  `certainSlots` 0 turns the level off.
-- **Measured before it was set**, over the ledger of 2026-11-01 23:25 to 11-03 09:40 (takes
-  and strikes, 119 accounts, every pair of one flag with a signed-in account, on any network).
-  The two people who rotated read 3 shared seconds where chance gave 500 (an account on an
-  IPv4 and its guest on 27 Cloudflare WARP /64s, 67 slots) and 1 where it gave 1,233 (two
-  accounts on one IPv4, 66 slots): `certain` from 01:35 and 00:45 on 11-03. Every pair of two
-  people read 0.58 to 1.8 of what chance gives; once chance gives 150 or more, 0.81 at the
-  least. Nine more pairs shared at most one second, in 4 to 29 slots where chance gave 240
-  at most: they read `suspect` or nothing. Simulated, two people who each click in one
-  block of seconds a slot never read `certain` in 4,000 days at each of four paces; at the
-  `suspect` bounds, up to 9 in 4,000 do.
-- **Who the old cases would have banned** (from the numbers kept when each was checked):
-  the Polish trio of 10-09 (101 of 118 slots, 3 shared seconds, about 370 by chance a pair,
-  estimated from its 11,700 active seconds), the group of 62 slots of the same day if its
-  chance passed 300 (not the one of 23), and the two pairs of 11-03. Not
-  the Irish phone of 10-19 (0 against 88 in 3 hours), nor his accounts of 10-31 (0 against
-  194 and 152), nor Jonathan's pair (0 against 63), nor the Montenegro PC (101 at most): they
-  rotated, but too little to be sure. Not the Palau household, nor the naval academy, nor
-  any school: they share seconds at chance.
+- **The signal is two clocks.** Time is cut in spans of `span` (1 minute). Two accounts
+  **share a span** when each clicked in `minSeconds` (3) different seconds of it. A
+  **shared second** is one both clicked in. One hand that changes account shares the
+  minute of each change and almost no second.
+- **The bound is on what chance gives.** Two people with `a` and `b` active seconds in a
+  span share about `a·b/span` of them by chance. Chance is summed over the spans a pair
+  shares inside `window` (24h): a minute where one account alone clicked adds none
+  (`TestBurstsThatMissEachOtherInsideASlotAddNoChance`). A pair **rotates** when its shared
+  seconds are at most `maxShare` (5%) of chance. A share of the active seconds would not do:
+  two slow players share few seconds too. Two people who click at one hand's pace share
+  seconds at chance (`TestTwoPeopleAtAHandsPaceAreClear`).
+- **`certain` is chance 30 in 10 shared spans** (`certainByChance`, `certainSpans`), and
+  that warns a ring alone, once. **`suspect` is chance 15 in 10 shared spans**
+  (`minByChance`, `minSpans`): it bans a ring warned before, and counts for nothing
+  otherwise (it banned children beside another watchdog: see suspect turns never count,
+  above). A pair under `minByChance` is not read at all. A floor of 0 spans turns its level
+  off. A hand that changes account every minute or two reads `certain` in 15 to 25 minutes
+  (`TestOneHandSwitchingEveryMinuteOrTwoIsCertainWithinHalfAnHour`), and the ten spans are
+  the least: `TestUnderTenSharedSpansIsNotEnough`. Fewer seconds a span need more spans:
+  `TestSlowTurnsAreCertainOnlyOnceChanceIsSure`.
+- **Since 2026-11-26.** From 10-09 the evidence was 5-minute slots (15 seconds each), and the
+  gates were slots: `suspect` at 24 shared slots, `certain` at 48 where chance gave 300, two
+  and four hours. On 11-26 three pairs played two accounts for 30 to 80 minutes, and read
+  `clear`; the operator found them by hand.
+- **Measured before it was set**, on the ledger of 2026-11-19 13:28 to 11-26 17:04 (takes,
+  strikes, spreads, encloses and fortifies, 279 accounts with 30 or more active seconds, 172
+  of them signed in), for every pair the rotator pairs, judged at the end of each shared
+  span:
+  - **Pairs of one flag**: 198 reach chance 15 in 10 spans. 12 read at most 5%, all at 0 or 1
+    shared second; the nearest other pair reads 0.29 of chance. At chance 30, 187 pairs: 10
+    at most 5%, every other at 0.45 or more.
+  - **Pairs of two flags are two people**, with the bursts real players click in: 1,894 reach
+    chance 15 in 10 spans, and none reads at 5% (the nearest 0.14). At chance 30, 1,775 pairs,
+    the nearest 0.31.
+  - **Who it warns**: 10 pairs in 6 rings of 2 or 3 accounts (pl, se, tr, ua), 4 to 35 minutes
+    after the first shared minute of the session that warns them. A pair of a warned account
+    is banned, not warned. Two of the three pairs of 11-26 read `certain` after 34 and 35
+    minutes of turns; the third shares too few minutes (chance 22) to read, as do two other
+    pairs at 0 shared seconds (chance 16 and 18), one of them banned by hand on 11-24. In the
+    same days the 5-minute slots, with no gate, read the same 10 pairs at chance 30, and no other.
+- **The cost, in the old simulation.** Two people who each click one block of seconds in each
+  5-minute slot, all day, 4,000 days at each length of block: with blocks of 10, 15, 20, 30,
+  60 and 120 seconds, `certain` reads on 9, 33, 9, 2, 0 and 0 days, `suspect` (or `certain`)
+  on 131, 47, 9, 2, 0 and 0. The slot gates read `certain` on none. Two blocks in one minute
+  that miss each other look like a change of account, and the span's chance assumes seconds
+  spread through it. Real clicking is not one block a slot: the pairs of two flags read
+  nowhere near. No bound fast enough for the pairs of 11-26 passes this simulation: chance
+  60 in 20 spans reads on none of its days, and warns none of those pairs. Spans of 30
+  seconds with a floor of 15 pass it, and read none of them either.
 - **It reads tries, like the metronome** (`Attempted`), and judges in `Watch`. A try
   the throttle refused was made by the same hand, and accepted clicks alone would
   let one shared bucket space two people apart.
@@ -973,20 +981,25 @@ and every other watchdog read `clear`.
   it rotates with at the level it reads (`Evidence.Accomplices`), each with the scope it
   clicked from last, and a guilty verdict on one falls on all of them: see [the parts that
   are easy to get wrong](#the-parts-that-are-easy-to-get-wrong). A `certain` reading names no
-  account it only suspects (`TestACertainReadingNamesOnlyTheAccountsItIsSureOf`). The
-  evidence is the ring's numbers: `accounts`, `sharedSlots`, `sharedSeconds`, `byChance`
-  and `flag`.
+  account it only suspects (`TestACertainReadingNamesOnlyTheAccountsItIsSureOf`). An account
+  is a partner only of the accounts it shares minutes with: in a trio that plays one, two,
+  three, then pauses, the first and the third are no pair. The evidence is the ring's numbers:
+  `accounts`, `sharedSpans`, `sharedSeconds`, `byChance` and `flag`.
 - `click_rotation_share` is each readable pair's shared seconds over what chance
   gives, once a sweep, for the pairs with an account clicked since the last one
   (`Observer.OnRotationShare`). People pile up near 1.
 - **Kept per account, per slot**, one bit per second: 40 bytes a slot, and the scope it
   clicked from last. The section is saved with the slot length, and one saved under
-  another length is dropped on load.
+  another length is dropped on load. The spans are cut from those bits when a pair is
+  judged, so a new `span` reads the 24 hours kept at once. A span that does not divide the
+  slot ends with it (`TestASpanThatDoesNotDivideTheSlotEndsWithIt`).
 - **A warned account's slots up to its warning are forgotten** (`ForgetTurns`), and every account's reading is judged
   again, since a partner's cached one still names them.
 - **What it cannot tell**: two people who pass one device back and forth each time a
-  bank is empty read as one hand, and four hours of that is a warning to both, and two more a ban. That is the
-  cost of the rule. Two who pass it every few minutes rarely share four hours of slots.
+  bank is empty read as one hand: about half an hour of that is a warning to both, and ten
+  more shared minutes a ban. That is the cost of the rule. A hand that waits more than a
+  minute between accounts shares no minute, and reads nothing
+  (`TestThePairOfOctober13TakingTurnsAtACadenceIsNotBanned`).
 - The counter-move is to click with two accounts in the same seconds, which takes two
   hands or a script, and a script is what the other watchdogs read.
 

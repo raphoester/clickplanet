@@ -46,11 +46,12 @@ export const AdminService = {
     /**
      * Warns one account that a player plays one account, as the jury warns a ring of accounts it reads taking turns. The
      * player's page shows "One account per player" at once, or when it next opens, until the player holds to confirm.
-     * Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (about
-     * two hours of turns), where a ring never warned needs a certain one (about four) and gets a warning first. Its
-     * turns before the warning never ban. An account is warned once, ever: a second call changes nothing and answers
-     * the first warning with already_warned. Only the account named is warned, not the accounts it plays with; ban an
-     * alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is off: then nobody is warned.
+     * Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (ten
+     * minutes where both accounts clicked), where a ring never warned needs a certain one (about half an hour of turns)
+     * and gets a warning first. Its turns before the warning never ban. An account is warned once, ever: a second call
+     * changes nothing and answers the first warning with already_warned. Only the account named is warned, not the
+     * accounts it plays with; ban an alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is
+     * off: then nobody is warned.
      *
      * @generated from rpc antibot.v1.AdminService.WarnPlayer
      */
