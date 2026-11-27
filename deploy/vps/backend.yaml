@@ -512,8 +512,8 @@ alerts:
     alertsChannelId: "1566864909709607044"
     battlesChannelId: "1566864959739011324"
     # The staff's private channel, told of each flag that waits on a person (an appeal, or a paid flag the judge left
-    # unsure). Empty, nobody is told: the owner makes the channel, the bot may not.
-    staffChannelId: ""
+    # unsure). The owner made it (the bot may not); empty, nobody is told.
+    staffChannelId: "1575835114892431450"
 
 # The squad that flags the swastikas players paint on the map, at Warn in the log and in
 # vandalsquad.v1.AdminService/ListGraffiti. It reverts and bans nobody. See apps/backend/docs/vandalsquad.md.
