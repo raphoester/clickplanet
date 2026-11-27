@@ -125,15 +125,16 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   a flag renamed; a code it does not know: its code as its name, a grey flag; Brittany, England, Scotland and Wales,
   sold since they left the build; a closed flag claimable or removed (`Sold.removed`); the fake's `openFlag`,
   `addTime`, `endFlag`, `claimElsewhere`, `removeFlag`, `renameFlag`.
-- [Flag submissions](docs/flag-submissions.md) — one flow from every door: the shop's opens "Your flags" (each flag
-  held and each flag sent, one action each, "Add a new flag" on top), the picker's gold row and its search that finds
-  no country a new flag, and its search that finds a flag whose time ended its claim; step 1 makes the region's flag
-  with no price (a name, a picture, its capital: a pin aimed on the globe as a rally), a new one in the place of the one
-  that waits unpaid, a free flag's name sent to its claim, and shows it on the game's map at its capital, a shot of the
-  globe with the flag on the tiles around it for one frame, Next sends it and the judge reviews it, step 2 is the
-  paywall with the verdict as it comes (Approved, or Rejected with Fix it, before any payment); a flag's own pay page
-  for Add time and a claim; a guest sees the sign-in buttons; each decision and a close told once on the news line;
-  the fake's `approveSubmission`, `rejectSubmission`, `openSubmission`.
+- [Flag submissions](docs/flag-submissions.md) — one flow from every door: the shop's opens "Your flags" (one line per
+  flag held and per flag sent, each opening its own page, a done one put away, "Add a new flag" under them), the
+  picker's gold row and its search that finds no country a new flag, and its search that finds a flag whose time ended
+  its claim; step 1 makes the region's flag with no price (a name, a picture, its capital: a pin aimed on the globe as a
+  rally), a new one in the place of the one that waits unpaid, a free flag's name sent to its claim, and shows it on the
+  game's map at its capital, a shot of the globe with the flag on the tiles around it for one frame, Next sends it and
+  the judge reviews it, step 2 is the paywall with the verdict as it comes (Approved, or Rejected with Fix it, before
+  any payment); a flag's own pay page for Add time, Stop renewal, a removal's note and a claim; a guest sees the sign-in
+  buttons; each decision and a close told once on the news line; the fake's `approveSubmission`, `rejectSubmission`,
+  `openSubmission`.
 - [The shop](docs/shop.md) — a player pays for a flag's time on Stripe's page: a new flag from its paywall, held until
   the approval, a flag held or one claimed from its pay page; the shop's door (the status bar's bag on a phone, the
   rail's Shop on the desktop, neither while the shop is off) opens "Your flags", the plans on one page only; the plans

@@ -153,38 +153,38 @@ its clock while a sale runs (see [The shop](shop.md#a-sale)). **Pay never waits 
 ## Your flags
 
 **The shop's door opens `FlagHub`, "Your flags"** (the owner, 2026-11-26: "Your flags" left the profile, the desktop
-`ProfileModal` and the phone You sheet, where it had moved that morning). "Add a new flag" on top (step 1, in the place
-of the one that waits unpaid), then a row per flag the account holds, then a row per submission whose flag did not
-open, each with one action that opens its own page: **never the plans inside the list.** It reads the submissions and
-the renewals again as it shows.
+`ProfileModal` and the phone You sheet, where it had moved that morning): a list of one line per flag the account
+holds, then per submission whose flag did not open, and "Add a new flag" under it, the one red button (step 1, in the
+place of the one that waits unpaid). It reads the submissions and the renewals again as it shows. 480 px wide on a
+desktop, so a row's line reads on one line.
 
-**A row** (`flag-row`, a grid at every width): the flag's picture, its name over one line that says where it is, its
-one button under them where the name starts, then the operator's note and the appeal across the row. No state chip:
-the line says it (the owner, 2026-11-26: the first hub put a chip, a line and a lone button on three corners of each
-row, "extremely slop").
+**A row is one button to the flag's own page** (`flag-row`, a box per row): the flag's picture (a grey flag for a
+submission not yet approved, whose picture the server has not made public), its name over one line that says where it
+is, and a chevron. **No button, no plans, no note in the list**: each is on the page the row opens (the owner,
+2026-11-26: the first list put a chip, a line and a lone button on three corners of each row, "extremely slop"; the
+second put a big button in each box, "monstrosities").
 
 - **A flag held** (`ListMySubmissionsResponse.held`, the account's payment opened it or claimed it last): its time line
-  (`flagTimeOf`, see [The shop](shop.md#time-for-a-flag-held)), and Add time ([its pay page](#a-flags-pay-page)) or
-  Stop renewal. A removed one has no button, and quotes the operator's note. A flag another player claimed is no longer
-  held: it leaves the list.
-- **A flag sent**: its picture once approved, the step 2 line, and one button: Pay while the shop sells and it is not
-  paid (its paywall, whose Back changes one that waits), Change while the shop is off and it waits; a rejection's note
-  and the appeal.
+  (`flagTimeOf`, see [The shop](shop.md#time-for-a-flag-held)) while the shop sells, a removal's at all times; it opens
+  [its pay page](#a-flags-pay-page). A flag another player claimed is no longer held: it leaves the list.
+- **A flag sent**: the step 2 line; it opens its paywall (Pay, the verdict, Fix it, the note and the appeal).
 - **What shows** (`flagRowsOf`): each flag held, then each flag sent whose flag did not open, **the newest of a name**
   (a second try of Kurdistan hides the first), and **none of a name the account holds** (a Bavaria rejected as `exists`
   while the account holds Bavaria).
-- **A row that is done is put away** with its × ("Hide Sardinia"; `dismissable`): a flag removed, a flag rejected, an
-  approved one left unpaid. Never one that waits. The keys are kept in this browser (`localStorage`
-  `clickplanet-flag-rows-dismissed`, `useDismissedFlagRows`); a removed flag that comes back shows again. With every
-  row put away, the shop's door opens step 1.
+- **A row that is done is put away** with its × ("Hide Sardinia"; `dismissable`), left of the chevron, which stays in
+  line with the others: a flag removed, a flag rejected, an approved one left unpaid. Never one that waits. The keys
+  are kept in this browser (`localStorage` `clickplanet-flag-rows-dismissed`, `useDismissedFlagRows`); a removed flag
+  that comes back shows again. With every row put away, the shop's door opens step 1.
 
 ## A flag's pay page
 
-**Add time and a claim open `FlagPayScreen`, the same page as a new flag's paywall**, a modal: the flag card with the
-game's map at its capital (`FlagCard`, `useMapShot` from the flag's public picture and pin), its chip, then the plans
-(`PlanOffer`, target the flag). Titled "Add time" for a flag the account holds, with its time line, or "Claim Bavaria"
-for one it does not. Back goes to Your flags when it came from there. **Nothing is offered** for a removed flag, nor
-for an open one another account holds (a claim that came too late). The server refuses a claim while another player's
+**A flag held and a claim open `FlagPayScreen`, the same page as a new flag's paywall**, a modal: the flag card with
+the game's map at its capital (`FlagCard`, `useMapShot` from the flag's public picture and pin), then the plans
+(`PlanOffer`, target the flag). For a flag the account holds, its time line in place of the chip, and titled "Add time"
+with the plans, or "Your flag" with none: a renewal that runs (Stop renewal over Back, side by side where the words
+fit) or a removed flag (the operator's note, and Back). "Claim Bavaria" with the chip for one it does not hold. Back
+goes to Your flags when it came from there. **Nothing is offered** for a removed flag, nor for an open one another
+account holds (a claim that came too late). The server refuses a claim while another player's
 renewal of the flag still runs ("You can't pay for this flag now.", see [The shop](shop.md#the-offer)).
 
 ### What the player reads
@@ -196,7 +196,7 @@ an opened submission whose flag the list of flags holds closed reads Closed.
 
 **Why the operator removed it, in its own words** (`ListMySubmissionsResponse.closures`, a note per flag the account
 holds that the operator removed; see the backend's [flags module](../../backend/docs/flags.md)): `ConnectFlagSubmissions`
-puts each note on its flag held (`Held.removalNote`). Your flags quotes it on that flag's row. **The page reads the
+puts each note on its flag held (`Held.removalNote`). The flag's pay page quotes it. **The page reads the
 submissions again when a flag the account holds closes or comes back** (`useFlagSubmissionsFeed`, on the list of
 flags), so the note shows at once and a flag claimed by another leaves the list. The note is the operator's, in
 English, never translated.
@@ -245,7 +245,7 @@ account holds: the ones its submissions opened and the ones it claimed. Then, wi
 - `claimElsewhere(code)`: another player claims a flag whose time ended: it opens again and leaves Your flags.
 - `renewingElsewhere(code)`: another player's renewal still runs on it, so a claim is refused;
   `renewingElsewhere(code, false)` lets it through.
-- `removeFlag(code, note)`: the operator's removal (a note by default), quoted in Your flags; `addTime(code, 7)` brings it
+- `removeFlag(code, note)`: the operator's removal (a note by default), quoted on the flag's pay page; `addTime(code, 7)` brings it
   back.
 
 ## Not built yet

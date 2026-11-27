@@ -106,18 +106,18 @@ starts sees it at its next read of the plans: a load, or the flag's flow or Your
 
 ## Time for a flag held
 
-**Your flags says each held flag's time while the shop sells** (`FlagHub`, `flagTimeOf`; see
-[Flag submissions](flag-submissions.md#your-flags)):
+**Your flags and the flag's pay page say each held flag's time while the shop sells** (`flagTimeOf`; see
+[Flag submissions](flag-submissions.md#your-flags)): one line on its row, the same line on its page.
 
-- **A renewal that runs**, on the flag or on the submission that opened it: "Renews on Dec 24, 2026" and Stop renewal.
-  `StopRenewal{renewal_id}` answers the renewal stopping, which replaces it in the store: "Ends on Dec 24, 2026". A stop
-  that fails is one line under the list. The server refuses a second plan while a renewal runs: it would charge twice,
-  so no Add time shows.
-- **A renewal that stops**: "Ends on …" and Add time: it charges no more, so more time is no second charge.
-- **No renewal**, the flag open: "Ends on …" (`Sold.endsAt`) and Add time; closed, however long ago (`Sold.closedAt`):
-  "Closed on …" and Add time, until another player claims it.
-- **Removed** (`Sold.removed`), shop on or off: "Removed on …", the operator's note, and nothing to pay.
-- **Add time** opens the flag's pay page, target `flag`, and Back to Your flags.
+- **A renewal that runs**, on the flag or on the submission that opened it: "Renews on Dec 24, 2026", and on the page
+  Stop renewal in place of the plans. `StopRenewal{renewal_id}` answers the renewal stopping, which replaces it in the
+  store: "Ends on Dec 24, 2026", and the plans show. A stop that fails is one line under the time. The server refuses
+  a second plan while a renewal runs: it would charge twice, so no plans show.
+- **A renewal that stops**: "Ends on …" and the plans: it charges no more, so more time is no second charge.
+- **No renewal**, the flag open: "Ends on …" (`Sold.endsAt`) and the plans; closed, however long ago
+  (`Sold.closedAt`): "Closed on …" and the plans, until another player claims it.
+- **Removed** (`Sold.removed`), shop on or off: "Removed on …", the operator's note on the page, and nothing to pay.
+- **The plans** are the flag's pay page, titled "Add time", target `flag`, and Back to Your flags.
 
 The dates are each language's medium date, as "Sent on …".
 

@@ -72,7 +72,7 @@ export default function FlagSubmissionPlace({account: store, submitter, shooter,
                 <p className="flag-status-line" role="status">{t("common.loading")}</p>
             </Modal>
         case "hub":
-            return <FlagHub shop={shop}/>
+            return <FlagHub/>
         case "make":
             return <FlagSubmissionForm submitter={submitter} shooter={shooter}/>
         case "pay":
