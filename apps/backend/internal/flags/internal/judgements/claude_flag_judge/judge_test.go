@@ -89,13 +89,13 @@ func TestTheRequestSendsTheRuleThePictureAndTheCase(t *testing.T) {
 
 func TestARejectionCarriesItsReasonAndTheNoteThePlayerReads(t *testing.T) {
 	api := &fake{answer: message("end_turn",
-		`{"verdict":"reject","reason":"not_a_place","note":"A pride flag is no place's flag.","why":"rainbow flag"}`)}
+		`{"verdict":"reject","reason":"not_a_place","note":"A football club is not a state.","why":"a club's crest"}`)}
 
 	ruling, err := judgeOf(t, api.serve(t)).Judge(t.Context(), bavaria)
 	require.NoError(t, err)
 
 	assert.Equal(t, judgements.Reject, ruling.Verdict)
-	assert.Equal(t, submissions.Rejection{Reason: submissions.NotAPlace, Note: "A pride flag is no place's flag."},
+	assert.Equal(t, submissions.Rejection{Reason: submissions.NotAPlace, Note: "A football club is not a state."},
 		ruling.Rejection)
 }
 

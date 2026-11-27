@@ -102,9 +102,9 @@ export function stateLabel(state: SubmissionState): string {
 }
 
 export const REASONS: {reason: RejectionReason, label: string}[] = [
-    {reason: RejectionReason.NOT_A_PLACE, label: "Not a place's flag"},
+    {reason: RejectionReason.NOT_A_PLACE, label: "Not a place's name"},
     {reason: RejectionReason.EXISTS, label: "Has a flag already"},
-    {reason: RejectionReason.UNREADABLE, label: "Unreadable on a tile"},
+    {reason: RejectionReason.UNREADABLE, label: "Not like a flag"},
     {reason: RejectionReason.HATEFUL, label: "Hateful"},
     {reason: RejectionReason.OTHER, label: "Other"},
 ]

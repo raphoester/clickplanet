@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "Vlajka {flag} byla uzavřena {date}.",
   "flagSubmission.rejected.notAPlace": "Není to vlajka místa.",
   "flagSubmission.rejected.exists": "Toto místo už ve hře vlajku má.",
-  "flagSubmission.rejected.unreadable": "Na velikost pole se to špatně čte.",
+  "flagSubmission.rejected.unreadable": "Nevypadá to jako vlajka.",
   "flagSubmission.rejected.hateful": "Je to nenávistné.",
   "flagSubmission.rejected.other": "Nebylo schváleno.",
   "flagSubmission.appeal": "Myslíš, že jsme se spletli? Požádej člověka, ať se na to podívá znovu.",

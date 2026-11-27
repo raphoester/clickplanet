@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "{flag} foi fechada em {date}.",
   "flagSubmission.rejected.notAPlace": "Não é a bandeira de um lugar.",
   "flagSubmission.rejected.exists": "Este lugar já tem uma bandeira no jogo.",
-  "flagSubmission.rejected.unreadable": "Está difícil de ler no tamanho de uma casa.",
+  "flagSubmission.rejected.unreadable": "Não parece uma bandeira.",
   "flagSubmission.rejected.hateful": "Tem conteúdo de ódio.",
   "flagSubmission.rejected.other": "Não foi aprovada.",
   "flagSubmission.appeal": "Acha que erramos? Peça para uma pessoa olhar de novo.",

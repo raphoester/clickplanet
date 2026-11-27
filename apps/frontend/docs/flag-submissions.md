@@ -145,8 +145,8 @@ its clock while a sale runs (see [The shop](shop.md#a-sale)). **Pay never waits 
   reviews only the paid ones while the shop sells). "Sent on Nov 24, 2026." while the shop is off.
 - **Approved, not paid**: the Approved chip, its public picture, "Approved! Pick a plan to open it.": paying opens it at
   once. "Approved! It opens soon." while the shop is off. The plan and the consent picked stay as the verdict lands.
-- **Rejected**: its reason in plain words (not a place, a flag in the game already, unreadable at a tile's size,
-  hateful, or "It was not approved."), then the operator's note quoted, then "Think we got it wrong? Ask a person to
+- **Rejected**: its reason in plain words (not a place, a flag in the game already, "It does not look like a
+  flag.", hateful, or "It was not approved."), then the operator's note quoted, then "Think we got it wrong? Ask a person to
   look again.", an email to support@clickplanet.lol named after the flag: the first review may be Claude's. **No plan
   shows, before any payment.** "Fix it" goes back to step 1 with the name, the capital and the picture typed: a
   decided submission is not replaced, so it sends a new one.

@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "{flag} closed on {date}.",
   "flagSubmission.rejected.notAPlace": "It is not the flag of a place.",
   "flagSubmission.rejected.exists": "This place has a flag in the game already.",
-  "flagSubmission.rejected.unreadable": "It is hard to read at the size of a tile.",
+  "flagSubmission.rejected.unreadable": "It does not look like a flag.",
   "flagSubmission.rejected.hateful": "It is hateful.",
   "flagSubmission.rejected.other": "It was not approved.",
   "flagSubmission.appeal": "Think we got it wrong? Ask a person to look again.",
