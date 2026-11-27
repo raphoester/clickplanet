@@ -18,7 +18,7 @@
 }
 
 .sign-in-pitch {
-    text-align: left;
+    text-align: start;
 }
 
 .sign-in-pitch-perks {
@@ -184,7 +184,7 @@
 }
 
 .account-confirm-text {
-    text-align: left;
+    text-align: start;
 }
 
 .account-confirm-text a {

@@ -153,7 +153,7 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    text-align: left;
+    text-align: start;
 }
 
 .round-reveal-row {
@@ -202,7 +202,7 @@
     flex: 0 0 1.6em;
     font-weight: 700;
     color: var(--text-soft);
-    text-align: right;
+    text-align: end;
     font-variant-numeric: tabular-nums;
 }
 
@@ -225,7 +225,7 @@
     flex: 0 0 2.6em;
     font-family: var(--font-display);
     font-size: var(--text-l);
-    text-align: right;
+    text-align: end;
     font-variant-numeric: tabular-nums;
 }
 

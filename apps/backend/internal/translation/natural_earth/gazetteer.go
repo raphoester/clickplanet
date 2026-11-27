@@ -33,7 +33,7 @@ var layers = []layer{
 }
 
 // Natural Earth's languages, by the suffix of their name fields.
-var languages = []string{"fr", "de", "es", "pt", "pl", "tr", "id"}
+var languages = []string{"fr", "de", "es", "pt", "pl", "tr", "id", "ru", "sv", "hu", "ar", "hi", "vi", "zh", "ja"}
 
 // English name → language → the names Natural Earth gives the places of that name.
 type Gazetteer struct {

@@ -32,7 +32,7 @@
 
 .player-front-heading {
     margin: 0 0 var(--space-1);
-    text-align: left;
+    text-align: start;
     font-family: var(--font-text);
     font-weight: 600;
     font-size: var(--text-xs);

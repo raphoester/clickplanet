@@ -143,7 +143,7 @@
     align-items: flex-start;
     gap: var(--space-3);
     margin-bottom: var(--space-1);
-    text-align: left;
+    text-align: start;
 }
 
 .flag-pitch .shop-coin {
@@ -218,7 +218,7 @@
     gap: var(--space-1);
     min-width: 0;
     padding: 0 var(--space-1) var(--space-1);
-    text-align: left;
+    text-align: start;
 }
 
 .flag-card-text > .flag-state {
@@ -257,14 +257,14 @@
     flex-direction: column;
     gap: var(--space-2);
     padding: 3px;
-    text-align: left;
+    text-align: start;
 }
 
 .flag-status-line {
     margin: 0;
     font-size: var(--text-m);
     color: var(--text-soft);
-    text-align: left;
+    text-align: start;
 }
 
 .flag-status-line strong {
@@ -280,7 +280,7 @@
 }
 
 .flag-sign-in {
-    text-align: left;
+    text-align: start;
 }
 
 .flag-rows {
@@ -316,7 +316,7 @@
     border: 0;
     border-radius: var(--radius-m);
     font: inherit;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
 }
 

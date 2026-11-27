@@ -26,11 +26,11 @@
 
 /* Centred while they fit, and scrolled from the first one when they do not. */
 .hall-of-fame-plaque:first-child {
-    margin-left: auto;
+    margin-inline-start: auto;
 }
 
 .hall-of-fame-plaque:last-child {
-    margin-right: auto;
+    margin-inline-end: auto;
 }
 
 .hall-of-fame-plaque {

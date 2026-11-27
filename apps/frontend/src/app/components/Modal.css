@@ -37,7 +37,7 @@
     padding-top: 3px;
     font-size: var(--display-l);
     color: var(--gold);
-    text-align: left;
+    text-align: start;
 }
 
 /* The scrollbar sits in the panel's padding, so the text has as much room on the right as on the left. */

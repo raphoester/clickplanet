@@ -106,13 +106,13 @@ describe("the clock", () => {
 describe("the language", () => {
     it("is the player's pick first, then the browser's first one the game speaks", () => {
         expect(chooseLanguage({picked: "de", browser: ["pl"]})).toBe("de")
-        expect(chooseLanguage({picked: "xx", browser: ["ru-RU", "pl-PL", "en"]})).toBe("pl")
-        expect(chooseLanguage({picked: null, browser: ["ru", "ja"]})).toBe("en")
+        expect(chooseLanguage({picked: "xx", browser: ["ko-KR", "pl-PL", "en"]})).toBe("pl")
+        expect(chooseLanguage({picked: null, browser: ["ko", "it"]})).toBe("en")
     })
 
-    it("reads every Portuguese as Brazil's, every Spanish as one, and Slovak as Czech", () => {
-        expect(["pt-PT", "pt", "es-MX", "es-419", "sk-SK", "in", "en-AU"].map(languageOf))
-            .toEqual(["pt-BR", "pt-BR", "es", "es", "cs", "id", "en"])
+    it("reads every Portuguese as Brazil's, every Spanish and Chinese as one, and Slovak as Czech", () => {
+        expect(["pt-PT", "pt", "es-MX", "es-419", "sk-SK", "in", "en-AU", "zh-CN", "zh-TW", "ar-EG"].map(languageOf))
+            .toEqual(["pt-BR", "pt-BR", "es", "es", "cs", "id", "en", "zh-Hans", "zh-Hans", "ar"])
     })
 
     it("is formatted in the browser's own variant of it", () => {

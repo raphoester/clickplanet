@@ -1,5 +1,5 @@
 .player-card {
-    text-align: left;
+    text-align: start;
 }
 
 .modal-content.player-card {
@@ -122,7 +122,7 @@ button.player-card-held {
     font: inherit;
     letter-spacing: inherit;
     color: inherit;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
 }
 
@@ -134,7 +134,7 @@ button.player-card-held {
 
 .player-card-report {
     display: block;
-    margin-left: auto;
+    margin-inline-start: auto;
     padding: 0;
     border: none;
     background: none;

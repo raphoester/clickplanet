@@ -65,7 +65,7 @@
 .click-budget-number {
     min-width: 1.1ch;
     font-size: var(--display-l);
-    text-align: right;
+    text-align: end;
     font-variant-numeric: tabular-nums;
     color: var(--click-budget-ink);
 }

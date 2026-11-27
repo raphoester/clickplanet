@@ -7,8 +7,8 @@
 
 .country-flag-sprite {
     display: block;
-    margin-left: auto;
-    margin-right: auto;
+    margin-inline-start: auto;
+    margin-inline-end: auto;
     background-repeat: no-repeat;
     border-radius: 1px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 35%, transparent);
