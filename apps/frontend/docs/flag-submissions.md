@@ -101,13 +101,18 @@ capital, `useMapShot` asks the globe for a shot (`Globe.previewFlag`), the name 
   the modal, and stays there. Once the flight ended and the picture is in the atlas, the capital is the tile under the
   pin, and it and 3 rings of tiles around it (`groundAround`, about 37 on land) wear the picture for one frame, under a
   flag code no flag has (`preview-1`, one per picture: each takes a sold flag's number for the page's life), **with no
-  shield**: the badges of the shields players put there covered the new flag (the owner, 2026-11-26, at Bavaria). The
-  frame is read (`captureRequests`, as the share's photo) and the tiles go back to what they show at once (`repaint`,
-  their shields from `shielded`): paint only, as a ghost, so no count, version or read sees them. A pin at sea shows
-  the sea.
-- **The shot is the drawing buffer cropped around the capital** (`flagShooter`, `cropAround`): 560 x 280 CSS px, the
-  widest card, at most the screen. The card shows it at that size, centred in a box of 2 wide by 1 high, so a tile on
-  the card is a tile's size in the game on every screen; the crown is a DOM crown on the capital's pixel.
+  shield**: the badges of the shields players put there covered the new flag (the owner, 2026-11-26, at Bavaria).
+- **The capital wears the game's crown** (`setCapitalMarks`, as a capital still standing: see
+  [The capitals](capitals.md)), **and no tile of the ground any other mark** (`TileField.takeMarks`: the rings of the
+  flag played, another capital's crown, a mine, a trap), nor the pointer's hover. Until 2026-11-27 the card drew a crown
+  of its own at the pin's pixel, which floated between the tiles (the owner, at Sardinia).
+- **The frame is read** (`captureRequests`, as the share's photo), in the tick that painted it, and the tiles go back to
+  what they show at once: their owners (`repaint`), their shields (from `shielded`) and the marks taken
+  (`TileField.putMarks`). Paint only, as a ghost, so no count, version or read sees them. A pin at sea shows the sea,
+  and no crown.
+- **The shot is the drawing buffer cropped around the capital's tile** (`flagShooter`, `cropAround`; around the pin at
+  sea): 560 x 280 CSS px, the widest card, at most the screen. The card shows it at that size, centred in a box of 2
+  wide by 1 high, so a tile on the card is a tile's size in the game on every screen.
 - **One shot per picture and capital for the visit** (`useMapShot`): the paywall shows the one the form took, a
   capital moved shoots again, and a shot asked for while another runs calls the first off (`AbortError`, no warning).
   An approved flag found by a door after a reload is shot from its public picture and its pin.

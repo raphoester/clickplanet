@@ -306,13 +306,29 @@ export class TileField {
         this.flagRectangles.dispose()
     }
 
+    // Takes every mark off the tiles (the rings, the crown, a mine or a trap) and says what each wore, for `putMarks`.
+    takeMarks(tiles: readonly number[]): number[] {
+        const {attribute, offset} = this.slots.pulse
+        const worn = tiles.map((tile) => attribute.array[(tile - 1) * attribute.itemSize + offset])
+        this.putMarks(tiles, tiles.map(() => 0))
+        return worn
+    }
+
+    putMarks(tiles: readonly number[], marks: readonly number[]) {
+        this.patch(this.slots.pulse, tiles, (values, at, i) => this.wear(values, at, tiles[i], marks[i]))
+    }
+
     private mark(tiles: readonly number[], bit: number, on: boolean) {
         this.patch(this.slots.pulse, tiles, (values, at, i) => {
             const was = values[at]
-            const is = on ? was | bit : was & ~bit
-            values[at] = is
-            if (!(was & RINGS) !== !(is & RINGS)) this.ring(tiles[i] - 1, (is & RINGS) !== 0)
+            this.wear(values, at, tiles[i], on ? was | bit : was & ~bit)
         })
+    }
+
+    private wear(values: THREE.TypedArray, at: number, tile: number, is: number) {
+        const was = values[at]
+        values[at] = is
+        if (!(was & RINGS) !== !(is & RINGS)) this.ring(tile - 1, (is & RINGS) !== 0)
     }
 
     private ring(tile: number, on: boolean) {

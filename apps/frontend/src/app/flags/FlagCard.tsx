@@ -6,7 +6,7 @@ import "./FlagSubmission.css"
 
 export type FlagCardProps = {
     name: string
-    // The map at the capital with the flag on it, once the globe took it.
+    // The map at the capital with the flag on it and the capital crowned, once the globe took it.
     shot?: MapShot
     // The picture alone, until then.
     picture?: string
@@ -20,12 +20,7 @@ export default function FlagCard({name, shot, picture, capital, chip}: FlagCardP
     return <div className="panel-box flag-card">
         {(shot || picture) && <span className="flag-card-map" aria-hidden="true">
             {shot
-                ? <>
-                    <img className="flag-card-shot" src={shot.url} alt="" style={{width: shot.width, height: shot.height}}/>
-                    <span className="flag-card-crown" style={{left: `calc(50% + ${shot.capital.x}px)`, top: `calc(50% + ${shot.capital.y}px)`}}>
-                        <CrownIcon size={22}/>
-                    </span>
-                </>
+                ? <img className="flag-card-shot" src={shot.url} alt="" style={{width: shot.width, height: shot.height}}/>
                 : <img className="flag-card-picture" src={picture} alt=""/>}
         </span>}
         <span className="flag-card-text">

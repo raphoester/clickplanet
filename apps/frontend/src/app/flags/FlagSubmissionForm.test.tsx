@@ -108,7 +108,7 @@ describe("FlagSubmissionForm", () => {
 
     it("shows the flag as the players will see it: on the map at its capital, its name and the capital's place", async () => {
         const file = png()
-        const shooter = vi.fn(async () => ({url: "blob:map", width: 560, height: 280, capital: {x: 4, y: -2}}))
+        const shooter = vi.fn(async () => ({url: "blob:map", width: 560, height: 280}))
         useFlagForm.getState().compose({name: "Bavaria", file, pinned: {pin: PIN, place: "Upper Bavaria"}})
         render(<FlagSubmissionForm submitter={bucket().submitter} shooter={shooter}/>)
 
@@ -124,7 +124,6 @@ describe("FlagSubmissionForm", () => {
         expect(shooter).toHaveBeenCalledWith(PIN, file)
         expect(shot.getAttribute("src")).toBe("blob:map")
         expect(shot.style.width).toBe("560px")
-        expect(card.querySelector<HTMLElement>(".flag-card-crown")?.style.left).toBe("calc(50% + 4px)")
     })
 
     it("shoots no map before the capital is put", () => {

@@ -2258,16 +2258,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     // Paint only, as a ghost: the tiles go back to what they show as soon as the frame is read. They wear no shield
-    // meanwhile: the badges of the players' shields there covered the new flag (the owner, 2026-11-26, at Bavaria).
-    type Preview = {code: string, direction: GlobePoint, resolve: (shot: FlagShot) => void, reject: (reason: Error) => void, ground?: number[]}
+    // meanwhile: the badges of the players' shields there covered the new flag (the owner, 2026-11-26, at Bavaria). The
+    // capital wears the game's crown and no other mark, nor does any tile of its ground: a crown drawn on the card at the
+    // pin floated between the tiles (the owner, 2026-11-27, at Sardinia), and the rings of the flag played showed on it.
+    type Preview = {code: string, direction: GlobePoint, resolve: (shot: FlagShot) => void, reject: (reason: Error) => void, ground?: number[], marks?: number[]}
     const previewCodes = new Map<string, string>()
     let preview: Preview | undefined
 
     const endPreview = () => {
         const ground = preview?.ground
+        const marks = preview?.marks
         preview = undefined
         if (!ground) return
         field.setShields(ground.map((tile) => ({tile, shields: shielded.shieldsOf(tile), was: 0})))
+        // Taken in the tick that drew the frame, put back once it is read: nothing else marks a tile in between.
+        if (marks) field.putMarks(ground, marks)
         repaint(ground)
     }
 
@@ -2286,12 +2291,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
         const {width, height} = renderer.domElement
-        const projected = new THREE.Vector3(job.direction.x, job.direction.y, job.direction.z).project(camera)
-        const at = {x: (projected.x + 1) / 2 * width, y: (1 - projected.y) / 2 * height}
-        const capital = picker.pick(camera, at.x, at.y)
+        const pixelOf = (point: THREE.Vector3) => {
+            const projected = point.project(camera)
+            return {x: (projected.x + 1) / 2 * width, y: (1 - projected.y) / 2 * height}
+        }
+        const pinned = pixelOf(new THREE.Vector3(job.direction.x, job.direction.y, job.direction.z))
+        const capital = picker.pick(camera, pinned.x, pinned.y)
+        // The shot is centred on the capital's tile, or on the pin at sea.
+        const at = capital === undefined ? pinned : pixelOf(pointAt(capital))
         job.ground = capital === undefined ? [] : groundAround(capital, PREVIEW_RINGS, (tile) => neighbourhood().of(tile))
         field.setOwners(job.ground.map((tile) => ({tile, country: job.code})))
         field.setShields(job.ground.map((tile) => ({tile, shields: 0, was: shielded.shieldsOf(tile)})))
+        job.marks = field.takeMarks(job.ground)
+        if (capital !== undefined) field.setCapitalMarks([capital], true)
+        // The pointer left on the tile tapped would ring it: the next move lights it again.
+        field.setHover(undefined)
         captureRequests.push({
             resolve: (frame) => {
                 if (preview === job) endPreview()
