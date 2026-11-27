@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "Flaga {flag} została zamknięta {date}.",
   "flagSubmission.rejected.notAPlace": "To nie jest flaga miejsca.",
   "flagSubmission.rejected.exists": "To miejsce ma już flagę w grze.",
-  "flagSubmission.rejected.unreadable": "Trudno ją odczytać w rozmiarze pola.",
+  "flagSubmission.rejected.unreadable": "To nie wygląda jak flaga.",
   "flagSubmission.rejected.hateful": "Jest nienawistna.",
   "flagSubmission.rejected.other": "Nie została zatwierdzona.",
   "flagSubmission.appeal": "Myślisz, że się pomyliliśmy? Poproś człowieka, żeby jeszcze raz na to spojrzał.",

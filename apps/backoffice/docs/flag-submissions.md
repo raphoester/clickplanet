@@ -101,7 +101,7 @@ left to you", then what decided it, in its words. A flag it approved or rejected
   moved: "Approve Catalonia, its capital moved to 42.3619, 5.0922? …". **Nothing changes a flag once approved**: a
   player changes a submission while it waits, and the change is a new submission in its place, so the one the page
   showed is gone: `NotFound`, "This submission is no longer kept. Reload the list."
-- **Reject**: a reason from the list (Not a place's flag, Has a flag already, Unreadable on a tile, Hateful, Other)
+- **Reject**: a reason from the list (Not a place's name, Has a flag already, Not like a flag, Hateful, Other)
   and a note of 500 characters at most. Other needs a note. The page says plainly that the player reads the reason and
   the note, and the question says it again.
 - **What the server refuses**: `not_found` is a submission no longer kept; **`failed_precondition` is quoted** ("The

@@ -88,7 +88,7 @@ describe("the account's flags", () => {
         expect(rows()).toEqual([
             `BavariaEnds on ${dateOf(ENDS_AT)}`,
             "SwabiaWe check it after you pay.",
-            "FranconiaIt is hard to read at the size of a tile.",
+            "FranconiaIt does not look like a flag.",
         ])
         expect(document.querySelector(".chip"), "the line says the state").toBeNull()
         expect(screen.queryByText("Too small."), "the verdict's page has the note").toBeNull()

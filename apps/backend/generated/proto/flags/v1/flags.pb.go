@@ -83,11 +83,12 @@ type RejectionReason int32
 
 const (
 	RejectionReason_REJECTION_REASON_UNSPECIFIED RejectionReason = 0
-	// Not the flag a place is known by: a cause, a party, a brand, a person, a meme or a photo.
+	// The name is not a state or a political body, real, historical, fictional or invented: a joke, a meme, a person, a
+	// club, a company or a slogan.
 	RejectionReason_REJECTION_REASON_NOT_A_PLACE RejectionReason = 1
-	// The place has a flag in the game already.
+	// The place or the name has a flag in the game already, or the picture is a flag of the game under another name.
 	RejectionReason_REJECTION_REASON_EXISTS RejectionReason = 2
-	// Unreadable at the size of a tile.
+	// It does not look like a flag: a photo, a screenshot, a meme, a picture of text, blurred, or unreadable on a tile.
 	RejectionReason_REJECTION_REASON_UNREADABLE RejectionReason = 3
 	RejectionReason_REJECTION_REASON_HATEFUL    RejectionReason = 4
 	RejectionReason_REJECTION_REASON_OTHER      RejectionReason = 5

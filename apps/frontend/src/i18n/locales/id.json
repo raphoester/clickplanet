@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "{flag} ditutup pada {date}.",
   "flagSubmission.rejected.notAPlace": "Ini bukan bendera sebuah tempat.",
   "flagSubmission.rejected.exists": "Tempat ini sudah punya bendera di game.",
-  "flagSubmission.rejected.unreadable": "Sulit dibaca dalam ukuran petak.",
+  "flagSubmission.rejected.unreadable": "Ini tidak terlihat seperti bendera.",
   "flagSubmission.rejected.hateful": "Ini bernada kebencian.",
   "flagSubmission.rejected.other": "Tidak disetujui.",
   "flagSubmission.appeal": "Menurut kamu kami salah? Minta orang untuk memeriksanya lagi.",

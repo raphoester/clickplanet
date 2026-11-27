@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "{flag} {date} tarihinde kapatıldı.",
   "flagSubmission.rejected.notAPlace": "Bu bir yerin bayrağı değil.",
   "flagSubmission.rejected.exists": "Bu yerin oyunda zaten bir bayrağı var.",
-  "flagSubmission.rejected.unreadable": "Bir kare boyutunda okunması zor.",
+  "flagSubmission.rejected.unreadable": "Bir bayrağa benzemiyor.",
   "flagSubmission.rejected.hateful": "Nefret dolu.",
   "flagSubmission.rejected.other": "Onaylanmadı.",
   "flagSubmission.appeal": "Bizim hata yaptığımızı mı düşünüyorsun? Bir insandan tekrar bakmasını iste.",

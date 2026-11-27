@@ -554,7 +554,7 @@
   "flagSubmission.status.closed": "{flag} a été fermé le {date}.",
   "flagSubmission.rejected.notAPlace": "Ce n'est pas le drapeau d'un lieu.",
   "flagSubmission.rejected.exists": "Ce lieu a déjà un drapeau dans le jeu.",
-  "flagSubmission.rejected.unreadable": "Il est difficile à lire à la taille d'une case.",
+  "flagSubmission.rejected.unreadable": "Ça ne ressemble pas à un drapeau.",
   "flagSubmission.rejected.hateful": "Il est haineux.",
   "flagSubmission.rejected.other": "Il n'a pas été approuvé.",
   "flagSubmission.appeal": "Tu penses qu'on s'est trompés ? Demande à une personne de regarder à nouveau.",
