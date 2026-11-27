@@ -70,7 +70,7 @@ func TestAZeroThatNeverReadsIsARuleOfItsOwn(t *testing.T) {
 	_, err := rules.Named(cprules.Default, func(r *antibotv1.Rules) {
 		r.Retaker.MinTiles = proto.Uint32(0)
 		r.Defender.MinShare = proto.Float64(0)
-		r.Rotator.MinSlots = proto.Uint32(0)
+		r.Rotator.MinSpans = proto.Uint32(0)
 		r.Metronome.Stamina.MinBusy = nil
 		r.Churner.V6, r.Churner.V4 = nil, nil
 		r.Hopper.Enabled = proto.Bool(false)

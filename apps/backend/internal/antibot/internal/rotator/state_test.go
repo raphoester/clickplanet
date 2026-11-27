@@ -14,7 +14,7 @@ import (
 const scope = "2001:db8:1:2::/64"
 
 func bounded() Rules {
-	return Rules{Window: 24 * time.Hour, MinSeconds: 15, MinByChance: 90, MaxShare: 0.05, MinSlots: 24}
+	return Rules{Window: 24 * time.Hour, Span: time.Minute, MinSeconds: 3, MinByChance: 15, MaxShare: 0.05, MinSpans: 10}
 }
 
 func newWatchdog(config Config, rules Rules, clock cptime.Clock) *Watchdog {
@@ -40,7 +40,7 @@ func inTurns(second int) []string {
 	switch {
 	case second < 40:
 		return []string{"one"}
-	case second >= 150 && second < 190:
+	case second >= 42 && second < 82:
 		return []string{"two"}
 	default:
 		return nil

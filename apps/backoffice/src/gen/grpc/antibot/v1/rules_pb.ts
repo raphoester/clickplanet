@@ -1260,11 +1260,22 @@ export class RotatorRules extends Message<RotatorRules> {
   window?: Duration;
 
   /**
+   * Whole seconds. Chance is counted in each span of a slot; a span that does not divide the slot ends with it.
+   *
+   * @generated from field: google.protobuf.Duration span = 9;
+   */
+  span?: Duration;
+
+  /**
+   * The seconds each account clicked in for a span to count.
+   *
    * @generated from field: optional uint32 min_seconds = 3;
    */
   minSeconds?: number;
 
   /**
+   * Suspect, and the least a pair is read at.
+   *
    * @generated from field: optional double min_by_chance = 4;
    */
   minByChance?: number;
@@ -1275,18 +1286,18 @@ export class RotatorRules extends Message<RotatorRules> {
   maxShare?: number;
 
   /**
-   * Zero never reads.
+   * The counted spans suspect needs. Zero never reads.
    *
-   * @generated from field: optional uint32 min_slots = 6;
+   * @generated from field: optional uint32 min_spans = 10;
    */
-  minSlots?: number;
+  minSpans?: number;
 
   /**
-   * Zero never reads; certain needs both.
+   * The counted spans certain needs, with certain_by_chance. Zero never reads.
    *
-   * @generated from field: optional uint32 certain_slots = 7;
+   * @generated from field: optional uint32 certain_spans = 11;
    */
-  certainSlots?: number;
+  certainSpans?: number;
 
   /**
    * @generated from field: optional double certain_by_chance = 8;
@@ -1303,11 +1314,12 @@ export class RotatorRules extends Message<RotatorRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "window", kind: "message", T: Duration },
+    { no: 9, name: "span", kind: "message", T: Duration },
     { no: 3, name: "min_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "min_by_chance", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 5, name: "max_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 6, name: "min_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 7, name: "certain_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 10, name: "min_spans", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 11, name: "certain_spans", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 8, name: "certain_by_chance", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 

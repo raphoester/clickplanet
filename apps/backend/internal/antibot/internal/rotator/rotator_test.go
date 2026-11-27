@@ -24,13 +24,14 @@ const (
 func production() rotator.Rules {
 	return rotator.Rules{
 		Window:      24 * time.Hour,
-		MinSeconds:  15,
-		MinByChance: 90,
+		Span:        time.Minute,
+		MinSeconds:  3,
+		MinByChance: 15,
 		MaxShare:    0.05,
 
-		MinSlots:        24,
-		CertainSlots:    48,
-		CertainByChance: 300,
+		MinSpans:        10,
+		CertainSpans:    10,
+		CertainByChance: 30,
 	}
 }
 
@@ -97,16 +98,34 @@ func (h *harness) slot(turns ...turn) {
 	}
 }
 
+// Each account clicks 37 seconds, and the next starts 3 seconds after: one shared span a slot for two accounts.
 func (h *harness) turns(slots int, players ...player) {
-	each := slotSeconds / len(players)
-
 	for range slots {
 		turns := make([]turn, 0, len(players))
 		for i, p := range players {
-			turns = append(turns, turn{who: p, from: i * each, to: i*each + 37})
+			turns = append(turns, turn{who: p, from: i * 40, to: i*40 + 37})
 		}
 		h.slot(turns...)
 	}
+}
+
+// One hand plays each account in turn, for a minute or two, then the next 2 seconds after. It answers how long the
+// play took to read certain, or -1.
+func (h *harness) switching(rng *rand.Rand, lasting time.Duration, accounts ...player) time.Duration {
+	start := h.clock.Now()
+	certainAfter := time.Duration(-1)
+
+	for i := 0; h.clock.Now().Sub(start) < lasting; i++ {
+		for range 60 + rng.IntN(61) {
+			if h.click(accounts[i%len(accounts)]) == detect.Certain && certainAfter < 0 {
+				certainAfter = h.clock.Now().Sub(start)
+			}
+			h.clock.Advance(time.Second)
+		}
+		h.clock.Advance(2 * time.Second)
+	}
+
+	return certainAfter
 }
 
 type person struct {
@@ -169,9 +188,9 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 		case i%7 == 0:
 			h.slot(turn{one, 0, 29})
 		case i%40 == 1:
-			h.slot(turn{one, 0, 37}, turn{two, 36, 73}, turn{phone, 200, 237})
+			h.slot(turn{one, 0, 37}, turn{two, 36, 73}, turn{phone, 80, 117}, turn{one, 120, 157}, turn{phone, 160, 197}, turn{two, 200, 237})
 		default:
-			h.slot(turn{one, 0, 37}, turn{two, 100, 137}, turn{phone, 200, 237})
+			h.slot(turn{one, 0, 37}, turn{two, 40, 77}, turn{phone, 80, 117}, turn{one, 120, 157}, turn{phone, 160, 197}, turn{two, 200, 237})
 		}
 	}
 
@@ -188,14 +207,14 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 		assert.ElementsMatch(t, []detect.Field{
 			{Key: "accounts", Value: 3},
 			{Key: "flag", Value: "pl"},
-			{Key: "sharedSlots", Value: shared},
+			{Key: "sharedSpans", Value: 4 * shared},
 			{Key: "sharedSeconds", Value: 3},
-			{Key: "byChance", Value: float64(1383)},
+			{Key: "byChance", Value: float64(4609)},
 		}, r.evidence.Fields, p.account)
 		assert.Equal(t, accomplices, r.evidence.Accomplices, p.account)
 	}
 
-	assert.Equal(t, "rotation accounts=3 byChance=1383 flag=pl sharedSeconds=3 sharedSlots=101", h.read(one).evidence.String())
+	assert.Equal(t, "rotation accounts=3 byChance=4609 flag=pl sharedSeconds=3 sharedSpans=404", h.read(one).evidence.String())
 }
 
 func TestAHouseholdOfTwoIsClear(t *testing.T) {
@@ -282,10 +301,12 @@ func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
 	school := newSchool(rng, 16)
 	trio := []player{linked(address, "desktop-one", "pt"), linked(address, "desktop-two", "pt"), linked(address, "phone", "pt")}
 
+	cycle := []int{0, 1, 2, 0, 2, 1}
+
 	var seen crowd
 	for second := range 5 * 3600 {
-		if at := second % slotSeconds; at%100 < 37 {
-			h.click(trio[at/100])
+		if at := second % slotSeconds; at < 240 && at%40 < 37 {
+			h.click(trio[cycle[at/40]])
 		}
 		h.second(&seen, school.clicking(second))
 	}
@@ -294,7 +315,7 @@ func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
 
 	for _, p := range trio {
 		r := h.read(p)
-		require.Equal(t, detect.Suspect, r.verdict, p.account)
+		require.Equal(t, detect.Certain, r.verdict, p.account)
 		assert.Contains(t, r.evidence.Fields, detect.Field{Key: "accounts", Value: 3}, p.account)
 		assert.Len(t, r.evidence.Accomplices, 2, p.account)
 	}
@@ -312,18 +333,18 @@ func TestOneAccountAloneIsClear(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.read(alone).verdict)
 }
 
-func TestUnderTwoHoursOfTurnsIsNotEnough(t *testing.T) {
+func TestUnderTenSharedSpansIsNotEnough(t *testing.T) {
 	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
-	h.turns(23, one, two)
-	assert.Equal(t, detect.Clear, h.read(one).verdict)
+	h.turns(9, one, two)
+	assert.Equal(t, detect.Clear, h.read(one).verdict, "nine spans, though chance gives 111 seconds")
 	assert.Equal(t, detect.Clear, h.read(two).verdict)
 
 	h.turns(1, one, two)
-	assert.Equal(t, detect.Suspect, h.read(one).verdict)
-	assert.Equal(t, detect.Suspect, h.read(two).verdict)
+	assert.Equal(t, detect.Certain, h.read(one).verdict)
+	assert.Equal(t, detect.Certain, h.read(two).verdict)
 }
 
 func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
@@ -334,9 +355,9 @@ func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
 	h.turns(30, account, tab)
 
 	r := h.read(account)
-	require.Equal(t, detect.Suspect, r.verdict)
+	require.Equal(t, detect.Certain, r.verdict)
 	assert.Equal(t, []detect.Accomplice{{Account: "tab", Scope: line}}, r.evidence.Accomplices, "where the guest clicked last")
-	assert.Equal(t, detect.Suspect, h.read(tab).verdict)
+	assert.Equal(t, detect.Certain, h.read(tab).verdict)
 }
 
 func TestTwoGuestsOnOneBankAreNeverPaired(t *testing.T) {
@@ -368,7 +389,7 @@ func TestOneHandOnTwoNetworksIsRead(t *testing.T) {
 	var tab player
 	for i := range 50 {
 		tab = guest(fmt.Sprintf("2001:db8:%x::/64", i), "tab", "ru")
-		h.slot(turn{account, 0, 60}, turn{tab, 150, 210})
+		h.slot(turn{account, 20, 80}, turn{tab, 82, 142})
 	}
 
 	r := h.read(account)
@@ -408,7 +429,7 @@ func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
 	h.turns(30, one, two)
-	require.Equal(t, detect.Suspect, h.read(one).verdict)
+	require.Equal(t, detect.Certain, h.read(one).verdict)
 
 	h.clock.Advance(24 * time.Hour)
 	h.turns(1, one, two)
@@ -416,9 +437,9 @@ func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.read(one).verdict)
 }
 
-func TestWithNoCertainSlotsItOnlyCorroborates(t *testing.T) {
+func TestWithNoCertainSpansItOnlyCorroborates(t *testing.T) {
 	unset := production()
-	unset.CertainSlots = 0
+	unset.CertainSpans = 0
 	h := newHarness(unset)
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
@@ -428,30 +449,63 @@ func TestWithNoCertainSlotsItOnlyCorroborates(t *testing.T) {
 	assert.Equal(t, detect.Suspect, h.read(one).verdict)
 }
 
-func TestFourHoursOfTurnsReadCertain(t *testing.T) {
+func TestOneHandSwitchingEveryMinuteOrTwoIsCertainWithinHalfAnHour(t *testing.T) {
 	h := newHarness(production())
 
-	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
+	//nolint:gosec // seeded test PRNG
+	rng := rand.New(rand.NewPCG(26, 11))
 
-	for range 47 {
-		h.slot(turn{one, 0, 60}, turn{two, 150, 210})
+	main, alt := linked(address, "main", "tr"), guest(address, "alt", "tr")
+
+	certainAfter := h.switching(rng, time.Hour, main, alt)
+
+	require.Positive(t, certainAfter, "never read certain")
+	assert.Less(t, certainAfter, 30*time.Minute)
+	assert.Greater(t, certainAfter, 9*time.Minute, "ten switches at least, each turn a minute or more")
+}
+
+func TestTwoPeopleAtAHandsPaceAreClear(t *testing.T) {
+	h := newHarness(production())
+
+	//nolint:gosec // seeded test PRNG
+	rng := rand.New(rand.NewPCG(26, 12))
+
+	pair := []*person{
+		{player: linked(address, "first", "tr"), rng: rng, burst: [2]int{60, 120}, pause: [2]int{1, 30}},
+		{player: linked(address, "second", "tr"), rng: rng, burst: [2]int{60, 120}, pause: [2]int{1, 30}},
 	}
-	assert.Equal(t, detect.Suspect, h.read(one).verdict)
 
-	h.slot(turn{one, 0, 60}, turn{two, 150, 210})
-	assert.Equal(t, detect.Certain, h.read(one).verdict)
-	assert.Equal(t, detect.Certain, h.read(two).verdict)
+	var seen crowd
+	for second := range 3 * 3600 {
+		var clicking []player
+		for _, p := range pair {
+			if p.clicks(second) {
+				clicking = append(clicking, p.player)
+			}
+		}
+		h.second(&seen, clicking)
+	}
+
+	assert.Equal(t, detect.Clear, seen.strongest, "their seconds meet as often as chance says")
 }
 
 func TestSlowTurnsAreCertainOnlyOnceChanceIsSure(t *testing.T) {
 	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
+	slow := func(slots int) {
+		for range slots {
+			h.slot(turn{one, 0, 30}, turn{two, 57, 60})
+		}
+	}
 
-	h.turns(65, one, two)
-	assert.Equal(t, detect.Suspect, h.read(one).verdict, "37 seconds each: 65 slots are 296 seconds by chance")
+	slow(10)
+	assert.Equal(t, detect.Suspect, h.read(one).verdict, "30 and 3 seconds: ten spans are 15 seconds by chance")
 
-	h.turns(1, one, two)
+	slow(9)
+	assert.Equal(t, detect.Suspect, h.read(one).verdict)
+
+	slow(1)
 	assert.Equal(t, detect.Certain, h.read(one).verdict)
 }
 
@@ -460,10 +514,10 @@ func TestACertainReadingNamesOnlyTheAccountsItIsSureOf(t *testing.T) {
 
 	one, two, three := linked(line, "one", "hu"), linked(line, "two", "hu"), linked(line, "three", "hu")
 
-	for i := range 48 {
-		turns := []turn{{one, 0, 60}, {two, 150, 210}}
-		if i < 30 {
-			turns = append(turns, turn{three, 240, 280})
+	for i := range 20 {
+		turns := []turn{{one, 20, 80}, {two, 82, 142}}
+		if i < 10 {
+			turns = append(turns, turn{three, 10, 14})
 		}
 		h.slot(turns...)
 	}
@@ -472,12 +526,12 @@ func TestACertainReadingNamesOnlyTheAccountsItIsSureOf(t *testing.T) {
 	require.Equal(t, detect.Certain, r.verdict)
 	assert.Equal(t, []detect.Accomplice{{Account: "two", SignedIn: true, Scope: line}}, r.evidence.Accomplices)
 	assert.Contains(t, r.evidence.Fields, detect.Field{Key: "accounts", Value: 2})
-	assert.Equal(t, detect.Suspect, h.read(three).verdict, "thirty slots of turns with one")
+	assert.Equal(t, detect.Suspect, h.read(three).verdict, "ten spans of four seconds beside forty of one")
 }
 
 func TestUnsetBoundsNeverRead(t *testing.T) {
 	unset := production()
-	unset.MinSlots, unset.CertainSlots = 0, 0
+	unset.MinSpans, unset.CertainSpans = 0, 0
 	h := newHarness(unset)
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
@@ -491,7 +545,7 @@ func TestTheTurnsBeforeAWarningAreForgotten(t *testing.T) {
 	h := newHarness(production())
 	main := linked(address, "main", "fr")
 	alt := guest(line, "alt", "fr")
-	h.turns(66, main, alt)
+	h.turns(30, main, alt)
 	require.Equal(t, detect.Certain, h.read(main).verdict)
 
 	h.watchdog.ForgetTurns("main", h.clock.Now())
@@ -499,17 +553,19 @@ func TestTheTurnsBeforeAWarningAreForgotten(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.read(main).verdict, "its own reading is judged again at once")
 	assert.Equal(t, detect.Clear, h.read(alt).verdict, "a partner's reading is judged again at once")
 
-	h.turns(24, main, alt)
+	h.turns(9, main, alt)
+	assert.Equal(t, detect.Clear, h.read(alt).verdict, "the turns since the warning count from zero")
 
+	h.turns(1, main, alt)
 	r := h.read(alt)
-	assert.Equal(t, detect.Suspect, r.verdict, "the turns since the warning count from zero")
-	assert.Contains(t, r.evidence.Fields, detect.Field{Key: "sharedSlots", Value: 24})
+	assert.Equal(t, detect.Certain, r.verdict)
+	assert.Contains(t, r.evidence.Fields, detect.Field{Key: "sharedSpans", Value: 10})
 }
 
 func TestForgettingAnAccountNeverSeenChangesNothing(t *testing.T) {
 	h := newHarness(production())
 	one, two := linked(address, "one", "fr"), linked(address, "two", "fr")
-	h.turns(66, one, two)
+	h.turns(30, one, two)
 
 	h.watchdog.ForgetTurns("nobody", h.clock.Now())
 

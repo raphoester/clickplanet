@@ -32,7 +32,7 @@ so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the 
   refuses what the watchdog's `withDefaults` used to repair: a zero that meant "the default", a certain bound under its
   suspect bound, a sample count over what the watchdog keeps.
 - **A zero that never reads is a rule of its own** where it was one before: `defender.minShare`,
-  `retaker.minTiles`, `rotator.minSlots`, the churner's bounds, `stamina.minBusy`. The four bounds of `shape` and `clock`
+  `retaker.minTiles`, `rotator.minSpans` and `certainSpans`, the churner's bounds, `stamina.minBusy`. The four bounds of `shape` and `clock`
   are unset in `default` rather than zero (a pointer in Go, as every value now): 0 is a skew.
 - **The name** is a lowercase letter, then up to 31 of a-z, 0-9, `-` and `_`: the names planet's rule sets take.
 - **`default`** is seeded by migration `20261026230000_rule_sets` with production's values of that day:
@@ -79,13 +79,15 @@ so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the 
   window are each shown a notice, once, unless more accounts than `maxAccounts` tried there; it bans nothing (see
   [Two accounts on one connection](antibot.md#two-accounts-on-one-connection-a-notice-never-a-ban)). Migration
   `20261115120000_notices` writes it into `default`: on, 1 hour, 3 accounts
-- `rotator.window`, `minSeconds`, `minByChance`, `maxShare` — how far back slots count, the seconds each account must
-  click in for a pair to share a slot, the shared seconds chance must have given, and the share a rotating pair stays
-  under; `minSlots` — the shared slots that read `suspect`, which the jury counts for nothing but on a ring warned
-  before, which it bans; `certainSlots` and `certainByChance` — the shared slots and the seconds by chance that read
-  `certain` together, which warns the ring's accounts alone, once (48 and 300 since migration
-  `20261103120000_rotator_certain`; `certainSlots` 0 is off). See [A ring is warned before its
-  ban](antibot.md#a-ring-is-warned-before-its-ban)
+- `rotator.window`, `span`, `minSeconds`, `maxShare` — how far back slots count, the length chance is counted in
+  (whole seconds; a span that does not divide `rotator.slot` ends with the slot), the seconds each account must click
+  in for a pair to share a span, and the share of chance a rotating pair stays under; `minByChance` and `minSpans` —
+  the shared seconds chance must have given and the shared spans that read `suspect`, which the jury counts for nothing
+  but on a ring warned before, which it bans; `certainByChance` and `certainSpans` — the same for `certain`, which
+  warns the ring's accounts alone, once. A floor of 0 spans is off. Migration `20261126171730_rotator_spans` wrote
+  `default`'s: 1 minute, 3 seconds, chance 15 and 30, 10 spans each, in place of 5-minute slots, 15 seconds, chance 90
+  and 300, 24 and 48 slots (`minSlots`, `certainSlots`, gone from every set). See [the rotator](antibot.md) and
+  [A ring is warned before its ban](antibot.md#a-ring-is-warned-before-its-ban)
 
 ## Where it is kept
 

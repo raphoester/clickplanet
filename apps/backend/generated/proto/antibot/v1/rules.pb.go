@@ -1538,15 +1538,19 @@ func (x *HopperRules) GetCertainShare() float64 {
 type RotatorRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
-	Enabled     *bool                `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
-	Window      *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
-	MinSeconds  *uint32              `protobuf:"varint,3,opt,name=min_seconds,json=minSeconds,proto3,oneof" json:"min_seconds,omitempty"`
-	MinByChance *float64             `protobuf:"fixed64,4,opt,name=min_by_chance,json=minByChance,proto3,oneof" json:"min_by_chance,omitempty"`
-	MaxShare    *float64             `protobuf:"fixed64,5,opt,name=max_share,json=maxShare,proto3,oneof" json:"max_share,omitempty"`
-	// Zero never reads.
-	MinSlots *uint32 `protobuf:"varint,6,opt,name=min_slots,json=minSlots,proto3,oneof" json:"min_slots,omitempty"`
-	// Zero never reads; certain needs both.
-	CertainSlots    *uint32  `protobuf:"varint,7,opt,name=certain_slots,json=certainSlots,proto3,oneof" json:"certain_slots,omitempty"`
+	Enabled *bool                `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	Window  *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
+	// Whole seconds. Chance is counted in each span of a slot; a span that does not divide the slot ends with it.
+	Span *durationpb.Duration `protobuf:"bytes,9,opt,name=span,proto3" json:"span,omitempty"`
+	// The seconds each account clicked in for a span to count.
+	MinSeconds *uint32 `protobuf:"varint,3,opt,name=min_seconds,json=minSeconds,proto3,oneof" json:"min_seconds,omitempty"`
+	// Suspect, and the least a pair is read at.
+	MinByChance *float64 `protobuf:"fixed64,4,opt,name=min_by_chance,json=minByChance,proto3,oneof" json:"min_by_chance,omitempty"`
+	MaxShare    *float64 `protobuf:"fixed64,5,opt,name=max_share,json=maxShare,proto3,oneof" json:"max_share,omitempty"`
+	// The counted spans suspect needs. Zero never reads.
+	MinSpans *uint32 `protobuf:"varint,10,opt,name=min_spans,json=minSpans,proto3,oneof" json:"min_spans,omitempty"`
+	// The counted spans certain needs, with certain_by_chance. Zero never reads.
+	CertainSpans    *uint32  `protobuf:"varint,11,opt,name=certain_spans,json=certainSpans,proto3,oneof" json:"certain_spans,omitempty"`
 	CertainByChance *float64 `protobuf:"fixed64,8,opt,name=certain_by_chance,json=certainByChance,proto3,oneof" json:"certain_by_chance,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -1596,6 +1600,13 @@ func (x *RotatorRules) GetWindow() *durationpb.Duration {
 	return nil
 }
 
+func (x *RotatorRules) GetSpan() *durationpb.Duration {
+	if x != nil {
+		return x.Span
+	}
+	return nil
+}
+
 func (x *RotatorRules) GetMinSeconds() uint32 {
 	if x != nil && x.MinSeconds != nil {
 		return *x.MinSeconds
@@ -1617,16 +1628,16 @@ func (x *RotatorRules) GetMaxShare() float64 {
 	return 0
 }
 
-func (x *RotatorRules) GetMinSlots() uint32 {
-	if x != nil && x.MinSlots != nil {
-		return *x.MinSlots
+func (x *RotatorRules) GetMinSpans() uint32 {
+	if x != nil && x.MinSpans != nil {
+		return *x.MinSpans
 	}
 	return 0
 }
 
-func (x *RotatorRules) GetCertainSlots() uint32 {
-	if x != nil && x.CertainSlots != nil {
-		return *x.CertainSlots
+func (x *RotatorRules) GetCertainSpans() uint32 {
+	if x != nil && x.CertainSpans != nil {
+		return *x.CertainSpans
 	}
 	return 0
 }
@@ -1928,16 +1939,18 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"_min_shareB\x10\n" +
 	"\x0e_certain_stepsB\x10\n" +
-	"\x0e_certain_share\"\xc0\x03\n" +
+	"\x0e_certain_share\"\x95\x04\n" +
 	"\fRotatorRules\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x121\n" +
-	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12$\n" +
+	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12-\n" +
+	"\x04span\x18\t \x01(\v2\x19.google.protobuf.DurationR\x04span\x12$\n" +
 	"\vmin_seconds\x18\x03 \x01(\rH\x01R\n" +
 	"minSeconds\x88\x01\x01\x12'\n" +
 	"\rmin_by_chance\x18\x04 \x01(\x01H\x02R\vminByChance\x88\x01\x01\x12 \n" +
 	"\tmax_share\x18\x05 \x01(\x01H\x03R\bmaxShare\x88\x01\x01\x12 \n" +
-	"\tmin_slots\x18\x06 \x01(\rH\x04R\bminSlots\x88\x01\x01\x12(\n" +
-	"\rcertain_slots\x18\a \x01(\rH\x05R\fcertainSlots\x88\x01\x01\x12/\n" +
+	"\tmin_spans\x18\n" +
+	" \x01(\rH\x04R\bminSpans\x88\x01\x01\x12(\n" +
+	"\rcertain_spans\x18\v \x01(\rH\x05R\fcertainSpans\x88\x01\x01\x12/\n" +
 	"\x11certain_by_chance\x18\b \x01(\x01H\x06R\x0fcertainByChance\x88\x01\x01B\n" +
 	"\n" +
 	"\b_enabledB\x0e\n" +
@@ -1946,9 +1959,9 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"_max_shareB\f\n" +
 	"\n" +
-	"_min_slotsB\x10\n" +
-	"\x0e_certain_slotsB\x14\n" +
-	"\x12_certain_by_chance\"\xa5\x01\n" +
+	"_min_spansB\x10\n" +
+	"\x0e_certain_spansB\x14\n" +
+	"\x12_certain_by_chanceJ\x04\b\x06\x10\aJ\x04\b\a\x10\bR\tmin_slotsR\rcertain_slots\"\xa5\x01\n" +
 	"\fSharingRules\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x121\n" +
 	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12&\n" +
@@ -2047,12 +2060,13 @@ var file_antibot_v1_rules_proto_depIdxs = []int32{
 	20, // 46: antibot.v1.HopperRules.min_gap:type_name -> google.protobuf.Duration
 	20, // 47: antibot.v1.HopperRules.max_gap:type_name -> google.protobuf.Duration
 	20, // 48: antibot.v1.RotatorRules.window:type_name -> google.protobuf.Duration
-	20, // 49: antibot.v1.SharingRules.window:type_name -> google.protobuf.Duration
-	50, // [50:50] is the sub-list for method output_type
-	50, // [50:50] is the sub-list for method input_type
-	50, // [50:50] is the sub-list for extension type_name
-	50, // [50:50] is the sub-list for extension extendee
-	0,  // [0:50] is the sub-list for field type_name
+	20, // 49: antibot.v1.RotatorRules.span:type_name -> google.protobuf.Duration
+	20, // 50: antibot.v1.SharingRules.window:type_name -> google.protobuf.Duration
+	51, // [51:51] is the sub-list for method output_type
+	51, // [51:51] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_rules_proto_init() }

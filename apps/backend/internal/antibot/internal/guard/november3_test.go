@@ -58,16 +58,14 @@ func TestTheAccountOfNovember3AndItsGuestOnAVPNAreWarnedThenBanned(t *testing.T)
 	tabs := [2]func() (string, string){
 		func() (string, string) { return russianAddress, "bonapart" },
 		func() (string, string) {
-			if r.IntN(10) == 0 {
-				exit++
-			}
+			exit++
 			return vpnExit(exit), "vpn-guest"
 		},
 	}
 
-	s.switchTabs(r, 3*time.Hour+45*time.Minute, tabs, 8*time.Second, 50*time.Second)
-	require.Empty(t, s.warnings, "under four hours of turns")
-	require.Greater(t, exit, 10, "the guest clicked from many exits")
+	s.switchTabs(r, 15*time.Minute, tabs, 8*time.Second, 50*time.Second)
+	require.Empty(t, s.warnings, "under ten shared minutes")
+	require.GreaterOrEqual(t, exit, 10, "the guest clicked from many exits")
 
 	s.switchTabs(r, 30*time.Minute, tabs, 8*time.Second, 50*time.Second)
 
@@ -78,8 +76,8 @@ func TestTheAccountOfNovember3AndItsGuestOnAVPNAreWarnedThenBanned(t *testing.T)
 		assert.Regexp(t, `^rotator `, rise, "no other watchdog read anything, on any exit")
 	}
 
-	s.switchTabs(r, 110*time.Minute, tabs, 8*time.Second, 50*time.Second)
-	require.Empty(t, s.reports, "under two hours of turns since the warning")
+	s.switchTabs(r, 10*time.Minute, tabs, 8*time.Second, 50*time.Second)
+	require.Empty(t, s.reports, "under ten shared minutes since the warning")
 
 	s.switchTabs(r, 30*time.Minute, tabs, 8*time.Second, 50*time.Second)
 
@@ -103,7 +101,7 @@ func TestThePairOfNovember3OnOneAddressIsWarnedThenBanned(t *testing.T) {
 		func() (string, string) { return russianAddress, "zebra" },
 	}
 
-	s.switchTabs(r, 3*time.Hour+45*time.Minute, tabs, 4*time.Second, 10*time.Second)
+	s.switchTabs(r, 7*time.Minute, tabs, 4*time.Second, 10*time.Second)
 	require.Empty(t, s.warnings)
 
 	s.switchTabs(r, 30*time.Minute, tabs, 4*time.Second, 10*time.Second)
@@ -113,10 +111,10 @@ func TestThePairOfNovember3OnOneAddressIsWarnedThenBanned(t *testing.T) {
 	s.switchTabs(r, 3*time.Hour, tabs, 4*time.Second, 10*time.Second)
 
 	assert.ElementsMatch(t, []string{"lynx", "zebra"}, s.reported())
-	assert.WithinRange(t, s.clock.Now(), warnedAt.Add(115*time.Minute), warnedAt.Add(130*time.Minute),
-		"24 slots of turns after the slot of the warning")
+	assert.WithinRange(t, s.clock.Now(), warnedAt.Add(5*time.Minute), warnedAt.Add(15*time.Minute),
+		"ten shared minutes of turns after the slot of the warning")
 	examination := s.examine(russianAddress, "lynx")
-	assert.Regexp(t, `^rotation accounts=2 byChance=\d+ flag=RU sharedSeconds=0 sharedSlots=24$`, examination.Readings[9].Evidence)
+	assert.Regexp(t, `^rotation accounts=2 byChance=\d+ flag=RU sharedSeconds=0 sharedSpans=10$`, examination.Readings[9].Evidence)
 	assert.Equal(t, warnedAt, examination.WarnedAt)
 	assert.Empty(t, s.bans.Stored(), "two signed-in accounts leave their address alone")
 }
@@ -163,23 +161,23 @@ func TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld(t *testing.T) {
 	s.set.Bans.Enforce = proto.Bool(true)
 	s.play(s.set)
 	s.restart(time.Minute)
-	s.switchTabs(r, 10*time.Minute, tabs, 4*time.Second, 10*time.Second)
+	s.switchTabs(r, 5*time.Minute, tabs, 4*time.Second, 10*time.Second)
 
 	assert.Empty(t, s.reports, "the evidence saved before the warning was forgotten at the boot")
 }
 
-func TestAShortBurstOfTurnsBansNobody(t *testing.T) {
+func TestAShortBurstOfTurnsReadsNothing(t *testing.T) {
 	s := newStack(t)
 	s.signIn("lemur")
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(11, 5))
 
-	s.switchTabs(r, 35*time.Minute, [2]func() (string, string){
+	s.switchTabs(r, 8*time.Minute, [2]func() (string, string){
 		func() (string, string) { return brazilianLine, "lemur" },
 		func() (string, string) { return brazilianLine, "koala" },
 	}, 6*time.Second, 30*time.Second)
 
 	assert.Empty(t, s.reports)
-	assert.Empty(t, s.rises, "seven slots are too few to read")
+	assert.Empty(t, s.rises, "under ten shared minutes")
 }

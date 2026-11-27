@@ -192,13 +192,19 @@ message RotatorRules {
   // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
   optional bool enabled = 1;
   google.protobuf.Duration window = 2;
+  // Whole seconds. Chance is counted in each span of a slot; a span that does not divide the slot ends with it.
+  google.protobuf.Duration span = 9;
+  // The seconds each account clicked in for a span to count.
   optional uint32 min_seconds = 3;
+  // Suspect, and the least a pair is read at.
   optional double min_by_chance = 4;
   optional double max_share = 5;
-  // Zero never reads.
-  optional uint32 min_slots = 6;
-  // Zero never reads; certain needs both.
-  optional uint32 certain_slots = 7;
+  reserved 6, 7;
+  reserved "min_slots", "certain_slots";
+  // The counted spans suspect needs. Zero never reads.
+  optional uint32 min_spans = 10;
+  // The counted spans certain needs, with certain_by_chance. Zero never reads.
+  optional uint32 certain_spans = 11;
   optional double certain_by_chance = 8;
 }
 

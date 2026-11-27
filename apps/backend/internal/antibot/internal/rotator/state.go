@@ -32,7 +32,7 @@ type savedSlot struct {
 func (w *Watchdog) Save() ([]byte, error) {
 	w.mu.Lock()
 
-	saved := savedState{Span: w.span, Accounts: make([]savedAccount, 0, len(w.accounts))}
+	saved := savedState{Span: w.seconds, Accounts: make([]savedAccount, 0, len(w.accounts))}
 	for _, a := range w.accounts {
 		slots := make([]savedSlot, 0, len(a.slots))
 		for at, clicked := range a.slots {
@@ -61,7 +61,7 @@ func (w *Watchdog) Load(data []byte) error {
 	}
 
 	accounts := make(map[accountID]*account, len(saved.Accounts))
-	if saved.Span == w.span {
+	if saved.Span == w.seconds {
 		for _, a := range saved.Accounts {
 			loaded := &account{
 				id:        accountID(a.ID),
