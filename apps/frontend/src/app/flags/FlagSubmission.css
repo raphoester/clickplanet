@@ -212,15 +212,6 @@
     border-radius: var(--radius-xs);
 }
 
-.flag-card-crown {
-    position: absolute;
-    display: flex;
-    color: var(--gold);
-    filter: drop-shadow(0 2px 0 var(--ink));
-    transform: translate(-50%, -70%);
-    pointer-events: none;
-}
-
 .flag-card-text {
     display: flex;
     flex-direction: column;

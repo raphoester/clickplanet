@@ -392,6 +392,22 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             f.setFront([3], false)
             expect(valueOf(f, layout.pulse, 3)).toBe(4)
         })
+
+        it("takes every mark off some tiles, and puts them back as they were", () => {
+            const f = field()
+            f.setFront([3], true)
+            f.setCapitalMarks([3, 5], true)
+            f.setMineMarks([6], true)
+
+            const worn = f.takeMarks([3, 4, 5, 6])
+            expect(worn).toEqual([2 + 8, 0, 8, 32])
+            expect([3, 4, 5, 6].map(tile => valueOf(f, layout.pulse, tile))).toEqual([0, 0, 0, 0])
+            expect(valueOf(f, layout.pulse, 2), "a tile it was not given").toBe(0)
+
+            f.setCapitalMarks([4], true)
+            f.putMarks([3, 4, 5, 6], worn)
+            expect([3, 4, 5, 6].map(tile => valueOf(f, layout.pulse, tile))).toEqual([2 + 8, 0, 8, 32])
+        })
     })
 
     describe("geometry", () => {

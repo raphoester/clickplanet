@@ -3,9 +3,9 @@ import type {FlagPicture, Pin} from "../../domain/flags.ts"
 import {cropAround} from "../../domain/flagShot.ts"
 import type {FlagShot} from "../viewer/globe.ts"
 
-// The map at a flag's capital with the flag on it, its size and the capital's offset from its middle, in CSS pixels: it
-// is shown at the size the globe drew it, so a tile on it is a tile's size in the game.
-export type MapShot = {url: string, width: number, height: number, capital: {x: number, y: number}}
+// The map at a flag's capital with the flag on it, the capital crowned by the globe, and its size in CSS pixels: it is
+// shown at the size the globe drew it, so a tile on it is a tile's size in the game.
+export type MapShot = {url: string, width: number, height: number}
 
 // A picture the player picked, or the public one once approved.
 export type ShotPicture = File | FlagPicture
@@ -42,12 +42,7 @@ async function urlOf({frame, at}: FlagShot): Promise<MapShot> {
     context.putImageData(new ImageData(frame.pixels, frame.width, frame.height), -crop.x, -crop.y, crop.x, crop.y, crop.width, crop.height)
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"))
     if (!blob) throw new Error("the map's shot did not encode")
-    return {
-        url: URL.createObjectURL(blob),
-        width: crop.width / ratio,
-        height: crop.height / ratio,
-        capital: {x: (at.x - crop.x - crop.width / 2) / ratio, y: (at.y - crop.y - crop.height / 2) / ratio},
-    }
+    return {url: URL.createObjectURL(blob), width: crop.width / ratio, height: crop.height / ratio}
 }
 
 export function flagShooter(previewFlag: (pin: Pin, picture: FlagPicture) => Promise<FlagShot>): FlagShooter {

@@ -6,7 +6,7 @@ import {FlagShooter, MapShot, ShotPicture, useMapShot} from "./mapShot.ts"
 
 const MUNICH: Pin = {latitude: 48.14, longitude: 11.58}
 const NUREMBERG: Pin = {latitude: 49.45, longitude: 11.08}
-const SHOT: MapShot = {url: "blob:map", width: 560, height: 280, capital: {x: 0, y: 0}}
+const SHOT: MapShot = {url: "blob:map", width: 560, height: 280}
 
 const png = () => new File(["png"], "bavaria.png", {type: "image/png"})
 
