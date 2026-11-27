@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/review_verdicts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/usecases/judge_submissions_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/usecases/keep_judgement_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/usecases/approve_submission_usecase"
@@ -73,8 +74,9 @@ func newFixture(t *testing.T, names ...catalog.Name) fixture {
 			approve_submission_usecase.Stores{Submissions: f.submissions, Flags: f.flags}, f.outbox),
 		reject_submission_usecase.New(clock, cpatomic.FakeTransactioner{}, f.submissions, f.outbox),
 	)
-	f.useCase = judge_submissions_usecase.New(clock, f.judged,
-		judgements.Cases{Submissions: f.submissions, Pictures: gallery, Flags: f.flags}, f.judge, verdicts)
+	f.useCase = judge_submissions_usecase.New(clock,
+		judgements.Cases{Judgements: f.judged, Submissions: f.submissions, Pictures: gallery, Flags: f.flags}, f.judge,
+		verdicts, keep_judgement_usecase.New(clock, cpatomic.FakeTransactioner{}, f.submissions, f.judged, f.outbox))
 	return f
 }
 
@@ -87,7 +89,7 @@ func (f fixture) state(t *testing.T, id submissions.SubmissionID) submissions.Sn
 
 func TestTheJudgeApprovesRejectsOrLeavesAFlagToTheOperator(t *testing.T) {
 	f := newFixture(t, "Bavaria", "Rainbow", "Ruritania")
-	pride := submissions.Rejection{Reason: submissions.NotAPlace, Note: "A pride flag is no place's flag."}
+	pride := submissions.Rejection{Reason: submissions.Other, Note: "A pride flag is a movement's, not a place's."}
 	f.judge.rulings["Bavaria"] = judgements.Ruling{Verdict: judgements.Approve, Why: "Bavaria's lozenges"}
 	f.judge.rulings["Rainbow"] = judgements.Ruling{Verdict: judgements.Reject, Rejection: pride, Why: "a pride flag"}
 	f.judge.rulings["Ruritania"] = judgements.Ruling{Verdict: judgements.Unsure, Why: "an unknown place"}
@@ -172,4 +174,24 @@ func TestAFlagTheOperatorDecidedFirstIsNotJudged(t *testing.T) {
 
 	assert.Zero(t, judged)
 	assert.Empty(t, f.judge.asked)
+}
+
+func TestAFlagLeftUnsureThatIsPaidForAsksTheOperator(t *testing.T) {
+	f := newFixture(t, "Solandia", "Ruritania")
+	paid := submissions.TestWaiting(submissions.SubmissionID{15: 1}, catalog.AccountID{15: 1}, now)
+	paid.Name, paid.Paid = "Solandia", true
+	paid.Picture = f.state(t, submissions.SubmissionID{15: 1}).Picture
+	f.submissions.Seed(paid)
+	f.judge.rulings["Solandia"] = judgements.Ruling{Verdict: judgements.Unsure, Why: "could be fictional"}
+	f.judge.rulings["Ruritania"] = judgements.Ruling{Verdict: judgements.Unsure, Why: "an unknown place"}
+
+	_, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, f.outbox.Recorded(), 1, "the one not paid for waits unseen until it is paid")
+	asked, ok := f.outbox.Recorded()[0].(*flagsv1.ReviewAsked)
+	require.True(t, ok)
+	assert.Equal(t, "Solandia", asked.GetName())
+	assert.Equal(t, flagsv1.ReviewCause_REVIEW_CAUSE_UNSURE, asked.GetCause())
+	assert.Equal(t, "could be fictional", asked.GetWhy())
 }

@@ -276,15 +276,7 @@
 }
 
 .flag-status-appeal {
-    font-size: var(--text-s);
-    color: var(--text-soft);
-    text-decoration: underline;
-    text-decoration-color: var(--gold);
-    text-underline-offset: 3px;
-}
-
-.flag-status-appeal:hover {
-    color: var(--text);
+    align-self: flex-start;
 }
 
 .flag-sign-in {

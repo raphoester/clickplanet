@@ -20,6 +20,10 @@ export type Submission = {
     picture?: FlagPicture
     // Its time is paid and held until its flag opens, at its approval; a paid one is not changed.
     paid: boolean
+    // A rejection the judge made, not a person: its player may ask a person to look again, once.
+    rejectedByJudge?: boolean
+    // Its player asked a person to look again: it waits for the operator, and is not changed.
+    appealed?: boolean
 }
 
 // The server's: flags.v1.SubmitFlagRequest and CreateSubmissionUploadRequest.
@@ -117,9 +121,14 @@ export function replacedByNewOf(submissions: readonly Submission[]): Submission 
     return submissions.find((submission) => changeable(submission))
 }
 
-// Its player may change it while it waits and is not paid, never once paid or decided.
-export function changeable({state, paid}: Submission): boolean {
-    return state === "waiting" && !paid
+// Its player may change it while it waits and is not paid, never once paid, appealed or decided.
+export function changeable({state, paid, appealed}: Submission): boolean {
+    return state === "waiting" && !paid && !appealed
+}
+
+// Its player may ask a person to look again at a rejection the judge made, once.
+export function appealable({state, rejectedByJudge}: Submission): boolean {
+    return state === "rejected" && rejectedByJudge === true
 }
 
 // What its player reads: once a submission opened its flag, the flag's state now.
@@ -138,8 +147,13 @@ function decided(shown: Shown): shown is Decided {
     return shown.state !== "waiting"
 }
 
-// The state each submission was last told in, by id.
+// The state each submission was last told in, by id, and by id and "/appeal" once a person was asked to look again.
 export type Told = Readonly<Record<string, ShownState>>
+
+// A verdict after an appeal is told again: the operator's rejection is the final one.
+function toldKeyOf({id, appealed}: Shown): string {
+    return appealed ? `${id}/appeal` : id
+}
 
 // The decisions not told yet, the newest first: a submission approved, opened, then its flag closed, is told thrice. A
 // flag another player claimed since is theirs: nothing of it is told.
@@ -149,11 +163,11 @@ export function untold(submissions: readonly Submission[], told: Told, catalog: 
         .filter(({state, flag}) => state !== "opened" || holds.has(flag))
         .map((submission) => shownOf(submission, catalog))
         .filter(decided)
-        .filter(({id, state}) => told[id] !== state)
+        .filter((shown) => told[toldKeyOf(shown)] !== shown.state)
 }
 
 export function withTold(told: Told, fresh: readonly Decided[]): Told {
     const next: Record<string, ShownState> = {...told}
-    for (const {id, state} of fresh) next[id] = state
+    for (const shown of fresh) next[toldKeyOf(shown)] = shown.state
     return next
 }

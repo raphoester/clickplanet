@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/postgres_appeal_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/appeal_submission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
@@ -21,7 +23,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions/postgres_submission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type links struct{}
@@ -170,4 +174,52 @@ func TestTheOperatorReadsWhatTheJudgeRuled(t *testing.T) {
 	assert.Equal(t, flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_UNSURE, judged.GetVerdict())
 	assert.Equal(t, "an unknown place", judged.GetWhy())
 	assert.Nil(t, kept.GetSubmissions()[1].GetJudgement(), "never judged")
+}
+
+func TestAFlagAppealedWaitsForTheOperatorUnpaidWithTheJudgesRejection(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
+	store := postgres_submission_store.New(db)
+	query := submissions_query.NewPostgresQuery(db,
+		submissionmessage.New(flagmessage.New("https://media.test"), links{}), submissions_query.PaidWaiting)
+	cartoon := submissions.Rejection{Reason: submissions.NotAPlace, Note: "A cartoon is not a state."}
+	for i := byte(1); i <= 2; i++ {
+		row := submissions.TestWaiting(submissions.SubmissionID{15: i}, ada, at.Add(time.Duration(i)*time.Hour))
+		row.State, row.Rejection = submissions.Rejected, cartoon
+		require.NoError(t, store.Save(t.Context(), submissions.Restored(row)))
+		reject, err := judgements.Snapshot{
+			Submission: row.ID, Verdict: judgements.Reject, Why: "a cartoon's village", JudgedAt: at,
+		}.Restore()
+		require.NoError(t, err)
+		require.NoError(t, postgres_judgement_store.New(db).Save(t.Context(), reject))
+	}
+	smurfs, err := store.Submission(t.Context(), submissions.SubmissionID{15: 1})
+	require.NoError(t, err)
+	out, err := appeal_submission_usecase.New(cptime.NewFixedClock(at.Add(3*time.Hour)), db,
+		appeal_submission_usecase.Stores{
+			Submissions: store, Judgements: postgres_judgement_store.New(db), Appeals: postgres_appeal_store.New(db),
+		}, cpoutbox.New(db)).Execute(t.Context(), appeal_submission_usecase.In{
+		Account: ada.String(), Linked: true, Submission: smurfs.TakeSnapshot().ID.String(),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, submissions.Waiting, out.Submission.State)
+
+	kept, err := query.Kept(t.Context())
+	require.NoError(t, err)
+	require.Len(t, kept.GetSubmissions(), 2)
+	appealed := kept.GetSubmissions()[0]
+	assert.Equal(t, "01", appealed.GetId()[34:], "shown though nothing is paid for it")
+	assert.Equal(t, flagsv1.SubmissionState_SUBMISSION_STATE_WAITING, appealed.GetState())
+	assert.Equal(t, flagsv1.JudgementVerdict_JUDGEMENT_VERDICT_REJECT, appealed.GetJudgement().GetVerdict())
+	assert.Equal(t, "a cartoon's village", appealed.GetJudgement().GetWhy())
+	assert.Equal(t, "A cartoon is not a state.", appealed.GetAppeal().GetRejection().GetNote())
+	assert.Nil(t, appealed.GetRejection(), "it waits again")
+
+	mine, err := query.Mine(t.Context(), ada)
+	require.NoError(t, err)
+	byJudge := map[string]bool{}
+	for _, submission := range mine.GetSubmissions() {
+		byJudge[submission.GetId()[34:]] = submission.GetRejectedByJudge()
+	}
+	assert.Equal(t, map[string]bool{"01": false, "02": true}, byJudge)
+	assert.NotNil(t, mine.GetSubmissions()[1].GetAppeal(), "the newest first: 02, then 01")
 }

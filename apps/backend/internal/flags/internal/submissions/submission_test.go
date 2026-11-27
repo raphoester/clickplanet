@@ -286,3 +286,59 @@ func TestAVerdictIsToldAndNothingElse(t *testing.T) {
 	require.Len(t, rejected.Facts(), 1)
 	assert.Equal(t, at.Add(time.Hour), rejected.Facts()[0].(*flagsv1.SubmissionRejected).GetRejectedAt().AsTime())
 }
+
+func rejectedOf(t *testing.T, snapshot submissions.Snapshot) submissions.Submission {
+	t.Helper()
+	rejected, err := submissions.Restored(snapshot).Rejected(
+		submissions.Rejection{Reason: submissions.NotAPlace, Note: "A club is not a state."}, at)
+	require.NoError(t, err)
+	return rejected
+}
+
+func TestARejectionAppealedWaitsAgainWithNoRejection(t *testing.T) {
+	rejected := rejectedOf(t, submissions.TestWaiting(first, ada, at))
+
+	reopened, err := rejected.Reopened(ada, []submissions.Submission{rejected}, at.Add(time.Hour))
+	require.NoError(t, err)
+
+	kept := reopened.TakeSnapshot()
+	assert.Equal(t, submissions.Waiting, kept.State)
+	assert.Equal(t, submissions.Rejection{}, kept.Rejection)
+	assert.True(t, kept.Appealed)
+	assert.True(t, kept.Held, "the picture stays private")
+	assert.Equal(t, at.Add(time.Hour), kept.DecidedAt)
+	assert.Empty(t, reopened.Facts(), "nothing is approved nor rejected")
+}
+
+func TestOnlyItsFounderReopensARejectionHeldWhileNoOtherWaits(t *testing.T) {
+	rejected := rejectedOf(t, submissions.TestWaiting(first, ada, at))
+	_, err := rejected.Reopened(catalog.AccountID{15: 9}, nil, at)
+	require.ErrorIs(t, err, submissions.ErrNotYours)
+
+	waiting := submissions.Restored(submissions.TestWaiting(second, ada, at))
+	_, err = rejected.Reopened(ada, []submissions.Submission{rejected, waiting}, at)
+	require.ErrorIs(t, err, submissions.ErrWaiting)
+
+	_, err = waiting.Reopened(ada, nil, at)
+	require.ErrorIs(t, err, submissions.ErrNotRejected)
+
+	gone, deleted := rejected.PictureDeleted(at.Add(31 * 24 * time.Hour))
+	require.True(t, deleted)
+	_, err = gone.Reopened(ada, nil, at.Add(31*24*time.Hour))
+	require.ErrorIs(t, err, submissions.ErrPictureGone)
+}
+
+func TestASubmissionAPersonLooksAtAgainIsNotReplaced(t *testing.T) {
+	appealed := submissions.TestWaiting(first, ada, at)
+	appealed.Appealed = true
+
+	_, _, err := submissions.Submit(second, ada, submissions.Draft{Name: "Rennes", Pin: catalog.TestPin, Replaces: first},
+		submissions.TestDrawn, []submissions.Submission{submissions.Restored(appealed)}, at)
+	require.ErrorIs(t, err, submissions.ErrAppealed)
+}
+
+func TestASubmissionPaidForWaitsPaidFor(t *testing.T) {
+	waiting := submissions.Restored(submissions.TestWaiting(first, ada, at))
+	assert.False(t, waiting.WaitsPaidFor())
+	assert.True(t, waiting.PaidFor().WaitsPaidFor())
+}

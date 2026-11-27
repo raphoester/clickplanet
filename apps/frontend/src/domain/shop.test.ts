@@ -30,6 +30,8 @@ describe("payable", () => {
         expect(payable(submission({state: "waiting"}))).toBe(true)
         expect(payable(submission())).toBe(true)
         expect(payable(submission({state: "waiting", paid: true}))).toBe(false)
+        expect(payable(submission({state: "waiting", appealed: true})), "paid once a person approves it").toBe(false)
+        expect(payable(submission({state: "approved", appealed: true}))).toBe(true)
         expect(payable(submission({paid: true}))).toBe(false)
         expect(payable(submission({state: "opened", flag: "r-k3p9x2ma0b"}))).toBe(false)
         expect(payable(submission({state: "rejected"}))).toBe(false)

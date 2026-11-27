@@ -29,6 +29,7 @@ export default function SubmissionLine({shown, selling}: SubmissionLineProps) {
     const sold = catalog.soldOf(shown.flag)
     switch (shown.state) {
         case "waiting":
+            if (shown.appealed) return t("flagSubmission.status.appealed")
             if (shown.paid) return t("flagSubmission.status.paid")
             return selling ? t("flagSubmission.status.checkAfterPay") : t("flagSubmission.status.waiting", {date: dateOf(shown.submittedAt)})
         case "approved":

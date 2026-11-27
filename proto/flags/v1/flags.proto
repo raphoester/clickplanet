@@ -33,6 +33,13 @@ service FlagService {
   // The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; the flags
   // it holds; and why the operator removed each flag it holds. None for a guest.
   rpc ListMySubmissions(ListMySubmissionsRequest) returns (ListMySubmissionsResponse);
+
+  // Asks a person to look again at a rejection the judge made, once per submission, for its founder alone: the
+  // submission waits again for the operator, unpaid and never judged again. The operator's verdict on it is final.
+  // PermissionDenied for a guest or another account's submission; AlreadyExists while another of the account's
+  // submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
+  // picture was deleted (30 days after the rejection); NotFound for an unknown one.
+  rpc AppealSubmission(AppealSubmissionRequest) returns (AppealSubmissionResponse);
 }
 
 message ListFlagsRequest {}
@@ -156,6 +163,29 @@ message Submission {
   Picture picture = 10;
   // Its time is paid and held: it starts when the flag opens, at its approval. A paid submission is not changed.
   bool paid = 11;
+  // Only for a rejected one: the judge, a Claude model, rejected it, not a person. Its player may ask a person to look
+  // again, once (AppealSubmission).
+  bool rejected_by_judge = 12;
+  // Its player asked a person to look again at the judge's rejection; unset for none. A submission a person looks at
+  // again is not changed.
+  Appeal appeal = 13;
+}
+
+// A player's ask that a person look again at the judge's rejection of its submission.
+message Appeal {
+  google.protobuf.Timestamp asked_at = 1;
+  // The judge's rejection it asks about.
+  Rejection rejection = 2;
+  // The operator's verdict on the submission; unset while it waits.
+  google.protobuf.Timestamp answered_at = 3;
+}
+
+message AppealSubmissionRequest {
+  string submission_id = 1;
+}
+
+message AppealSubmissionResponse {
+  Submission submission = 1;
 }
 
 enum SubmissionState {

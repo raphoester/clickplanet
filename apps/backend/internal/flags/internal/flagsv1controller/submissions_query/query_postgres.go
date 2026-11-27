@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
@@ -43,12 +44,15 @@ type PostgresQuery struct {
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed
 
 // Time held for a submission and neither released nor taken back.
 const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
 		AND NOT EXISTS (SELECT 1 FROM time_grants g WHERE g.id = h.grant_id)
 		AND NOT EXISTS (SELECT 1 FROM time_takebacks t WHERE t.grant_id = h.grant_id))`
+
+// Its player asked a person to look again: it waits for the operator, paid or not.
+const appealed = `EXISTS (SELECT 1 FROM appeals a WHERE a.submission_id = s.id)`
 
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
@@ -59,9 +63,19 @@ func (q PostgresQuery) Mine(ctx context.Context, account catalog.AccountID) (*fl
 	if err != nil {
 		return nil, err
 	}
+	judged, err := q.judgements(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	appealed, err := q.appeals(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	mine := make([]*flagsv1.Submission, 0, len(rows))
 	for _, row := range rows {
-		mine = append(mine, q.messages.Submission(row))
+		mine = append(mine, q.messages.Submission(row, submissionmessage.Reviews{
+			Judgement: judged[row.ID], Appeal: appealed[row.ID],
+		}))
 	}
 	held, closures, err := q.held(ctx, account)
 	if err != nil {
@@ -104,7 +118,8 @@ func (q PostgresQuery) held(ctx context.Context, account catalog.AccountID) ([]s
 // first.
 func (q PostgresQuery) Kept(ctx context.Context) (*flagsv1.ListSubmissionsResponse, error) {
 	rows, err := q.read(ctx, `
-		(SELECT `+columns+from+` WHERE s.state = 'waiting' AND ($2 OR `+paid+`) ORDER BY s.submitted_at, s.id)
+		(SELECT `+columns+from+` WHERE s.state = 'waiting' AND ($2 OR `+paid+` OR `+appealed+`)
+			ORDER BY s.submitted_at, s.id)
 		UNION ALL
 		(SELECT `+columns+from+` WHERE s.state <> 'waiting' ORDER BY s.decided_at DESC, s.id LIMIT $1)`,
 		decidedRead, q.review == EveryWaiting)
@@ -112,6 +127,10 @@ func (q PostgresQuery) Kept(ctx context.Context) (*flagsv1.ListSubmissionsRespon
 		return nil, err
 	}
 	judged, err := q.judgements(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	appealed, err := q.appeals(ctx, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +143,7 @@ func (q PostgresQuery) Kept(ctx context.Context) (*flagsv1.ListSubmissionsRespon
 		if judgement, ok := judged[row.ID]; ok {
 			message.Judgement = submissionmessage.Judgement(judgement)
 		}
+		message.Appeal = submissionmessage.Appeal(appealed[row.ID])
 		kept = append(kept, message)
 	}
 	return &flagsv1.ListSubmissionsResponse{Submissions: kept}, nil
@@ -161,6 +181,41 @@ func (q PostgresQuery) judgements(
 	return judged, nil
 }
 
+// The players' appeals of the submissions read, by id.
+func (q PostgresQuery) appeals(
+	ctx context.Context, rows []submissions.Snapshot,
+) (map[submissions.SubmissionID]appeals.Snapshot, error) {
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, uuid.UUID(row.ID))
+	}
+	read, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT submission_id, account_id, reason::text, note, state::text, asked_at, decided_at FROM appeals
+		WHERE submission_id = ANY($1)
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the appeals: %w", err)
+	}
+	appealed := map[submissions.SubmissionID]appeals.Snapshot{}
+	for read.Next() {
+		var id, account uuid.UUID
+		var reason, state string
+		var appeal appeals.Snapshot
+		if err := read.Scan(&id, &account, &reason, &appeal.Rejection.Note, &state, &appeal.AskedAt,
+			&appeal.DecidedAt); err != nil {
+			_ = read.Close()
+			return nil, fmt.Errorf("failed to read an appeal: %w", err)
+		}
+		appeal.Submission, appeal.Account = submissions.SubmissionID(id), catalog.AccountID(account)
+		appeal.Rejection.Reason, appeal.State = submissions.Reason(reason), appeals.State(state)
+		appealed[appeal.Submission] = appeal
+	}
+	if err := errors.Join(read.Err(), read.Close()); err != nil {
+		return nil, fmt.Errorf("failed to read the appeals: %w", err)
+	}
+	return appealed, nil
+}
+
 func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]submissions.Snapshot, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
@@ -179,7 +234,8 @@ func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]s
 		var others uint32
 		if err := rows.Scan(&id, &account, &flag, &name, &row.Pin.Latitude, &row.Pin.Longitude,
 			&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY, &others,
-			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note, &row.Paid); err != nil {
+			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note, &row.Paid,
+			&row.Appealed); err != nil {
 			return nil, fmt.Errorf("failed to read a submission: %w", err)
 		}
 		row.ID, row.Flag, row.Name, row.State = submissions.SubmissionID(id), catalog.FlagID(flag), catalog.Name(name),

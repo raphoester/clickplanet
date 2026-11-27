@@ -4,6 +4,7 @@ package judgements
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
@@ -32,6 +33,16 @@ func (m *MemoryStore) Unjudged(_ context.Context, limit int) ([]submissions.Subm
 		}
 	}
 	return unjudged, nil
+}
+
+func (m *MemoryStore) Judgement(_ context.Context, submission submissions.SubmissionID) (Judgement, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	row, ok := m.rows[submission]
+	if !ok {
+		return Judgement{}, fmt.Errorf("%w: %s", ErrUnjudged, submission)
+	}
+	return row.Restore()
 }
 
 func (m *MemoryStore) Save(_ context.Context, judgement Judgement) error {

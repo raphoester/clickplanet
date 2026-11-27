@@ -35,6 +35,7 @@ func NewSessionInterceptor(
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Attested(flagsv1connect.FlagServiceCreateSubmissionUploadProcedure),
 		cpconnect.Attested(flagsv1connect.FlagServiceSubmitFlagProcedure),
+		cpconnect.Attested(flagsv1connect.FlagServiceAppealSubmissionProcedure),
 		cpconnect.Identified(flagsv1connect.FlagServiceListMySubmissionsProcedure),
 	)
 }

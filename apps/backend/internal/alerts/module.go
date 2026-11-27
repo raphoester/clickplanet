@@ -43,6 +43,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/announce_start_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/hear_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews/postgres_review_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews/usecases/post_review_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/tidy_roles_runner"
@@ -53,6 +56,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/nickname_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/review_asked_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -116,8 +120,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	namer := links.NewNamer(linkStore, rpc_player_names.New(player), server)
 	nameMember := name_member_usecase.New(namer)
 
-	var subscriptions []cpbootstrap.Runner
-	for _, subscribe := range []func() (cpbootstrap.Runner, error){
+	subscribes := []func() (cpbootstrap.Runner, error){
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.SubscribeBatch(ctx, streams, "alerts-attacks", log_subscriber.NewBatch(tiles_taken_subscriber.New(
 				hear_take_usecase.New(pings.NewWatch(), clock, pingStore, herald, db)), props.Logger))
@@ -161,7 +164,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return cpredis.Subscribe(ctx, streams, "alerts-names-returns", log_subscriber.New(
 				nickname_subscriber.New[*playerv1.PlayerReturned](nameMember, props.Logger), props.Logger))
 		},
-	} {
+	}
+	// The staff's warnings of the flags that wait on a person, while a channel is named for them. With none, the events
+	// wait in their stream, and a channel named later is told what it still holds.
+	if staff := config.Discord.StaffChannelID; staff != "" {
+		desk := reviews.NewDesk(server, discord.ChannelID(staff), config.BackofficeURL)
+		post := post_review_usecase.New(clock, postgres_review_store.New(db), desk, db)
+		subscribes = append(subscribes, func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-reviews", log_subscriber.New(review_asked_subscriber.New(post),
+				props.Logger))
+		})
+	}
+
+	var subscriptions []cpbootstrap.Runner
+	for _, subscribe := range subscribes {
 		subscription, err := subscribe()
 		if err != nil {
 			closeStores()
@@ -198,7 +214,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Logger.Info("alerts built",
-		slog.String("schema", config.Database.Schema), slog.String("guild", config.Discord.GuildID))
+		slog.String("schema", config.Database.Schema), slog.String("guild", config.Discord.GuildID),
+		slog.Bool("staff", config.Discord.StaffChannelID != ""))
 
 	return nil
 }
@@ -214,6 +231,8 @@ type Config struct {
 	Discord DiscordConfig
 	// The page each ping links to.
 	GameURL string
+	// The operator's backoffice, where a warning to the staff links to the flag.
+	BackofficeURL string
 }
 
 // The bot of the game's Discord application, the one players sign in with, in the game's server.
@@ -223,6 +242,8 @@ type DiscordConfig struct {
 	GuildID          string
 	AlertsChannelID  string
 	BattlesChannelID string
+	// The staff's private channel, told of each flag that waits on a person. Empty, nobody is told.
+	StaffChannelID string
 }
 
 func (c DiscordConfig) app() rest_discord.App {
@@ -237,11 +258,17 @@ func (c DiscordConfig) serverURL() string {
 	return "https://discord.com/channels/" + c.GuildID + "/" + c.AlertsChannelID
 }
 
-const defaultGameURL = "https://clickplanet.lol/play"
+const (
+	defaultGameURL       = "https://clickplanet.lol/play"
+	defaultBackofficeURL = "https://backoffice.clickplanet.lol"
+)
 
 func (c Config) withDefaults() Config {
 	if c.GameURL == "" {
 		c.GameURL = defaultGameURL
+	}
+	if c.BackofficeURL == "" {
+		c.BackofficeURL = defaultBackofficeURL
 	}
 	return c
 }
@@ -267,8 +294,16 @@ func (c Config) Validate() error {
 			errs = append(errs, fmt.Errorf("alerts.discord.%s: %w", name, err))
 		}
 	}
+	if staff := c.Discord.StaffChannelID; staff != "" {
+		if err := discord.ValidID(staff); err != nil {
+			errs = append(errs, fmt.Errorf("alerts.discord.staffChannelId: %w", err))
+		}
+	}
 	if page := c.withDefaults().GameURL; !isHTTPSPage(page) {
 		errs = append(errs, fmt.Errorf("alerts.gameUrl is %q, and must be an https page", page))
+	}
+	if page := c.withDefaults().BackofficeURL; !isHTTPSPage(page) {
+		errs = append(errs, fmt.Errorf("alerts.backofficeUrl is %q, and must be an https page", page))
 	}
 	return errors.Join(errs...)
 }

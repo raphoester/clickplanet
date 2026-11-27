@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
+    appealable,
     changeable,
     flagRowsOf,
     flagNameLength,
@@ -90,6 +91,27 @@ describe("the account's submissions", () => {
         expect(changeable(submission("a", {paid: true}))).toBe(false)
         expect(changeable(submission("a", {state: "approved"}))).toBe(false)
         expect(changeable(submission("a", {state: "rejected"}))).toBe(false)
+        expect(changeable(submission("a", {appealed: true})), "a person looks at it again").toBe(false)
+        expect(replacedByNewOf([submission("b", {appealed: true})])).toBeUndefined()
+    })
+
+    it("ask a person to look again at a rejection the judge made, never at the operator's", () => {
+        expect(appealable(submission("a", {state: "rejected", rejectedByJudge: true}))).toBe(true)
+        expect(appealable(submission("a", {state: "rejected"}))).toBe(false)
+        expect(appealable(submission("a", {rejectedByJudge: true}))).toBe(false)
+    })
+
+    it("tell the verdict after an appeal again, the final rejection too", () => {
+        const rejected = [submission("a", {state: "rejected", rejectedByJudge: true})]
+        const told = withTold({}, untold(rejected, {}, FlagCatalog.BUILT_IN, []))
+
+        const appealed = [submission("a", {appealed: true})]
+        expect(untold(appealed, told, FlagCatalog.BUILT_IN, []), "it waits").toEqual([])
+
+        const final = [submission("a", {state: "rejected", appealed: true})]
+        expect(untold(final, told, FlagCatalog.BUILT_IN, []).map(({id, state}) => [id, state])).toEqual([["a", "rejected"]])
+        expect(untold(final, withTold(told, untold(final, told, FlagCatalog.BUILT_IN, [])), FlagCatalog.BUILT_IN, []))
+            .toEqual([])
     })
 
     it("tell each decision once, and a submission approved, opened, then its flag closed thrice", () => {

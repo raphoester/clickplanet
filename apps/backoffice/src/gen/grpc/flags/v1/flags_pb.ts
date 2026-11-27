@@ -855,6 +855,22 @@ export class Submission extends Message<Submission> {
    */
   paid = false;
 
+  /**
+   * Only for a rejected one: the judge, a Claude model, rejected it, not a person. Its player may ask a person to look
+   * again, once (AppealSubmission).
+   *
+   * @generated from field: bool rejected_by_judge = 12;
+   */
+  rejectedByJudge = false;
+
+  /**
+   * Its player asked a person to look again at the judge's rejection; unset for none. A submission a person looks at
+   * again is not changed.
+   *
+   * @generated from field: flags.v1.Appeal appeal = 13;
+   */
+  appeal?: Appeal;
+
   constructor(data?: PartialMessage<Submission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -873,6 +889,8 @@ export class Submission extends Message<Submission> {
     { no: 9, name: "rejection", kind: "message", T: Rejection },
     { no: 10, name: "picture", kind: "message", T: Picture },
     { no: 11, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "rejected_by_judge", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "appeal", kind: "message", T: Appeal },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Submission {
@@ -889,6 +907,135 @@ export class Submission extends Message<Submission> {
 
   static equals(a: Submission | PlainMessage<Submission> | undefined, b: Submission | PlainMessage<Submission> | undefined): boolean {
     return proto3.util.equals(Submission, a, b);
+  }
+}
+
+/**
+ * A player's ask that a person look again at the judge's rejection of its submission.
+ *
+ * @generated from message flags.v1.Appeal
+ */
+export class Appeal extends Message<Appeal> {
+  /**
+   * @generated from field: google.protobuf.Timestamp asked_at = 1;
+   */
+  askedAt?: Timestamp;
+
+  /**
+   * The judge's rejection it asks about.
+   *
+   * @generated from field: flags.v1.Rejection rejection = 2;
+   */
+  rejection?: Rejection;
+
+  /**
+   * The operator's verdict on the submission; unset while it waits.
+   *
+   * @generated from field: google.protobuf.Timestamp answered_at = 3;
+   */
+  answeredAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Appeal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Appeal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "asked_at", kind: "message", T: Timestamp },
+    { no: 2, name: "rejection", kind: "message", T: Rejection },
+    { no: 3, name: "answered_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Appeal {
+    return new Appeal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Appeal {
+    return new Appeal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Appeal {
+    return new Appeal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Appeal | PlainMessage<Appeal> | undefined, b: Appeal | PlainMessage<Appeal> | undefined): boolean {
+    return proto3.util.equals(Appeal, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.AppealSubmissionRequest
+ */
+export class AppealSubmissionRequest extends Message<AppealSubmissionRequest> {
+  /**
+   * @generated from field: string submission_id = 1;
+   */
+  submissionId = "";
+
+  constructor(data?: PartialMessage<AppealSubmissionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.AppealSubmissionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AppealSubmissionRequest {
+    return new AppealSubmissionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AppealSubmissionRequest {
+    return new AppealSubmissionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AppealSubmissionRequest {
+    return new AppealSubmissionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AppealSubmissionRequest | PlainMessage<AppealSubmissionRequest> | undefined, b: AppealSubmissionRequest | PlainMessage<AppealSubmissionRequest> | undefined): boolean {
+    return proto3.util.equals(AppealSubmissionRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.AppealSubmissionResponse
+ */
+export class AppealSubmissionResponse extends Message<AppealSubmissionResponse> {
+  /**
+   * @generated from field: flags.v1.Submission submission = 1;
+   */
+  submission?: Submission;
+
+  constructor(data?: PartialMessage<AppealSubmissionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.AppealSubmissionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission", kind: "message", T: Submission },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AppealSubmissionResponse {
+    return new AppealSubmissionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AppealSubmissionResponse {
+    return new AppealSubmissionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AppealSubmissionResponse {
+    return new AppealSubmissionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AppealSubmissionResponse | PlainMessage<AppealSubmissionResponse> | undefined, b: AppealSubmissionResponse | PlainMessage<AppealSubmissionResponse> | undefined): boolean {
+    return proto3.util.equals(AppealSubmissionResponse, a, b);
   }
 }
 

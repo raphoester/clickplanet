@@ -20,7 +20,8 @@ it is where the flag starts in Capital Siege.
   which wait to be paid for), **Replies** (any submission whose founder replied to its letter) and **All**, each
   with its count.
 - **A row** is the picture small, the name, "Many colours" for a likely photo, **"Replied" when its founder's reply to
-  its letter waits**, how long ago, the founder, and the verdict once there is one.
+  its letter waits**, **"Appeal" when its player asked a person to look again at Claude's rejection** (it waits for
+  you, shown even unpaid), how long ago, the founder, and the verdict once there is one.
 - **After a verdict the next waiting one opens** (the one below, or the first one left), and a green line says what
   was done. A submission picked by hand clears the line.
 
@@ -41,7 +42,9 @@ Top down, as it is judged (`SubmissionDetail`):
   account the player read does not name (a deleted one keeps its id) shows its id alone. Then when it was submitted and
   decided, the share of other colours, the player's capital, with a link that opens the game's globe there
   (`https://clickplanet.lol/play?lat=…&lon=…&zoom=20`, as a Discord ping does), and the flag it opened.
-  A rejected one shows its reason and its note.
+  A rejected one shows its reason and its note. **An appealed one shows the Appeal**: when it was asked, Claude's
+  rejection it asks about (its reason and note), and once you decided it, when; the Claude line above keeps its
+  reject and why. Your verdict on it is final: the player cannot ask again.
 - **The capital on a planisphere** (`CapitalMap`, see [The map](#the-map) below), with the other capitals around it.
   A waiting one's capital moves on it before the verdict (see [Moving the capital](#moving-the-capital)).
 - **Capitals near it**, measured from the capital where it is now (moved or the player's), by great-circle distance,

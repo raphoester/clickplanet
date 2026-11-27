@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
-import { Flag, Picture, Pin, Rejection, SubmissionState } from "./flags_pb.js";
+import { Appeal, Flag, Picture, Pin, Rejection, SubmissionState } from "./flags_pb.js";
 
 /**
  * @generated from enum flags.v1.JudgementVerdict
@@ -628,6 +628,14 @@ export class KeptSubmission extends Message<KeptSubmission> {
    */
   judgement?: Judgement;
 
+  /**
+   * Its player asked a person to look again at the judge's rejection: it waits again, shown even unpaid, and is never
+   * judged again. Unset for none.
+   *
+   * @generated from field: flags.v1.Appeal appeal = 14;
+   */
+  appeal?: Appeal;
+
   constructor(data?: PartialMessage<KeptSubmission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -648,6 +656,7 @@ export class KeptSubmission extends Message<KeptSubmission> {
     { no: 11, name: "picture", kind: "message", T: Picture },
     { no: 12, name: "other_colors_percent", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 13, name: "judgement", kind: "message", T: Judgement },
+    { no: 14, name: "appeal", kind: "message", T: Appeal },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptSubmission {

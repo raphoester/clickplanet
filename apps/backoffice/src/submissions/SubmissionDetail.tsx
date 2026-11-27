@@ -8,7 +8,7 @@ import {When} from "../components/When.tsx"
 import {countryLabel} from "../countries.ts"
 import {globeLinkOf, kmWords, Place, placeWords} from "../flags/pin.ts"
 import {KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
-import {Flag, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {LetterPanel} from "../support/LetterPanel.tsx"
 import {Call} from "../useCall.ts"
@@ -85,6 +85,14 @@ export function SubmissionDetail({
                         <Fact label="Claude">
                             {judgementLabel(submission.judgement.verdict)}
                             {submission.judgement.why !== "" && <> · <span className="text">{submission.judgement.why}</span></>}
+                        </Fact>
+                    )}
+                    {submission.appeal !== undefined && (
+                        <Fact label="Appeal">
+                            Asked <When at={submission.appeal.askedAt}/> of Claude's rejection:{" "}
+                            {reasonLabel(submission.appeal.rejection?.reason ?? RejectionReason.UNSPECIFIED)}
+                            {submission.appeal.rejection?.note && <> · <span className="text">{submission.appeal.rejection.note}</span></>}
+                            {submission.appeal.answeredAt !== undefined && <> · answered <When at={submission.appeal.answeredAt}/></>}
                         </Fact>
                     )}
                     {rejection !== undefined && (

@@ -43,6 +43,14 @@ func TestTheWaitingSubmissionsWithNoJudgementAreJudgedTheFirstSentFirst(t *testi
 	require.NoError(t, err)
 	assert.Equal(t, []submissions.SubmissionID{{15: 3}}, first)
 
+	read, err := judged.Judgement(t.Context(), submissions.SubmissionID{15: 2})
+	require.NoError(t, err)
+	assert.Equal(t, unsure.TakeSnapshot(), read.TakeSnapshot())
+	_, err = judged.Judgement(t.Context(), submissions.SubmissionID{15: 1})
+	require.ErrorIs(t, err, judgements.ErrUnjudged)
+
 	require.NoError(t, submitted.DeleteWaiting(t.Context(), submissions.SubmissionID{15: 2}),
 		"a submission replaced takes its judgement with it")
+	_, err = judged.Judgement(t.Context(), submissions.SubmissionID{15: 2})
+	require.ErrorIs(t, err, judgements.ErrUnjudged)
 }

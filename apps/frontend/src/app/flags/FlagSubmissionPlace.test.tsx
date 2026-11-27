@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {FlagSubmitter} from "../../backends/flags.ts"
+import {AppealRefusedError, FlagSubmitter} from "../../backends/flags.ts"
 import {Shop} from "../../backends/shop.ts"
 import {NameColor, PlayerBackend} from "../../backends/player.ts"
 import {ProgressionBackend} from "../../backends/progression.ts"
@@ -56,7 +56,10 @@ async function accountOf(linked: Provider[]) {
 // The globe is in no test: its shot never comes.
 const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
 
-const submitter = (): FlagSubmitter => ({uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []}))})
+const submitter = (changes: Partial<FlagSubmitter> = {}): FlagSubmitter => ({
+    uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []})),
+    appealSubmission: vi.fn(), ...changes,
+})
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({
     catalog: vi.fn(async () => ({plans: []})),
@@ -253,13 +256,13 @@ describe("FlagSubmissionPlace", () => {
 describe("the paywall", () => {
     const typed = {name: "Bavaria", file: png(), pinned: {pin: PIN, place: "Upper Bavaria"}}
 
-    async function paywall(sent: Submission, sells: Shop = shop(), toCheckout = vi.fn()) {
+    async function paywall(sent: Submission, sells: Shop = shop(), toCheckout = vi.fn(), sends: FlagSubmitter = submitter()) {
         const account = await accountOf(["google"])
         read([sent])
         useShop.setState({plans: PLANS})
         useFlagForm.setState({draft: typed})
         useFlagForm.getState().showPaywall(sent, typed)
-        return render(<FlagSubmissionPlace account={account} submitter={submitter()} shooter={NEVER_SHOT} shop={sells} toCheckout={toCheckout}/>)
+        return render(<FlagSubmissionPlace account={account} submitter={sends} shooter={NEVER_SHOT} shop={sells} toCheckout={toCheckout}/>)
     }
 
     it("shows the flag made, the plans once, and pays before the verdict", async () => {
@@ -313,8 +316,7 @@ describe("the paywall", () => {
         expect(screen.getByText("Rejected")).not.toBeNull()
         expect(screen.getByRole("status").textContent).toBe("It is not the flag of a place.")
         expect(screen.getByText("A club's crest.")).not.toBeNull()
-        expect(screen.getByRole("link", {name: "Think we got it wrong? Ask a person to look again."}).getAttribute("href"))
-            .toBe("mailto:support@clickplanet.lol?subject=Look%20again%20at%20my%20flag%20Bavaria")
+        expect(screen.queryByRole("button", {name: "Ask a person to look again"}), "the operator's: final").toBeNull()
         expect(screen.queryByRole("radio")).toBeNull()
         expect(screen.queryByRole("button", {name: /^Pay/})).toBeNull()
 
@@ -322,6 +324,33 @@ describe("the paywall", () => {
 
         expect(screen.getByRole("dialog", {name: "Add your region's flag"})).not.toBeNull()
         expect(useFlagForm.getState().draft).toEqual(typed)
+    })
+
+    it("asks a person to look again at the judge's rejection, once, and the flag waits for the team", async () => {
+        const rejected = submission({state: "rejected", rejection: {reason: "not-a-place", note: "A cartoon."}, rejectedByJudge: true})
+        const appealSubmission = vi.fn(async () => submission({appealed: true, decidedAt: 2}))
+        await paywall(rejected, shop(), vi.fn(), submitter({appealSubmission}))
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Ask a person to look again"}))
+
+        expect(appealSubmission).toHaveBeenCalledWith("s-1")
+        expect(screen.getByRole("status").textContent).toBe("A person is looking at it again.")
+        expect(screen.queryByRole("button", {name: "Ask a person to look again"})).toBeNull()
+        expect(screen.queryByRole("radio"), "paid once approved").toBeNull()
+        expect(screen.queryByRole("button", {name: "Back"}), "not changed while a person looks").toBeNull()
+    })
+
+    it("says why a person can't look again", async () => {
+        const rejected = submission({state: "rejected", rejection: {reason: "exists", note: ""}, rejectedByJudge: true})
+        const appealSubmission = vi.fn(async () => {
+            throw new AppealRefusedError("waiting")
+        })
+        await paywall(rejected, shop(), vi.fn(), submitter({appealSubmission}))
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Ask a person to look again"}))
+
+        expect(screen.getByRole("alert").textContent).toBe("One of your flags is waiting already.")
+        expect(screen.getByRole("button", {name: "Ask a person to look again"})).not.toBeNull()
     })
 
     it("fixes a rejection found by a door from what was sent, the picture picked again", async () => {

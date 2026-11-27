@@ -3,6 +3,8 @@ import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {FlagService} from "../gen/grpc/flags/v1/flags_connect.ts"
 import {
+    Appeal,
+    AppealSubmissionResponse,
     Closure,
     ListMySubmissionsResponse,
     Picture,
@@ -13,7 +15,7 @@ import {
     SubmissionState,
     SubmitFlagResponse,
 } from "../gen/grpc/flags/v1/flags_pb.ts"
-import {SubmissionRefusedError} from "./flags.ts"
+import {AppealRefusedError, SubmissionRefusedError} from "./flags.ts"
 import {ConnectFlagSubmissions, submissionOf} from "./flagSubmissionsBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -45,6 +47,21 @@ describe("submissionOf", () => {
             id: "s-1", name: "Bavaria", pin: {latitude: 48.1, longitude: 11.6}, flag: "", state: "rejected",
             submittedAt: 1_000, decidedAt: 2_000, rejection: {reason: "hateful", note: "No."}, paid: false,
         })
+    })
+
+    it("reads a rejection the judge made, and an appeal", () => {
+        const byJudge = submissionOf(new Submission({
+            ...waiting(), state: SubmissionState.REJECTED, rejectedByJudge: true,
+            rejection: new Rejection({reason: RejectionReason.NOT_A_PLACE, note: "A cartoon."}),
+        }))
+        expect(byJudge?.rejectedByJudge).toBe(true)
+        expect(byJudge?.appealed).toBeUndefined()
+
+        const appealed = submissionOf(new Submission({
+            ...waiting(), appeal: new Appeal({askedAt: Timestamp.fromDate(new Date(3_000))}),
+        }))
+        expect(appealed?.appealed).toBe(true)
+        expect(appealed?.rejectedByJudge).toBeUndefined()
     })
 
     it("reads a flag paid while it waits", () => {
@@ -125,6 +142,25 @@ describe("ConnectFlagSubmissions", () => {
         expect(await refusalOf(Code.FailedPrecondition)).toBe("off")
         expect(await refusalOf(Code.FailedPrecondition, "s-1")).toBe("decided")
         expect(await refusalOf(Code.ResourceExhausted)).toBe("too-many")
+        expect(await refusalOf(Code.Internal)).toBeInstanceOf(ConnectError)
+    })
+
+    it("asks a person to look again with the click token, and says each refusal", async () => {
+        const appealSubmission = vi.fn().mockResolvedValue(new AppealSubmissionResponse({submission: waiting()}))
+        const appealed = await new ConnectFlagSubmissions(clientOf({appealSubmission}), session("token-1"))
+            .appealSubmission("s-1")
+        expect(appealed.id).toBe("s-1")
+        expect(appealSubmission.mock.calls[0][0]).toEqual({submissionId: "s-1"})
+        expect(headersOf(appealSubmission).get(SESSION_HEADER)).toBe("token-1")
+
+        const refusalOf = async (code: Code) => {
+            const refused = vi.fn().mockRejectedValue(new ConnectError("refused", code))
+            return new ConnectFlagSubmissions(clientOf({appealSubmission: refused}), session("t"))
+                .appealSubmission("s-1").catch((e: unknown) => e)
+        }
+        expect(await refusalOf(Code.AlreadyExists)).toEqual(new AppealRefusedError("waiting"))
+        expect(await refusalOf(Code.FailedPrecondition)).toEqual(new AppealRefusedError("refused"))
+        expect(await refusalOf(Code.NotFound)).toEqual(new AppealRefusedError("refused"))
         expect(await refusalOf(Code.Internal)).toBeInstanceOf(ConnectError)
     })
 

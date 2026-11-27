@@ -142,6 +142,9 @@ func (c *Client) Post(ctx context.Context, channel discord.ChannelID, text strin
 	if role, ok := audience.Role(); ok {
 		allowed = map[string]any{"parse": []string{}, "roles": []discord.RoleID{role}}
 	}
+	if audience.Quiet() {
+		allowed = map[string]any{"parse": []string{}}
+	}
 	message := map[string]any{"content": text, "allowed_mentions": allowed}
 	if _, err := c.bot(ctx, http.MethodPost, "/channels/"+string(channel)+"/messages", message, nil); err != nil {
 		return fmt.Errorf("failed to post in the channel %s: %w", channel, err)

@@ -132,8 +132,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   rally), a new one in the place of the one that waits unpaid, a free flag's name sent to its claim, and shows it on the
   game's map at its capital, a shot of the globe with the flag on the tiles around it for one frame, Next sends it and
   the judge reviews it, step 2 is the paywall with the verdict as it comes (Approved, or Rejected with Fix it, before
-  any payment); a flag's own pay page for Add time, Stop renewal, a removal's note and a claim; a guest sees the sign-in
-  buttons; each decision and a close told once on the news line; the fake's `approveSubmission`, `rejectSubmission`,
+  any payment, and "Ask a person to look again" once for the judge's rejection); a flag's own pay page for Add time,
+  Stop renewal, a removal's note and a claim; a guest sees the sign-in buttons; each decision and a close told once on the news line; the fake's `approveSubmission`, `rejectSubmission`,
   `openSubmission`.
 - [The shop](docs/shop.md) — a player pays for a flag's time on Stripe's page: a new flag from its paywall, held until
   the approval, a flag held or one claimed from its pay page; the shop's door (the status bar's bag on a phone, the

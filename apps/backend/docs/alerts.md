@@ -195,6 +195,35 @@ minutes old.
 role, or `everyone`. The bot needs **Mention @everyone, @here, and All Roles** for the second; without it Discord
 posts the text and pings nobody.
 
+## The staff's channel
+
+**The owner is told in a private staff channel of each flag that waits on a person** (the owner, 2026-11-27), by the
+game's bot (`reviews/`): one post when a player asks a person to look again at the judge's rejection, and one when a
+**paid** flag waits because the judge was unsure, in either order (see [The flags module](flags.md#ask-a-person)).
+
+- **It hears `flags.v1.ReviewAsked`** (`alerts-reviews`, `review_asked_subscriber`), which the flags module records in
+  its outbox. A cause this build does not know is left.
+- **Each post names the flag, the cause, the judge's why and a link to the submission on the backoffice**
+  (`<backofficeUrl>/#/submissions/<id>`), and pings nobody (`discord.Nobody()`, `allowed_mentions` empty): the
+  channel's readers see it.
+
+> 🙋 **Smurfland**: its player asks a person to look again at the judge's rejection. Judge: “a cartoon's village”
+> https://backoffice.clickplanet.lol/#/submissions/…
+
+> 🤔 **Solandia** is paid and waits on you: the judge was unsure. Judge: “could be fictional” https://…
+
+- **The name and the why are text, not markdown**: Discord's markdown characters are escaped, a line break is a
+  space, a why past 300 characters is cut.
+- **Told once by its submission and cause** (`review_posts`, `20261127113648_review_posts`), in the transaction of the
+  post: a post Discord refused keeps nothing, and the event comes again.
+- **Off while `alerts.discord.staffChannelId` is empty**: nothing subscribes, and the events wait in their stream; a
+  channel named later is told what the stream still holds. The bot cannot make the channel (it has no **Manage
+  Channels**): the owner makes it private, and gives the bot **View Channel** and **Send Messages** in it (see
+  `deploy/vps/README.md`, "Discord pings"). Production's is `1575835114892431450` (2026-11-27).
+- **A post Discord refuses is logged** ("the alerts module refused an event", "failed to tell the staff of …"):
+  `50001 Missing Access` is View Channel missing, `50013 Missing Permissions` is Send Messages missing. The bus tries it
+  again for about four minutes, then buries that warning in `events:dead`.
+
 ## The Discord client (`discord/rest_discord`)
 
 The bot (`Authorization: Bot …`) on API v10: members (`Join`, `IsMember`, `Grant`, `Revoke`, `Rename`), roles and
@@ -209,8 +238,10 @@ Roles**; the setup is in `deploy/vps/README.md`, "Discord pings".
 ## Config
 
 `alerts.enabled`, `alerts.database.*` (schema `alerts`), `alerts.redis.*`, `alerts.gameUrl` (the page a ping links
-to, `https://clickplanet.lol/play` by default), and `alerts.discord.botToken`, `guildId`, `alertsChannelId`,
-`battlesChannelId`. On, any of them empty or not a Discord id refuses the boot. The bot is `auth.discord`'s
+to, `https://clickplanet.lol/play` by default), `alerts.backofficeUrl` (where a warning to the staff links,
+`https://backoffice.clickplanet.lol` by default), and `alerts.discord.botToken`, `guildId`, `alertsChannelId`,
+`battlesChannelId`. On, any of them empty or not a Discord id refuses the boot. `staffChannelId` may be empty (no
+warnings to the staff), and is a Discord id otherwise. The bot is `auth.discord`'s
 application's: Discord adds a user to a server only with a token of the bot's own application. `auth.discord.joinServer`
 is the other half, and is on in production with this module. **Keep it off while this module is off**: nobody hears
 the grants, which wait in their stream up to `redis.maxLen`, and a group made later reads them all, each one expired.
@@ -221,7 +252,8 @@ the grants, which wait in their stream up to `redis.maxLen`, and a group made la
 `roles.FakeMaker`, `pings.RecordedPoster`; `cpatomic.OnCommit` keeps an in-memory write until the fake transaction
 commits. `rest_discord` runs against an `httptest` Discord. `discord_join_granted_subscriber`'s test pins what is
 tried again and what is not, and that the token is not logged; `rpc_auth_grants`' what auth's answers mean.
-`links/namer_test.go` pins the nickname: given once, followed, taken off with no name, a user who left forgotten, a
+`reviews/review_test.go` pins a warning's text and its escaping, `post_review_usecase`'s test that it is told once per
+cause and tried again after a refusal, `review_asked_subscriber`'s the event read. `links/namer_test.go` pins the nickname: given once, followed, taken off with no name, a user who left forgotten, a
 refusal that keeps the link unnamed, and a name kept without the flag's move undone; `links.FakeNames` and
 `links.FakeRenamer` stand in for player and Discord. `nickname_subscriber`'s test pins the three events and what is
 tried again; `rpc_player_names`' what player's answer means.

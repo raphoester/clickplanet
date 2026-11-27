@@ -205,6 +205,8 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `alerts-allegiances` | moves a link's role only when the pledged flag is not the role's already; a second delivery finds it moved |
 | `alerts-attacks` | the watch forgets the attacker's takes once it found an attack, and a flag is pinged once in 3 hours (`attack_pings`), so a take told again finds no second attack |
 | `alerts-battles`, `alerts-seasons` | keeps each start pinged by its round's or book's id (`start_pings`), in the transaction of the post |
+| `alerts-reviews` | keeps each warning to the staff by its submission and cause (`review_posts`), in the transaction of the post |
+| `flags-appeals-approved`, `flags-appeals-rejected` (the flags module's own) | an appeal is answered once, by a verdict at or after its ask (`Appeal.Answered`): told again, or the judge's rejection heard late, changes nothing |
 | `alerts-forgotten` | takes the nickname off and deletes the link, which is nothing the second time |
 | `alerts-names`, `alerts-names-leaving`, `alerts-names-returns` | each event names the account alone, and `links.Namer` asks player the name it shows now and renames only a user that does not wear it (`links.name`), so a second delivery, or one heard after a later one of another stream, changes nothing |
 | `alerts-joins` | joins only an account not linked to that Discord user yet (`links.Link.Joins`); a second delivery finds the link the first kept, and names the user only if it does not wear its name yet. Auth keeps the grant for ten minutes and deletes nothing on a read, so a try again reads it again |
@@ -251,6 +253,9 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `flags.v1.GrantTime` and `TakeBackTime`, commands from the shop: a lost one is a payment that never opened or kept
   its flag, or a refund that left its time on the flag. `pay_usecase` and `take_back_usecase` record each in the
   transaction that keeps the payment, and the relay sends them to the flags' command streams.
+- `flags.v1.ReviewAsked`: a lost one is a flag that waits on the operator unseen, an appeal or a paid flag the judge
+  left unsure, told once. `appeal_submission_usecase`, `keep_judgement_usecase` and `grant_time_usecase` record it in
+  the transaction that reopens the submission, keeps the judgement or holds the payment.
 - `flags.v1.FlagOpened` and `FlagClosed`: a lost one leaves planet refusing an open flag, or playing a closed one,
   for good. `open_flag_usecase` and `close_flag_usecase` record it in the transaction that keeps the flag, and
   `restate_flags_usecase` records every flag again at each boot (see [The flags module](flags.md)).

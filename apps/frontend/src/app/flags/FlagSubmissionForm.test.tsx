@@ -29,7 +29,9 @@ function bucket() {
         uploads.push({options, land: resolve, fail: () => reject(new Error("the bucket hung up"))})
     }))
     const submitFlag = vi.fn(async (sent: SubmittedFlag) => waiting(sent))
-    const submitter: FlagSubmitter = {uploadPicture, submitFlag, myFlags: vi.fn(async () => ({submissions: [], held: []}))}
+    const submitter: FlagSubmitter = {
+        uploadPicture, submitFlag, myFlags: vi.fn(async () => ({submissions: [], held: []})), appealSubmission: vi.fn(),
+    }
     return {submitter, uploads, uploadPicture, submitFlag}
 }
 
@@ -50,7 +52,10 @@ const fileInput = () => document.querySelector("input[type=file]") as HTMLInputE
 beforeEach(() => {
     URL.createObjectURL = vi.fn(() => "blob:preview")
     URL.revokeObjectURL = vi.fn()
-    useFlagSubmissions.getState().serve({uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []}))})
+    useFlagSubmissions.getState().serve({
+        uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []})),
+        appealSubmission: vi.fn(),
+    })
 })
 
 afterEach(() => {

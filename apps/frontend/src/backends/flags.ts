@@ -33,6 +33,18 @@ export interface FlagSubmitter {
     submitFlag(submitted: SubmittedFlag): Promise<Submission>
     // The submissions, the newest first, and the flags held; none for a guest.
     myFlags(): Promise<MyFlags>
+    // Asks a person to look again at the judge's rejection: the submission waits again.
+    appealSubmission(id: string): Promise<Submission>
+}
+
+// One waits already, or the server refused it for good: the operator rejected it, or its picture is gone.
+export type AppealRefusal = "waiting" | "refused"
+
+export class AppealRefusedError extends Error {
+    constructor(public readonly refusal: AppealRefusal, options?: {cause?: unknown}) {
+        super(`the flags module refused the appeal: ${refusal}`, options)
+        this.name = "AppealRefusedError"
+    }
 }
 
 export type SubmissionRefusal = "no-session" | "guest" | "decided" | "waiting" | "invalid" | "off" | "too-many"

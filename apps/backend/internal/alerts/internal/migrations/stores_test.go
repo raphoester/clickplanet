@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews/postgres_review_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
@@ -112,5 +114,22 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		pinged, err = store.StartPinged(t.Context(), "season-1/battle-1")
 		require.NoError(t, err)
 		assert.True(t, pinged)
+	})
+
+	t.Run("the reviews told", func(t *testing.T) {
+		store := postgres_review_store.New(db)
+		const smurfs = reviews.SubmissionID("00000000-0000-0000-0000-000000000001")
+		told, err := store.Told(t.Context(), smurfs, reviews.Appeal)
+		require.NoError(t, err)
+		require.False(t, told)
+
+		require.NoError(t, store.SaveTold(t.Context(), smurfs, reviews.Unsure, now))
+		require.NoError(t, store.SaveTold(t.Context(), smurfs, reviews.Unsure, now), "kept once")
+		told, err = store.Told(t.Context(), smurfs, reviews.Unsure)
+		require.NoError(t, err)
+		assert.True(t, told)
+		told, err = store.Told(t.Context(), smurfs, reviews.Appeal)
+		require.NoError(t, err)
+		assert.False(t, told, "each cause is told once")
 	})
 }

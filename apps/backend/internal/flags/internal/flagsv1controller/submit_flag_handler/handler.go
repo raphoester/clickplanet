@@ -49,6 +49,8 @@ func (h SubmitFlagHandler) SubmitFlag(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrNotWaiting)
 	case errors.Is(err, submissions.ErrPaid):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrPaid)
+	case errors.Is(err, submissions.ErrAppealed):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrAppealed)
 	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrInvalidPin),
 		errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, pictures.ErrUnknownUpload),
 		errors.Is(err, pictures.ErrTooLarge), errors.Is(err, pictures.ErrNotAPicture),
@@ -59,5 +61,5 @@ func (h SubmitFlagHandler) SubmitFlag(
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
-	return connect.NewResponse(&flagsv1.SubmitFlagResponse{Submission: h.messages.Submission(submission)}), nil
+	return connect.NewResponse(&flagsv1.SubmitFlagResponse{Submission: h.messages.Submission(submission, submissionmessage.Reviews{})}), nil
 }

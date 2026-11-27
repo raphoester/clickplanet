@@ -2,6 +2,7 @@ package postgres_judgement_store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -44,6 +45,26 @@ func (s *Store) Unjudged(ctx context.Context, limit int) ([]submissions.Submissi
 		return nil, fmt.Errorf("failed to list the submissions to judge: %w", err)
 	}
 	return unjudged, nil
+}
+
+func (s *Store) Judgement(ctx context.Context, submission submissions.SubmissionID) (judgements.Judgement, error) {
+	var verdict string
+	kept := judgements.Snapshot{Submission: submission}
+	err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT verdict::text, why, judged_at FROM judgements WHERE submission_id = $1
+	`, uuid.UUID(submission)).Scan(&verdict, &kept.Why, &kept.JudgedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return judgements.Judgement{}, fmt.Errorf("%w: %s", judgements.ErrUnjudged, submission)
+	}
+	if err != nil {
+		return judgements.Judgement{}, fmt.Errorf("failed to read the judgement of %s: %w", submission, err)
+	}
+	kept.Verdict, kept.JudgedAt = judgements.Verdict(verdict), kept.JudgedAt.UTC()
+	judgement, err := kept.Restore()
+	if err != nil {
+		return judgements.Judgement{}, fmt.Errorf("failed to restore the judgement of %s: %w", submission, err)
+	}
+	return judgement, nil
 }
 
 func (s *Store) Save(ctx context.Context, judgement judgements.Judgement) error {

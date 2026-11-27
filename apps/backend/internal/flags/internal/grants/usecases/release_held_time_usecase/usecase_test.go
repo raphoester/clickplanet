@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/grant_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/release_held_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -40,7 +41,9 @@ func newFixture() fixture {
 	}
 	opening := catalog.NewOpening(&catalog.Sequence{}, f.clock)
 	f.grant = grant_time_usecase.New(opening, f.clock, cpatomic.FakeTransactioner{},
-		grant_time_usecase.Stores{Grants: f.grants, Submissions: f.submissions, Flags: f.flags}, f.outbox)
+		grant_time_usecase.Stores{
+			Grants: f.grants, Submissions: f.submissions, Judgements: judgements.NewMemoryStore(), Flags: f.flags,
+		}, f.outbox)
 	f.release = release_held_time_usecase.New(opening, f.clock, cpatomic.FakeTransactioner{},
 		release_held_time_usecase.Stores{Grants: f.grants, Submissions: f.submissions, Flags: f.flags}, f.outbox)
 	f.submissions.Seed(submissions.TestWaiting(id, founder, paidAt.Add(-time.Hour)))
