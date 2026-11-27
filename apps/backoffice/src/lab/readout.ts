@@ -41,20 +41,24 @@ export type Business = {
     averageWatchSeconds: number
 }
 
+// Zernio's answer as it came: any field can be null, as `analytics.analytics` is while a post's numbers sync.
+type Said<T> = T | null | undefined
+
 type Analytics = {
-    views?: number, likes?: number, comments?: number, shares?: number, follows?: number, saves?: number,
-    completionRate?: number, profileViews?: number, igReelsAvgWatchTime?: number,
-    impressionSources?: Record<string, number>, audienceCountries?: Record<string, number>,
-    retentionCurve?: Record<string, number>,
+    views?: Said<number>, likes?: Said<number>, comments?: Said<number>, shares?: Said<number>, follows?: Said<number>,
+    saves?: Said<number>, completionRate?: Said<number>, profileViews?: Said<number>, igReelsAvgWatchTime?: Said<number>,
+    impressionSources?: Said<Record<string, number>>, audienceCountries?: Said<Record<string, number>>,
+    retentionCurve?: Said<Record<string, Said<number>>>,
 }
 
 type Document = {
-    postId?: string, platform?: string, publishedAt?: string, ageHours?: number, url?: string,
-    analytics?: {analytics?: Analytics}, metadata?: {record?: {post?: {experiment?: unknown}}},
+    postId?: Said<string>, platform?: Said<string>, publishedAt?: Said<string>, ageHours?: Said<number>, url?: Said<string>,
+    analytics?: Said<{analytics?: Said<Analytics>}>, metadata?: Said<{record?: Said<{post?: Said<{experiment?: unknown}>}>}>,
 }
 
 // The lab's posts and the control's published since then, each at its last row at 7 days or younger. A post with no row
-// that young, or no experiment, is not one.
+// that young, or no experiment, is not one. A row with no numbers yet (`analytics.analytics` null while they sync) is
+// not read: the post's row before it counts, or the post waits for the next snapshot.
 export function postsOf(documents: string[], since: Date): Post[] {
     const read = new Map<string, Post>()
     for (const text of documents) {
@@ -72,7 +76,7 @@ function postOf(document: Document): Post | undefined {
     const platform = document.platform
     const metrics = document.analytics?.analytics
     if (typeof experiment !== "string" || experiment === "" || (platform !== "tiktok" && platform !== "youtube") ||
-        document.postId === undefined || document.publishedAt === undefined || metrics === undefined) {
+        document.postId == null || document.publishedAt == null || metrics == null) {
         return undefined
     }
     const publishedAt = new Date(document.publishedAt)
@@ -102,7 +106,7 @@ function businessOf(metrics: Analytics): Business | undefined {
         Object.keys(metrics.audienceCountries ?? {}).length > 0 || Object.keys(curve).length > 0
     if (!live) return undefined
     return {
-        heldAt2s: curve["2"],
+        heldAt2s: curve["2"] ?? undefined,
         toTheEnd: metrics.completionRate ?? 0,
         averageWatchSeconds: (metrics.igReelsAvgWatchTime ?? 0) / 1000,
     }

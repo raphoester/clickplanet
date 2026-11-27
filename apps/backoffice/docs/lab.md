@@ -16,6 +16,9 @@ facts and the page counts** (`readout.ts`), as the home page does:
   `carousel`, …). A post with none (a clip from before the lab, a battle teaser, a post made by hand) is left out.
 - **Each post is read at its last row at 7 days or younger** (`ageHours` ≤ 168): its views by day 7, or now if it is
   younger. The posts of both arms are of the same days, so the young ones weigh on both alike.
+- **A row with no numbers yet is not read**: while Zernio syncs a post (`syncStatus` `pending`), its
+  `analytics.analytics` is `null`. The post's row before it counts, or the post waits for the next snapshot, rather
+  than count as 0 views. Any field of Zernio's answer can be `null`, so the page reads `null` as missing.
 - **The days picked**: posts out since that UTC day, from 2026-11-20 (the lab's start, and the day TikTok's arrivals
   were first told apart) to today. Two weeks back by default, never before the lab's start. A day further back reads
   more snapshots: about 3 MB of rows each, 230 KB compressed.
@@ -64,7 +67,7 @@ the posts' list; the arrivals' table is under their chart the same way.
 
 ## Tests
 
-`readout.test.ts` pins the reading: the row at 7 days, the posts left out, TikTok's business numbers, the medians, the
+`readout.test.ts` pins the reading: the row at 7 days, the posts left out, a row still syncing (`null` numbers), TikTok's business numbers, the medians, the
 rates, the breakouts, each experiment's own control, a young post, the arrival days and their totals. `chart.test.ts`
 pins the log ticks, the colors, the lanes, the dot under the pointer, the day labels, the arrival bars and the bars'
 paths; `format.test.ts` the numbers as written. `LabPage.test.tsx` renders it on `FakeAdmin` (in `StrictMode` once):
