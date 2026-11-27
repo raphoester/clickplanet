@@ -588,6 +588,8 @@
   "shop.perk.chat": "Własny pokój czatu",
   "shop.price.day": "{price} / dzień",
   "shop.consent": "Chcę, żeby moja flaga zaczęła działać od razu po zatwierdzeniu. Wiem, że po starcie nie mogę anulować.",
+  "shop.consentPaid": "Chcę, żeby moja flaga zaczęła działać od razu po zapłacie. Wiem, że po starcie nie mogę anulować.",
+  "shop.consentAdded": "Chcę, żeby mój czas został dodany od razu po zapłacie. Wiem, że po dodaniu nie mogę anulować.",
   "shop.sale": "Warunki sprzedaży",
   "shop.refunds": "Zwroty",
   "shop.refusal.notYours": "Ta flaga nie jest twoja.",

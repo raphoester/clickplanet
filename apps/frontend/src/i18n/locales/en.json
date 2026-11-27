@@ -588,6 +588,8 @@
   "shop.perk.chat": "Its own chat room",
   "shop.price.day": "{price} / day",
   "shop.consent": "I want my flag to start as soon as it's approved. I know I can't cancel once it starts.",
+  "shop.consentPaid": "I want my flag to start as soon as I pay. I know I can't cancel once it starts.",
+  "shop.consentAdded": "I want my time added as soon as I pay. I know I can't cancel once it's added.",
   "shop.sale": "Terms of sale",
   "shop.refunds": "Refunds",
   "shop.refusal.notYours": "This flag is not yours.",

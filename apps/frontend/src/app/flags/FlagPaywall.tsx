@@ -68,6 +68,7 @@ export default function FlagPaywall({submission: sent, typed, shooter, shop, toC
                                    shop={shop}
                                    plans={plans}
                                    target={{kind: "submission", id: submission.id}}
+                                   starts="approved"
                                    toCheckout={toCheckout}
                                    onBack={toChange}/>}
         </div>

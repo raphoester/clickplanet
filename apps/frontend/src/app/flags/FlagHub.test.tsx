@@ -201,9 +201,33 @@ describe("a flag's pay page", () => {
         expect(document.querySelector(".flag-card-name")?.textContent).toBe("Bavaria")
         expect(screen.getByRole("status").textContent).toBe(`Ends on ${dateOf(ENDS_AT)}`)
         await user.click(screen.getByRole("radio", {name: /1 week/}))
-        await user.click(screen.getByRole("checkbox"))
+        await user.click(screen.getByRole("checkbox", {name: "I want my time added as soon as I pay. I know I can't cancel once it's added."}))
         await user.click(screen.getByRole("button", {name: "Pay €4"}))
         expect(sells.checkout).toHaveBeenCalledWith({plan: "week", target: {kind: "flag", flag: FLAG}, startsNow: true})
+    })
+
+    it("starts a flag held whose time ended once it is paid", () => {
+        flagIs("closed")
+        useShop.setState({plans: PLANS})
+        read([], [{code: FLAG}])
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+
+        expect(screen.getByRole("dialog", {name: "Add time"})).not.toBeNull()
+        expect(screen.getByRole("status").textContent).toBe(`Closed on ${dateOf(CLOSED_AT)}`)
+        expect(screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."})).not.toBeNull()
+    })
+
+    it("asks again when the flag closes under a box ticked for added time", async () => {
+        flagIs("open")
+        useShop.setState({plans: PLANS})
+        read([], [{code: FLAG}])
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        await userEvent.setup().click(screen.getByRole("checkbox", {name: "I want my time added as soon as I pay. I know I can't cancel once it's added."}))
+
+        act(() => flagIs("closed"))
+
+        const consent = screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."})
+        expect((consent as HTMLInputElement).checked).toBe(false)
     })
 
     it("goes back to the account's flags", async () => {
@@ -277,7 +301,7 @@ describe("a flag's pay page", () => {
 
         expect(screen.getByRole("dialog", {name: "Claim Bavaria"})).not.toBeNull()
         await user.click(screen.getByRole("radio", {name: /1 month/}))
-        await user.click(screen.getByRole("checkbox"))
+        await user.click(screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."}))
         await user.click(screen.getByRole("button", {name: "Pay €10"}))
         expect(sells.checkout).toHaveBeenCalledWith({plan: "month", target: {kind: "flag", flag: FLAG}, startsNow: true})
 

@@ -71,9 +71,12 @@ a claim (target the flag; see [A flag's pay page](flag-submissions.md#a-flags-pa
 - **The pick is kept** (`useShop.chosen`) for the session: the next offer picks it.
 - **Colors** in their jobs: blue for the plan picked (a toggled button), gold for value (the savings, Best value), red
   only for the one thing to press.
-- **One checkbox, unchecked** (`Consent`, `PayTerms.tsx`): "I want my flag to start as soon as it's approved. I know I
-  can't cancel once it starts." This is the EU right of withdrawal's waiver for digital content: the server refuses a
-  checkout without `starts_now`, and the page sends it only once the box is checked.
+- **One checkbox, unchecked** (`Consent`, `PayTerms.tsx`), worded for when what is bought starts (`starts`): on the
+  paywall, "I want my flag to start as soon as it's approved. I know I can't cancel once it starts."; for a closed flag,
+  claimed or held, "… as soon as I pay …"; for time added to an open flag, which runs on from its end, "I want my time
+  added as soon as I pay. I know I can't cancel once it's added." A flag that closes while its page shows changes the
+  line, and the box is unticked again. This is the EU right of withdrawal's waiver for digital content: the server
+  refuses a checkout without `starts_now`, and the page sends it only once the box is checked.
 - **Pay €60**, the plan's price in the button, off until the box is checked. It calls
   `CreateCheckout{plan, submission_id or flag, starts_now: true}` and goes to its `url`. A refusal is one line under the
   button, the plan and the box stay, and Pay is on again; any other failure is "The payment page did not open. Try

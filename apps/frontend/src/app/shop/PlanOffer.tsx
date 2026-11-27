@@ -6,7 +6,7 @@ import {Key} from "../../i18n/translator.ts"
 import {rich} from "../../i18n/rich.tsx"
 import "../support/Support.css"
 import Money from "./Money.tsx"
-import {Consent, FinePrint} from "./PayTerms.tsx"
+import {Consent, FinePrint, Start} from "./PayTerms.tsx"
 import PlanCards from "./PlanCards.tsx"
 import SaleClock from "./SaleClock.tsx"
 import {useShop} from "./shopStore.ts"
@@ -17,6 +17,7 @@ export type PlanOfferProps = {
     // None: no plan and no pay button.
     plans: readonly PlanPrice[]
     target: CheckoutTarget
+    starts: Start
     // Stripe's page.
     toCheckout: (url: string) => void
     // Back to what was there before the plans.
@@ -32,7 +33,7 @@ const FAILURES: Record<PayFailure, Key> = {
 }
 
 // The plans, the buyer's consent that the time starts once the flag is approved or at once, and Pay, to Stripe's page.
-export default function PlanOffer({shop, plans, target, toCheckout, onBack}: PlanOfferProps) {
+export default function PlanOffer({shop, plans, target, starts, toCheckout, onBack}: PlanOfferProps) {
     const chosen = useShop((store) => store.chosen)
     const choose = useShop((store) => store.choose)
     const sale = useShop((store) => store.sale)
@@ -66,7 +67,7 @@ export default function PlanOffer({shop, plans, target, toCheckout, onBack}: Pla
                        choose(plan)
                        setFailure(undefined)
                    }}/>
-        <Consent agreed={agreed} disabled={paying} onAgree={setAgreed}/>
+        <Consent starts={starts} agreed={agreed} disabled={paying} onAgree={setAgreed}/>
         <div className="shop-actions">
             {onBack && <button type="button" className="button button-secondary" disabled={paying} onClick={onBack}>
                 {t("common.back")}

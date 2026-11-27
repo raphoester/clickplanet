@@ -588,6 +588,8 @@
   "shop.perk.chat": "Ruang obrolan sendiri",
   "shop.price.day": "{price} / hari",
   "shop.consent": "Aku mau benderaku mulai begitu disetujui. Aku tahu aku tidak bisa batal setelah mulai.",
+  "shop.consentPaid": "Aku mau benderaku mulai begitu aku bayar. Aku tahu aku tidak bisa batal setelah mulai.",
+  "shop.consentAdded": "Aku mau waktuku ditambahkan begitu aku bayar. Aku tahu aku tidak bisa batal setelah ditambahkan.",
   "shop.sale": "Syarat penjualan",
   "shop.refunds": "Pengembalian dana",
   "shop.refusal.notYours": "Bendera ini bukan milikmu.",

@@ -588,6 +588,8 @@
   "shop.perk.chat": "Kendi sohbet odası",
   "shop.price.day": "{price} / gün",
   "shop.consent": "Bayrağımın onaylanır onaylanmaz başlamasını istiyorum. Başlayınca iptal edemeyeceğimi biliyorum.",
+  "shop.consentPaid": "Ödeme yapar yapmaz bayrağımın başlamasını istiyorum. Başlayınca iptal edemeyeceğimi biliyorum.",
+  "shop.consentAdded": "Ödeme yapar yapmaz süremin eklenmesini istiyorum. Eklenince iptal edemeyeceğimi biliyorum.",
   "shop.sale": "Satış koşulları",
   "shop.refunds": "İadeler",
   "shop.refusal.notYours": "Bu bayrak sana ait değil.",

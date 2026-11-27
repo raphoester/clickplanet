@@ -588,6 +588,8 @@
   "shop.perk.chat": "Su propia sala de chat",
   "shop.price.day": "{price} / día",
   "shop.consent": "Quiero que mi bandera empiece en cuanto la aprueben. Sé que no puedo cancelarla cuando empiece.",
+  "shop.consentPaid": "Quiero que mi bandera empiece en cuanto pague. Sé que no puedo cancelarla cuando empiece.",
+  "shop.consentAdded": "Quiero que mi tiempo se añada en cuanto pague. Sé que no puedo cancelarlo cuando esté añadido.",
   "shop.sale": "Condiciones de venta",
   "shop.refunds": "Reembolsos",
   "shop.refusal.notYours": "Esta bandera no es tuya.",

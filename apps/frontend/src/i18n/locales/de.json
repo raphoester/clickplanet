@@ -588,6 +588,8 @@
   "shop.perk.chat": "Ein eigener Chatraum",
   "shop.price.day": "{price} / Tag",
   "shop.consent": "Meine Flagge soll starten, sobald sie genehmigt ist. Ich weiß, dass ich nach dem Start nicht mehr abbrechen kann.",
+  "shop.consentPaid": "Meine Flagge soll starten, sobald ich bezahle. Ich weiß, dass ich nach dem Start nicht mehr abbrechen kann.",
+  "shop.consentAdded": "Meine Zeit soll hinzugefügt werden, sobald ich bezahle. Ich weiß, dass ich nach dem Hinzufügen nicht mehr abbrechen kann.",
   "shop.sale": "Verkaufsbedingungen",
   "shop.refunds": "Rückerstattungen",
   "shop.refusal.notYours": "Diese Flagge gehört dir nicht.",

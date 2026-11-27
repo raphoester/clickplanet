@@ -52,6 +52,8 @@ export default function FlagPayScreen({flag, fromHub, shooter, shop, toCheckout}
     const renewing = holds && time.kind === "renews"
     const offered = selling && sold !== undefined && !sold.removed && (holds || closed) && !renewing
     const back = fromHub ? toHub : undefined
+    // A box ticked under one line is no consent to another: the offer starts again when its line changes.
+    const starts = closed ? "paid" : "added"
 
     const stop = async (id: string) => {
         setStopping(true)
@@ -91,10 +93,11 @@ export default function FlagPayScreen({flag, fromHub, shooter, shop, toCheckout}
             {line && <p className="flag-status-line" role="status">{line}</p>}
             {sold?.removed && held?.removalNote && <FlagNote text={held.removalNote}/>}
             {stopFailed && <p className="support-notice" role="alert">{t("shop.stopFailed")}</p>}
-            {offered && <PlanOffer key={flag}
+            {offered && <PlanOffer key={`${flag}-${starts}`}
                                    shop={shop}
                                    plans={plans}
                                    target={{kind: "flag", flag}}
+                                   starts={starts}
                                    toCheckout={toCheckout}
                                    onBack={back}/>}
         </div>
