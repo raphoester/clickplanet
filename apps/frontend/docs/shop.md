@@ -71,9 +71,12 @@ a claim (target the flag; see [A flag's pay page](flag-submissions.md#a-flags-pa
 - **The pick is kept** (`useShop.chosen`) for the session: the next offer picks it.
 - **Colors** in their jobs: blue for the plan picked (a toggled button), gold for value (the savings, Best value), red
   only for the one thing to press.
-- **One checkbox, unchecked** (`Consent`, `PayTerms.tsx`): "I want my flag to start as soon as it's approved. I know I
-  can't cancel once it starts." This is the EU right of withdrawal's waiver for digital content: the server refuses a
-  checkout without `starts_now`, and the page sends it only once the box is checked.
+- **One checkbox, unchecked** (`Consent`, `PayTerms.tsx`), worded for when what is bought starts (`starts`): on the
+  paywall, "I want my flag to start as soon as it's approved. I know I can't cancel once it starts."; for a closed flag,
+  claimed or held, "… as soon as I pay …"; for time added to an open flag, which runs on from its end, "I want my time
+  added as soon as I pay. I know I can't cancel once it's added." A flag that closes while its page shows changes the
+  line, and the box is unticked again. This is the EU right of withdrawal's waiver for digital content: the server
+  refuses a checkout without `starts_now`, and the page sends it only once the box is checked.
 - **Pay €60**, the plan's price in the button, off until the box is checked. It calls
   `CreateCheckout{plan, submission_id or flag, starts_now: true}` and goes to its `url`. A refusal is one line under the
   button, the plan and the box stay, and Pay is on again; any other failure is "The payment page did not open. Try
@@ -106,18 +109,18 @@ starts sees it at its next read of the plans: a load, or the flag's flow or Your
 
 ## Time for a flag held
 
-**Your flags says each held flag's time while the shop sells** (`FlagHub`, `flagTimeOf`; see
-[Flag submissions](flag-submissions.md#your-flags)):
+**Your flags and the flag's pay page say each held flag's time while the shop sells** (`flagTimeOf`; see
+[Flag submissions](flag-submissions.md#your-flags)): one line on its row, the same line on its page.
 
-- **A renewal that runs**, on the flag or on the submission that opened it: "Renews on Dec 24, 2026" and Stop renewal.
-  `StopRenewal{renewal_id}` answers the renewal stopping, which replaces it in the store: "Ends on Dec 24, 2026". A stop
-  that fails is one line under the list. The server refuses a second plan while a renewal runs: it would charge twice,
-  so no Add time shows.
-- **A renewal that stops**: "Ends on …" and Add time: it charges no more, so more time is no second charge.
-- **No renewal**, the flag open: "Ends on …" (`Sold.endsAt`) and Add time; closed, however long ago (`Sold.closedAt`):
-  "Closed on …" and Add time, until another player claims it.
-- **Removed** (`Sold.removed`), shop on or off: "Removed on …", the operator's note, and nothing to pay.
-- **Add time** opens the flag's pay page, target `flag`, and Back to Your flags.
+- **A renewal that runs**, on the flag or on the submission that opened it: "Renews on Dec 24, 2026", and on the page
+  Stop renewal in place of the plans. `StopRenewal{renewal_id}` answers the renewal stopping, which replaces it in the
+  store: "Ends on Dec 24, 2026", and the plans show. A stop that fails is one line under the time. The server refuses
+  a second plan while a renewal runs: it would charge twice, so no plans show.
+- **A renewal that stops**: "Ends on …" and the plans: it charges no more, so more time is no second charge.
+- **No renewal**, the flag open: "Ends on …" (`Sold.endsAt`) and the plans; closed, however long ago
+  (`Sold.closedAt`): "Closed on …" and the plans, until another player claims it.
+- **Removed** (`Sold.removed`), shop on or off: "Removed on …", the operator's note on the page, and nothing to pay.
+- **The plans** are the flag's pay page, titled "Add time", target `flag`, and Back to Your flags.
 
 The dates are each language's medium date, as "Sent on …".
 

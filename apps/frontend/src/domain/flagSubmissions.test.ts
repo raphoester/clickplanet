@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {
     changeable,
+    flagRowsOf,
     flagNameLength,
     isValidFlagName,
     MAX_PICTURE_BYTES,
@@ -111,6 +112,39 @@ describe("the account's submissions", () => {
         const told = withTold({}, untold(opened, {}, catalogOf(true), [{code: "r-aaaaaaaaaa"}]))
 
         expect(untold(opened, told, catalogOf(false), [])).toEqual([])
+    })
+})
+
+describe("the rows of the account's flags", () => {
+    const removed = FlagCatalog.BUILT_IN.withFlags([{code: "r-aaaaaaaaaa", name: "Bavaria", closed: true, sold: {
+        picture: {url: "https://media.test/b.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5},
+        endsAt: 1, closedAt: 1, removed: true,
+    }}])
+    const keys = (rows: ReturnType<typeof flagRowsOf>) => rows.map(({key}) => key)
+
+    it("are each flag held, then the newest flag sent of each name the account does not hold", () => {
+        const mine = {
+            held: [{code: "r-aaaaaaaaaa"}],
+            submissions: [
+                submission("c", {name: "swabia", state: "rejected", rejection: {reason: "exists", note: ""}}),
+                submission("b", {name: "Swabia", state: "rejected", rejection: {reason: "other", note: "No."}}),
+                submission("a", {name: "BAVARIA", state: "rejected", rejection: {reason: "exists", note: ""}}),
+                submission("o", {state: "opened", flag: "r-aaaaaaaaaa"}),
+            ],
+        }
+        expect(keys(flagRowsOf(mine, removed, new Set()))).toEqual(["flag:r-aaaaaaaaaa", "c"])
+    })
+
+    it("leave out what the player put away while it is done, and never what waits", () => {
+        const mine = {
+            held: [{code: "r-aaaaaaaaaa"}],
+            submissions: [submission("w", {name: "Swabia"}), submission("p", {name: "Tyrol", state: "approved"})],
+        }
+        const dismissed = new Set(["flag:r-aaaaaaaaaa", "w", "p"])
+
+        expect(keys(flagRowsOf(mine, removed, dismissed))).toEqual(["w"])
+        expect(keys(flagRowsOf(mine, catalogOf(false), dismissed)), "open again, it is no longer done")
+            .toEqual(["flag:r-aaaaaaaaaa", "w"])
     })
 })
 

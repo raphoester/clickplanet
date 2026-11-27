@@ -8,6 +8,7 @@ import {FlagCatalog, SoldFlag} from "../../domain/flags.ts"
 import type {PlanPrice, Renewal} from "../../domain/shop.ts"
 import {translator} from "../../i18n/page.ts"
 import {useShop} from "../shop/shopStore.ts"
+import {useDismissedFlagRows} from "./dismissedFlagRows.ts"
 import {useFlagForm} from "./flagFormStore.ts"
 import FlagHub from "./FlagHub.tsx"
 import FlagPayScreen from "./FlagPayScreen.tsx"
@@ -55,7 +56,10 @@ function flagIs(state: "open" | "closed" | "removed") {
     useFlags.setState({catalog: FlagCatalog.BUILT_IN.withFlags([{code: FLAG, name: "Bavaria", closed: state !== "open", sold}])})
 }
 
-const rows = () => [...document.querySelectorAll(".flag-founded")].map((row) => row.textContent)
+const rows = () => [...document.querySelectorAll(".flag-row")].map((row) => row.textContent)
+const names = () => [...document.querySelectorAll(".flag-row-name")].map((name) => name.textContent)
+const rowNamed = (name: string) => [...document.querySelectorAll<HTMLButtonElement>(".flag-row-open")]
+    .find((row) => row.querySelector(".flag-row-name")?.textContent === name)!
 
 afterEach(() => {
     cleanup()
@@ -63,11 +67,13 @@ afterEach(() => {
     useFlagSubmissions.setState(useFlagSubmissions.getInitialState(), true)
     useShop.setState(useShop.getInitialState(), true)
     useFlags.setState({catalog: FlagCatalog.BUILT_IN})
+    useDismissedFlagRows.setState({dismissed: new Set()})
+    window.localStorage.clear()
     vi.restoreAllMocks()
 })
 
 describe("the account's flags", () => {
-    it("list each flag held, then each flag sent that did not open, under a new flag", () => {
+    it("list each flag held, then each flag sent that did not open, one line each, under a new flag", () => {
         flagIs("open")
         useShop.setState({plans: PLANS})
         read([
@@ -75,21 +81,23 @@ describe("the account's flags", () => {
             submission({id: "s-2", name: "Franconia", state: "rejected", rejection: {reason: "unreadable", note: "Too small."}}),
             submission({state: "opened", flag: FLAG}),
         ], [{code: FLAG}])
-        render(<FlagHub shop={shop()}/>)
+        render(<FlagHub/>)
 
         expect(screen.getByRole("dialog", {name: "Your flags"})).not.toBeNull()
         expect(screen.getByRole("button", {name: "Add a new flag"})).not.toBeNull()
-        expect([...document.querySelectorAll(".flag-founded")].map((row) => row.querySelector(".chip")?.textContent))
-            .toEqual(["Open", "Waiting", "Rejected"])
-        expect(rows()[0]).toBe(`BavariaEnds on ${dateOf(ENDS_AT)}OpenAdd time`)
-        expect(screen.getByText("Too small.")).not.toBeNull()
-        expect(screen.getByRole("link", {name: "Think we got it wrong? Ask a person to look again."}).getAttribute("href"))
-            .toBe("mailto:support@clickplanet.lol?subject=Look%20again%20at%20my%20flag%20Franconia")
+        expect(rows()).toEqual([
+            `BavariaEnds on ${dateOf(ENDS_AT)}`,
+            "SwabiaWe check it after you pay.",
+            "FranconiaIt is hard to read at the size of a tile.",
+        ])
+        expect(document.querySelector(".chip"), "the line says the state").toBeNull()
+        expect(screen.queryByText("Too small."), "the verdict's page has the note").toBeNull()
+        expect(screen.queryByRole("radio"), "the flag's page has the plans").toBeNull()
     })
 
     it("open a new flag in the place of the one that waits unpaid", async () => {
         read([submission({name: "Sardinia"})])
-        render(<FlagHub shop={shop()}/>)
+        render(<FlagHub/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Add a new flag"}))
 
@@ -98,87 +106,83 @@ describe("the account's flags", () => {
         })
     })
 
-    it("change a flag that waits unpaid, and pay for one approved on its paywall", async () => {
-        useShop.setState({plans: PLANS})
-        const approved = submission({id: "s-2", state: "approved", picture: PICTURE})
-        read([submission(), approved])
-        render(<FlagHub shop={shop()}/>)
-        const user = userEvent.setup()
-
-        await user.click(screen.getByRole("button", {name: "Change"}))
-        expect(useFlagForm.getState()).toMatchObject({step: {kind: "make"}, draft: {name: "Bavaria", pinned: {pin: PIN}, replaces: "s-1"}})
-
-        await user.click(screen.getAllByRole("button", {name: "Pay"})[1])
-        expect(useFlagForm.getState()).toMatchObject({step: {kind: "pay", submission: approved}})
-    })
-
-    it("open the pay page of a flag held to add time, never the plans in the list", async () => {
+    it("open a flag sent on its paywall, and a flag held on its own page", async () => {
         flagIs("closed")
         useShop.setState({plans: PLANS})
-        read([], [{code: FLAG}])
-        render(<FlagHub shop={shop()}/>)
-
-        expect(rows()[0]).toBe(`BavariaClosed on ${dateOf(CLOSED_AT)}ClosedAdd time`)
-        await userEvent.setup().click(screen.getByRole("button", {name: "Add time"}))
-
-        expect(useFlagForm.getState().step).toEqual({kind: "flag", flag: FLAG, fromHub: true})
-        expect(screen.queryByRole("radio")).toBeNull()
-    })
-
-    it("say when a renewal pays next in place of Add time, and stop it, which brings Add time back", async () => {
-        flagIs("open")
-        read([submission({state: "opened", flag: FLAG})], [{code: FLAG}])
-        const renews: Renewal = {id: "r-1", plan: "month", target: {kind: "submission", id: "s-1"}, state: "renewing", periodEndsAt: ENDS_AT}
-        useShop.setState({plans: PLANS, renewals: [renews]})
-        const sells = shop({stopRenewal: vi.fn(async () => ({...renews, state: "stopping" as const}))})
-        render(<FlagHub shop={sells}/>)
+        const approved = submission({id: "s-2", name: "Swabia", state: "approved", picture: PICTURE})
+        read([approved], [{code: FLAG}])
+        render(<FlagHub/>)
         const user = userEvent.setup()
 
-        expect(screen.getByText(`Renews on ${dateOf(ENDS_AT)}`)).not.toBeNull()
-        expect(screen.queryByRole("button", {name: "Add time"})).toBeNull()
-        await user.click(screen.getByRole("button", {name: "Stop renewal"}))
+        await user.click(rowNamed("Swabia"))
+        expect(useFlagForm.getState()).toMatchObject({step: {kind: "pay", submission: approved}})
 
-        expect(sells.stopRenewal).toHaveBeenCalledWith("r-1")
-        expect(screen.getByText(`Ends on ${dateOf(ENDS_AT)}`)).not.toBeNull()
-        expect(screen.getByRole("button", {name: "Add time"}), "a renewal stopping charges no more").not.toBeNull()
+        await user.click(rowNamed("Bavaria"))
+        expect(useFlagForm.getState().step).toEqual({kind: "flag", flag: FLAG, fromHub: true})
     })
 
-    it("say a renewal that did not stop in one line, and keep it", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        flagIs("open")
-        read([], [{code: FLAG}])
-        const renews: Renewal = {id: "r-1", plan: "year", target: {kind: "flag", flag: FLAG}, state: "renewing", periodEndsAt: ENDS_AT}
-        useShop.setState({plans: PLANS, renewals: [renews]})
-        render(<FlagHub shop={shop({stopRenewal: vi.fn(async () => Promise.reject(new Error("offline")))})}/>)
+    it("show a flag sent once: the newest of a name, and none of a name the account holds", () => {
+        flagIs("closed")
+        read([
+            submission({id: "s-4", name: "kurdistan", state: "rejected", rejection: {reason: "exists", note: ""}}),
+            submission({id: "s-3", name: "Kurdistan", state: "rejected", rejection: {reason: "hateful", note: ""}}),
+            submission({id: "s-2", name: "Bavaria", state: "rejected", rejection: {reason: "exists", note: ""}}),
+            submission({state: "opened", flag: FLAG}),
+        ], [{code: FLAG}])
+        render(<FlagHub/>)
 
-        await userEvent.setup().click(screen.getByRole("button", {name: "Stop renewal"}))
-
-        expect(screen.getByRole("alert").textContent).toBe("The renewal did not stop. Try again.")
+        expect(names()).toEqual(["Bavaria", "kurdistan"])
     })
 
-    it("show a removed flag with the day and the operator's note, and nothing to pay", () => {
+    it("put away a row that is done, for good in this browser, and never one that waits", async () => {
         flagIs("removed")
-        useShop.setState({plans: PLANS})
-        read([], [{code: FLAG, removalNote: "A club's crest."}])
-        render(<FlagHub shop={shop()}/>)
+        read([
+            submission({id: "s-3", name: "Swabia"}),
+            submission({id: "s-2", name: "Sardinia", state: "approved"}),
+        ], [{code: FLAG, removalNote: "A club's crest."}])
+        const view = render(<FlagHub/>)
+        const user = userEvent.setup()
+        const before = useFlagForm.getState().step
 
-        expect(rows()[0]).toBe(`BavariaRemoved on ${dateOf(CLOSED_AT)}RemovedA club's crest.`)
-        expect(screen.queryByRole("button", {name: "Add time"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Hide Swabia"})).toBeNull()
+        await user.click(screen.getByRole("button", {name: "Hide Sardinia"}))
+        await user.click(screen.getByRole("button", {name: "Hide Bavaria"}))
+        expect(names()).toEqual(["Swabia"])
+        expect(useFlagForm.getState().step, "a row put away opens nothing").toBe(before)
+
+        view.unmount()
+        expect(JSON.parse(window.localStorage.getItem("clickplanet-flag-rows-dismissed") ?? "[]")).toEqual(["s-2", `flag:${FLAG}`])
     })
 
-    it("show no time and no Add time while the shop is off", () => {
+    it("bring back a flag held once it is open again, though it was put away removed", async () => {
+        flagIs("removed")
+        read([], [{code: FLAG, removalNote: "A club's crest."}])
+        render(<FlagHub/>)
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Hide Bavaria"}))
+        expect(rows()).toEqual([])
+
+        act(() => flagIs("open"))
+        expect(names()).toEqual(["Bavaria"])
+    })
+
+    it("show no time while the shop is off, but the day a flag was removed", () => {
         flagIs("open")
         read([], [{code: FLAG}])
-        render(<FlagHub shop={shop()}/>)
+        const view = render(<FlagHub/>)
 
-        expect(screen.queryByRole("button", {name: "Add time"})).toBeNull()
-        expect(screen.queryByText(/^Ends on/)).toBeNull()
+        expect(rows()).toEqual(["Bavaria"])
+
+        view.unmount()
+        flagIs("removed")
+        render(<FlagHub/>)
+        expect(rows()).toEqual([`BavariaRemoved on ${dateOf(CLOSED_AT)}`])
     })
 
     it("leave a flag another player claimed out", () => {
         flagIs("open")
         read([submission({state: "opened", flag: FLAG})], [])
-        render(<FlagHub shop={shop()}/>)
+        render(<FlagHub/>)
 
         expect(rows()).toEqual([])
     })
@@ -197,9 +201,33 @@ describe("a flag's pay page", () => {
         expect(document.querySelector(".flag-card-name")?.textContent).toBe("Bavaria")
         expect(screen.getByRole("status").textContent).toBe(`Ends on ${dateOf(ENDS_AT)}`)
         await user.click(screen.getByRole("radio", {name: /1 week/}))
-        await user.click(screen.getByRole("checkbox"))
+        await user.click(screen.getByRole("checkbox", {name: "I want my time added as soon as I pay. I know I can't cancel once it's added."}))
         await user.click(screen.getByRole("button", {name: "Pay €4"}))
         expect(sells.checkout).toHaveBeenCalledWith({plan: "week", target: {kind: "flag", flag: FLAG}, startsNow: true})
+    })
+
+    it("starts a flag held whose time ended once it is paid", () => {
+        flagIs("closed")
+        useShop.setState({plans: PLANS})
+        read([], [{code: FLAG}])
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+
+        expect(screen.getByRole("dialog", {name: "Add time"})).not.toBeNull()
+        expect(screen.getByRole("status").textContent).toBe(`Closed on ${dateOf(CLOSED_AT)}`)
+        expect(screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."})).not.toBeNull()
+    })
+
+    it("asks again when the flag closes under a box ticked for added time", async () => {
+        flagIs("open")
+        useShop.setState({plans: PLANS})
+        read([], [{code: FLAG}])
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        await userEvent.setup().click(screen.getByRole("checkbox", {name: "I want my time added as soon as I pay. I know I can't cancel once it's added."}))
+
+        act(() => flagIs("closed"))
+
+        const consent = screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."})
+        expect((consent as HTMLInputElement).checked).toBe(false)
     })
 
     it("goes back to the account's flags", async () => {
@@ -213,6 +241,56 @@ describe("a flag's pay page", () => {
         expect(useFlagForm.getState().step).toEqual({kind: "hub"})
     })
 
+    it("says when a renewal pays next in place of the plans, and stops it, which brings the plans back", async () => {
+        flagIs("open")
+        read([submission({state: "opened", flag: FLAG})], [{code: FLAG}])
+        const renews: Renewal = {id: "r-1", plan: "month", target: {kind: "submission", id: "s-1"}, state: "renewing", periodEndsAt: ENDS_AT}
+        useShop.setState({plans: PLANS, renewals: [renews]})
+        const sells = shop({stopRenewal: vi.fn(async () => ({...renews, state: "stopping" as const}))})
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={sells} toCheckout={vi.fn()}/>)
+        const user = userEvent.setup()
+
+        expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
+        expect(screen.getByRole("status").textContent).toBe(`Renews on ${dateOf(ENDS_AT)}`)
+        expect(screen.queryByRole("radio")).toBeNull()
+        expect(screen.getByRole("button", {name: "Back"})).not.toBeNull()
+        await user.click(screen.getByRole("button", {name: "Stop renewal"}))
+
+        expect(sells.stopRenewal).toHaveBeenCalledWith("r-1")
+        expect(screen.getByRole("status").textContent).toBe(`Ends on ${dateOf(ENDS_AT)}`)
+        expect(screen.getByRole("dialog", {name: "Add time"}), "a renewal stopping charges no more").not.toBeNull()
+        expect(screen.queryByRole("button", {name: "Stop renewal"})).toBeNull()
+    })
+
+    it("says a renewal that did not stop in one line, and keeps it", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        flagIs("open")
+        read([], [{code: FLAG}])
+        const renews: Renewal = {id: "r-1", plan: "year", target: {kind: "flag", flag: FLAG}, state: "renewing", periodEndsAt: ENDS_AT}
+        useShop.setState({plans: PLANS, renewals: [renews]})
+        const refuses = shop({stopRenewal: vi.fn(async () => Promise.reject(new Error("offline")))})
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={refuses} toCheckout={vi.fn()}/>)
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Stop renewal"}))
+
+        expect(screen.getByRole("alert").textContent).toBe("The renewal did not stop. Try again.")
+        expect(screen.getByRole("status").textContent).toBe(`Renews on ${dateOf(ENDS_AT)}`)
+    })
+
+    it("shows a removed flag held with the day and the operator's note, and nothing to pay", () => {
+        flagIs("removed")
+        useShop.setState({plans: PLANS})
+        read([], [{code: FLAG, removalNote: "A club's crest."}])
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+
+        expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
+        expect(screen.getByRole("status").textContent).toBe(`Removed on ${dateOf(CLOSED_AT)}`)
+        expect(screen.getByText("A club's crest.")).not.toBeNull()
+        expect(document.querySelector(".chip"), "the line says the state").toBeNull()
+        expect(screen.queryByRole("radio")).toBeNull()
+        expect(screen.getByRole("button", {name: "Back"})).not.toBeNull()
+    })
+
     it("claims a flag whose time ended, for the flag, and offers nothing once it opened for another", async () => {
         flagIs("closed")
         useShop.setState({plans: PLANS})
@@ -223,7 +301,7 @@ describe("a flag's pay page", () => {
 
         expect(screen.getByRole("dialog", {name: "Claim Bavaria"})).not.toBeNull()
         await user.click(screen.getByRole("radio", {name: /1 month/}))
-        await user.click(screen.getByRole("checkbox"))
+        await user.click(screen.getByRole("checkbox", {name: "I want my flag to start as soon as I pay. I know I can't cancel once it starts."}))
         await user.click(screen.getByRole("button", {name: "Pay €10"}))
         expect(sells.checkout).toHaveBeenCalledWith({plan: "month", target: {kind: "flag", flag: FLAG}, startsNow: true})
 

@@ -81,6 +81,37 @@ export type MyFlags = {submissions: Submission[], held: Held[]}
 
 export const NO_FLAGS: MyFlags = {submissions: [], held: []}
 
+// A row of the account's flags: a flag it holds, or a flag it sent that did not open. Its key names it in what the player
+// dismissed.
+export type FlagRow = {kind: "held", held: Held, key: string} | {kind: "sent", submission: Submission, key: string}
+
+// The account's flags as rows: each flag held, then each flag sent whose flag did not open, the newest of a name, and
+// none of a name the account holds now. A row the player dismissed goes while it stays done.
+export function flagRowsOf(
+    {submissions, held}: {submissions: readonly Submission[], held: readonly Held[]},
+    catalog: FlagCatalog,
+    dismissed: ReadonlySet<string>,
+): FlagRow[] {
+    const shown = (row: FlagRow) => !(dismissable(row, catalog) && dismissed.has(row.key))
+    const rows: FlagRow[] = held.map((flag) => ({kind: "held" as const, held: flag, key: `flag:${flag.code}`})).filter(shown)
+    const seen = new Set(held.flatMap(({code}) => catalog.openedName(code)?.toLowerCase() ?? []))
+    for (const submission of submissions) {
+        const name = submission.name.toLowerCase()
+        if (submission.state === "opened" || seen.has(name)) continue
+        seen.add(name)
+        const row: FlagRow = {kind: "sent", submission, key: submission.id}
+        if (shown(row)) rows.push(row)
+    }
+    return rows
+}
+
+// Done, so the player may put it away: a flag removed, a flag rejected, an approved one left unpaid.
+export function dismissable(row: FlagRow, catalog: FlagCatalog): boolean {
+    if (row.kind === "held") return catalog.soldOf(row.held.code)?.removed === true
+    const {state, paid} = row.submission
+    return state === "rejected" || (state === "approved" && !paid)
+}
+
 // One submission waits at a time: a new flag takes the place of one that waits unpaid. A paid one is not replaced.
 export function replacedByNewOf(submissions: readonly Submission[]): Submission | undefined {
     return submissions.find((submission) => changeable(submission))

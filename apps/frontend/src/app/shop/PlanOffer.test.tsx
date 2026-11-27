@@ -30,14 +30,14 @@ const plan = (name: RegExp) => screen.getByRole("radio", {name})
 
 describe("PlanOffer", () => {
     it("shows nothing with no plans", () => {
-        const {container} = render(<PlanOffer shop={shopOf()} plans={[]} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+        const {container} = render(<PlanOffer shop={shopOf()} plans={[]} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={vi.fn()}/>)
 
         expect(container.textContent).toBe("")
         expect(screen.queryByRole("button")).toBeNull()
     })
 
     it("puts the plans side by side, each priced by the day, the best value picked", () => {
-        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={vi.fn()}/>)
 
         expect(screen.getAllByRole("radio").map((card) => card.textContent)).toEqual([
             "1 week€4Paid once€0.58 / day",
@@ -52,7 +52,7 @@ describe("PlanOffer", () => {
     it("crosses out each price during a sale, shows the sale's under it with its cut and its clock, and Pays that", () => {
         const sold: PlanPrice[] = [PLANS[0], PLANS[1], {...PLANS[2], amount: 6000}]
         useShop.setState({sale: {percentOff: 50, endsAt: Date.now() + (2 * 24 * 3600 + 4 * 3600 + 12 * 60 + 9) * 1000}})
-        render(<PlanOffer shop={shopOf()} plans={sold} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+        render(<PlanOffer shop={shopOf()} plans={sold} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={vi.fn()}/>)
 
         expect(screen.getAllByRole("radio").map((card) => card.textContent)).toEqual([
             "1 week€4€2Paid once-50%€0.29 / day",
@@ -68,7 +68,7 @@ describe("PlanOffer", () => {
     it("asks for the consent before Pay, then sends the plan picked and the target and goes to Stripe's page", async () => {
         const checkout = vi.fn(async () => "https://checkout.stripe.com/c/pay/cs_1")
         const toCheckout = vi.fn()
-        render(<PlanOffer shop={shopOf(checkout)} plans={PLANS} target={{kind: "submission", id: "s-1"}} toCheckout={toCheckout}/>)
+        render(<PlanOffer shop={shopOf(checkout)} plans={PLANS} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={toCheckout}/>)
         const user = userEvent.setup()
 
         await user.click(plan(/1 month/))
@@ -88,11 +88,11 @@ describe("PlanOffer", () => {
     })
 
     it("keeps the plan picked for the next offer", async () => {
-        const {unmount} = render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+        const {unmount} = render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={vi.fn()}/>)
         await userEvent.setup().click(plan(/1 week/))
         unmount()
 
-        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} toCheckout={vi.fn()}/>)
+        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} starts="added" toCheckout={vi.fn()}/>)
         expect(plan(/1 week/).getAttribute("aria-checked")).toBe("true")
         expect(screen.getByText("Secure payment by Stripe")).not.toBeNull()
     })
@@ -102,7 +102,7 @@ describe("PlanOffer", () => {
             throw new ShopRefusedError("unavailable")
         })
         const toCheckout = vi.fn()
-        render(<PlanOffer shop={shopOf(checkout)} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} toCheckout={toCheckout}/>)
+        render(<PlanOffer shop={shopOf(checkout)} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} starts="added" toCheckout={toCheckout}/>)
         const user = userEvent.setup()
 
         await user.click(plan(/1 week/))
@@ -120,7 +120,7 @@ describe("PlanOffer", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         render(<PlanOffer shop={shopOf(vi.fn(async (): Promise<string> => {
             throw new Error("offline")
-        }))} plans={PLANS} target={{kind: "submission", id: "s-1"}} toCheckout={vi.fn()}/>)
+        }))} plans={PLANS} target={{kind: "submission", id: "s-1"}} starts="approved" toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         await user.click(screen.getByRole("checkbox"))
@@ -131,7 +131,7 @@ describe("PlanOffer", () => {
 
     it("goes back to what was there", async () => {
         const onBack = vi.fn()
-        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} toCheckout={vi.fn()} onBack={onBack}/>)
+        render(<PlanOffer shop={shopOf()} plans={PLANS} target={{kind: "flag", flag: "r-k3p9x2ma0b"}} starts="added" toCheckout={vi.fn()} onBack={onBack}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Back"}))
         expect(onBack).toHaveBeenCalledTimes(1)
