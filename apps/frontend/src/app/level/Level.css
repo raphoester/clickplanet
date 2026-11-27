@@ -97,7 +97,7 @@
     margin: var(--space-1) 0 0;
     padding: 0;
     list-style: none;
-    text-align: left;
+    text-align: start;
 }
 
 .xp-help-ways li {
@@ -106,7 +106,7 @@
 
 .xp-help-rate {
     color: var(--xp);
-    text-align: right;
+    text-align: end;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }

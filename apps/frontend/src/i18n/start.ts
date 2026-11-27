@@ -1,4 +1,5 @@
-import {chooseLanguage} from "./languages.ts"
+import {loadDisplayFace} from "./displayFace.ts"
+import {chooseLanguage, directionOf} from "./languages.ts"
 import {translatorFor} from "./load.ts"
 import {speak} from "./page.ts"
 import {readPickedLanguage} from "./pickedLanguage.ts"
@@ -15,5 +16,7 @@ export async function speakChosenLanguage(): Promise<Translator> {
     })
     speak(translator)
     document.documentElement.lang = translator.language
+    document.documentElement.dir = directionOf(translator.language)
+    loadDisplayFace(translator.language)
     return translator
 }

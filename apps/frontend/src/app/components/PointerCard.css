@@ -4,7 +4,7 @@
     box-sizing: border-box;
     width: 288px;
     max-width: calc(100vw - 24px);
-    text-align: left;
+    text-align: start;
     animation: pointer-card-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

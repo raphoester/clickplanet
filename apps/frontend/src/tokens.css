@@ -1,3 +1,29 @@
+/* Luckiest Guy draws Latin alone, and Rubik not Vietnamese: a language in another script draws the game's words in a
+   heavy face of its own, loaded for that language alone (i18n/displayFace.ts). */
+:root:lang(ru), :root:lang(bg) {
+    --font-display: "Nunito", "Rubik", system-ui, sans-serif;
+}
+
+:root:lang(vi), :root:lang(hi) {
+    --font-display: "Baloo 2", system-ui, sans-serif;
+}
+
+:root:lang(vi) {
+    --font-text: system-ui, sans-serif;
+}
+
+:root:lang(ar) {
+    --font-display: "Baloo Bhaijaan 2", "Rubik", system-ui, sans-serif;
+}
+
+:root:lang(ja) {
+    --font-display: "M PLUS Rounded 1c", system-ui, sans-serif;
+}
+
+:root:lang(zh) {
+    --font-display: "Noto Sans SC", system-ui, sans-serif;
+}
+
 :root {
     --font-display: "Luckiest Guy", "Rubik", system-ui, sans-serif;
     --font-text: "Rubik", system-ui, sans-serif;

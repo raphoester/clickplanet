@@ -38,6 +38,10 @@ Two families, and each has one job.
 - **A player's words are never set in the display face.** Luckiest Guy has
   capitals only and Latin only: a Bulgarian username would come out in two
   fonts, half of it lowercase. Rubik covers Latin, Cyrillic, Hebrew and Arabic.
+- **A language Luckiest Guy cannot draw** (Cyrillic, Arabic, Devanagari, Chinese,
+  Japanese, Vietnamese) sets `--font-display` to a heavy face of its own in
+  `tokens.css`; `src/i18n/displayFace.ts` loads it for that language alone (see
+  [`docs/i18n.md`](docs/i18n.md#the-display-face)).
 - **Sentence case, and no letter-spaced capitals.** Tracked uppercase labels in
   a condensed face are what made the old menus read as a generic dashboard.
 - **Sizes are tokens**: `--text-xs` to `--text-l` for Rubik, `--display-s` to

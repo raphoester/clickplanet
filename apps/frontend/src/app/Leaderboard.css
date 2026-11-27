@@ -44,7 +44,7 @@
 
 .leaderboard-table-number {
     width: 66px;
-    text-align: right;
+    text-align: end;
     padding-left: var(--space-3);
 }
 
@@ -67,7 +67,7 @@
 .leaderboard-table-today {
     width: 45px;
     padding-left: 10px;
-    text-align: left;
+    text-align: start;
 }
 
 .leaderboard-table :is(th, td):last-child {
@@ -163,7 +163,7 @@
     font-weight: 600;
     font-size: var(--text-xs);
     color: var(--text-muted);
-    text-align: right;
+    text-align: end;
     text-shadow: none;
 }
 

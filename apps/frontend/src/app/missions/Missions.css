@@ -95,7 +95,7 @@
     min-width: 52px;
     font-size: var(--text-s);
     font-variant-numeric: tabular-nums;
-    text-align: right;
+    text-align: end;
     color: var(--text-soft);
 }
 

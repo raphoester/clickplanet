@@ -1,10 +1,13 @@
-export const LANGUAGES = ["en", "fr", "de", "tr", "pt-BR", "pl", "id", "es", "cs"] as const
+export const LANGUAGES = [
+    "en", "fr", "de", "tr", "pt-BR", "pl", "id", "es", "cs",
+    "ru", "bg", "sv", "hu", "ar", "hi", "vi", "ms", "zh-Hans", "ja",
+] as const
 
 export type Language = typeof LANGUAGES[number]
 
 export const SOURCE_LANGUAGE: Language = "en"
 
-// Slovak players read Czech; every Portuguese and Spanish reads the one we have.
+// Slovak players read Czech; every Portuguese, Spanish and Chinese reads the one we have.
 const BY_PRIMARY: Readonly<Record<string, Language>> = {
     en: "en",
     fr: "fr",
@@ -16,6 +19,22 @@ const BY_PRIMARY: Readonly<Record<string, Language>> = {
     es: "es",
     cs: "cs",
     sk: "cs",
+    ru: "ru",
+    bg: "bg",
+    sv: "sv",
+    hu: "hu",
+    ar: "ar",
+    hi: "hi",
+    vi: "vi",
+    ms: "ms",
+    zh: "zh-Hans",
+    ja: "ja",
+}
+
+const RIGHT_TO_LEFT: ReadonlySet<Language> = new Set(["ar"])
+
+export function directionOf(language: Language): "ltr" | "rtl" {
+    return RIGHT_TO_LEFT.has(language) ? "rtl" : "ltr"
 }
 
 export function languageOf(tag: string | null | undefined): Language | undefined {

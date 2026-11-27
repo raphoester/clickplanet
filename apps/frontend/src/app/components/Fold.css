@@ -19,7 +19,7 @@
     font-size: var(--display-m);
     line-height: 1;
     color: var(--gold);
-    text-align: left;
+    text-align: start;
     text-shadow: var(--text-drop);
     cursor: pointer;
 }

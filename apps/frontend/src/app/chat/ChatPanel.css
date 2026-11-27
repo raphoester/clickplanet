@@ -78,7 +78,7 @@
     background: transparent;
     color: var(--text);
     cursor: pointer;
-    text-align: left;
+    text-align: start;
 }
 
 .chat-header:hover {
@@ -287,7 +287,7 @@
 
 .chat-fold {
     flex-shrink: 0;
-    margin-left: auto;
+    margin-inline-start: auto;
 }
 
 .chat-players {
@@ -428,7 +428,7 @@
     padding: 0;
     border: none;
     background: none;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
     animation: chat-toast-in 0.3s ease-out, chat-toast-out 0.4s ease-in 3.6s forwards;
 }
@@ -719,7 +719,7 @@
     border: var(--outline-thin) solid var(--ink);
     border-radius: var(--radius-s) var(--radius-s) var(--radius-s) var(--radius-xs);
     background: var(--panel-raised);
-    text-align: left;
+    text-align: start;
 }
 
 button.chat-quote {

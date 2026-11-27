@@ -35,7 +35,7 @@
     font-size: var(--display-m);
     color: var(--text);
     text-shadow: var(--text-drop);
-    text-align: left;
+    text-align: start;
 }
 
 .input-select:focus-visible {

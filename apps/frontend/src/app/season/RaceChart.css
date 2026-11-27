@@ -39,7 +39,7 @@
 .race-day {
     flex-grow: 1;
     white-space: nowrap;
-    text-align: right;
+    text-align: end;
     font-family: var(--font-display);
     font-size: var(--display-s);
     color: var(--gold);
@@ -142,7 +142,7 @@ g.race-line {
 .race-key-rank {
     flex: none;
     width: 1.2em;
-    text-align: right;
+    text-align: end;
     font-family: var(--font-text);
     font-weight: 700;
     font-size: var(--text-s);
@@ -183,7 +183,7 @@ g.race-line {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    text-align: left;
+    text-align: start;
 }
 
 .race-bubble-who {

@@ -71,5 +71,5 @@
 
 .video-failed {
     margin: var(--space-2) 0 var(--space-4) 0;
-    text-align: left;
+    text-align: start;
 }

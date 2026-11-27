@@ -18,7 +18,7 @@
 }
 
 .profile {
-    text-align: left;
+    text-align: start;
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
@@ -149,7 +149,7 @@
 .profile-section-title,
 .profile-front-title {
     margin: 0;
-    text-align: left;
+    text-align: start;
     padding-top: 3px;
     font-family: var(--font-display);
     font-weight: normal;
@@ -230,7 +230,7 @@
     padding: var(--space-2) var(--space-3);
     color: var(--text);
     font: inherit;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
 }
 

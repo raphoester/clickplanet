@@ -102,11 +102,13 @@ distance. Its scrollbar sits in that padding, so the text has as much room on
 the right as on the left. The panel is 376px wide: a 328px column of text. A `Modal` given no `onClose` has no ×,
 and Escape and the backdrop leave it open: the warning before an alt ban is one.
 
-## Words in nine languages
+## Words in every language
 
-**A box that holds a word is as wide as the word**, never a fixed width: the page speaks nine languages, and
+**A box that holds a word is as wide as the word**, never a fixed width: the page speaks nineteen languages, and
 German, Polish and Brazilian Portuguese run up to 30% longer than English ("Classement", "Compartilhar",
-"Doładowanie"). Found by measuring every panel in every language at 360px, 390px and 1280px wide (Nov 2026).
+"Doładowanie"). Found by measuring every panel in every language at 360px, 390px and 1280px wide (Nov 2026, the first
+nine). A side is `start` or `end`, never `left` or `right`, since Arabic mirrors the page
+([Right to left](i18n.md#right-to-left)).
 
 - **A row of tabs or slots** sizes each to its word and shares the room left: the desktop rail (`min-width`). The
   phone's tab bar has no words: its six tabs sized to "Classement" and "Chat" were uneven, so each is an icon alone,
