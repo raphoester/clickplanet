@@ -59,11 +59,12 @@ const float MINE_FOOT_SIZE = 0.5;
 const float MINE_FOOT_LIT = 0.1;
 
 // A trap of the page's flag, which only its players see: an open set of steel jaws, their teeth in, on two hinges, round
-// a --trap plate. Still, as the mine. On a shielded tile it steps down to the shield's tip as the mine does, and its plate
+// a --trap plate on a white face. Still, as the mine. On a shielded tile it steps down to the shield's tip as the mine does, and its plate
 // grows there, as at that size it is what says "trap".
 const vec3 TRAP = vec3(0.910, 0.525, 0.165);
 const vec3 TRAP_STEEL = vec3(0.70, 0.74, 0.79);
 const vec3 TRAP_DARK = vec3(0.05, 0.06, 0.08);
+const vec3 TRAP_FACE = vec3(1.0);
 const float TRAP_OUTER = 0.25;
 const float TRAP_ROOT = 0.19;
 const float TRAP_TIP = 0.12;
@@ -173,11 +174,13 @@ vec4 trapped(vec4 colour, vec2 tile, float shown, vec2 at, float size, float foo
     float plateSize = mix(TRAP_PLATE, TRAP_FOOT_PLATE, foot);
     float plate = 1.0 - smoothstep(plateSize - pixel, plateSize + pixel, r);
     float plateRim = 1.0 - smoothstep(plateSize + TRAP_OUTLINE - pixel, plateSize + TRAP_OUTLINE + pixel, r);
+    float face = (1.0 - smoothstep(inner - TRAP_OUTLINE - pixel, inner - TRAP_OUTLINE + pixel, r)) * shown;
     float dark = max(max(outlined, hinge), plateRim) * shown;
-    vec3 rgb = mix(colour.rgb, TRAP_DARK, dark);
+    vec3 rgb = mix(colour.rgb, TRAP_FACE, face);
+    rgb = mix(rgb, TRAP_DARK, dark);
     rgb = mix(rgb, TRAP_STEEL, jaws * shown);
     rgb = mix(rgb, TRAP, plate * shown);
-    return vec4(rgb, max(colour.a, dark));
+    return vec4(rgb, max(colour.a, max(dark, face)));
 }
 
 // Everything a tile shows, in a disc of radius 0.5.

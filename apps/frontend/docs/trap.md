@@ -25,7 +25,7 @@ the version it is known at takes it off, a bomb's strike too, and a map of anoth
 every mine and trap when it plays for another flag (`forgetMarks`).
 
 **A trapped tile is drawn with its trap** (the pulse slot's seventh bit, `TRAP_MARK`, 64): an open set of steel jaws,
-their teeth in, on two hinges, round a `--trap` plate. It is still, as the mine is (see [Drawing only when something
+their teeth in, on two hinges, round a `--trap` plate on a white face (no flag shows inside the jaws). It is still, as the mine is (see [Drawing only when something
 changed](render-on-demand.md)). **On a shielded tile it steps down to the shield's tip** at half its size, as the mine
 does, and its plate grows there; a capital's tile stacks the crown, the count and the trap, top to bottom. **A tile with
 a mine and a trap draws them side by side**, the mine on the left, each at 0.7 of its size (`PAIR_SIZE`,
