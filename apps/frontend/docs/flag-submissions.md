@@ -153,8 +153,8 @@ its clock while a sale runs (see [The shop](shop.md#a-sale)). **Pay never waits 
   plan, no Back and no change (`changeable` and `payable` leave out an `appealed` one; a new flag does not replace
   it). A refusal is one line under it: one waits already, "A person can't look at this flag again." (the operator's
   rejection, a second ask, a picture deleted 30 days after the rejection), or "It did not send. Try again.". The
-  operator's rejection after it is final: no button. **No plan shows, before any payment.** "Fix it" goes back to step 1 with the name, the capital and the picture typed: a
-  decided submission is not replaced, so it sends a new one.
+  operator's rejection after it is final: no button. **No plan shows, before any payment.** "Fix it" goes back to
+  step 1 with the name, the capital and the picture typed: a decided submission is not replaced, so it sends a new one.
 - **Appealed**: "A person is looking at it again." until the team's verdict; an approval asks to pay, as above.
 - **Paid**: "Paid! We check your flag, then it opens.", "Approved! It opens now." the moment before the flags stream
   tells it open, then "Bavaria is in the game!": no plan and no Back.
