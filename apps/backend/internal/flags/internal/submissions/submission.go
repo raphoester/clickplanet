@@ -24,6 +24,9 @@ var (
 	ErrNotPayable   = errors.New("a rejected submission is not paid for")
 	ErrPaidAlready  = errors.New("the submission's time is paid already")
 	ErrPaid         = errors.New("a submission paid for is not changed")
+	ErrAppealed     = errors.New("a submission a person looks at again is not changed")
+	ErrNotRejected  = errors.New("only a rejected submission is looked at again")
+	ErrPictureGone  = errors.New("the rejected picture was deleted: nothing is left to look at again")
 )
 
 // A rejected picture is deleted this long after the rejection. It never became public.
@@ -80,7 +83,9 @@ type Submission struct {
 	others  pictures.OtherColors
 	held    bool
 	paid    bool
-	state   State
+	// Its player asked a person to look again at the judge's rejection.
+	appealed bool
+	state    State
 	// Only a rejected one.
 	rejection   Rejection
 	submittedAt time.Time
@@ -97,6 +102,8 @@ func Submit(
 		switch {
 		case submission.id == draft.Replaces && submission.state == Waiting && submission.paid:
 			return Submission{}, nil, fmt.Errorf("%w: %s", ErrPaid, submission.id)
+		case submission.id == draft.Replaces && submission.state == Waiting && submission.appealed:
+			return Submission{}, nil, fmt.Errorf("%w: %s", ErrAppealed, submission.id)
 		case submission.id == draft.Replaces && submission.state == Waiting:
 			replaced = append(replaced, submission.id)
 		case submission.state == Waiting:
@@ -143,6 +150,32 @@ func (s Submission) Rejected(rejection Rejection, at time.Time) (Submission, err
 	return s, nil
 }
 
+// Reopened is a rejected submission waiting again for a person, at its founder's appeal, while its picture is held: one
+// of the account's submissions waits at a time.
+func (s Submission) Reopened(account catalog.AccountID, founded []Submission, at time.Time) (Submission, error) {
+	switch {
+	case s.account != account:
+		return s, fmt.Errorf("%w: %s", ErrNotYours, s.id)
+	case s.state != Rejected:
+		return s, fmt.Errorf("%s is %s: %w", s.id, s.state, ErrNotRejected)
+	case !s.held:
+		return s, fmt.Errorf("%w: %s", ErrPictureGone, s.id)
+	}
+	for _, other := range founded {
+		if other.id != s.id && other.state == Waiting {
+			return s, fmt.Errorf("%w: %s", ErrWaiting, other.id)
+		}
+	}
+	s.state, s.decidedAt, s.rejection, s.appealed = Waiting, at, Rejection{}, true
+	return s, nil
+}
+
+// PaidFor is the submission once a payment's time is held for it.
+func (s Submission) PaidFor() Submission {
+	s.paid = true
+	return s
+}
+
 // Open opens the flag of an approved submission, at its pin, with its name and picture, held by its founder, unless a
 // flag took its name since.
 func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt time.Time) (Submission, catalog.Flag, error) {
@@ -187,6 +220,11 @@ func (s Submission) Waiting() bool {
 	return s.state == Waiting
 }
 
+// WaitsPaidFor is true while it waits with its time paid: the operator reviews it while the shop sells.
+func (s Submission) WaitsPaidFor() bool {
+	return s.state == Waiting && s.paid
+}
+
 // OpenedFlag is the flag opened from the submission, once one was.
 func (s Submission) OpenedFlag() (catalog.FlagID, bool) {
 	return s.flag, s.state == Opened
@@ -220,7 +258,8 @@ func (s Submission) PictureDeleted(now time.Time) (Submission, bool) {
 func (s Submission) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: s.id, Account: s.account, Flag: s.flag, Name: s.name, Pin: s.pin,
-		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, Paid: s.paid, State: s.state,
+		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, Paid: s.paid, Appealed: s.appealed,
+		State:     s.state,
 		Rejection: s.rejection, SubmittedAt: s.submittedAt, DecidedAt: s.decidedAt,
 	}
 }
@@ -237,8 +276,10 @@ type Snapshot struct {
 	// The bucket holds the picture in private: until its approval, or 30 days after its rejection.
 	Held bool
 	// Time is paid and held for it until its flag opens: read from the payments' grants, never saved with it.
-	Paid  bool
-	State State
+	Paid bool
+	// Its player asked a person to look again: read from the appeals, never saved with it.
+	Appealed bool
+	State    State
 	// Only for a rejected one.
 	Rejection   Rejection
 	SubmittedAt time.Time
@@ -265,7 +306,7 @@ func (s Snapshot) Restore() (Submission, error) {
 	}
 	return Submission{
 		id: s.ID, account: s.Account, flag: s.Flag, name: s.Name, pin: s.Pin, picture: picture,
-		others: s.OtherColors, held: s.Held, paid: s.Paid, state: s.State, rejection: s.Rejection,
+		others: s.OtherColors, held: s.Held, paid: s.Paid, appealed: s.Appealed, state: s.State, rejection: s.Rejection,
 		submittedAt: s.SubmittedAt, decidedAt: s.DecidedAt,
 	}, nil
 }

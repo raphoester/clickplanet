@@ -12,6 +12,9 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1/flagsv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/postgres_appeal_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/answer_appeal_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/appeal_submission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/random_flag_ids"
@@ -28,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/add_time_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/appeal_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/approve_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
@@ -56,6 +60,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/postgres_judgement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/review_verdicts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/usecases/judge_submissions_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/usecases/keep_judgement_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures/s3_picture_bucket"
@@ -72,6 +77,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/approved_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/told_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/subscribers/verdict_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
@@ -161,10 +167,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	submitted := postgres_submission_store.New(db)
 	opening := catalog.NewOpening(random_flag_ids.Provider{}, clock)
 
+	judged := postgres_judgement_store.New(db)
+	appealed := postgres_appeal_store.New(db)
+
 	// The shop's payments: the time each bought, granted once, and taken back after a refund.
 	paidTime := postgres_grant_store.New(db)
 	granted, err := cpredis.Handle(ctx, redis, log_subscriber.New(grant_time_handler.New(grant_time_usecase.New(
-		opening, clock, db, grant_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Flags: store},
+		opening, clock, db,
+		grant_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Judgements: judged, Flags: store},
 		cpoutbox.New(db),
 	), props.Logger), props.Logger))
 	if err != nil {
@@ -191,6 +201,22 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to flags.v1.SubmissionApproved: %w", err)
 	}
+	// An appeal is answered by the operator's verdict on its submission.
+	answer := answer_appeal_usecase.New(db, appealed)
+	answeredYes, err := cpredis.Subscribe(ctx, redis, "flags-appeals-approved",
+		log_subscriber.New(verdict_subscriber.NewApproved(answer), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the appeals to flags.v1.SubmissionApproved: %w", err)
+	}
+	answeredNo, err := cpredis.Subscribe(ctx, redis, "flags-appeals-rejected",
+		log_subscriber.New(verdict_subscriber.NewRejected(answer), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the appeals to flags.v1.SubmissionRejected: %w", err)
+	}
 	uploads := create_upload_usecase.New(uuid_upload_ids.Provider{}, rules, bucket)
 	uploadLimiter := cpratelimit.New("flags-upload-limiter", config.SubmissionUploads, clock)
 	props.Runners.Add(uploadLimiter)
@@ -201,8 +227,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger),
 		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
 			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, granted, takenBack, released,
-			cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger)),
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, granted, takenBack, released, answeredYes,
+			answeredNo, cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger)),
 	}
 	approve := approve_submission_usecase.New(clock, gallery, db,
 		approve_submission_usecase.Stores{Submissions: submitted, Flags: store}, cpoutbox.New(db))
@@ -215,9 +241,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return err
 		}
 		runners = append(runners, judge_submissions_usecase.NewRunner(judgeEvery, judge_submissions_usecase.New(
-			clock, postgres_judgement_store.New(db),
-			judgements.Cases{Submissions: submitted, Pictures: gallery, Flags: store}, judge,
+			clock, judgements.Cases{Judgements: judged, Submissions: submitted, Pictures: gallery, Flags: store}, judge,
 			review_verdicts.New(approve, reject),
+			keep_judgement_usecase.New(clock, db, submitted, judged, cpoutbox.New(db)),
 		), props.Logger))
 	}
 	// Not a closer: closers run before the runners stop, and the relay uses the pool.
@@ -244,6 +270,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 					submit_flag_usecase.New(uuid_submission_ids.Provider{}, clock, gallery, db, submitted), reviews,
 				),
 				ListMySubmissionsHandler: list_my_submissions_handler.New(submittedQuery),
+				AppealSubmissionHandler: appeal_submission_handler.New(appeal_submission_usecase.New(clock, db,
+					appeal_submission_usecase.Stores{Submissions: submitted, Judgements: judged, Appeals: appealed},
+					cpoutbox.New(db),
+				), reviews),
 			}, options...)
 		},
 		flagsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),

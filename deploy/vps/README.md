@@ -536,6 +536,20 @@ secret or id refuses the boot, so set the secret (step 1) before you merge.
    `Missing Permissions` (50013) means a permission from step 2 is missing, a role the bot must give is above the
    bot's own role, or the member the bot must rename is the server's owner or above the bot.
 
+#### The staff's channel for the flags that wait on you
+
+The bot posts to a private channel each flag that waits on a person: a player's "Ask a person to look again", and a
+paid flag the judge was unsure of. Each post links to the submission on the backoffice. The bot cannot make the
+channel (it has no **Manage Channels**), so you do it once:
+
+1. In the server, **+** next to a category > **Create Channel** > **Text**, a name such as `flag-reviews`, turn
+   **Private Channel** on, **Next**, and add nobody but yourself > **Create Channel**.
+2. Right-click the new channel > **Edit Channel** > **Permissions** > **Add members or roles**, pick the
+   application's role (or the bot itself), and turn **View Channel** and **Send Messages** on for it.
+3. Right-click the channel > **Copy Channel ID**, and put it in `deploy/vps/backend.yaml`:
+   `alerts.discord.staffChannelId: "<the id>"`. Merge to main: the deploy restarts the backend. Empty, nobody is told,
+   and the warnings wait in Redis until a channel is named.
+
 #### The players who signed in with Discord before the alerts
 
 Their sign-in never asked to join the server, so they have no role and get no pings. Once the backend runs with the

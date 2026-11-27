@@ -22,6 +22,57 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ReviewCause int32
+
+const (
+	ReviewCause_REVIEW_CAUSE_UNSPECIFIED ReviewCause = 0
+	// Its player asked a person to look again at the judge's rejection.
+	ReviewCause_REVIEW_CAUSE_APPEAL ReviewCause = 1
+	// The judge was unsure, and its time is paid.
+	ReviewCause_REVIEW_CAUSE_UNSURE ReviewCause = 2
+)
+
+// Enum value maps for ReviewCause.
+var (
+	ReviewCause_name = map[int32]string{
+		0: "REVIEW_CAUSE_UNSPECIFIED",
+		1: "REVIEW_CAUSE_APPEAL",
+		2: "REVIEW_CAUSE_UNSURE",
+	}
+	ReviewCause_value = map[string]int32{
+		"REVIEW_CAUSE_UNSPECIFIED": 0,
+		"REVIEW_CAUSE_APPEAL":      1,
+		"REVIEW_CAUSE_UNSURE":      2,
+	}
+)
+
+func (x ReviewCause) Enum() *ReviewCause {
+	p := new(ReviewCause)
+	*p = x
+	return p
+}
+
+func (x ReviewCause) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReviewCause) Descriptor() protoreflect.EnumDescriptor {
+	return file_flags_v1_events_proto_enumTypes[0].Descriptor()
+}
+
+func (ReviewCause) Type() protoreflect.EnumType {
+	return &file_flags_v1_events_proto_enumTypes[0]
+}
+
+func (x ReviewCause) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReviewCause.Descriptor instead.
+func (ReviewCause) EnumDescriptor() ([]byte, []int) {
+	return file_flags_v1_events_proto_rawDescGZIP(), []int{0}
+}
+
 // Players may play for the flag from opened_at.
 type FlagOpened struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -369,6 +420,86 @@ func (x *TimeRefused) GetRefusedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A submission waits on a person, the operator: its player asked a person to look again at the judge's rejection, or
+// the judge was unsure and its time is paid, whichever came first. Told once for each.
+type ReviewAsked struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SubmissionId string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"`
+	// In English.
+	Name  string      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Cause ReviewCause `protobuf:"varint,3,opt,name=cause,proto3,enum=flags.v1.ReviewCause" json:"cause,omitempty"`
+	// What decided the judge, in its words.
+	Why           string                 `protobuf:"bytes,4,opt,name=why,proto3" json:"why,omitempty"`
+	AskedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=asked_at,json=askedAt,proto3" json:"asked_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewAsked) Reset() {
+	*x = ReviewAsked{}
+	mi := &file_flags_v1_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewAsked) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewAsked) ProtoMessage() {}
+
+func (x *ReviewAsked) ProtoReflect() protoreflect.Message {
+	mi := &file_flags_v1_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewAsked.ProtoReflect.Descriptor instead.
+func (*ReviewAsked) Descriptor() ([]byte, []int) {
+	return file_flags_v1_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ReviewAsked) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
+}
+
+func (x *ReviewAsked) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ReviewAsked) GetCause() ReviewCause {
+	if x != nil {
+		return x.Cause
+	}
+	return ReviewCause_REVIEW_CAUSE_UNSPECIFIED
+}
+
+func (x *ReviewAsked) GetWhy() string {
+	if x != nil {
+		return x.Why
+	}
+	return ""
+}
+
+func (x *ReviewAsked) GetAskedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AskedAt
+	}
+	return nil
+}
+
 var File_flags_v1_events_proto protoreflect.FileDescriptor
 
 const file_flags_v1_events_proto_rawDesc = "" +
@@ -400,7 +531,17 @@ const file_flags_v1_events_proto_rawDesc = "" +
 	"\vTimeRefused\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x129\n" +
 	"\n" +
-	"refused_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\trefusedAtB\xac\x01\n" +
+	"refused_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\trefusedAt\"\xbc\x01\n" +
+	"\vReviewAsked\x12#\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
+	"\x05cause\x18\x03 \x01(\x0e2\x15.flags.v1.ReviewCauseR\x05cause\x12\x10\n" +
+	"\x03why\x18\x04 \x01(\tR\x03why\x125\n" +
+	"\basked_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aaskedAt*]\n" +
+	"\vReviewCause\x12\x1c\n" +
+	"\x18REVIEW_CAUSE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13REVIEW_CAUSE_APPEAL\x10\x01\x12\x17\n" +
+	"\x13REVIEW_CAUSE_UNSURE\x10\x02B\xac\x01\n" +
 	"\fcom.flags.v1B\vEventsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1;flagsv1\xa2\x02\x03FXX\xaa\x02\bFlags.V1\xca\x02\bFlags\\V1\xe2\x02\x14Flags\\V1\\GPBMetadata\xea\x02\tFlags::V1b\x06proto3"
 
 var (
@@ -415,30 +556,35 @@ func file_flags_v1_events_proto_rawDescGZIP() []byte {
 	return file_flags_v1_events_proto_rawDescData
 }
 
-var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_flags_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_flags_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_flags_v1_events_proto_goTypes = []any{
-	(*FlagOpened)(nil),            // 0: flags.v1.FlagOpened
-	(*FlagClosed)(nil),            // 1: flags.v1.FlagClosed
-	(*FlagRenamed)(nil),           // 2: flags.v1.FlagRenamed
-	(*SubmissionApproved)(nil),    // 3: flags.v1.SubmissionApproved
-	(*SubmissionRejected)(nil),    // 4: flags.v1.SubmissionRejected
-	(*TimeRefused)(nil),           // 5: flags.v1.TimeRefused
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
-	(*Pin)(nil),                   // 7: flags.v1.Pin
+	(ReviewCause)(0),              // 0: flags.v1.ReviewCause
+	(*FlagOpened)(nil),            // 1: flags.v1.FlagOpened
+	(*FlagClosed)(nil),            // 2: flags.v1.FlagClosed
+	(*FlagRenamed)(nil),           // 3: flags.v1.FlagRenamed
+	(*SubmissionApproved)(nil),    // 4: flags.v1.SubmissionApproved
+	(*SubmissionRejected)(nil),    // 5: flags.v1.SubmissionRejected
+	(*TimeRefused)(nil),           // 6: flags.v1.TimeRefused
+	(*ReviewAsked)(nil),           // 7: flags.v1.ReviewAsked
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*Pin)(nil),                   // 9: flags.v1.Pin
 }
 var file_flags_v1_events_proto_depIdxs = []int32{
-	6, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
-	7, // 1: flags.v1.FlagOpened.pin:type_name -> flags.v1.Pin
-	6, // 2: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
-	6, // 3: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
-	6, // 4: flags.v1.SubmissionApproved.approved_at:type_name -> google.protobuf.Timestamp
-	6, // 5: flags.v1.SubmissionRejected.rejected_at:type_name -> google.protobuf.Timestamp
-	6, // 6: flags.v1.TimeRefused.refused_at:type_name -> google.protobuf.Timestamp
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8, // 0: flags.v1.FlagOpened.opened_at:type_name -> google.protobuf.Timestamp
+	9, // 1: flags.v1.FlagOpened.pin:type_name -> flags.v1.Pin
+	8, // 2: flags.v1.FlagClosed.closed_at:type_name -> google.protobuf.Timestamp
+	8, // 3: flags.v1.FlagRenamed.renamed_at:type_name -> google.protobuf.Timestamp
+	8, // 4: flags.v1.SubmissionApproved.approved_at:type_name -> google.protobuf.Timestamp
+	8, // 5: flags.v1.SubmissionRejected.rejected_at:type_name -> google.protobuf.Timestamp
+	8, // 6: flags.v1.TimeRefused.refused_at:type_name -> google.protobuf.Timestamp
+	0, // 7: flags.v1.ReviewAsked.cause:type_name -> flags.v1.ReviewCause
+	8, // 8: flags.v1.ReviewAsked.asked_at:type_name -> google.protobuf.Timestamp
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_flags_v1_events_proto_init() }
@@ -452,13 +598,14 @@ func file_flags_v1_events_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flags_v1_events_proto_rawDesc), len(file_flags_v1_events_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   6,
+			NumEnums:      1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_flags_v1_events_proto_goTypes,
 		DependencyIndexes: file_flags_v1_events_proto_depIdxs,
+		EnumInfos:         file_flags_v1_events_proto_enumTypes,
 		MessageInfos:      file_flags_v1_events_proto_msgTypes,
 	}.Build()
 	File_flags_v1_events_proto = out.File

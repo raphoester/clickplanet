@@ -6,7 +6,7 @@ import {
     SubmissionState as SubmissionStatePb,
 } from "../gen/grpc/flags/v1/flags_pb.ts"
 import {MyFlags, NO_FLAGS, RejectionReason, Submission, SubmissionState} from "../domain/flagSubmissions.ts"
-import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
+import {AppealRefusedError, FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {pictureOf, pinOf} from "./flagsBackend.ts"
 import {putFile, PutFile} from "./putFile.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -47,6 +47,8 @@ export function submissionOf(submission: SubmissionPb): Submission | undefined {
             : {},
         ...submission.picture && submission.picture.url !== "" ? {picture: pictureOf(submission.picture)} : {},
         paid: submission.paid,
+        ...submission.rejectedByJudge ? {rejectedByJudge: true} : {},
+        ...submission.appeal ? {appealed: true} : {},
     }
 }
 
@@ -74,6 +76,23 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
         const submission = res.submission && submissionOf(res.submission)
         if (!submission) throw new Error("the flags module answered no submission it can read")
         return submission
+    }
+
+    // Not retried: a call that landed and lost its answer would be refused the second time.
+    public async appealSubmission(id: string): Promise<Submission> {
+        try {
+            const res = await this.authenticated((headers) => this.client.appealSubmission({submissionId: id}, {headers}))
+            const submission = res.submission && submissionOf(res.submission)
+            if (!submission) throw new Error("the flags module answered no submission it can read")
+            return submission
+        } catch (e) {
+            if (!(e instanceof ConnectError)) throw e
+            if (e.code === Code.AlreadyExists) throw new AppealRefusedError("waiting", {cause: e})
+            if ([Code.FailedPrecondition, Code.NotFound, Code.PermissionDenied].includes(e.code)) {
+                throw new AppealRefusedError("refused", {cause: e})
+            }
+            throw e
+        }
     }
 
     // A removal's note goes on the flag held it is for.

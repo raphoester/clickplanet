@@ -46,8 +46,9 @@ once its time ends, any signed-in player may pay for it and hold it, and the ope
 
 `flags.v1.FlagOpened{flag, name, opened_at, pin}`, `FlagClosed{flag, closed_at}` and `FlagRenamed{flag, name,
 renamed_at}`, and of a submission's verdict `SubmissionApproved{submission_id, approved_at}` and
-`SubmissionRejected{submission_id, rejected_at}`, and of a payment refused `TimeRefused{grant_id, refused_at}`
-([Paid time](#paid-time)), through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
+`SubmissionRejected{submission_id, rejected_at}`, of a payment refused `TimeRefused{grant_id, refused_at}`
+([Paid time](#paid-time)), and of a flag that waits on a person `ReviewAsked{submission_id, name, cause, why,
+asked_at}` ([Ask a person](#ask-a-person)), through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
 The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
 operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
 opening, claim, return and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
@@ -201,15 +202,16 @@ a flag, is not too political and has a name that reads as a state's, real, histo
 - **Who submits**: an account signed in with Google, Discord or an emailed code (`submissions.FounderOf`, the token's
   `linked`), never a guest, whose account is deleted after 90 days away: a flag needs a founder that lasts.
   `ErrGuest`, `PermissionDenied`.
-- **One submission of an account waits at a time** (`submissions.Submit` reads the account's earlier ones):
-  `ErrWaiting`, `AlreadyExists`. Once it is decided the account may submit another.
+- **One submission of an account waits at a time** (`submissions.Submit` reads the account's earlier ones, and so does
+  an appeal, `Submission.Reopened`): `ErrWaiting`, `AlreadyExists`. Once it is decided the account may submit another.
 - **A player changes its submission while it waits, never once the operator decided it** (the owner, 2026-11-24: a
   founder's change of an approved flag "shouldn't be allowed"). The change is a new submission that `replaces` the one
   that waits: in one transaction the old row is deleted (`Store.DeleteWaiting`, which refuses one no longer waiting)
   and the new one kept, then the old picture dropped from the private bucket. It waits at the back of the queue, and
   the operator's approval of the old id is `NotFound`: the operator never approves a picture it did not see. A
   replacement of one decided, or of none, is `ErrNotWaiting` (`FailedPrecondition`); **of one paid for, `ErrPaid`**
-  (`FailedPrecondition`): its time is held for it. Until that day a founder could
+  (`FailedPrecondition`): its time is held for it; **of one a person looks at again, `ErrAppealed`**
+  (`FailedPrecondition`). Until that day a founder could
   send a new name or picture for a flag it founded, reviewed again; `20261124145305_no_changes` deleted those rows
   (an approved one was on its flag already; a waiting or rejected one's picture stays private in the bucket) and the
   `kind` column.
@@ -242,8 +244,11 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
 - **`SubmitFlag(name, upload_id, pin, replaces)`** (`submit_flag_usecase`): with `replaces`, the id of the account's
   submission that waits, which the new one replaces (above). The refusals of a bad name, pin, picture or id are
   `InvalidArgument`, pictures off or a replacement of one decided `FailedPrecondition`.
+- **`AppealSubmission(submission_id)`** (`appeal_submission_usecase`), with the click token: a person looks again at
+  the judge's rejection ([Ask a person](#ask-a-person)).
 - **`ListMySubmissions`**: the account's submissions, the newest first, whether each waits, was approved, opened or
-  rejected, with the reason and the operator's note. Its picture only from its approval, at its public address. None
+  rejected, with the reason and the operator's note, `rejected_by_judge` for a rejection the judge made that no appeal
+  followed, and `appeal` once its player asked a person. Its picture only from its approval, at its public address. None
   for a guest. Beside them, `held`: the code of each flag the account holds now (`flags.holders`), and `closures`: the
   note of each of those the operator removed. **Only its holder reads it**: `ListFlags` and the stream, which every
   page reads, carry none. **The notice is in the game, never by email**: the page reads it (see the frontend's
@@ -256,9 +261,11 @@ On `flags.v1.AdminService`, the backoffice's inbox and Claude's tools (`flags_li
 flag in production unless the owner says so.**
 
 - **`ListSubmissions`**: every one waiting, the oldest first, then the 500 decided last, the latest first, each with its
-  account, its picture (the private link, or the public one once approved) and its share of other colours. **While the
-  shop sells, only the waiting ones paid for** (`flags.paidReview`, which `main` sets from `shop.Config.Sells`;
-  `submissions_query.PaidWaiting`): one whose Stripe page was closed unpaid, or refunded, waits unseen until it is paid.
+  account, its picture (the private link, or the public one once approved), its share of other colours, the judge's
+  judgement and its player's appeal (`KeptSubmission.appeal`, the judge's rejection it asks about). **While the shop
+  sells, only the waiting ones paid for or appealed** (`flags.paidReview`, which `main` sets from `shop.Config.Sells`;
+  `submissions_query.PaidWaiting`): one whose Stripe page was closed unpaid, or refunded, waits unseen until it is
+  paid.
 - **`ApproveSubmission(submission_id, pin)`** (`approve_submission_usecase`): with `pin`, the capital where the operator
   moved it on the backoffice's map (`Submission.Moved`, a waiting submission alone; unset keeps the player's, never a
   move to 0, 0). Then the picture held is read, checked against the
@@ -389,7 +396,9 @@ package and store. Off with no key (`flags.judge.anthropic.apiKey`): the operato
   invented flag was unsure ("could be fictional"), stuck unseen while unpaid. `20261127111140_rejudge_unsure` deleted
   the `unsure` judgements of the submissions that still wait, so the judge read them again under the new rule.
 - **The answer** is structured JSON (`verdict`, `reason`, `note`, `why`), Claude Haiku 5.5 by default
-  (`flags.judge.model`), about two thousand tokens a flag. A refusal, an answer cut short or one the game cannot read
+  (`flags.judge.model`), about two thousand tokens a flag. **It is kept with what it tells, under the submission's row
+  lock** (`keep_judgement_usecase`, in a transaction): an unsure one of a submission paid for tells `ReviewAsked`
+  ([Ask a person](#ask-a-person)). A refusal, an answer cut short or one the game cannot read
   (a reason it lacks, `other` with no note) is unsure.
 - **The ruling is applied through the operator's own use cases** (`review_verdicts`): an approval is
   `ApproveSubmission` (the picture public, `SubmissionApproved`, the paid time opens the flag), a rejection
@@ -400,8 +409,47 @@ package and store. Off with no key (`flags.judge.anthropic.apiKey`): the operato
   submission takes its own with it): `ListSubmissions` carries it (`KeptSubmission.judgement`), and the backoffice
   shows a Claude line on each card. A flag left unsure waits in the operator's list, paid ones alone while the shop
   sells.
-- **A person looks again on request**: the page offers a rejected flag's player an email to support
-  (`support@clickplanet.lol`), and the terms of sale say so (the EU's rule on decisions made by a machine).
+- **A person looks again on request**, once: the page offers the player of a flag the judge rejected "Ask a person to
+  look again" ([Ask a person](#ask-a-person)), and the terms of sale say so (the EU's rule on decisions made by a
+  machine). Until 2026-11-27 it was an email to support.
+
+## Ask a person
+
+**A player asks a person to look again at the judge's rejection, once** (the owner, 2026-11-27: no player stuck on a
+refusal), `internal/flags/internal/appeals`, its own package and store: an appeal has a life of its own, asked, then
+answered by the operator's verdict.
+
+- **`appeals.Ask`** (`appeal_submission_usecase`, `FlagService/AppealSubmission`, the click token): the founder alone
+  (`ErrNotYours`, `PermissionDenied`, a guest `ErrGuest`), of a rejection the judge made (`Judgement.Rejected`; one the
+  operator made, or one the judge was unsure of, is `ErrNotTheJudges`), once per submission (`ErrAskedAlready`), while
+  no other of the account's submissions waits (`ErrWaiting`, `AlreadyExists`) and its picture is held
+  (`ErrPictureGone`: it is deleted 30 days after the rejection); `FailedPrecondition` for the others.
+  `Submission.Reopened` puts it back to waiting, its rejection's row dropped, its `decided_at` the ask's; the appeal
+  keeps the rejection it asks about. All in one transaction with `ReviewAsked{cause: APPEAL}`.
+- **Never judged again**: its judgement stays (`reject`), and the judge reads only the submissions with none.
+- **The operator sees it even unpaid** while the shop sells (`ListSubmissions`, `appeal`), with the judge's reject
+  line. Its approval asks the player to pay to open it, as an approval not paid for; its rejection is final:
+  `rejected_by_judge` is false once an appeal was asked, and a second appeal is `ErrAskedAlready`. No money moves at
+  the appeal: the payment was refunded at the judge's rejection.
+- **Answered by the verdict** (`answer_appeal_usecase`, on the module's own `SubmissionApproved` and
+  `SubmissionRejected`, groups `flags-appeals-approved` and `flags-appeals-rejected`): `asked` becomes `answered` at the
+  verdict's time. A verdict from before the ask (the judge's rejection, heard late) or told again changes nothing.
+- **Not changed while a person looks** (`ErrAppealed`): a new flag does not replace it.
+- **`flags.appeals`**: `submission_id` (one per submission, deleted with it), `account_id`, the judge's `reason` and
+  `note`, `state` (`appeal_state`: `asked`, `answered`), `asked_at`, `decided_at` (`20261127112509_appeals`).
+
+**`ReviewAsked{submission_id, name, cause, why, asked_at}` tells that a flag waits on a person**, once for each cause,
+which the alerts module posts to the staff's private Discord channel (see [Discord pings](alerts.md#the-staffs-channel)):
+
+- `REVIEW_CAUSE_APPEAL`: its player asked a person, from the appeal's transaction.
+- `REVIEW_CAUSE_UNSURE`: the judge was unsure and its time is paid (`Judgement.Facts`), whichever came last: the
+  judgement (`keep_judgement_usecase`) or the payment held for a waiting submission (`grant_time_usecase` reads the
+  judgement). Both read the submission `FOR UPDATE`, so exactly one of the two sees both halves. An unsure flag never
+  paid for is told nothing: it waits unseen while the shop sells.
+- `why` is the judge's, in its words.
+
+`appeal_test.go`, the use cases' tests, `submissions_query`'s test of a flag appealed shown unpaid, and the stores'
+contract suites hold it.
 
 ## The pictures
 

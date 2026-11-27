@@ -176,6 +176,18 @@ func TestAPostToEverybodyPingsEverybody(t *testing.T) {
 	assert.Equal(t, map[string]any{"parse": []any{"everyone"}}, sent["allowed_mentions"])
 }
 
+func TestAQuietPostPingsNobody(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"POST /api/channels/100/messages": answering(http.StatusOK, `{"id":"1"}`),
+	})
+
+	require.NoError(t, c.Post(t.Context(), "100", "@everyone go", discord.Nobody()))
+
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal([]byte(fake.calls[0].Body), &sent))
+	assert.Equal(t, map[string]any{"parse": []any{}}, sent["allowed_mentions"])
+}
+
 func TestABusyDiscordIsAFailureToTryAgain(t *testing.T) {
 	c, _ := client(t, map[string]func(w http.ResponseWriter){
 		"POST /api/channels/100/messages": answering(http.StatusTooManyRequests, `{"retry_after":1}`),

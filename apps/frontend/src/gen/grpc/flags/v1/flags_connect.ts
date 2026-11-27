@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateSubmissionUploadRequest, CreateSubmissionUploadResponse, FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse, ListMySubmissionsRequest, ListMySubmissionsResponse, SubmitFlagRequest, SubmitFlagResponse } from "./flags_pb.js";
+import { AppealSubmissionRequest, AppealSubmissionResponse, CreateSubmissionUploadRequest, CreateSubmissionUploadResponse, FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse, ListMySubmissionsRequest, ListMySubmissionsResponse, SubmitFlagRequest, SubmitFlagResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -79,6 +79,21 @@ export const FlagService = {
       name: "ListMySubmissions",
       I: ListMySubmissionsRequest,
       O: ListMySubmissionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Asks a person to look again at a rejection the judge made, once per submission, for its founder alone: the
+     * submission waits again for the operator, unpaid and never judged again. The operator's verdict on it is final.
+     * PermissionDenied for a guest or another account's submission; AlreadyExists while another of the account's
+     * submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
+     * picture was deleted (30 days after the rejection); NotFound for an unknown one.
+     *
+     * @generated from rpc flags.v1.FlagService.AppealSubmission
+     */
+    appealSubmission: {
+      name: "AppealSubmission",
+      I: AppealSubmissionRequest,
+      O: AppealSubmissionResponse,
       kind: MethodKind.Unary,
     },
   }

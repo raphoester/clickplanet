@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/grant_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/release_held_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/take_back_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements/postgres_judgement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/pictures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
@@ -66,7 +67,9 @@ func TestTheShopsPaymentsOpenAndKeepAFlagAndARefundTakesItsTimeBack(t *testing.T
 	paidTime := postgres_grant_store.New(db)
 	granted, err := cpredis.Handle(t.Context(), streams, grant_time_handler.New(grant_time_usecase.New(
 		catalog.NewOpening(&catalog.Sequence{}, clock), clock, db,
-		grant_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Flags: flags}, cpoutbox.New(db),
+		grant_time_usecase.Stores{
+			Grants: paidTime, Submissions: submitted, Judgements: postgres_judgement_store.New(db), Flags: flags,
+		}, cpoutbox.New(db),
 	), logger))
 	require.NoError(t, err)
 	takenBack, err := cpredis.Handle(t.Context(), streams, take_back_time_handler.New(
@@ -152,7 +155,9 @@ func TestAFlagPaidForBeforeItsReviewOpensWhenItIsApproved(t *testing.T) {
 	require.NoError(t, err)
 	opening := catalog.NewOpening(&catalog.Sequence{}, clock)
 	granted, err := cpredis.Handle(t.Context(), streams, grant_time_handler.New(grant_time_usecase.New(
-		opening, clock, db, grant_time_usecase.Stores{Grants: paidTime, Submissions: submitted, Flags: flags},
+		opening, clock, db, grant_time_usecase.Stores{
+			Grants: paidTime, Submissions: submitted, Judgements: postgres_judgement_store.New(db), Flags: flags,
+		},
 		cpoutbox.New(db),
 	), logger))
 	require.NoError(t, err)

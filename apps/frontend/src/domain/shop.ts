@@ -60,7 +60,9 @@ export type RenewalState = "renewing" | "stopping"
 export type Renewal = {id: string, plan: Plan, target: CheckoutTarget, state: RenewalState, periodEndsAt: number}
 
 // A new flag not paid yet: sent and waiting for its review, or approved before it was paid.
+// A flag a person looks at again is paid for once approved.
 export function payable(submission: Submission): boolean {
+    if (submission.state === "waiting" && submission.appealed) return false
     return (submission.state === "waiting" || submission.state === "approved") && !submission.paid
 }
 

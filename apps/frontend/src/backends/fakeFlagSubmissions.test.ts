@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import type {FlagPicture} from "../domain/flags.ts"
 import {FakeFlagsBackend} from "./fakeFlagsBackend.ts"
 import {FakeFlagSubmissions} from "./fakeFlagSubmissions.ts"
-import {FlagHandlers, SubmissionRefusedError} from "./flags.ts"
+import {AppealRefusedError, FlagHandlers, SubmissionRefusedError} from "./flags.ts"
 
 const PICTURE: FlagPicture = {url: "blob:upload", width: 600, height: 400, stretch: false, focusX: 0.5, focusY: 0.5}
 const PIN = {latitude: 48.1, longitude: 11.6}
@@ -86,4 +86,24 @@ describe("FakeFlagSubmissions", () => {
             name: "Bavière", uploadId: await submissions.uploadPicture(png()), pin: PIN, replaces: second.id,
         }))).toBe("decided")
     })
+
+    it("asks a person once about the judge's rejection, and the operator's rejection after is final", async () => {
+        const {submissions} = setup()
+        const sent = await submissions.submitFlag({name: "Smurfland", uploadId: await submissions.uploadPicture(png()), pin: PIN})
+        submissions.reject("not-a-place", "A cartoon.")
+        expect((await submissions.myFlags()).submissions[0]).toMatchObject({state: "rejected", rejectedByJudge: true})
+
+        const appealed = await submissions.appealSubmission(sent.id)
+        expect(appealed).toMatchObject({state: "waiting", appealed: true})
+        expect(appealed.rejection).toBeUndefined()
+        expect(await refusalOf(submissions.submitFlag({
+            name: "Smurfland", uploadId: await submissions.uploadPicture(png()), pin: PIN, replaces: sent.id,
+        }))).toBe("decided")
+
+        submissions.reject("other", "Still a cartoon.")
+        const [final] = (await submissions.myFlags()).submissions
+        expect(final).toMatchObject({state: "rejected", rejectedByJudge: false, appealed: true})
+        await expect(submissions.appealSubmission(sent.id)).rejects.toEqual(new AppealRefusedError("refused"))
+    })
+
 })

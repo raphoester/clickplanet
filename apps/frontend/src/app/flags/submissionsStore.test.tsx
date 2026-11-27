@@ -23,7 +23,7 @@ function submitterOf(...answers: Submission[][]): FlagSubmitter & {myFlags: Retu
         const held = submissions.filter(({state}) => state === "opened").map(({flag}) => ({code: flag}))
         return {submissions, held}
     })
-    return {myFlags, uploadPicture: vi.fn(), submitFlag: vi.fn()}
+    return {myFlags, uploadPicture: vi.fn(), submitFlag: vi.fn(), appealSubmission: vi.fn()}
 }
 
 function feed(submitter: FlagSubmitter, who: Who = "player") {

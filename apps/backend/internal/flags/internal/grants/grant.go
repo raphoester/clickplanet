@@ -200,7 +200,7 @@ func (g Grant) ToSubmission(
 ) (Grant, submissions.Submission, catalog.Flag, []proto.Message, error) {
 	if submission.Waiting() {
 		g.held, g.submission, g.period, g.heldAt = true, submission.TakeSnapshot().ID, paid.Period, now
-		return g, submission, flag, nil, nil
+		return g, submission.PaidFor(), flag, nil, nil
 	}
 	return g.toDecided(submission, flag, opening, names, paid, now)
 }

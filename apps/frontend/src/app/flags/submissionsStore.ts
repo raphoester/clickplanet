@@ -24,6 +24,8 @@ type FlagSubmissionsStore = {
     refresh: () => void
     // The answer of a send, before the next read says it, in the place of the one it replaced.
     submitted: (submission: Submission, replaced?: string) => void
+    // The answer of an appeal, before the next read says it, in its place: none once signed out, as none is held.
+    changed: (submission: Submission) => void
 }
 
 export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
@@ -78,6 +80,9 @@ export const useFlagSubmissions = create<FlagSubmissionsStore>()((set, get) => {
             set(({submissions}) => ({
                 submissions: [submission, ...submissions.filter(({id}) => id !== submission.id && id !== replaced)],
             }))
+        },
+        changed: (submission) => {
+            set(({submissions}) => ({submissions: submissions.map((kept) => kept.id === submission.id ? submission : kept)}))
         },
     }
 })

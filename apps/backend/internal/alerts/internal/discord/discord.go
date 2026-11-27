@@ -42,9 +42,10 @@ func ValidID(id string) error {
 	return nil
 }
 
-// Who a post pings: the members of one role, or everybody in the server.
+// Who a post pings: the members of one role, everybody in the server, or nobody.
 type Audience struct {
-	role RoleID
+	role  RoleID
+	quiet bool
 }
 
 func RoleAudience(role RoleID) Audience {
@@ -55,12 +56,25 @@ func Everybody() Audience {
 	return Audience{}
 }
 
+// Nobody is pinged, whatever the text holds: the channel's readers see the post.
+func Nobody() Audience {
+	return Audience{quiet: true}
+}
+
 // The text that pings the audience.
 func (a Audience) Mention() string {
-	if a.role == "" {
+	switch {
+	case a.quiet:
+		return ""
+	case a.role == "":
 		return "@everyone"
 	}
 	return "<@&" + string(a.role) + ">"
+}
+
+// Quiet is true when the post pings nobody.
+func (a Audience) Quiet() bool {
+	return a.quiet
 }
 
 // No role: the post pings everybody.

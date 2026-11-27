@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
@@ -28,12 +29,22 @@ type Messages struct {
 	links Links
 }
 
-func (m Messages) Submission(submission submissions.Snapshot) *flagsv1.Submission {
+// Reviews is what reviewed a submission beyond its state: the judge's judgement, and its player's appeal. Each is
+// the zero snapshot for none.
+type Reviews struct {
+	Judgement judgements.Snapshot
+	Appeal    appeals.Snapshot
+}
+
+func (m Messages) Submission(submission submissions.Snapshot, reviews Reviews) *flagsv1.Submission {
 	message := &flagsv1.Submission{
 		Id: submission.ID.String(), Name: submission.Name.String(), Pin: flagmessage.Pin(submission.Pin),
 		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
-		Rejection: rejection(submission), Paid: submission.Paid,
+		Rejection: rejection(submission), Paid: submission.Paid, Appeal: Appeal(reviews.Appeal),
+		// The rejection in force is the judge's until an appeal: the operator's after it is final.
+		RejectedByJudge: submission.State == submissions.Rejected && reviews.Judgement.Verdict == judgements.Reject &&
+			reviews.Appeal.State == "",
 	}
 	if public(submission.State) {
 		message.Picture = m.flags.Picture(submission.Picture)
@@ -120,6 +131,23 @@ func ReasonOf(reason flagsv1.RejectionReason) submissions.Reason {
 		return ""
 	}
 	return ""
+}
+
+// Appeal is the player's ask that a person look again; none for the zero snapshot.
+func Appeal(appeal appeals.Snapshot) *flagsv1.Appeal {
+	if appeal.State == "" {
+		return nil
+	}
+	message := &flagsv1.Appeal{
+		AskedAt:   timestamppb.New(appeal.AskedAt),
+		Rejection: &flagsv1.Rejection{Reason: Reason(appeal.Rejection.Reason), Note: appeal.Rejection.Note},
+	}
+	switch appeal.State {
+	case appeals.Answered:
+		message.AnsweredAt = timestamppb.New(appeal.DecidedAt)
+	case appeals.Asked:
+	}
+	return message
 }
 
 // Judgement is what the judge ruled, as the operator reads it.

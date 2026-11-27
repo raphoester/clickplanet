@@ -12,8 +12,8 @@ type Props = {
     onOpen: (submissionId: string) => void
 }
 
-// One row a submission: its picture small, its name, new or a change, who sent it, how long ago, its verdict, and a
-// reply that waits.
+// One row a submission: its picture small, its name, new or a change, who sent it, how long ago, its verdict, a reply
+// that waits, and a player's appeal that waits.
 export function SubmissionList({submissions, names, replied, opened, onOpen}: Props) {
     return (
         <ol className="rows" aria-label="The submissions">
@@ -33,6 +33,8 @@ export function SubmissionList({submissions, names, replied, opened, onOpen}: Pr
                                 <span className="name">{submission.name}</span>
                                 {looksLikePhoto(submission) && <span className="badge badge-report">Many colours</span>}
                                 {replied.has(submission.id) && <span className="badge badge-replied">Replied</span>}
+                                {submission.appeal !== undefined && submission.state === SubmissionState.WAITING
+                                    && <span className="badge badge-replied">Appeal</span>}
                                 <span className="row-end"><Ago at={submission.submittedAt}/></span>
                             </span>
                             <span className="row-sub muted">

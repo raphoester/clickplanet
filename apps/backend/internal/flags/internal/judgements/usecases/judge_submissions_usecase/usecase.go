@@ -10,7 +10,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+// Cases is the submissions to judge, and what the judge sees of each.
 type Cases interface {
+	Unjudged(ctx context.Context, limit int) ([]submissions.SubmissionID, error)
 	Case(ctx context.Context, id submissions.SubmissionID) (judgements.Case, error)
 }
 
@@ -24,27 +26,32 @@ type Verdicts interface {
 	Reject(ctx context.Context, id submissions.SubmissionID, rejection submissions.Rejection) error
 }
 
+// Keeper keeps a judgement for the operator's audit, and tells what it tells: false for a submission gone meanwhile.
+type Keeper interface {
+	Keep(ctx context.Context, judgement judgements.Judgement) (bool, error)
+}
+
 // The submissions of one round, one after the other.
 const batch = 5
 
-func New(clock cptime.Clock, store judgements.Store, cases Cases, judge Judge, verdicts Verdicts) *UseCase {
-	return &UseCase{clock: clock, store: store, cases: cases, judge: judge, verdicts: verdicts}
+func New(clock cptime.Clock, cases Cases, judge Judge, verdicts Verdicts, keeper Keeper) *UseCase {
+	return &UseCase{clock: clock, cases: cases, judge: judge, verdicts: verdicts, keeper: keeper}
 }
 
 type UseCase struct {
 	clock    cptime.Clock
-	store    judgements.Store
 	cases    Cases
 	judge    Judge
 	verdicts Verdicts
+	keeper   Keeper
 }
 
 // Execute judges the submissions that wait with no judgement, the first sent first, and applies each ruling. A
 // submission is judged once: one the judge could not be asked of is asked again at the next round.
 func (u *UseCase) Execute(ctx context.Context) (int, error) {
-	unjudged, err := u.store.Unjudged(ctx, batch)
+	unjudged, err := u.cases.Unjudged(ctx, batch)
 	if err != nil {
-		return 0, fmt.Errorf("failed to list the submissions to judge: %w", err)
+		return 0, err //nolint:wrapcheck // the cases name it.
 	}
 	judged := 0
 	for _, id := range unjudged {
@@ -75,10 +82,7 @@ func (u *UseCase) judgeOne(ctx context.Context, id submissions.SubmissionID) (bo
 	if err != nil || !keep {
 		return false, err //nolint:wrapcheck // the verdict names it.
 	}
-	if err := u.store.Save(ctx, judgement); err != nil {
-		return false, fmt.Errorf("failed to keep the judgement: %w", err)
-	}
-	return true, nil
+	return u.keeper.Keep(ctx, judgement) //nolint:wrapcheck // the keeper names it.
 }
 
 func (u *UseCase) apply(ctx context.Context, id submissions.SubmissionID, ruling judgements.Ruling) error {

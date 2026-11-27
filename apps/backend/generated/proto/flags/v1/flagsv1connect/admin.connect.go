@@ -91,8 +91,9 @@ type AdminServiceClient interface {
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-	// submitted, its picture as the server drew it, the verdict, and what the judge ruled. While the shop sells, a
-	// submission waits for review only once its time is paid.
+	// submitted, its picture as the server drew it, the verdict, what the judge ruled, and its player's appeal. While the
+	// shop sells, a submission waits for review only once its time is paid, or once its player asked a person to look
+	// again.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
 	// Approves a submission, at its capital or where the operator moved it: its picture is made public. One paid for
 	// while it waited opens at once with the time paid; another waits to be paid for, or opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;
@@ -280,8 +281,9 @@ type AdminServiceHandler interface {
 	// InvalidArgument, as is an empty one or one over 40 characters.
 	RenameFlag(context.Context, *connect.Request[v1.RenameFlagRequest]) (*connect.Response[v1.RenameFlagResponse], error)
 	// Every submission waiting, the oldest first, then the 500 decided last, the latest first: what each player
-	// submitted, its picture as the server drew it, the verdict, and what the judge ruled. While the shop sells, a
-	// submission waits for review only once its time is paid.
+	// submitted, its picture as the server drew it, the verdict, what the judge ruled, and its player's appeal. While the
+	// shop sells, a submission waits for review only once its time is paid, or once its player asked a person to look
+	// again.
 	ListSubmissions(context.Context, *connect.Request[v1.ListSubmissionsRequest]) (*connect.Response[v1.ListSubmissionsResponse], error)
 	// Approves a submission, at its capital or where the operator moved it: its picture is made public. One paid for
 	// while it waited opens at once with the time paid; another waits to be paid for, or opens with OpenSubmittedFlag. NotFound for an unknown submission, or one its player replaced;

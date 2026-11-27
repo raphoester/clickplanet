@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/grant_time_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants/usecases/take_back_time_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -29,6 +30,7 @@ var (
 type fixture struct {
 	grants      *grants.MemoryStore
 	submissions *submissions.MemoryStore
+	judged      *judgements.MemoryStore
 	flags       *catalog.MemoryStore
 	outbox      *cpatomic.FakeOutbox
 	clock       *cptime.FixedClock
@@ -38,12 +40,14 @@ type fixture struct {
 
 func newFixture() fixture {
 	f := fixture{
-		grants: grants.NewMemoryStore(), submissions: submissions.NewMemoryStore(), flags: catalog.NewMemoryStore(),
-		outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(now),
+		grants: grants.NewMemoryStore(), submissions: submissions.NewMemoryStore(), judged: judgements.NewMemoryStore(),
+		flags: catalog.NewMemoryStore(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(now),
 	}
 	f.grant = grant_time_usecase.New(catalog.NewOpening(&catalog.Sequence{}, f.clock), f.clock,
 		cpatomic.FakeTransactioner{},
-		grant_time_usecase.Stores{Grants: f.grants, Submissions: f.submissions, Flags: f.flags}, f.outbox)
+		grant_time_usecase.Stores{
+			Grants: f.grants, Submissions: f.submissions, Judgements: f.judged, Flags: f.flags,
+		}, f.outbox)
 	f.takeBack = take_back_time_usecase.New(f.clock, cpatomic.FakeTransactioner{}, f.grants, f.flags, f.outbox)
 	return f
 }
@@ -354,4 +358,31 @@ func TestAPaymentTakenBackBeforeItsGrantGrantsNothing(t *testing.T) {
 
 	assert.Equal(t, submissions.Approved, f.submissions.Kept()[0].State)
 	assert.Empty(t, f.outbox.Recorded())
+}
+
+func TestAPaymentForAFlagLeftUnsureAsksTheOperator(t *testing.T) {
+	f := newFixture()
+	f.submissions.Seed(submissions.TestWaiting(id, founder, now.Add(-time.Hour)))
+	unsure, err := judgements.Snapshot{
+		Submission: id, Verdict: judgements.Unsure, Why: "could be fictional", JudgedAt: now.Add(-time.Minute),
+	}.Restore()
+	require.NoError(t, err)
+	require.NoError(t, f.judged.Save(t.Context(), unsure))
+
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Month)))
+
+	require.Len(t, f.outbox.Recorded(), 1, "the time is held, and the operator told")
+	assert.True(t, proto.Equal(&flagsv1.ReviewAsked{
+		SubmissionId: id.String(), Name: "Rennes", Cause: flagsv1.ReviewCause_REVIEW_CAUSE_UNSURE,
+		Why: "could be fictional", AskedAt: timestamppb.New(now),
+	}, f.outbox.Recorded()[0]), "%v", f.outbox.Recorded()[0])
+}
+
+func TestAPaymentForAFlagNotJudgedYetTellsNothing(t *testing.T) {
+	f := newFixture()
+	f.submissions.Seed(submissions.TestWaiting(id, founder, now.Add(-time.Hour)))
+
+	require.NoError(t, f.grant.Execute(t.Context(), paid(t, "stripe:cs_1", submissionTarget(t), grants.Month)))
+
+	assert.Empty(t, f.outbox.Recorded(), "the judgement tells it, if unsure")
 }

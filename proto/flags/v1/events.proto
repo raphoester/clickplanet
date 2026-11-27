@@ -52,3 +52,23 @@ message TimeRefused {
   string grant_id = 1;
   google.protobuf.Timestamp refused_at = 2;
 }
+
+// A submission waits on a person, the operator: its player asked a person to look again at the judge's rejection, or
+// the judge was unsure and its time is paid, whichever came first. Told once for each.
+message ReviewAsked {
+  string submission_id = 1;
+  // In English.
+  string name = 2;
+  ReviewCause cause = 3;
+  // What decided the judge, in its words.
+  string why = 4;
+  google.protobuf.Timestamp asked_at = 5;
+}
+
+enum ReviewCause {
+  REVIEW_CAUSE_UNSPECIFIED = 0;
+  // Its player asked a person to look again at the judge's rejection.
+  REVIEW_CAUSE_APPEAL = 1;
+  // The judge was unsure, and its time is paid.
+  REVIEW_CAUSE_UNSURE = 2;
+}

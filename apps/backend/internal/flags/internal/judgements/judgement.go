@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	flagsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 )
@@ -14,6 +18,7 @@ import (
 var (
 	ErrNotWaiting       = errors.New("only a submission that waits is judged")
 	ErrInvalidJudgement = errors.New("a judgement kept in no state it can be in")
+	ErrUnjudged         = errors.New("the judge never judged this submission")
 )
 
 type Verdict string
@@ -86,6 +91,30 @@ func (j Judgement) Applied(err error) (Judgement, bool, error) {
 		return j, true, nil
 	}
 	return j, false, err
+}
+
+// Rejected is true when the judge rejected the submission: its player may ask a person to look again.
+func (j Judgement) Rejected() bool {
+	return j.verdict == Reject
+}
+
+// Facts is what the judgement tells of its submission: one left unsure that waits paid for waits on the operator. The
+// judgement and the payment each ask it as they land, so whichever comes last tells it.
+func (j Judgement) Facts(submission submissions.Submission, at time.Time) []proto.Message {
+	if j.verdict != Unsure || !submission.WaitsPaidFor() {
+		return nil
+	}
+	return []proto.Message{j.ReviewAsked(submission, flagsv1.ReviewCause_REVIEW_CAUSE_UNSURE, at)}
+}
+
+// ReviewAsked tells the operator a submission waits on a person, with what decided the judge.
+func (j Judgement) ReviewAsked(
+	submission submissions.Submission, cause flagsv1.ReviewCause, at time.Time,
+) *flagsv1.ReviewAsked {
+	kept := submission.TakeSnapshot()
+	return &flagsv1.ReviewAsked{
+		SubmissionId: kept.ID.String(), Name: kept.Name.String(), Cause: cause, Why: j.why, AskedAt: timestamppb.New(at),
+	}
 }
 
 func (j Judgement) TakeSnapshot() Snapshot {

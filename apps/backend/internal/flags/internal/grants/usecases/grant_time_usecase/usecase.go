@@ -2,12 +2,15 @@ package grant_time_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/judgements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/submissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -25,10 +28,16 @@ func New(
 	return &UseCase{opening: opening, clock: clock, db: db, stores: stores, outbox: outbox}
 }
 
-// Stores is what a grant reads and changes: the grant, the submission it may open, and the flags.
+type Judgements interface {
+	Judgement(ctx context.Context, submission submissions.SubmissionID) (judgements.Judgement, error)
+}
+
+// Stores is what a grant reads and changes: the grant, the submission it may open and the judge's judgement of it, and
+// the flags.
 type Stores struct {
 	Grants      grants.Store
 	Submissions submissions.Store
+	Judgements  Judgements
 	Flags       Flags
 }
 
@@ -114,7 +123,8 @@ func (u *UseCase) grant(ctx context.Context, grant grants.Grant, paid grants.Pai
 		return grant, nil, err //nolint:wrapcheck // the grant names it.
 	}
 	if _, ok := granted.GrantedFlag(); !ok {
-		return granted, facts, nil
+		told, err := u.held(ctx, id, submission, now)
+		return granted, append(facts, told...), err
 	}
 	if err := u.stores.Flags.Save(ctx, flag); err != nil {
 		return grant, nil, fmt.Errorf("failed to keep the flag: %w", err)
@@ -123,4 +133,19 @@ func (u *UseCase) grant(ctx context.Context, grant grants.Grant, paid grants.Pai
 		return grant, nil, fmt.Errorf("failed to keep the submission: %w", err)
 	}
 	return granted, facts, nil
+}
+
+// What the time held for a waiting submission tells: one the judge left unsure waits on the operator now. One not
+// judged yet tells it at its judgement.
+func (u *UseCase) held(
+	ctx context.Context, id submissions.SubmissionID, submission submissions.Submission, now time.Time,
+) ([]proto.Message, error) {
+	judged, err := u.stores.Judgements.Judgement(ctx, id)
+	if errors.Is(err, judgements.ErrUnjudged) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the judgement: %w", err)
+	}
+	return judged.Facts(submission, now), nil
 }

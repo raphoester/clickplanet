@@ -21,12 +21,26 @@ type Flags interface {
 	Flags(ctx context.Context) ([]catalog.Flag, error)
 }
 
+type Unjudged interface {
+	Unjudged(ctx context.Context, limit int) ([]submissions.SubmissionID, error)
+}
+
 // Cases reads what the judge sees of a submission: the submission, its picture held in private, and the names of the
 // flags in the game, open or closed at their end. A removed flag's place is free for a new flag.
 type Cases struct {
+	Judgements  Unjudged
 	Submissions Submissions
 	Pictures    Pictures
 	Flags       Flags
+}
+
+// Unjudged is the submissions that wait with no judgement, the first sent first, at most limit.
+func (c Cases) Unjudged(ctx context.Context, limit int) ([]submissions.SubmissionID, error) {
+	unjudged, err := c.Judgements.Unjudged(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list the submissions to judge: %w", err)
+	}
+	return unjudged, nil
 }
 
 func (c Cases) Case(ctx context.Context, id submissions.SubmissionID) (Case, error) {

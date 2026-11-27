@@ -476,12 +476,16 @@ alerts:
     address: localhost:6379
     password: ""
   gameUrl: https://clickplanet.lol/play
+  # Where a warning to the staff links to the flag.
+  backofficeUrl: https://backoffice.clickplanet.lol
   # The bot of auth.discord's application.
   discord:
     botToken: ""
     guildId: ""
     alertsChannelId: ""
     battlesChannelId: ""
+    # The staff's private channel, told of each flag that waits on a person. Empty, nobody is told.
+    staffChannelId: ""
 
 # The squad that flags the swastikas players paint on the map: every minute it reads in planet's ledger what each player
 # painted in the last hour, keeps what it flagged in postgres, and lists it (vandalsquad.v1.AdminService/ListGraffiti).

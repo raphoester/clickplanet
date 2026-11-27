@@ -1,5 +1,7 @@
+import {useState} from "react"
+import {AppealRefusal, AppealRefusedError, FlagSubmitter} from "../../backends/flags.ts"
 import {Shop} from "../../backends/shop.ts"
-import {changeable, shownOf, Submission} from "../../domain/flagSubmissions.ts"
+import {appealable, changeable, shownOf, Submission} from "../../domain/flagSubmissions.ts"
 import {payable} from "../../domain/shop.ts"
 import {t} from "../../i18n/page.ts"
 import Modal from "../components/Modal.tsx"
@@ -11,7 +13,6 @@ import {Draft, useFlagForm} from "./flagFormStore.ts"
 import FlagNote from "./FlagNote.tsx"
 import {useFlags} from "./flagsStore.ts"
 import {SubmissionStateChip} from "./SubmissionStateChip.tsx"
-import {appealOf} from "./appeal.ts"
 import SubmissionLine from "./SubmissionLine.tsx"
 import {useFlagSubmissions, useVerdictReads} from "./submissionsStore.ts"
 import {FlagShooter, useMapShot} from "./mapShot.ts"
@@ -24,6 +25,8 @@ export type FlagPaywallProps = {
     typed?: Draft
     // The map at the capital with the flag on it.
     shooter: FlagShooter
+    // Asks a person to look again at the judge's rejection.
+    submitter: FlagSubmitter
     shop: Shop
     // Stripe's page.
     toCheckout: (url: string) => void
@@ -31,7 +34,7 @@ export type FlagPaywallProps = {
 
 // Step 2: the flag made, its review's verdict as it comes, and the plans once. Pay never waits for the verdict; a
 // rejection shows before any payment.
-export default function FlagPaywall({submission: sent, typed, shooter, shop, toCheckout}: FlagPaywallProps) {
+export default function FlagPaywall({submission: sent, typed, shooter, submitter, shop, toCheckout}: FlagPaywallProps) {
     const read = useFlagSubmissions((store) => store.submissions.find(({id}) => id === sent.id))
     const back = useFlagForm((form) => form.back)
     const close = useFlagForm((form) => form.close)
@@ -63,7 +66,7 @@ export default function FlagPaywall({submission: sent, typed, shooter, shop, toC
                       chip={<SubmissionStateChip state={shown.state}/>}/>
             <p className="flag-status-line" role="status"><SubmissionLine shown={shown} selling={selling}/></p>
             {submission.state === "rejected" && submission.rejection?.note && <FlagNote text={submission.rejection.note}/>}
-            {submission.state === "rejected" && <a className="flag-status-appeal" href={appealOf(submission)}>{t("flagSubmission.appeal")}</a>}
+            {appealable(submission) && <AskAPerson submission={submission} submitter={submitter}/>}
             {offered && <PlanOffer key={submission.id}
                                    shop={shop}
                                    plans={plans}
@@ -73,4 +76,37 @@ export default function FlagPaywall({submission: sent, typed, shooter, shop, toC
                                    onBack={toChange}/>}
         </div>
     </Modal>
+}
+
+type Asking = "idle" | "sending" | AppealRefusal | "failed"
+
+const ASKING_LINES = {
+    waiting: "flagSubmission.refusal.waiting",
+    refused: "flagSubmission.appealRefused",
+    failed: "flagSubmission.appealFailed",
+} as const
+
+// The judge's rejection looked at again by a person, once: the flag waits for the team.
+function AskAPerson({submission, submitter}: {submission: Submission, submitter: FlagSubmitter}) {
+    const changed = useFlagSubmissions((store) => store.changed)
+    const [asking, setAsking] = useState<Asking>("idle")
+    const ask = () => {
+        setAsking("sending")
+        submitter.appealSubmission(submission.id).then(
+            (appealed) => {
+                changed(appealed)
+                setAsking("idle")
+            },
+            (e: unknown) => {
+                if (!(e instanceof AppealRefusedError)) console.error("could not ask a person to look again", e)
+                setAsking(e instanceof AppealRefusedError ? e.refusal : "failed")
+            },
+        )
+    }
+    return <>
+        <button type="button" className="button button-secondary flag-status-appeal" disabled={asking === "sending"} onClick={ask}>
+            {asking === "sending" ? t("flagSubmission.sending") : t("flagSubmission.appeal")}
+        </button>
+        {asking !== "idle" && asking !== "sending" && <p className="support-notice" role="alert">{t(ASKING_LINES[asking])}</p>}
+    </>
 }

@@ -3,6 +3,7 @@ package flagsv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/flags/v1/flagsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/add_time_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/appeal_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/approve_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/close_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/create_flag_upload_handler"
@@ -25,6 +26,7 @@ type FlagService struct {
 	create_submission_upload_handler.CreateSubmissionUploadHandler
 	submit_flag_handler.SubmitFlagHandler
 	list_my_submissions_handler.ListMySubmissionsHandler
+	appeal_submission_handler.AppealSubmissionHandler
 }
 
 var _ flagsv1connect.FlagServiceHandler = FlagService{}

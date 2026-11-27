@@ -76,7 +76,8 @@ export default function FlagSubmissionPlace({account: store, submitter, shooter,
         case "make":
             return <FlagSubmissionForm submitter={submitter} shooter={shooter}/>
         case "pay":
-            return <FlagPaywall submission={step.submission} typed={step.typed} shooter={shooter} shop={shop} toCheckout={toCheckout}/>
+            return <FlagPaywall submission={step.submission} typed={step.typed} shooter={shooter} submitter={submitter} shop={shop}
+                                toCheckout={toCheckout}/>
         case "flag":
             return <FlagPayScreen flag={step.flag} fromHub={step.fromHub} shooter={shooter} shop={shop} toCheckout={toCheckout}/>
     }

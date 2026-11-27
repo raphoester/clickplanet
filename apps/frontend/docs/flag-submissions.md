@@ -146,10 +146,16 @@ its clock while a sale runs (see [The shop](shop.md#a-sale)). **Pay never waits 
 - **Approved, not paid**: the Approved chip, its public picture, "Approved! Pick a plan to open it.": paying opens it at
   once. "Approved! It opens soon." while the shop is off. The plan and the consent picked stay as the verdict lands.
 - **Rejected**: its reason in plain words (not a place, a flag in the game already, "It does not look like a
-  flag.", hateful, or "It was not approved."), then the operator's note quoted, then "Think we got it wrong? Ask a person to
-  look again.", an email to support@clickplanet.lol named after the flag: the first review may be Claude's. **No plan
-  shows, before any payment.** "Fix it" goes back to step 1 with the name, the capital and the picture typed: a
+  flag.", hateful, or "It was not approved."), then the note quoted, then, for a rejection the judge made
+  (`Submission.rejectedByJudge`, `appealable`), **"Ask a person to look again"** (`AskAPerson`, the owner,
+  2026-11-27: in place of an email to support), once: `appealSubmission`, the flags module's `AppealSubmission`. Its
+  answer goes in the store in its place (`changed`): the flag waits again, "A person is looking at it again.", with no
+  plan, no Back and no change (`changeable` and `payable` leave out an `appealed` one; a new flag does not replace
+  it). A refusal is one line under it: one waits already, "A person can't look at this flag again." (the operator's
+  rejection, a second ask, a picture deleted 30 days after the rejection), or "It did not send. Try again.". The
+  operator's rejection after it is final: no button. **No plan shows, before any payment.** "Fix it" goes back to step 1 with the name, the capital and the picture typed: a
   decided submission is not replaced, so it sends a new one.
+- **Appealed**: "A person is looking at it again." until the team's verdict; an approval asks to pay, as above.
 - **Paid**: "Paid! We check your flag, then it opens.", "Approved! It opens now." the moment before the flags stream
   tells it open, then "Bavaria is in the game!": no plan and no Back.
 - **Back, while it waits and is not paid**: step 1 as a change of it (`replaces`), with what was typed. Beside Pay, or
@@ -219,7 +225,8 @@ flag Bavaria is approved!", "Your flag Bavaria was rejected.", "Bavaria is in th
 game!", "Your flag Bavaria is closed.". The first time the page sees a submission in a decided state, the newest one is
 told, and each one's state as the player reads it is kept in `localStorage` under `clickplanet-flag-submissions-told`
 (`{id: state}`, `closed` among them), so an approval, an opening then a close is told thrice, a comeback again, and a
-reload tells nothing again. A browser that keeps nothing tells nothing. **Nothing is told of a flag another player
+reload tells nothing again. A browser that keeps nothing tells nothing. **A verdict after an appeal is told again**,
+under the key `<id>/appeal`: the final rejection is news too. **Nothing is told of a flag another player
 claimed since** (`untold` skips an opened submission whose flag the account no longer holds). **Nothing is told before
 the list of flags is read** (`useFlags.read`): an opened flag would be told open, then closed. The page looks again when the submissions or
 the list of flags change, so a close the flags stream tells is told at once.
@@ -234,7 +241,8 @@ verdict within 3 seconds, as it would the judge's):
 - `approveSubmission()`: the one that waits is approved, with its upload as its public picture; a paid one opens at once
   with its time.
 - `rejectSubmission("not-a-place", "A club's crest.")`: rejected, with a reason (`not-a-place`, `exists`, `unreadable`,
-  `hateful`, `other`) and a note; a paid one is refunded.
+  `hateful`, `other`) and a note; a paid one is refunded. It is the judge's, so the paywall offers "Ask a person to
+  look again"; once asked, the next `rejectSubmission` is the operator's, final.
 - `openSubmission(days)`: the approved flag opens (`FakeFlagsBackend.open` with the upload's picture and the pin),
   for 30 days by default.
 - `refuseSubmissions("waiting")`: the next sends are refused with that refusal, or `"upload-failed"` for a `PUT` that

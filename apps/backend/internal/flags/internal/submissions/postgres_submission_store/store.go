@@ -27,12 +27,15 @@ var _ submissions.Store = (*Store)(nil)
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed
 
 // Time held for a submission and neither released nor taken back.
 const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
 		AND NOT EXISTS (SELECT 1 FROM time_grants g WHERE g.id = h.grant_id)
 		AND NOT EXISTS (SELECT 1 FROM time_takebacks t WHERE t.grant_id = h.grant_id))`
+
+// Its player asked a person to look again.
+const appealed = `EXISTS (SELECT 1 FROM appeals a WHERE a.submission_id = s.id)`
 
 const from = ` FROM submissions s LEFT JOIN rejections r ON r.submission_id = s.id`
 
@@ -92,7 +95,7 @@ func submissionOf(scan func(dest ...any) error) (submissions.Submission, error) 
 	if err := scan(&id, &account, &flag, &name, &kept.Pin.Latitude, &kept.Pin.Longitude,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
 		&others, &kept.Held, &state, &kept.SubmittedAt, &kept.DecidedAt, &reason, &kept.Rejection.Note,
-		&kept.Paid); err != nil {
+		&kept.Paid, &kept.Appealed); err != nil {
 		return submissions.Submission{}, fmt.Errorf("failed to read a submission: %w", err)
 	}
 	kept.ID, kept.Name, kept.State = submissions.SubmissionID(id), catalog.Name(name), submissions.State(state)
@@ -134,6 +137,11 @@ func (s *Store) Save(ctx context.Context, kept ...submissions.Submission) error 
 			return fmt.Errorf("failed to keep the submission %s: %w", row.ID, err)
 		}
 		if row.State != submissions.Rejected {
+			// A rejection appealed waits again with none.
+			if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM rejections WHERE submission_id = $1`,
+				uuid.UUID(row.ID)); err != nil {
+				return fmt.Errorf("failed to drop the rejection of %s: %w", row.ID, err)
+			}
 			continue
 		}
 		if _, err := s.db.On(ctx).ExecContext(ctx, `

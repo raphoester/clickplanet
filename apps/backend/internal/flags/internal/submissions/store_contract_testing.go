@@ -135,3 +135,19 @@ func (s *StoreContractSuite) TestADecidedSubmissionIsNeverDeleted() {
 	s.Require().NoError(err)
 	s.Equal(rejected, kept.TakeSnapshot())
 }
+
+func (s *StoreContractSuite) TestARejectionAppealedIsReadWaitingWithNoRejection() {
+	waiting := s.kept(TestWaiting(SubmissionID{15: 1}, ada, submittedAt))[0]
+	rejected, err := waiting.Rejected(Rejection{Reason: NotAPlace, Note: "A club is not a state."}, submittedAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), rejected))
+	reopened, err := rejected.Reopened(ada, nil, submittedAt.Add(time.Hour))
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), reopened))
+
+	kept, err := s.store.Submission(s.T().Context(), SubmissionID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Waiting, kept.TakeSnapshot().State)
+	s.Equal(Rejection{}, kept.TakeSnapshot().Rejection)
+	s.Equal(submittedAt.Add(time.Hour), kept.TakeSnapshot().DecidedAt)
+}

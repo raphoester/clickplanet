@@ -52,7 +52,10 @@
   (a removal since 2026-11-26) and `RenameFlag` (`flags_*`), and since 2026-11-24 the review of the players' submissions: `ListSubmissions`
   (`KeptSubmission`), `ApproveSubmission`, `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note) and
   `OpenSubmittedFlag`. A sold flag has a `Pin` (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also
-  takes a signed-in player's `CreateSubmissionUpload`, `SubmitFlag` and `ListMySubmissions` (`Submission`, its
+  takes a signed-in player's `CreateSubmissionUpload`, `SubmitFlag`, `AppealSubmission` (since 2026-11-27, a person
+  looks again at the judge's rejection, once: `Submission.rejected_by_judge`, `Submission.appeal`,
+  `KeptSubmission.appeal`, and `events.proto`'s `ReviewAsked`, which the alerts post to the staff) and
+  `ListMySubmissions` (`Submission`, its
   `SubmissionState`, `held`, the codes of the flags it holds, and a `Closure` per flag it holds that the operator
   removed: the note `CloseFlag` requires, which the holder alone reads). `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
   replaces: nothing changes a submission once decided (`flag` and `Submission.change`, a founder's change of its flag,

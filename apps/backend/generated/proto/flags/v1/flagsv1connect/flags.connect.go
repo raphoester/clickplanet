@@ -46,6 +46,9 @@ const (
 	// FlagServiceListMySubmissionsProcedure is the fully-qualified name of the FlagService's
 	// ListMySubmissions RPC.
 	FlagServiceListMySubmissionsProcedure = "/flags.v1.FlagService/ListMySubmissions"
+	// FlagServiceAppealSubmissionProcedure is the fully-qualified name of the FlagService's
+	// AppealSubmission RPC.
+	FlagServiceAppealSubmissionProcedure = "/flags.v1.FlagService/AppealSubmission"
 )
 
 // FlagServiceClient is a client for the flags.v1.FlagService service.
@@ -71,6 +74,12 @@ type FlagServiceClient interface {
 	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; the flags
 	// it holds; and why the operator removed each flag it holds. None for a guest.
 	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
+	// Asks a person to look again at a rejection the judge made, once per submission, for its founder alone: the
+	// submission waits again for the operator, unpaid and never judged again. The operator's verdict on it is final.
+	// PermissionDenied for a guest or another account's submission; AlreadyExists while another of the account's
+	// submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
+	// picture was deleted (30 days after the rejection); NotFound for an unknown one.
+	AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error)
 }
 
 // NewFlagServiceClient constructs a client for the flags.v1.FlagService service. By default, it
@@ -115,6 +124,12 @@ func NewFlagServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(flagServiceMethods.ByName("ListMySubmissions")),
 			connect.WithClientOptions(opts...),
 		),
+		appealSubmission: connect.NewClient[v1.AppealSubmissionRequest, v1.AppealSubmissionResponse](
+			httpClient,
+			baseURL+FlagServiceAppealSubmissionProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("AppealSubmission")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -125,6 +140,7 @@ type flagServiceClient struct {
 	createSubmissionUpload *connect.Client[v1.CreateSubmissionUploadRequest, v1.CreateSubmissionUploadResponse]
 	submitFlag             *connect.Client[v1.SubmitFlagRequest, v1.SubmitFlagResponse]
 	listMySubmissions      *connect.Client[v1.ListMySubmissionsRequest, v1.ListMySubmissionsResponse]
+	appealSubmission       *connect.Client[v1.AppealSubmissionRequest, v1.AppealSubmissionResponse]
 }
 
 // ListFlags calls flags.v1.FlagService.ListFlags.
@@ -152,6 +168,11 @@ func (c *flagServiceClient) ListMySubmissions(ctx context.Context, req *connect.
 	return c.listMySubmissions.CallUnary(ctx, req)
 }
 
+// AppealSubmission calls flags.v1.FlagService.AppealSubmission.
+func (c *flagServiceClient) AppealSubmission(ctx context.Context, req *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error) {
+	return c.appealSubmission.CallUnary(ctx, req)
+}
+
 // FlagServiceHandler is an implementation of the flags.v1.FlagService service.
 type FlagServiceHandler interface {
 	// Every flag of the catalog, the closed ones too: history still names them. A GET.
@@ -175,6 +196,12 @@ type FlagServiceHandler interface {
 	// The caller's submissions, the newest first: whether each waits, was approved or was rejected, and why; the flags
 	// it holds; and why the operator removed each flag it holds. None for a guest.
 	ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error)
+	// Asks a person to look again at a rejection the judge made, once per submission, for its founder alone: the
+	// submission waits again for the operator, unpaid and never judged again. The operator's verdict on it is final.
+	// PermissionDenied for a guest or another account's submission; AlreadyExists while another of the account's
+	// submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
+	// picture was deleted (30 days after the rejection); NotFound for an unknown one.
+	AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error)
 }
 
 // NewFlagServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -215,6 +242,12 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(flagServiceMethods.ByName("ListMySubmissions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	flagServiceAppealSubmissionHandler := connect.NewUnaryHandler(
+		FlagServiceAppealSubmissionProcedure,
+		svc.AppealSubmission,
+		connect.WithSchema(flagServiceMethods.ByName("AppealSubmission")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.FlagService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlagServiceListFlagsProcedure:
@@ -227,6 +260,8 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 			flagServiceSubmitFlagHandler.ServeHTTP(w, r)
 		case FlagServiceListMySubmissionsProcedure:
 			flagServiceListMySubmissionsHandler.ServeHTTP(w, r)
+		case FlagServiceAppealSubmissionProcedure:
+			flagServiceAppealSubmissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -254,4 +289,8 @@ func (UnimplementedFlagServiceHandler) SubmitFlag(context.Context, *connect.Requ
 
 func (UnimplementedFlagServiceHandler) ListMySubmissions(context.Context, *connect.Request[v1.ListMySubmissionsRequest]) (*connect.Response[v1.ListMySubmissionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.ListMySubmissions is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.AppealSubmission is not implemented"))
 }

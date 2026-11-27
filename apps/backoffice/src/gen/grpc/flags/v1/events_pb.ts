@@ -8,6 +8,36 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { Pin } from "./flags_pb.js";
 
 /**
+ * @generated from enum flags.v1.ReviewCause
+ */
+export enum ReviewCause {
+  /**
+   * @generated from enum value: REVIEW_CAUSE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Its player asked a person to look again at the judge's rejection.
+   *
+   * @generated from enum value: REVIEW_CAUSE_APPEAL = 1;
+   */
+  APPEAL = 1,
+
+  /**
+   * The judge was unsure, and its time is paid.
+   *
+   * @generated from enum value: REVIEW_CAUSE_UNSURE = 2;
+   */
+  UNSURE = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ReviewCause)
+proto3.util.setEnumType(ReviewCause, "flags.v1.ReviewCause", [
+  { no: 0, name: "REVIEW_CAUSE_UNSPECIFIED" },
+  { no: 1, name: "REVIEW_CAUSE_APPEAL" },
+  { no: 2, name: "REVIEW_CAUSE_UNSURE" },
+]);
+
+/**
  * Players may play for the flag from opened_at.
  *
  * @generated from message flags.v1.FlagOpened
@@ -300,6 +330,74 @@ export class TimeRefused extends Message<TimeRefused> {
 
   static equals(a: TimeRefused | PlainMessage<TimeRefused> | undefined, b: TimeRefused | PlainMessage<TimeRefused> | undefined): boolean {
     return proto3.util.equals(TimeRefused, a, b);
+  }
+}
+
+/**
+ * A submission waits on a person, the operator: its player asked a person to look again at the judge's rejection, or
+ * the judge was unsure and its time is paid, whichever came first. Told once for each.
+ *
+ * @generated from message flags.v1.ReviewAsked
+ */
+export class ReviewAsked extends Message<ReviewAsked> {
+  /**
+   * @generated from field: string submission_id = 1;
+   */
+  submissionId = "";
+
+  /**
+   * In English.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: flags.v1.ReviewCause cause = 3;
+   */
+  cause = ReviewCause.UNSPECIFIED;
+
+  /**
+   * What decided the judge, in its words.
+   *
+   * @generated from field: string why = 4;
+   */
+  why = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp asked_at = 5;
+   */
+  askedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ReviewAsked>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.ReviewAsked";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "cause", kind: "enum", T: proto3.getEnumType(ReviewCause) },
+    { no: 4, name: "why", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "asked_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReviewAsked {
+    return new ReviewAsked().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReviewAsked {
+    return new ReviewAsked().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReviewAsked {
+    return new ReviewAsked().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReviewAsked | PlainMessage<ReviewAsked> | undefined, b: ReviewAsked | PlainMessage<ReviewAsked> | undefined): boolean {
+    return proto3.util.equals(ReviewAsked, a, b);
   }
 }
 

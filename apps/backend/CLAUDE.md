@@ -202,7 +202,8 @@ and says what is in it. Read the doc before you change its area.
   `GrantTime` (the first payment opens the flag, each one adds its week, month or year, once per payment) and
   `TakeBackTime` (a refund ends the flag that much sooner); the holder, whoever pays for it, and the claim of a flag
   whose time ended by any player, forever; the judge, a Claude model that approves or rejects the clear
-  flags as they are sent, the rest left to the operator.
+  flags as they are sent, the rest left to the operator; a player's appeal of the judge's rejection, once, back to the
+  operator unpaid, and `ReviewAsked` for each flag that waits on a person.
 - [The shop](docs/shop.md) — a player pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
   once, a month or a year that renews; off with no Stripe key; a sale (a coupon off every plan's first payment between
   two moments, Black Friday 2026); the Checkout Session, Stripe's signed events at
@@ -274,7 +275,7 @@ and says what is in it. Read the doc before you change its area.
   as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; the pings
   when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season
   starts; the operator's unlink; `LinkMembers`, which links the players in the server no sign-in linked and names
-  every member; off by default.
+  every member; the staff's private channel, told of each flag that waits on a person; off by default.
 - [The vandal squad](docs/vandalsquad.md) — what players paint on the map: each player's takes of the last hour, read
   in planet's ledger once a minute, the tiles it still holds split into drawings, each read as a swastika by rules taken
   from real ones (and the samples they are tested on), only one that shows on another flag's ground flagged, at Warn

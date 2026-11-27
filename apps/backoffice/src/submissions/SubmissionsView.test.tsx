@@ -5,10 +5,11 @@ import {useState} from "react"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {Timestamp} from "@bufbuild/protobuf"
 import {timeOf} from "../components/time.ts"
-import {ACCOUNT, AT, FakeAdmin, soldFlag} from "../fakeAdmin.ts"
+import {ACCOUNT, AT, FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
 import {learnFlags} from "../flags.ts"
 import {placeWords} from "../flags/pin.ts"
-import {Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Judgement, JudgementVerdict} from "../gen/grpc/flags/v1/admin_pb.ts"
+import {Appeal, Flag, Rejection, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {Letter, LetterMail, NoteReply} from "../gen/grpc/support/v1/admin_pb.ts"
 import {patch} from "../graffiti/testPlaces.ts"
 import {placeAt, regionOf, roundedOf} from "./mapView.ts"
@@ -364,6 +365,24 @@ describe("the submissions inbox", () => {
         expect(open.getByText("Has a flag already")).toBeTruthy()
         expect(open.getByText("Rejected", {selector: ".badge"})).toBeTruthy()
         expect(screen.queryByRole("region", {name: "Verdict"})).toBeNull()
+    })
+
+    it("marks a flag its player appealed, and shows Claude's rejection it asks about", async () => {
+        const admin = new FakeAdmin()
+        admin.flags.submissions = [...admin.flags.submissions, keptSubmission("sub-smurfs", "Smurfland", CATALONIA, {
+            judgement: new Judgement({verdict: JudgementVerdict.REJECT, why: "a cartoon's village"}),
+            appeal: new Appeal({
+                askedAt: minute(-10), rejection: new Rejection({reason: RejectionReason.NOT_A_PLACE, note: "A cartoon."}),
+            }),
+        })]
+        render(<Inbox admin={admin} first="sub-smurfs"/>)
+
+        const open = await detail()
+        expect(list().getByRole("button", {name: /Smurfland/}).textContent).toContain("Appeal")
+        expect(open.getByText(/a cartoon's village/)).toBeTruthy()
+        expect(open.getByText(/of Claude's rejection: Not a place's name/)).toBeTruthy()
+        expect(open.getByText("A cartoon.")).toBeTruthy()
+        expect(await screen.findByRole("region", {name: "Verdict"})).toBeTruthy()
     })
 
     it("lists the flags of the same name, the game's own among them", async () => {

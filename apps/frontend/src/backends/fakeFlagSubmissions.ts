@@ -1,7 +1,7 @@
 import type {FlagPicture} from "../domain/flags.ts"
 import {flagNameOf, isValidFlagName, MyFlags, pictureFileRefusal, RejectionReason, Submission} from "../domain/flagSubmissions.ts"
 import {FakeFlagsBackend, NameRefusal} from "./fakeFlagsBackend.ts"
-import {FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
+import {AppealRefusedError, FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
 import {UploadOptions} from "./support.ts"
 
 const ANSWER_DELAY_MS = 400
@@ -13,9 +13,12 @@ export type UploadPainter = (upload: Blob) => Promise<FlagPicture>
 // paidDays: the time paid while it waited, held until its approval opens it.
 type Kept = {submission: Submission, upload?: Blob, paidDays?: number}
 
+// The fake's judge rejects, until its player asks a person: the operator's rejection after is final.
+type Rejecter = "judge" | "operator"
+
 // The flags module's submissions in memory, and the operator's verdicts from the console: approveSubmission(),
-// rejectSubmission(reason, note), openSubmission(). After each verdict the flags stream opens again, so the page reads
-// it at once, as it would at its next opening.
+// rejectSubmission(reason, note) (the judge's, or the operator's once its player asked a person), openSubmission().
+// After each verdict the flags stream opens again, so the page reads it at once, as it would at its next opening.
 export class FakeFlagSubmissions implements FlagSubmitter {
     private readonly kept: Kept[] = []
     private readonly uploads = new Map<string, Blob>()
@@ -57,7 +60,8 @@ export class FakeFlagSubmissions implements FlagSubmitter {
             throw new SubmissionRefusedError("invalid")
         }
         const waiting = this.waiting()
-        if (replaces !== undefined && (waiting?.submission.id !== replaces || waiting.paidDays !== undefined)) {
+        if (replaces !== undefined
+            && (waiting?.submission.id !== replaces || waiting.paidDays !== undefined || waiting.submission.appealed)) {
             throw new SubmissionRefusedError("decided")
         }
         if (replaces === undefined && waiting !== undefined) throw new SubmissionRefusedError("waiting")
@@ -112,14 +116,31 @@ export class FakeFlagSubmissions implements FlagSubmitter {
         return `${name} is approved and opens with its paid time, as ${opened.code}`
     }
 
+    // The judge's rejection, or the operator's once a person was asked to look again.
     public reject(reason: RejectionReason = "other", note = ""): string {
         const kept = this.waiting()
         if (!kept) return "no submission waits: send one from the flag picker"
         const refunded = kept.paidDays !== undefined
+        const by: Rejecter = kept.submission.appealed ? "operator" : "judge"
         kept.paidDays = undefined
-        this.decide(kept, {state: "rejected", rejection: {reason, note}})
+        this.decide(kept, {state: "rejected", rejection: {reason, note}, rejectedByJudge: by === "judge"})
         this.flags.reopen()
-        return `${kept.submission.name} is rejected: ${reason}${refunded ? ", and its payment refunded" : ""}`
+        return `${kept.submission.name} is rejected by the ${by}: ${reason}${refunded ? ", and its payment refunded" : ""}`
+    }
+
+    // Once per submission, a rejection the judge made, while no other waits.
+    public async appealSubmission(id: string): Promise<Submission> {
+        await this.answer()
+        const kept = this.kept.find(({submission}) => submission.id === id)
+        if (!kept || kept.submission.state !== "rejected" || !kept.submission.rejectedByJudge) {
+            throw new AppealRefusedError("refused")
+        }
+        if (this.waiting() !== undefined) throw new AppealRefusedError("waiting")
+        const asked: Submission = {...kept.submission, state: "waiting", appealed: true, decidedAt: this.now()}
+        delete asked.rejection
+        delete asked.rejectedByJudge
+        kept.submission = asked
+        return {...asked}
     }
 
     public async open(days = 30): Promise<string> {
