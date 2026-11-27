@@ -55,6 +55,22 @@ describe("postsOf", () => {
         expect(posts.map(each => each.postId)).toEqual(["kept"])
     })
 
+    it("skips a row whose numbers are still syncing, as Zernio says them: null", () => {
+        const syncing = (postId: string, ageHours: number) => JSON.stringify({
+            postId, platform: "tiktok", publishedAt: "2026-11-21T16:00:00Z", ageHours, url: "",
+            analytics: {status: "published", syncStatus: "pending", analytics: null, platformPostUrl: null},
+            metadata: {record: {post: {experiment: "far-invasion"}}},
+        })
+        const posts = postsOf([
+            syncing("new", 13.57),
+            documentOf({postId: "synced-before", experiment: "far-invasion", ageHours: 30, metrics: {views: 800}}),
+            syncing("synced-before", 54),
+            JSON.stringify({...JSON.parse(documentOf({postId: "bare", experiment: "control"})), analytics: null}),
+        ], SINCE)
+
+        expect(posts.map(each => [each.postId, each.ageHours, each.views])).toEqual([["synced-before", 30, 800]])
+    })
+
     it("reads TikTok's business numbers once they came, and no hold at 2 s for photos", () => {
         const [young, video, photos] = postsOf([
             documentOf({postId: "young", experiment: "control", metrics: {views: 300, completionRate: 0, retentionCurve: {}}}),
