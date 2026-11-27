@@ -219,7 +219,10 @@ game's bot (`reviews/`): one post when a player asks a person to look again at t
 - **Off while `alerts.discord.staffChannelId` is empty**: nothing subscribes, and the events wait in their stream; a
   channel named later is told what the stream still holds. The bot cannot make the channel (it has no **Manage
   Channels**): the owner makes it private, and gives the bot **View Channel** and **Send Messages** in it (see
-  `deploy/vps/README.md`, "Discord pings").
+  `deploy/vps/README.md`, "Discord pings"). Production's is `1575835114892431450` (2026-11-27).
+- **A post Discord refuses is logged** ("the alerts module refused an event", "failed to tell the staff of …"):
+  `50001 Missing Access` is View Channel missing, `50013 Missing Permissions` is Send Messages missing. The bus tries it
+  again for about four minutes, then buries that warning in `events:dead`.
 
 ## The Discord client (`discord/rest_discord`)
 
