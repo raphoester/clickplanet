@@ -81,8 +81,10 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
 
 - **`OpenBook{book_id, starts_at}`**: a book kept is left as it is (its first start stays). A book kept missed is
   refused (`books.ErrMissed`).
-- **`OpenRound{round_id, book_id, times, starts_at, from_nothing, ranking}`**: a round kept is left as it is, its
-  ranking too. `times` is 1 to `books.MaxTimes` (10) and `ranking` is `RANKING_GAIN`, `RANKING_HELD_AND_GAIN`, `RANKING_FIGHTERS`
+- **`OpenRound{round_id, book_id, times, starts_at, from_nothing, ranking}`**: a round kept keeps what each country held at its open,
+  its ranking and its start time, **and takes the call's times until it is scored** (`Rounds.Retime`, under the round's
+  lock; 2026-11-28): a battle whose points change while it runs is opened again by the gamemaster with its new times.
+  A scored round keeps the times it was scored at, and the live `GetRound` reads the new ones at once. `times` is 1 to `books.MaxTimes` (10) and `ranking` is `RANKING_GAIN`, `RANKING_HELD_AND_GAIN`, `RANKING_FIGHTERS`
   or `RANKING_KNOCK_OUT` (see [The rules](#the-rules)), or the call is `InvalidArgument`. A round whose book is not open (never opened, or closed) is
   refused (`open_round_usecase.ErrBookNotOpen`), and so is a round kept missed. Else `open_round_usecase` reads the map
   (`GetTerritories`) and keeps what each country holds then with the round, in one transaction: its **start**

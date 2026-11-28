@@ -62,7 +62,9 @@ type AdminServiceClient interface {
 	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
 	// otherwise.
 	AddEntry(context.Context, *connect.Request[v1.AddEntryRequest]) (*connect.Response[v1.AddEntryResponse], error)
-	// Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
+	// Changes an entry that has not started, by the rules of AddEntry. Once it started, only its end moves sooner, or
+	// only its times and description change, which reach its round in scoring until it is scored: FailedPrecondition
+	// otherwise.
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
 	// Deletes an entry that has not started. FailedPrecondition once it started.
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
@@ -73,8 +75,9 @@ type AdminServiceClient interface {
 	// battle of AddEntry: FailedPrecondition otherwise.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
 	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
-	// end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or
-	// moves starts after now: FailedPrecondition otherwise.
+	// end moves only to a time after now. Once its finale started, its end and its finale's length and rule set stay,
+	// and only its times and description change, which reach its round in scoring until it is scored; a finale that
+	// changes otherwise or moves starts after now: FailedPrecondition otherwise.
 	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
 	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
 	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)
@@ -204,7 +207,9 @@ type AdminServiceHandler interface {
 	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
 	// otherwise.
 	AddEntry(context.Context, *connect.Request[v1.AddEntryRequest]) (*connect.Response[v1.AddEntryResponse], error)
-	// Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
+	// Changes an entry that has not started, by the rules of AddEntry. Once it started, only its end moves sooner, or
+	// only its times and description change, which reach its round in scoring until it is scored: FailedPrecondition
+	// otherwise.
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
 	// Deletes an entry that has not started. FailedPrecondition once it started.
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
@@ -215,8 +220,9 @@ type AdminServiceHandler interface {
 	// battle of AddEntry: FailedPrecondition otherwise.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
 	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
-	// end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or
-	// moves starts after now: FailedPrecondition otherwise.
+	// end moves only to a time after now. Once its finale started, its end and its finale's length and rule set stay,
+	// and only its times and description change, which reach its round in scoring until it is scored; a finale that
+	// changes otherwise or moves starts after now: FailedPrecondition otherwise.
 	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
 	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
 	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)

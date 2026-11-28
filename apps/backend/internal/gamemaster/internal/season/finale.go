@@ -8,7 +8,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 )
 
-var ErrFinaleStarted = errors.New("this season's finale has started: its end and its finale stay")
+var ErrFinaleStarted = errors.New(
+	"this season's finale has started: its end, its length and its rule set stay, and only its points and its words change",
+)
 
 // Finale is a season's last battle: it ends at the season's end and starts its length before. A season with none has
 // the zero Finale.
@@ -20,6 +22,12 @@ type Finale struct {
 }
 
 func (f Finale) Planned() bool { return f != Finale{} }
+
+// sameBattle is true when other is this finale, its times and its description aside: what a finale that started may
+// still change, since its window and its rules were played on its length and its set.
+func (f Finale) sameBattle(other Finale) bool {
+	return other.Planned() && other.Length == f.Length && other.Set == f.Set
+}
 
 func (f Finale) check(season time.Duration) error {
 	if !f.Planned() {

@@ -244,7 +244,9 @@ length the server keeps.
   Battle that neither starts nor ends at the cutoff** ("The final battle runs 15:00 to 19:00: it must start or end at
   23:00, when a day ends."). Save stays on: the server holds the rules.
 - **A season that has not ended has Edit**; a running one keeps its start (the field is locked). Once its Final
-  Battle started, the end and the finale are locked: the server refuses them (`FailedPrecondition`). **Only the last
+  Battle started, the end, the finale's tick box, its hours and its set are locked: the server refuses them
+  (`FailedPrecondition`). **Its times and its description stay open until it ends** (2026-11-28, the owner, after a ×10
+  that had to go back to ×3 mid-battle): the server sends the new times to scoring, whose round takes them. **Only the last
   season, before it starts, has Delete.**
 - Add, Save and Delete ask first (`ConfirmAction`), with the times in the operator's time ("Run season 1 from … to …
   (27 d 6 h long, starting 16 h after season 0 ends), ending with a final battle of 4 h, urf × 3 from …?"); the

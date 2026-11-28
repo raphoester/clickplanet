@@ -96,6 +96,18 @@ func (s *Store) StartOf(_ context.Context, id books.RoundID) (books.Start, error
 	return maps.Clone(at.start), nil
 }
 
+func (s *Store) Retime(_ context.Context, id books.RoundID, times uint32) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	at, found := s.rounds[id]
+	if !found || at.scored.Round.Scored || at.scored.Round.Times == times {
+		return false, nil
+	}
+	at.scored.Round.Times = times
+	return true, nil
+}
+
 func (s *Store) Score(_ context.Context, scored books.Scored) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

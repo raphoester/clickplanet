@@ -159,9 +159,11 @@ even when it plays the set already playing, so it is called again.
 - **An operator adds an entry, or edits or deletes one that has not started** (`Entry.Changeable`). A start must be
   after now, an end after the start, the name a set's, and the description short enough (`Draft.check`, every reason
   at once, each reason found by `errors.Is`).
-- **A running entry changes only by ending sooner** (`Entry.Edited`, the owner, 2026-11-14): `EditEntry` with every
-  value the same but an end after now and before the one kept (`ErrInvalidEntry` otherwise; any other change is
-  `ErrStarted`). Never later: the battle's arena and the day after it were planned on its end. A battle ended early
+- **A running entry changes only by ending sooner, or by its points and its words** (`Entry.Edited`, the owner,
+  2026-11-14 and 2026-11-28): `EditEntry` with every value the same but an end after now and before the one kept
+  (`ErrInvalidEntry` otherwise), or with every value the same but its times or its description (`rescored`, checked as
+  any battle's: `ErrInvalidEntry`); any other change is `ErrStarted`. New times reach the battle's round in scoring
+  until it is scored (see [Calling scoring](#calling-scoring)). Never later: the battle's arena and the day after it were planned on its end. A battle ended early
   is exempt from the cutoff rule once it started (`Plan.Clashes`), and the day it ran in gives the rest of itself to the
   day after (`endedEarly`, which counts only a battle that started, see [A battle and the
   days](#a-battle-and-the-days)). Otherwise, to fix a running entry, the operator adds an entry at a higher priority.
@@ -301,8 +303,10 @@ times. Now the fact "ends season S" is the season's own.
   finale. `postgres_season_store` saves both in one statement.
 - **Its rules** (every reason found by `errors.Is`): a length above none and at most the season's, a set's name, a
   description of at most 300 characters and times 1 to 10 (`ErrInvalidSeason`); **once it started, the season's end
-  and the finale stay** (`ErrFinaleStarted`, `FailedPrecondition`); a finale that is added, changed or moved starts
-  after now; **its set is one planet, the antibot, the boxes, the bonuses and the quizzes keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
+  and the finale's length and set stay** (`ErrFinaleStarted`, `FailedPrecondition`), **and its times and description
+  still change until the season ends** (`Finale.sameBattle`; the owner, 2026-11-28, after season 1's finale went to
+  ×10 an hour before it and its players asked for ×3 back once it ran): its round in scoring takes the new times (see
+  [Calling scoring](#calling-scoring)); a finale that is added, changed otherwise or moved starts after now; **its set is one planet, the antibot, the boxes, the bonuses and the quizzes keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
   between the days like any battle** (see [A battle and the days](#a-battle-and-the-days)): it starts at the season's
   last cutoff, or the season ends at a cutoff, and no battle overlaps it. It is judged on the season's add and edit with
   every battle that has not ended, and on every battle added or edited.
@@ -420,7 +424,9 @@ action and ids) in memory, and each close's answer in postgres.
   ranking after a boot or an edit of the set. A battle judged before keeps `false`. `rpc_scoring_books` says it in
   scoring's words, `scoring.v1.Ranking`, and an open with no ranking it knows is an error that calls nothing.
 - **An open is only called while what it opens has not ended**: a round that already ended is never opened, since
-  scoring would score it from today's map. **A close is due for every ended round and book scoring has not answered**:
+  scoring would score it from today's map. **An open's times are part of its call** (`moments.Key`): a battle or a
+  finale whose times change while it runs is opened again with the new ones, and scoring's round, kept, takes them
+  until it is scored. A boot opens each running round with the times it plays, which changes nothing in scoring. **A close is due for every ended round and book scoring has not answered**:
   scored or missed for a round, closed or missed for a book, and every round of an answered book (`Plan.settled`). So a
   boot after downtime closes what ended meanwhile, and no longer every round since season 0.
 - **In order**: by time, and at one instant OpenBook, CloseRound, OpenRound, then CloseBook. A call scoring did not

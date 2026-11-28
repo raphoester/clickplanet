@@ -170,7 +170,7 @@ function SeasonForm({gamemaster, row, rows, sets, cutoff, onCancel, onDone}: {
                 finale={draft.finale}
                 sets={sets}
                 window={finaleWindowOf(draft, row, rows)}
-                disabled={ending}
+                started={ending}
                 onChange={finale => change({finale})}
             />
             {flawsOf(draft, row, rows, cutoff, now).map(flaw => <p key={flaw} className="action-refused" role="alert">{flaw}</p>)}
@@ -192,8 +192,9 @@ function SeasonForm({gamemaster, row, rows, sets, cutoff, onCancel, onDone}: {
     )
 }
 
-function FinaleFields({finale, sets, window, disabled, onChange}: {
-    finale: FinaleDraft, sets: string[], window: {startsAt: Date, endsAt: Date} | undefined, disabled: boolean,
+// Once the final battle started, its times and its description still change: the server keeps its length and its set.
+function FinaleFields({finale, sets, window, started, onChange}: {
+    finale: FinaleDraft, sets: string[], window: {startsAt: Date, endsAt: Date} | undefined, started: boolean,
     onChange: (finale: FinaleDraft) => void,
 }) {
     const change = (part: Partial<FinaleDraft>) => onChange({...finale, ...part})
@@ -203,30 +204,30 @@ function FinaleFields({finale, sets, window, disabled, onChange}: {
             <fieldset className="fields" aria-label="Final battle">
                 <label className="field">
                     <span className="muted">Ends with a final battle</span>
-                    <input type="checkbox" checked={finale.on} disabled={disabled} onChange={e => change({on: e.target.checked})}/>
+                    <input type="checkbox" checked={finale.on} disabled={started} onChange={e => change({on: e.target.checked})}/>
                 </label>
                 {finale.on && (
                     <>
                         <label className="field">
                             <span className="muted">Final battle, hours</span>
-                            <input type="number" inputMode="decimal" min={0} value={finale.hours} disabled={disabled}
+                            <input type="number" inputMode="decimal" min={0} value={finale.hours} disabled={started}
                                 onChange={e => change({hours: e.target.value})}/>
                         </label>
                         <label className="field">
                             <span className="muted">Rule set</span>
-                            <select value={finale.ruleSet} disabled={disabled} onChange={e => change({ruleSet: e.target.value})}>
+                            <select value={finale.ruleSet} disabled={started} onChange={e => change({ruleSet: e.target.value})}>
                                 {finale.ruleSet === "" && <option value="">Pick a set</option>}
                                 {options.map(set => <option key={set} value={set}>{set}</option>)}
                             </select>
                         </label>
                         <label className="field">
                             <span className="muted">Times</span>
-                            <input type="number" inputMode="numeric" min={1} max={10} step={1} value={finale.times} disabled={disabled}
+                            <input type="number" inputMode="numeric" min={1} max={10} step={1} value={finale.times}
                                 onChange={e => change({times: e.target.value})}/>
                         </label>
                         <label className="field">
                             <span className="muted">Description</span>
-                            <textarea maxLength={300} value={finale.description} disabled={disabled}
+                            <textarea maxLength={300} value={finale.description}
                                 onChange={e => change({description: e.target.value})}/>
                         </label>
                     </>
