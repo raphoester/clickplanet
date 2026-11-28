@@ -72,14 +72,17 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
     // A submission opened brings its own picture and pin, and is held by its founder; the console's openFlag has its
     // picture painted from its name, and no holder.
     public async open(
-        name: string, days = 30, from: {picture?: FlagPicture, pin?: Pin, held?: boolean} = {},
+        name: string, days = 30, from: {picture?: FlagPicture, pin?: Pin, held?: boolean, anthem?: string} = {},
     ): Promise<{code: string} | {refused: NameRefusal}> {
         const trimmed = name.trim()
         const refused = this.nameRefusalOf(trimmed, undefined)
         if (refused !== undefined) return {refused}
         const code = `r-${Array.from({length: 10}, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("")}`
         const picture = from.picture ?? await this.paint(trimmed)
-        const flag: ListedFlag = {code, name: trimmed, closed: false, sold: {picture, endsAt: this.now() + days * DAY_MS, pin: from.pin}}
+        const flag: ListedFlag = {
+            code, name: trimmed, closed: false,
+            sold: {picture, endsAt: this.now() + days * DAY_MS, pin: from.pin, ...from.anthem ? {anthem: from.anthem} : {}},
+        }
         this.sold.push(flag)
         if (from.held) this.held.add(code)
         this.tell(flag)
@@ -167,6 +170,18 @@ export class FakeFlagsBackend implements FlagLister, FlagStream {
         flag.sold = {picture: flag.sold.picture, endsAt: this.now() + days * DAY_MS, pin: flag.sold.pin}
         this.tell(flag)
         return "reopened"
+    }
+
+    // The holder's anthem, open or closed, never once removed: the page hears the flag with it.
+    public sing(code: string, anthem: string | undefined): "sung" | "unknown" | "not held" | "removed" {
+        const flag = this.sold.find((sold) => sold.code === code)
+        if (flag?.sold === undefined) return "unknown"
+        if (!this.held.has(code)) return "not held"
+        if (flag.sold.removed) return "removed"
+        flag.sold = {...flag.sold, anthem}
+        if (!anthem) delete flag.sold.anthem
+        this.tell(flag)
+        return "sung"
     }
 
     // Open or closed: its code, picture and land stay.

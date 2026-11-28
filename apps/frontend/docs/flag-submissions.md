@@ -77,6 +77,12 @@ Opening it reads the submissions and the shop's plans again.
 - **The capital**: "Put the capital on the globe" puts the form aside and aims the globe (below); once put, the name of
   the place under the pin and its coordinates ("Upper Bavaria", "48.14° N, 11.58° E", each language's compass letters),
   and "Move".
+- **The anthem** (`AnthemPicker`), optional: "Anthem (optional)", a list of the game's recordings, each once under the
+  country it was made for (a territory that plays its country's file is left out), by its name in the page's language,
+  "No anthem" first; Listen plays the one picked (a plain `<audio>`, stopped by another pick or the form closing). The
+  line under it says it plays when the flag leads the board, and that the game's recordings are free to play. It is sent
+  as `SubmitFlagRequest.anthem`, and a change of a waiting flag starts from the one it chose (`againOf`). Never a file of
+  the player's: see [A sold flag's anthem](../../../docs/flag-anthems.md).
 - **The flag card** (below), the flag on the game's map at its capital, under the fields.
 - **Next**: `CreateSubmissionUpload` with the type and the size, the `PUT` to the link with a bar on the picture and
   "Uploading… 50%" on the button, then `SubmitFlag` (with `replaces` for a change), and no checkout. Its answer goes
@@ -199,6 +205,12 @@ fit) or a removed flag (the operator's note, and Back). "Claim Bavaria" with the
 goes to Your flags when it came from there. **Nothing is offered** for a removed flag, nor for an open one another
 account holds (a claim that came too late). The server refuses a claim while another player's
 renewal of the flag still runs ("You can't pay for this flag now.", see [The shop](shop.md#the-offer)).
+
+**A flag the account holds, open or closed, not removed, sets its anthem there** (`HeldAnthem`, the same
+`AnthemPicker`): a pick is sent at once (`FlagSubmitter.setAnthem`, `SetAnthem`), the list stays on it, and the flags'
+stream tells every page the flag with it (`Sold.anthem`). A refusal puts the list back on the anthem the flag plays,
+with "Your anthem could not be changed. Try again." A claim keeps the flag's anthem. The fake's `setAnthem` sets it on
+its flag held (`FakeFlagsBackend.sing`).
 
 ### What the player reads
 

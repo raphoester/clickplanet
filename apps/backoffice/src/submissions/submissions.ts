@@ -1,10 +1,11 @@
 import {Capital, loadCapitals} from "../boards/capitals.ts"
 import {loadPlaces, Places} from "../boards/places.ts"
 import {FlagsAdmin, PlayerAdmin, SupportAdmin} from "../clients.ts"
+import {countryLabel} from "../countries.ts"
 import {learnFlags, listedOf} from "../flags.ts"
 import {distanceKm, Place} from "../flags/pin.ts"
 import {JudgementVerdict, KeptSubmission} from "../gen/grpc/flags/v1/admin_pb.ts"
-import {Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Anthem, Flag, RejectionReason, SubmissionState} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 // From this share of a picture in colours past its 8 most common, it is most likely a photo: the game's own flags hold
 // 0 to 10%, photos 24 to 65%.
@@ -199,4 +200,11 @@ const LETTERS: Record<string, string> = {ß: "ss", æ: "ae", œ: "oe", ø: "o", 
 export function foldName(name: string): string {
     return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
         .replace(/[ßæœøłđðþıħ]/g, letter => LETTERS[letter] ?? letter).trim()
+}
+
+// The anthem a submission's flag takes, in the operator's words: a recording of the game's library, played for a flag
+// the game ships with, named by that flag. None for none.
+export function anthemWords(anthem: Anthem | undefined): string {
+    if (anthem?.source.case !== "libraryCode" || anthem.source.value === "") return "none"
+    return `${countryLabel(anthem.source.value)}'s, from the game's recordings`
 }

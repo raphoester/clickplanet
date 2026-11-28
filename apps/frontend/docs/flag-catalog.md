@@ -83,6 +83,10 @@ loaded.
 - **Its picture is its `picture.url`** wherever the page draws a flag as a picture: `CountryFlag` (the picker, the chat,
   the standings, the cards, the board), the share card (asked with CORS, or the card could not be saved), a rally's pin,
   and the clips (`flagPictureUrl`). Its name is the list's, in English, not translated.
+- **Its anthem is `sold.anthem`**, the code of the flag the game ships with whose recording it plays, which its holder
+  chose (`Sold.anthem`, a library code; see [A sold flag's anthem](../../../docs/flag-anthems.md)).
+  `FlagCatalog.recordingOf(code)` is the code whose recording plays: a flag the game ships with's own, a sold one's
+  anthem, or none.
 - **`https://media.clickplanet.lol` must allow the page**: the bucket's pictures answer `Access-Control-Allow-Origin: *`
   (a Cloudflare rule). The game's pages send no Content-Security-Policy; one that is added must allow that origin in
   `img-src` and `connect-src`.

@@ -2,6 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import {FlagSubmitter} from "../../backends/flags.ts"
 import {Shop} from "../../backends/shop.ts"
 import {Held, Submission} from "../../domain/flagSubmissions.ts"
 import {FlagCatalog, SoldFlag} from "../../domain/flags.ts"
@@ -30,6 +31,11 @@ const PLANS: PlanPrice[] = [
 
 // The globe is in no test: its shot never comes.
 const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
+
+const submitter = (changes: Partial<FlagSubmitter> = {}): FlagSubmitter => ({
+    uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []})),
+    appealSubmission: vi.fn(), setAnthem: vi.fn(async () => {}), ...changes,
+})
 
 const submission = (changes: Partial<Submission> = {}): Submission => ({
     id: "s-1", name: "Bavaria", pin: PIN, flag: "", state: "waiting", submittedAt: 1, decidedAt: 1, paid: false, ...changes,
@@ -194,7 +200,8 @@ describe("a flag's pay page", () => {
         useShop.setState({plans: PLANS})
         read([], [{code: FLAG}])
         const sells = shop()
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={sells} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={sells} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         expect(screen.getByRole("dialog", {name: "Add time"})).not.toBeNull()
@@ -206,11 +213,41 @@ describe("a flag's pay page", () => {
         expect(sells.checkout).toHaveBeenCalledWith({plan: "week", target: {kind: "flag", flag: FLAG}, startsNow: true})
     })
 
+    it("sets the anthem of a flag held, and says so when the server refuses it", async () => {
+        flagIs("open")
+        read([], [{code: FLAG}])
+        const setAnthem = vi.fn(async () => {})
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} submitter={submitter({setAnthem})}
+                               toCheckout={vi.fn()}/>)
+        const user = userEvent.setup()
+
+        const anthem = screen.getByRole<HTMLSelectElement>("combobox", {name: "Anthem (optional)"})
+        await user.selectOptions(anthem, "at")
+        expect(setAnthem).toHaveBeenCalledWith(FLAG, "at")
+        expect(anthem.value).toBe("at")
+
+        setAnthem.mockRejectedValueOnce(new Error("the server is down"))
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        await user.selectOptions(anthem, "")
+        expect(setAnthem).toHaveBeenLastCalledWith(FLAG, undefined)
+        expect(screen.getByRole("alert").textContent).toBe("Your anthem could not be changed. Try again.")
+        expect(anthem.value, "back to the anthem the flag plays").toBe("")
+    })
+
+    it("offers no anthem on a flag the account does not hold", () => {
+        flagIs("closed")
+        read([], [])
+        render(<FlagPayScreen flag={FLAG} fromHub={false} shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
+        expect(screen.queryByRole("combobox", {name: "Anthem (optional)"})).toBeNull()
+    })
+
     it("starts a flag held whose time ended once it is paid", () => {
         flagIs("closed")
         useShop.setState({plans: PLANS})
         read([], [{code: FLAG}])
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Add time"})).not.toBeNull()
         expect(screen.getByRole("status").textContent).toBe(`Closed on ${dateOf(CLOSED_AT)}`)
@@ -221,7 +258,8 @@ describe("a flag's pay page", () => {
         flagIs("open")
         useShop.setState({plans: PLANS})
         read([], [{code: FLAG}])
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
         await userEvent.setup().click(screen.getByRole("checkbox", {name: "I want my time added as soon as I pay. I know I can't cancel once it's added."}))
 
         act(() => flagIs("closed"))
@@ -234,7 +272,8 @@ describe("a flag's pay page", () => {
         flagIs("open")
         useShop.setState({plans: PLANS})
         read([], [{code: FLAG}])
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Back"}))
 
@@ -247,7 +286,8 @@ describe("a flag's pay page", () => {
         const renews: Renewal = {id: "r-1", plan: "month", target: {kind: "submission", id: "s-1"}, state: "renewing", periodEndsAt: ENDS_AT}
         useShop.setState({plans: PLANS, renewals: [renews]})
         const sells = shop({stopRenewal: vi.fn(async () => ({...renews, state: "stopping" as const}))})
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={sells} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={sells} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
@@ -269,7 +309,8 @@ describe("a flag's pay page", () => {
         const renews: Renewal = {id: "r-1", plan: "year", target: {kind: "flag", flag: FLAG}, state: "renewing", periodEndsAt: ENDS_AT}
         useShop.setState({plans: PLANS, renewals: [renews]})
         const refuses = shop({stopRenewal: vi.fn(async () => Promise.reject(new Error("offline")))})
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={refuses} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={refuses} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Stop renewal"}))
 
@@ -281,7 +322,8 @@ describe("a flag's pay page", () => {
         flagIs("removed")
         useShop.setState({plans: PLANS})
         read([], [{code: FLAG, removalNote: "A club's crest."}])
-        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Your flag"})).not.toBeNull()
         expect(screen.getByRole("status").textContent).toBe(`Removed on ${dateOf(CLOSED_AT)}`)
@@ -296,7 +338,8 @@ describe("a flag's pay page", () => {
         useShop.setState({plans: PLANS})
         read([], [])
         const sells = shop()
-        render(<FlagPayScreen flag={FLAG} fromHub={false} shooter={NEVER_SHOT} shop={sells} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub={false} shooter={NEVER_SHOT} shop={sells} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
         const user = userEvent.setup()
 
         expect(screen.getByRole("dialog", {name: "Claim Bavaria"})).not.toBeNull()
@@ -313,7 +356,8 @@ describe("a flag's pay page", () => {
         flagIs("removed")
         useShop.setState({plans: PLANS})
         read([], [])
-        render(<FlagPayScreen flag={FLAG} fromHub={false} shooter={NEVER_SHOT} shop={shop()} toCheckout={vi.fn()}/>)
+        render(<FlagPayScreen flag={FLAG} fromHub={false} shooter={NEVER_SHOT} shop={shop()} submitter={submitter()}
+                               toCheckout={vi.fn()}/>)
 
         expect(screen.queryByRole("radio")).toBeNull()
         expect(screen.getByText("Removed")).not.toBeNull()

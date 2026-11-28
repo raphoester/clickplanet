@@ -472,3 +472,26 @@
         transition: none;
     }
 }
+
+/* The anthem: the game's recordings in a list, beside the button that plays the one picked. */
+.flag-form-anthem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.flag-form-anthem-pick {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.flag-form-anthem > .button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.flag-form-hint {
+    margin: 0;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}

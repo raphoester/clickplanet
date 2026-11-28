@@ -8,7 +8,10 @@ export type Pin = {latitude: number, longitude: number}
 
 // A flag opened since the build: its picture, when its time runs out, in milliseconds since the epoch, and where it
 // starts in Capital Siege. Closed at its end, any player may pay for it and hold it; removed by the operator, nobody.
-export type SoldFlag = {picture: FlagPicture, endsAt: number, closedAt?: number, pin?: Pin, removed?: boolean}
+// Its anthem is the code of the flag the game ships with whose recording it plays, when its holder chose one.
+export type SoldFlag = {
+    picture: FlagPicture, endsAt: number, closedAt?: number, pin?: Pin, removed?: boolean, anthem?: string
+}
 
 export type ListedFlag = {code: string, name: string, closed: boolean, sold?: SoldFlag}
 
@@ -63,6 +66,12 @@ export class FlagCatalog {
 
     closedFlag(code: string): boolean {
         return this.closed.has(code)
+    }
+
+    // The code whose recording plays as the flag's anthem: a flag the game ships with plays its own, a sold one the one
+    // its holder chose, or none.
+    recordingOf(code: string): string | undefined {
+        return Countries.has(code) ? code : this.sold.get(code)?.anthem
     }
 
     pictureOf(code: string): FlagPicture | undefined {

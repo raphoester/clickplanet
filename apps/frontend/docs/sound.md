@@ -86,7 +86,9 @@ with the anthem's title (`TITLES` in the script, written by hand: Wikidata's
 labels mix titles with "National Anthem of X"). It needs ffmpeg.
 Territories share their country's file (`SHARES` in the script), and so does Cyprus,
 whose anthem is Greece's and which the band never recorded; a country with
-no recording shows the player with its play button off.
+no recording shows the player with its play button off. **A sold flag plays the recording its holder chose**
+(`FlagCatalog.recordingOf`, `Sold.anthem`, a code of this library), under its own name in the frame; one with none
+leads in silence, as a country with no recording. See [A sold flag's anthem](../../../docs/flag-anthems.md).
 
 - `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
   for `HOLD_MS` (15s) before the music follows it. The first leader plays at once,

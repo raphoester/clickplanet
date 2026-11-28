@@ -24,6 +24,8 @@ export type Submission = {
     rejectedByJudge?: boolean
     // Its player asked a person to look again: it waits for the operator, and is not changed.
     appealed?: boolean
+    // The code of the recording its flag takes as its anthem when it opens.
+    anthem?: string
 }
 
 // The server's: flags.v1.SubmitFlagRequest and CreateSubmissionUploadRequest.

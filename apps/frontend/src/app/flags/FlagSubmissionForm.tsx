@@ -19,6 +19,7 @@ import {CrownIcon, PictureIcon} from "../components/icons.tsx"
 import {useScreen} from "../hud/screenStore.ts"
 import {sizeLine} from "../support/attachmentLines.ts"
 import {capitalOf, coordinatesOf} from "./coordinates.ts"
+import AnthemPicker from "./AnthemPicker.tsx"
 import FlagCard from "./FlagCard.tsx"
 import {Draft, useFlagForm} from "./flagFormStore.ts"
 import FlagPitch from "./FlagPitch.tsx"
@@ -180,7 +181,9 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
         }
         if (signal?.aborted) return
         setState({kind: "sending"})
-        const submission = await submitter.submitFlag({name: flagNameOf(draft.name), uploadId, pin, replaces})
+        const submission = await submitter.submitFlag({
+            name: flagNameOf(draft.name), uploadId, pin, replaces, anthem: draft.anthem,
+        })
         if (signal?.aborted) return
         useFlagSubmissions.getState().submitted(submission, replaces)
         showPaywall(submission, draft)
@@ -287,6 +290,8 @@ export default function FlagSubmissionForm({submitter, shooter}: FlagSubmissionF
                         {t("flagSubmission.pinIt")}
                     </button>
                 </div>}
+
+            <AnthemPicker value={draft.anthem} disabled={busy} onChange={(anthem) => edit({anthem})}/>
 
             <FlagCard name={flagNameOf(draft.name)} shot={shot} picture={preview} capital={draft.pinned && capitalOf(draft.pinned)}/>
 

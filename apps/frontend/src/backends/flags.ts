@@ -25,6 +25,8 @@ export type SubmittedFlag = {
     pin: Pin
     // The account's submission that waits, which this one replaces.
     replaces?: string
+    // The code of the recording of the game's library its flag takes as its anthem.
+    anthem?: string
 }
 
 export interface FlagSubmitter {
@@ -35,6 +37,9 @@ export interface FlagSubmitter {
     myFlags(): Promise<MyFlags>
     // Asks a person to look again at the judge's rejection: the submission waits again.
     appealSubmission(id: string): Promise<Submission>
+    // The anthem of a flag the account holds, by the code of its recording; none takes it off. A SubmissionRefusedError
+    // when the server refuses it: "guest" for a flag the account does not hold, "off" for a removed one.
+    setAnthem(flag: string, anthem: string | undefined): Promise<void>
 }
 
 // One waits already, or the server refused it for good: the operator rejected it, or its picture is gone.

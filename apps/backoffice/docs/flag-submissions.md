@@ -43,7 +43,8 @@ Top down, as it is judged (`SubmissionDetail`):
   decided, the share of other colours, the player's capital, with a link that opens the game's globe there
   (`https://clickplanet.lol/play?lat=…&lon=…&zoom=20`, as a Discord ping does), and the flag it opened.
   A rejected one shows its reason and its note. **An appealed one shows the Appeal**: when it was asked, Claude's
-  rejection it asks about (its reason and note), and once you decided it, when; the Claude line above keeps its
+  rejection it asks about (its reason and note), and once you decided it, when; the Anthem its flag takes when it opens
+  (`KeptSubmission.anthem`, `anthemWords`: "Germany's, from the game's recordings", or none); the Claude line above keeps its
   reject and why. Your verdict on it is final: the player cannot ask again.
 - **The capital on a planisphere** (`CapitalMap`, see [The map](#the-map) below), with the other capitals around it.
   A waiting one's capital moves on it before the verdict (see [Moving the capital](#moving-the-capital)).

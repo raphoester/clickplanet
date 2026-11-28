@@ -30,7 +30,7 @@ function bucket() {
     }))
     const submitFlag = vi.fn(async (sent: SubmittedFlag) => waiting(sent))
     const submitter: FlagSubmitter = {
-        uploadPicture, submitFlag, myFlags: vi.fn(async () => ({submissions: [], held: []})), appealSubmission: vi.fn(),
+        uploadPicture, submitFlag, myFlags: vi.fn(async () => ({submissions: [], held: []})), appealSubmission: vi.fn(), setAnthem: vi.fn(),
     }
     return {submitter, uploads, uploadPicture, submitFlag}
 }
@@ -54,7 +54,7 @@ beforeEach(() => {
     URL.revokeObjectURL = vi.fn()
     useFlagSubmissions.getState().serve({
         uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []})),
-        appealSubmission: vi.fn(),
+        appealSubmission: vi.fn(), setAnthem: vi.fn(),
     })
 })
 
@@ -84,6 +84,24 @@ describe("FlagSubmissionForm", () => {
 
         expect(submitFlag).toHaveBeenCalledWith({name: "Bavaria", uploadId: "u-1", pin: PIN, flag: undefined})
         expect(useFlagSubmissions.getState().submissions.map(({state}) => state)).toEqual(["waiting"])
+    })
+
+    it("sends the anthem picked from the game's recordings, each listed once under its country", async () => {
+        const {submitter, uploads, submitFlag} = bucket()
+        useFlagForm.getState().compose({name: "Heiliges Römisches Reich", file: png(), pinned: {pin: PIN}})
+        render(<FlagSubmissionForm submitter={submitter} shooter={NEVER_SHOT}/>)
+        const user = userEvent.setup()
+
+        const anthem = screen.getByRole<HTMLSelectElement>("combobox", {name: "Anthem (optional)"})
+        const options = [...anthem.options].map(({textContent}) => textContent)
+        expect(options[0]).toBe("No anthem")
+        expect(options).toContain("Germany: Das Lied der Deutschen")
+        expect(options.filter((option) => option?.endsWith(": God Save the King"))).toEqual(["United Kingdom: God Save the King"])
+        await user.selectOptions(anthem, "de")
+        await user.click(sendButton())
+        await act(async () => uploads[0].land("u-1"))
+
+        expect(submitFlag).toHaveBeenCalledWith(expect.objectContaining({name: "Heiliges Römisches Reich", anthem: "de"}))
     })
 
     it("goes to the paywall once sent, keeping what was typed for Back and Fix it", async () => {

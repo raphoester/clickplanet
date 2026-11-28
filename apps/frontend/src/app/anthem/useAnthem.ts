@@ -4,6 +4,7 @@ import {AnthemPick, followLeader, NO_PICK} from "../../domain/anthemLeader.ts";
 import {CountryOrder} from "../../domain/race.ts";
 import {isAnthemAudible} from "../../domain/soundSettings.ts";
 import {useSoundSettings} from "../sound/soundSettingsStore.ts";
+import {useFlags} from "../flags/flagsStore.ts";
 import {ANTHEMS} from "./anthemsAsset.ts";
 import {AnthemPlayer, createAnthemPlayer} from "./anthemPlayer.ts";
 
@@ -45,7 +46,10 @@ export function useAnthem(board: readonly LeaderboardEntry[], order: CountryOrde
         return () => clearInterval(timer)
     }, [waiting])
 
-    const recording = pick.playing ? ANTHEMS[pick.playing] : undefined
+    // A sold flag plays the recording its holder chose, a flag the game ships with its own.
+    const catalog = useFlags((store) => store.catalog)
+    const recorded = pick.playing ? catalog.recordingOf(pick.playing) : undefined
+    const recording = recorded ? ANTHEMS[recorded] : undefined
     const url = recording?.url
     useEffect(() => player.setTrack(url), [player, url])
 

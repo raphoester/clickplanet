@@ -1,9 +1,9 @@
 import {describe, expect, it} from "vitest"
 import {FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
 import {JudgementVerdict} from "../gen/grpc/flags/v1/admin_pb.ts"
-import {Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {Anthem, Flag} from "../gen/grpc/flags/v1/flags_pb.ts"
 import {
-    aroundOf, foldName, founderOf, judgementLabel, looksLikePhoto, Near, nearOf, nextOf, Other, PHOTO_FROM_PERCENT,
+    anthemWords, aroundOf, foldName, founderOf, judgementLabel, looksLikePhoto, Near, nearOf, nextOf, Other, PHOTO_FROM_PERCENT,
     sameNameOf, shownOf,
 } from "./submissions.ts"
 
@@ -119,5 +119,13 @@ describe("judgementLabel", () => {
         expect(judgementLabel(JudgementVerdict.APPROVE)).toBe("Approved")
         expect(judgementLabel(JudgementVerdict.REJECT)).toBe("Rejected")
         expect(judgementLabel(JudgementVerdict.UNSURE)).toBe("Unsure, left to you")
+    })
+})
+
+describe("anthemWords", () => {
+    it("names the country whose recording the flag plays, or none", () => {
+        expect(anthemWords(new Anthem({source: {case: "libraryCode", value: "de"}}))).toBe("Germany's, from the game's recordings")
+        expect(anthemWords(undefined)).toBe("none")
+        expect(anthemWords(new Anthem())).toBe("none")
     })
 })

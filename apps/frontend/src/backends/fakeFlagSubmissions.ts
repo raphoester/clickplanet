@@ -53,7 +53,7 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     }
 
     // One that replaces the submission that waits takes its place; one the operator decided never changes.
-    public async submitFlag({name, uploadId, pin, replaces}: SubmittedFlag): Promise<Submission> {
+    public async submitFlag({name, uploadId, pin, replaces, anthem}: SubmittedFlag): Promise<Submission> {
         await this.answer()
         const upload = this.uploads.get(uploadId)
         if (!isValidFlagName(name) || Math.abs(pin.latitude) > 90 || Math.abs(pin.longitude) > 180 || upload === undefined) {
@@ -76,11 +76,19 @@ export class FakeFlagSubmissions implements FlagSubmitter {
             submittedAt: at,
             decidedAt: at,
             paid: false,
+            ...anthem ? {anthem} : {},
         }
         this.uploads.delete(uploadId)
         if (waiting !== undefined) this.kept.splice(this.kept.indexOf(waiting), 1)
         this.kept.unshift({submission, upload})
         return {...submission}
+    }
+
+    public async setAnthem(flag: string, anthem: string | undefined): Promise<void> {
+        await this.answer()
+        const sung = this.flags.sing(flag, anthem)
+        if (sung === "not held" || sung === "unknown") throw new SubmissionRefusedError("guest")
+        if (sung === "removed") throw new SubmissionRefusedError("off")
     }
 
     public async myFlags(): Promise<MyFlags> {
@@ -156,8 +164,8 @@ export class FakeFlagSubmissions implements FlagSubmitter {
     public async openApproved(id: string, days: number): Promise<{code: string} | {refused: NameRefusal | "not approved"}> {
         const kept = this.kept.find(({submission}) => submission.id === id)
         if (!kept || kept.submission.state !== "approved") return {refused: "not approved"}
-        const {name, pin, picture} = kept.submission
-        const opened = await this.flags.open(name, days, {picture, pin, held: true})
+        const {name, pin, picture, anthem} = kept.submission
+        const opened = await this.flags.open(name, days, {picture, pin, held: true, anthem})
         if ("refused" in opened) return opened
         kept.paidDays = undefined
         this.decide(kept, {state: "opened", flag: opened.code})

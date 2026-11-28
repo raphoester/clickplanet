@@ -41,6 +41,18 @@ describe("FlagCatalog", () => {
         expect(catalog.playableCodes()).toHaveLength(Countries.size + 1)
     })
 
+    it("plays a flag the game ships with's own recording, and a sold flag's its holder chose", () => {
+        const picture = {url: "x.png", width: 768, height: 512, stretch: false, focusX: 0.5, focusY: 0.5}
+        const catalog = FlagCatalog.BUILT_IN.withFlags([
+            {code: "r-jz9cwqzp0k", name: "Heiliges Römisches Reich", closed: false, sold: {picture, endsAt: 0, anthem: "de"}},
+            {code: "r-xcdi7vtbs5", name: "Sardinia", closed: false, sold: {picture, endsAt: 0}},
+        ])
+        expect(catalog.recordingOf("fr")).toBe("fr")
+        expect(catalog.recordingOf("r-jz9cwqzp0k")).toBe("de")
+        expect(catalog.recordingOf("r-xcdi7vtbs5")).toBeUndefined()
+        expect(catalog.recordingOf("r-k3p9x2ma0b")).toBeUndefined()
+    })
+
     it("leaves a built-in flag's name to the page's language", () => {
         const catalog = FlagCatalog.BUILT_IN.withFlags([{code: "fr", name: "Frankreich", closed: false}])
         expect(catalog.openedName("fr")).toBeUndefined()

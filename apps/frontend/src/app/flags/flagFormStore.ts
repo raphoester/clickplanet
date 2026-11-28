@@ -13,6 +13,8 @@ export type Draft = {
     name: string
     file?: File
     pinned?: PinnedPlace
+    // The code of the recording of the game's library its flag plays as its anthem; none for none.
+    anthem?: string
     // The account's submission that waits: the draft takes its place.
     replaces?: string
     // For a new flag, not a change: the name of the one that waits unpaid, which it replaces.
@@ -79,7 +81,7 @@ function newDraftOf(name: string, submissions: readonly Submission[]): Draft {
 // The picture is picked again once the page forgot it: it keeps none.
 function againOf(submission: Submission, typed: Draft): Draft {
     if (typed.file) return {...typed, replaces: undefined, replacing: undefined}
-    return {name: submission.name, pinned: submission.pin && {pin: submission.pin}}
+    return {name: submission.name, pinned: submission.pin && {pin: submission.pin}, anthem: submission.anthem}
 }
 
 export const useFlagForm = create<FlagFormStore>()((set) => ({

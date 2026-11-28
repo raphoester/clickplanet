@@ -1,7 +1,8 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {FlagService} from "../gen/grpc/flags/v1/flags_connect.ts"
-import {Flag, FlagEvent, Picture as PicturePb, Pin as PinPb} from "../gen/grpc/flags/v1/flags_pb.ts"
+import type {PartialMessage} from "@bufbuild/protobuf"
+import {Anthem, Flag, FlagEvent, Picture as PicturePb, Pin as PinPb} from "../gen/grpc/flags/v1/flags_pb.ts"
 import type {FlagPicture, ListedFlag, Pin} from "../domain/flags.ts"
 import {FlagHandlers, FlagLister, FlagStream} from "./flags.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -34,6 +35,7 @@ export function listedOf({code, name, closed, sold}: Flag): ListedFlag {
             closedAt: sold.closedAt ? sold.closedAt.toDate().getTime() : undefined,
             ...sold.pin ? {pin: pinOf(sold.pin)} : {},
             ...sold.removed ? {removed: true} : {},
+            ...anthemPart(sold.anthem),
         },
     }
 }
@@ -89,4 +91,20 @@ export class ConnectFlagsBackend implements FlagLister, FlagStream {
             {stopsOn: unimplemented},
         )
     }
+}
+
+// The anthem's field of a page's flag or submission: none for none.
+export function anthemPart(anthem: Anthem | undefined): {anthem?: string} {
+    const code = anthemOf(anthem)
+    return code ? {anthem: code} : {}
+}
+
+// A recording of the game's library, by its code; none for a source this build does not know.
+function anthemOf(anthem: Anthem | undefined): string | undefined {
+    return anthem?.source.case === "libraryCode" && anthem.source.value !== "" ? anthem.source.value : undefined
+}
+
+// The wire's anthem: unset for none.
+export function anthemMessageOf(code: string | undefined): PartialMessage<Anthem> | undefined {
+    return code ? {source: {case: "libraryCode", value: code}} : undefined
 }

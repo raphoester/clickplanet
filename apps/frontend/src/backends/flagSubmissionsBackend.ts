@@ -7,7 +7,7 @@ import {
 } from "../gen/grpc/flags/v1/flags_pb.ts"
 import {MyFlags, NO_FLAGS, RejectionReason, Submission, SubmissionState} from "../domain/flagSubmissions.ts"
 import {AppealRefusedError, FlagSubmitter, SubmissionRefusal, SubmissionRefusedError, SubmittedFlag} from "./flags.ts"
-import {pictureOf, pinOf} from "./flagsBackend.ts"
+import {anthemMessageOf, anthemPart, pictureOf, pinOf} from "./flagsBackend.ts"
 import {putFile, PutFile} from "./putFile.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {UploadOptions} from "./support.ts"
@@ -49,6 +49,7 @@ export function submissionOf(submission: SubmissionPb): Submission | undefined {
         paid: submission.paid,
         ...submission.rejectedByJudge ? {rejectedByJudge: true} : {},
         ...submission.appeal ? {appealed: true} : {},
+        ...anthemPart(submission.anthem),
     }
 }
 
@@ -70,9 +71,10 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
     }
 
     // Not retried: a call that landed and lost its answer would wait twice, and the second would be refused.
-    public async submitFlag({name, uploadId, pin, replaces}: SubmittedFlag): Promise<Submission> {
+    public async submitFlag({name, uploadId, pin, replaces, anthem}: SubmittedFlag): Promise<Submission> {
         const res = await this.send(replaces !== undefined, (headers) =>
-            this.client.submitFlag({name, uploadId, pin, replaces: replaces ?? ""}, {headers}))
+            this.client.submitFlag({name, uploadId, pin, replaces: replaces ?? "", anthem: anthemMessageOf(anthem)},
+                {headers}))
         const submission = res.submission && submissionOf(res.submission)
         if (!submission) throw new Error("the flags module answered no submission it can read")
         return submission
@@ -93,6 +95,12 @@ export class ConnectFlagSubmissions implements FlagSubmitter {
             }
             throw e
         }
+    }
+
+    // Retried: the same anthem set twice is set once. The flags' stream tells the page the flag with it.
+    public async setAnthem(flag: string, anthem: string | undefined): Promise<void> {
+        await this.send(false, (headers) => retrying(
+            () => this.client.setAnthem({flag, anthem: anthemMessageOf(anthem)}, {headers}), "SetAnthem"))
     }
 
     // A removal's note goes on the flag held it is for.

@@ -1,8 +1,8 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
-import {ConnectFlagsBackend, flagChangedOf, listedOf} from "./flagsBackend.ts"
-import {Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Pin, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
+import {anthemMessageOf, ConnectFlagsBackend, flagChangedOf, listedOf} from "./flagsBackend.ts"
+import {Anthem, Flag, FlagEvent, Heartbeat, ListFlagsResponse, Picture, Pin, Sold} from "../gen/grpc/flags/v1/flags_pb.ts"
 
 const heartbeat = () => new FlagEvent({event: {case: "heartbeat", value: new Heartbeat()}})
 const changed = (code: string, name: string, closed = false) =>
@@ -47,6 +47,18 @@ describe("listedOf", () => {
         expect(listedOf(flag).sold?.pin).toEqual({latitude: 48.1, longitude: 11.6})
         expect(listedOf(new Flag({code: "r-k3p9x2ma0b", name: "Bavaria", sold: new Sold({picture: new Picture({url: "x.png"})})})).sold?.pin)
             .toBeUndefined()
+    })
+
+    it("reads a sold flag's anthem, a recording of the game's library by its code", () => {
+        const picture = new Picture({url: "x.png", width: 2, height: 1})
+        const sung = new Flag({code: "r-jz9cwqzp0k", name: "Heiliges Römisches Reich", sold: new Sold({
+            picture, anthem: new Anthem({source: {case: "libraryCode", value: "de"}}),
+        })})
+        expect(listedOf(sung).sold?.anthem).toBe("de")
+        expect(listedOf(new Flag({code: "r-jz9cwqzp0k", name: "Heiliges Römisches Reich", sold: new Sold({picture, anthem: new Anthem()})}))
+            .sold).not.toHaveProperty("anthem")
+        expect(anthemMessageOf("de")).toEqual({source: {case: "libraryCode", value: "de"}})
+        expect(anthemMessageOf(undefined)).toBeUndefined()
     })
 
     it("reads a built flag, and an open sold one with no close", () => {

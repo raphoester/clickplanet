@@ -60,7 +60,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   session; round 1 won by the storyteller, round 2 by Sonnet, signed off 2026-11-25) and its subtitles in place of the
   headline; the war report posted: its brief, Sonnet's script in `choose`, the season's day, the episodes from the
   posts' records, Adam's voice in the render job; the costs.
-- [A sold flag's anthem](docs/flag-anthems.md) — designed 2026-11-28, no PR built: optional, chosen by the player at
+- [A sold flag's anthem](docs/flag-anthems.md) — designed 2026-11-28, PR 1 (the game's library) built that day: optional, chosen by the player at
   the submission or by the holder later, from the game's library (the Navy Band's, picked by code) or a Wikimedia Commons
   link (public domain, CC0, CC BY, CC BY-SA, credited where it plays), never a file on the player's word; the checks in
   code (on Commons, audio, the licence, 30 days old, no problem tag, an MP3), the game's own copy, a Claude judge of the

@@ -58,7 +58,7 @@ const NEVER_SHOT: FlagShooter = () => new Promise(() => {})
 
 const submitter = (changes: Partial<FlagSubmitter> = {}): FlagSubmitter => ({
     uploadPicture: vi.fn(), submitFlag: vi.fn(), myFlags: vi.fn(async () => ({submissions: [], held: []})),
-    appealSubmission: vi.fn(), ...changes,
+    appealSubmission: vi.fn(), setAnthem: vi.fn(), ...changes,
 })
 
 const shop = (changes: Partial<Shop> = {}): Shop => ({

@@ -3,7 +3,7 @@
 **A sold flag may have an anthem, which the game plays as it plays a country's** (the owner, 2026-11-28): in the
 leader's frame when the flag leads the board (see the frontend's [Sound](../apps/frontend/docs/sound.md#the-leaders-anthem)).
 Today a sold flag has none: `ANTHEMS` maps the codes the game ships with, so Heiliges Römisches Reich leads in silence,
-its play button off. Designed 2026-11-28; no PR built yet.
+its play button off. Designed 2026-11-28; **PR 1, the game's library, built the same day**.
 
 ## What the owner decided (2026-11-28)
 
@@ -36,9 +36,10 @@ Emperor; or Austria's.
 
 - **No judge**: the game ships it. It plays at once, as approved.
 - **No credit owed**; the frame names it as a country's, by its title.
-- **The backend learns the library from the page's build**, as it learns the flags (`make flags`): `npm run anthems`
-  also writes `static/anthems/anthems.json` (each code and title), which `make flags` copies into
-  `generated/flags/anthems.json` and `check-flags` checks. A code with no recording is refused.
+- **The backend keeps a code, not the list** (PR 1): a code of a flag the game ships with (`catalog.ParseAnthem`), and
+  the page offers only the codes it has a recording for. A code with none (Antarctica's), which only a hand-made call
+  could send, plays nothing, as for that country. Vendoring the list for the backend was weighed and left: a check and a
+  copy for a call no page makes.
 - **Two flags may share a recording**: a sold Bavaria and Germany both playing Germany's is fine.
 
 ### Wikimedia Commons
@@ -102,7 +103,7 @@ player, a wrong rejection costs a player its anthem and nothing else. The descri
 - **Later, by the holder** (`flags.holders`): set, change or remove the anthem of a flag it holds, open or closed. A
   claim of an ended flag keeps its anthem.
 - **The operator removes one** with a note the holder reads (a rights holder's complaint, a Commons deletion), as a
-  flag's removal.
+  flag's removal: PR 2, with Commons. A library pick is the game's own recording, and needs none.
 - **Commons is read again every week**: an anthem whose file was deleted, re-licensed or tagged since is removed, and
   its holder told why. Commons' own deletion is the game's.
 
@@ -124,8 +125,8 @@ player, a wrong rejection costs a player its anthem and nothing else. The descri
 - **The form** (step 1): "Anthem (optional)", two ways: "From the game" (the library, searched by country or title, each
   heard before it is picked) and "From Wikimedia Commons" (a link and a title; the rules in one line: public domain,
   CC0, CC BY or CC BY-SA, on Commons for a month).
-- **Your flags**: the anthem line of each flag held: playing, being checked, or refused with its reason; Change,
-  Remove.
+- **A flag held's own page** (`FlagPayScreen`, PR 1): the same picker, sent at once; later, a Commons anthem's line
+  there: playing, being checked, or refused with its reason.
 - **The leader's frame** plays a sold flag's anthem as a country's: a library pick by its code's recording, a Commons
   one by its copy. **A Commons anthem's credit** is a line under the player: "Recording: <author> · <licence> ·
   Wikimedia Commons", each linked.
@@ -141,12 +142,14 @@ player, a wrong rejection costs a player its anthem and nothing else. The descri
 
 ## The PRs in order
 
-1. **The library.** The vendored list (`anthems.json`, `make flags`, `check-flags`); `flags.anthems` with the library
-   source; `SubmitFlagRequest.anthem`, `SetAnthem`, `RemoveAnthem`; `Sold.anthem`; `AnthemChanged` to the streams; the
-   operator's read and removal. The form's and Your flags' library picker, the leader's frame playing it, the
-   backoffice's submission card and Flags page. Heiliges Römisches Reich's holder can pick an anthem the day it ships.
+1. **The library. Built 2026-11-28.** A code on the flag and the submission (`anthem_library`); the optional
+   `SubmitFlagRequest.anthem`; the holder's `SetAnthem` (no anthem takes it off); `Sold.anthem`; `AnthemChanged` to the
+   streams; the operator's read on the submission card. The form's and the flag's own page's picker, the leader's frame
+   playing it, in the page's 19 languages. Heiliges Römisches Reich's holder can pick an anthem the day it ships. See
+   the backend's [flags module](../apps/backend/docs/flags.md#anthems).
 2. **Commons, the operator its judge.** The link read as a title; `rest_commons`, pinned on a real answer; the checks
    in code; the copy in the bucket; the credit kept and shown; a Commons anthem waits on the operator, who hears it on
-   the backoffice before Approve or Reject.
+   the backoffice before Approve or Reject; the operator's removal with a note; the anthem on the backoffice's Flags
+   page.
 3. **The judge** for a Commons anthem; unsure to the operator; `ReviewAsked`'s anthem cause to the staff's channel.
 4. **The weekly read of Commons**, and the holder's note when an anthem goes.

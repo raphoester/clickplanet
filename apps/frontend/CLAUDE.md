@@ -130,11 +130,12 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   flag held and per flag sent, each opening its own page, a done one put away, "Add a new flag" under them), the
   picker's gold row and its search that finds no country a new flag, and its search that finds a flag whose time ended
   its claim; step 1 makes the region's flag with no price (a name, a picture, its capital: a pin aimed on the globe as a
-  rally), a new one in the place of the one that waits unpaid, a free flag's name sent to its claim, and shows it on the
+  rally, and an optional anthem from the game's recordings), a new one in the place of the one that waits unpaid, a
+  free flag's name sent to its claim, and shows it on the
   game's map at its capital, a shot of the globe with the flag on the tiles around it for one frame, Next sends it and
   the judge reviews it, step 2 is the paywall with the verdict as it comes (Approved, or Rejected with Fix it, before
   any payment, and "Ask a person to look again" once for the judge's rejection); a flag's own pay page for Add time,
-  Stop renewal, a removal's note and a claim; a guest sees the sign-in buttons; each decision and a close told once on the news line; the fake's `approveSubmission`, `rejectSubmission`,
+  Stop renewal, a removal's note, a claim and the holder's anthem; a guest sees the sign-in buttons; each decision and a close told once on the news line; the fake's `approveSubmission`, `rejectSubmission`,
   `openSubmission`.
 - [The shop](docs/shop.md) — a player pays for a flag's time on Stripe's page: a new flag from its paywall, held until
   the approval, a flag held or one claimed from its pay page; the shop's door (the status bar's bag on a phone, the
@@ -178,7 +179,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   starts, as the stills of a TikTok carousel and a slideshow for YouTube, which the backend's promo module posts.
 - [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps
   a name out of the clips.
-- [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem; an audio context
+- [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem, a sold flag's the
+  recording its holder chose; an audio context
   only while it can be heard, the effects' suspended 10 s after the last sound.
 - [Discord pings](docs/discord-alerts.md) — "Join Discord" in the chat's Discord bar, and "Get pinged" in the moment
   once a page when the flag is under attack, are a Discord sign-in, which joins the game's server; the moment's "Go
