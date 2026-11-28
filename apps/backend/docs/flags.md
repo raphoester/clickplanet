@@ -386,8 +386,14 @@ package and store. Off with no key (`flags.judge.anthropic.apiKey`): the operato
   as the Donetsk People's Republic, which puts the game's TikTok and YouTube posts at risk in a clip; a real region
   stays fine, Kurdistan, Catalonia; nothing hateful), and **its name reads as a state's**, real, historical, fictional
   or invented (not a joke, a person, a club, a company, a slogan). So the Holy Roman Empire, Gondor and Solandia open.
-  Then no second flag for a place or a name in the game (another spelling too), no flag of the game under another name
-  (the Bahamas' as "Bahamian Empire"), and a capital inside a real place; an invented flag's may be anywhere. Each test
+  Then no second flag for a place or a name in the game (another spelling too), no picture too close to a flag of the
+  game, and a capital inside a real place; an invented flag's may be anywhere. **The picture decides, not the name**
+  (the owner, 2026-11-28): a name that sounds like one in the game is fine once a player can tell the two apart, and
+  so is another version of a country, the state a separatist or national movement dreams of ("Greater Greece" beside
+  Greece, "Bahamian Empire" beside the Bahamas), but a flag of the game with a small change (the Bahamas' with a star
+  added) confuses the map and is `exists`; a separatist or claimed state in a war going on now stays too political.
+  Until that day a name close to one in the game was a doubt, and "Greater Greece", a white cross on blue with a coat
+  of arms, was rejected as Greece's flag under another name. Each test
   is a reason: `unreadable`, `not_a_place`, `hateful` or `other` with a note, and `exists` for the two checks.
   Reject only when sure, with a note the player reads. **Unsure in every other case**: a wrong approval shows a bad
   flag to every player and in the clips, a wrong rejection loses a player who paid, and unsure costs a wait; a name it
