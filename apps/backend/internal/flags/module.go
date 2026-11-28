@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/postgres_appeal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/answer_appeal_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/appeal_submission_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/appeals/usecases/reopen_submission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/postgres_flag_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/random_flag_ids"
@@ -47,6 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_submitted_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reject_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reopen_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
@@ -301,6 +303,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			ListSubmissionsHandler:   list_submissions_handler.New(submittedQuery),
 			ApproveSubmissionHandler: approve_submission_handler.New(approve, reviews),
 			RejectSubmissionHandler:  reject_submission_handler.New(reject, reviews),
+			ReopenSubmissionHandler: reopen_submission_handler.New(reopen_submission_usecase.New(clock, db,
+				reopen_submission_usecase.Stores{Submissions: submitted, Judgements: judged, Appeals: appealed},
+			), reviews),
 			OpenSubmittedFlagHandler: open_submitted_flag_handler.New(open_submitted_flag_usecase.New(
 				opening, db, submitted, store, cpoutbox.New(db),
 			), messages),

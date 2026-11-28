@@ -257,8 +257,8 @@ On `flags.v1.FlagService`, behind its own session check (`flags_session_checks`)
 ### The operator's calls
 
 On `flags.v1.AdminService`, the backoffice's inbox and Claude's tools (`flags_list_submissions`,
-`flags_approve_submission`, `flags_reject_submission`, `flags_open_submitted_flag`). **Never approve or open a player's
-flag in production unless the owner says so.**
+`flags_approve_submission`, `flags_reject_submission`, `flags_reopen_submission`, `flags_open_submitted_flag`). **Never
+approve or open a player's flag in production unless the owner says so.**
 
 - **`ListSubmissions`**: every one waiting, the oldest first, then the 500 decided last, the latest first, each with its
   account, its picture (the private link, or the public one once approved), its share of other colours, the judge's
@@ -281,6 +281,8 @@ flag in production unless the owner says so.**
   `SubmissionRejected` in one transaction: **the shop refunds what was paid for it**. **The picture never
   becomes public, and is deleted 30 days later** (`delete_rejected_pictures_usecase`, every hour: the file first, then
   `picture_held` false, so a row that says so holds none).
+- **`ReopenSubmission(submission_id)`** (`reopen_submission_usecase`): the judge's rejection back to waiting, for the
+  operator's own verdict, kept as its founder's appeal ([The operator's reopen](#the-operators-reopen)).
 - **`OpenSubmittedFlag(submission_id, ends_at)`** (`open_submitted_flag_usecase`): the operator opens an approved
   submission by hand, for a flag sold by hand; a founder who pays opens it through the shop ([Paid time](#paid-time)). A name another flag took since the approval is
   `ErrNameTaken`. The flag takes the submission's name,
@@ -417,7 +419,8 @@ package and store. Off with no key (`flags.judge.anthropic.apiKey`): the operato
   sells.
 - **A person looks again on request**, once: the page offers the player of a flag the judge rejected "Ask a person to
   look again" ([Ask a person](#ask-a-person)), and the terms of sale say so (the EU's rule on decisions made by a
-  machine). Until 2026-11-27 it was an email to support.
+  machine). Until 2026-11-27 it was an email to support. The operator may also reopen it unasked
+  ([The operator's reopen](#the-operators-reopen)).
 
 ## Ask a person
 
@@ -443,6 +446,28 @@ answered by the operator's verdict.
 - **Not changed while a person looks** (`ErrAppealed`): a new flag does not replace it.
 - **`flags.appeals`**: `submission_id` (one per submission, deleted with it), `account_id`, the judge's `reason` and
   `note`, `state` (`appeal_state`: `asked`, `answered`), `asked_at`, `decided_at` (`20261127112509_appeals`).
+
+### The operator's reopen
+
+**The operator reopens the judge's rejection to decide it itself, as its founder's appeal would** (the owner,
+2026-11-28: "Greater Greece" and "Meritocratic Imperial States of Africa", rejected before the rules changed, could
+not be approved: `ApproveSubmission` refuses one decided, and only its founder could ask a person).
+
+- **`appeals.Reopen`** (`reopen_submission_usecase`, `AdminService/ReopenSubmission`, Claude's
+  `flags_reopen_submission`): `appeals.Ask`'s rules with the founder taken from the submission, so no `ErrNotYours`: a
+  rejection the judge made (`ErrNotTheJudges`: the operator's own is final), once per submission
+  (`ErrAskedAlready`: a person looked at it already), its picture held (`ErrPictureGone`), no other of the founder's
+  submissions waiting (`ErrWaiting`); all `FailedPrecondition`, an unknown id `NotFound`.
+- **Kept as an appeal** (`flags.appeals`, the founder's `account_id`, state `asked`), in one transaction with the
+  submission: so it shows even unpaid, is never judged again, its founder can neither replace it nor ask again, and the
+  operator's verdict answers it. No column says who asked.
+- **Nobody is told**: no `ReviewAsked`, the operator is the person who looks. Its founder's `ListMySubmissions` shows it
+  waiting, with its `appeal`.
+- **The money**: what was paid was refunded at the judge's rejection, so an approval waits to be paid for again, as an
+  appealed one's does.
+- **Answered** `KeptSubmission` waiting, with its judgement and its appeal (`reopen_submission_handler`).
+
+`appeal_test.go`, `reopen_submission_usecase`'s and `reopen_submission_handler`'s tests hold it.
 
 **`ReviewAsked{submission_id, name, cause, why, asked_at}` tells that a flag waits on a person**, once for each cause,
 which the alerts module posts to the staff's private Discord channel (see [Discord pings](alerts.md#the-staffs-channel)):

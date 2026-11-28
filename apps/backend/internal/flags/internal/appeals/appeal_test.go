@@ -115,3 +115,46 @@ func TestTheOperatorsVerdictAfterTheAskAnswersIt(t *testing.T) {
 	_, changed = answered.Answered(at.Add(3 * time.Hour))
 	assert.False(t, changed, "told twice")
 }
+
+func reopening(t *testing.T) appeals.Reopening {
+	t.Helper()
+	asked := asking(t)
+	return appeals.Reopening{Submission: asked.Submission, Judgement: asked.Judgement, Founded: asked.Founded}
+}
+
+func TestTheOperatorReopensTheJudgesRejectionAsTheFoundersAppealTellingNobody(t *testing.T) {
+	appeal, reopened, err := appeals.Reopen(reopening(t), at.Add(time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, appeals.Snapshot{
+		Submission: smurfs, Account: ada, Rejection: cartoon, State: appeals.Asked, AskedAt: at.Add(time.Hour),
+		DecidedAt: at.Add(time.Hour),
+	}, appeal.TakeSnapshot(), "kept as its founder's appeal")
+	assert.Equal(t, submissions.Waiting, reopened.TakeSnapshot().State)
+	assert.True(t, reopened.TakeSnapshot().Appealed, "shown even unpaid")
+}
+
+func TestTheOperatorReopensUnderTheAppealsRules(t *testing.T) {
+	unsure := reopening(t)
+	unsure.Judgement = judged(t, judgements.Unsure)
+	_, _, err := appeals.Reopen(unsure, at)
+	require.ErrorIs(t, err, appeals.ErrNotTheJudges, "the operator's own rejection")
+
+	first, _, err := appeals.Reopen(reopening(t), at)
+	require.NoError(t, err)
+	again := reopening(t)
+	again.Earlier = []appeals.Appeal{first}
+	_, _, err = appeals.Reopen(again, at.Add(time.Hour))
+	require.ErrorIs(t, err, appeals.ErrAskedAlready, "a person looked at it already")
+
+	another := reopening(t)
+	another.Founded = append(another.Founded,
+		submissions.Restored(submissions.TestWaiting(submissions.SubmissionID{15: 2}, ada, at)))
+	_, _, err = appeals.Reopen(another, at)
+	require.ErrorIs(t, err, submissions.ErrWaiting, "one waits at a time")
+
+	waits := reopening(t)
+	waits.Submission = submissions.Restored(submissions.TestWaiting(smurfs, ada, at))
+	_, _, err = appeals.Reopen(waits, at)
+	require.ErrorIs(t, err, submissions.ErrNotRejected)
+}

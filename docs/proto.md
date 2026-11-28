@@ -50,7 +50,8 @@
   letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet keeps in its catalog, and
   `FlagRenamed`, and `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`, `CloseFlag`
   (a removal since 2026-11-26) and `RenameFlag` (`flags_*`), and since 2026-11-24 the review of the players' submissions: `ListSubmissions`
-  (`KeptSubmission`), `ApproveSubmission`, `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note) and
+  (`KeptSubmission`), `ApproveSubmission`, `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note),
+  `ReopenSubmission` (since 2026-11-28, the judge's rejection back to waiting for the operator, kept as an appeal) and
   `OpenSubmittedFlag`. A sold flag has a `Pin` (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also
   takes a signed-in player's `CreateSubmissionUpload`, `SubmitFlag`, `AppealSubmission` (since 2026-11-27, a person
   looks again at the judge's rejection, once: `Submission.rejected_by_judge`, `Submission.appeal`,

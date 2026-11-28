@@ -203,7 +203,8 @@ and says what is in it. Read the doc before you change its area.
   `TakeBackTime` (a refund ends the flag that much sooner); the holder, whoever pays for it, and the claim of a flag
   whose time ended by any player, forever; the judge, a Claude model that approves or rejects the clear
   flags as they are sent, the rest left to the operator; a player's appeal of the judge's rejection, once, back to the
-  operator unpaid, and `ReviewAsked` for each flag that waits on a person.
+  operator unpaid, or the operator's own reopen of it (`ReopenSubmission`), and `ReviewAsked` for each flag that waits
+  on a person.
 - [The shop](docs/shop.md) — a player pays on Stripe's own page (Managed Payments, Stripe the seller): a week paid
   once, a month or a year that renews; off with no Stripe key; a sale (a coupon off every plan's first payment between
   two moments, Black Friday 2026); the Checkout Session, Stripe's signed events at

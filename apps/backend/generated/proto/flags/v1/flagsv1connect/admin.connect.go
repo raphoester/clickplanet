@@ -55,6 +55,9 @@ const (
 	// AdminServiceRejectSubmissionProcedure is the fully-qualified name of the AdminService's
 	// RejectSubmission RPC.
 	AdminServiceRejectSubmissionProcedure = "/flags.v1.AdminService/RejectSubmission"
+	// AdminServiceReopenSubmissionProcedure is the fully-qualified name of the AdminService's
+	// ReopenSubmission RPC.
+	AdminServiceReopenSubmissionProcedure = "/flags.v1.AdminService/ReopenSubmission"
 	// AdminServiceOpenSubmittedFlagProcedure is the fully-qualified name of the AdminService's
 	// OpenSubmittedFlag RPC.
 	AdminServiceOpenSubmittedFlagProcedure = "/flags.v1.AdminService/OpenSubmittedFlag"
@@ -104,6 +107,14 @@ type AdminServiceClient interface {
 	// later. What was paid for it is refunded. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
+	// Reopens a submission the judge rejected, for the operator to decide: it waits again, as if its player had asked a
+	// person to look again. Its appeal is kept, so it shows even unpaid, is never judged again, and its player cannot
+	// ask again; ApproveSubmission or RejectSubmission then decides it. Nobody is told: its player sees it waiting. What
+	// was paid was refunded at the rejection, so an approval waits to be paid for again. NotFound for an unknown
+	// submission; FailedPrecondition for one not rejected, one the judge did not reject (the operator's own rejection, or
+	// one the judge was unsure of), one a person looked at already, one whose picture was deleted (30 days after the
+	// rejection), or while another submission of its player waits.
+	ReopenSubmission(context.Context, *connect.Request[v1.ReopenSubmissionRequest]) (*connect.Response[v1.ReopenSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
 	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a name another
 	// flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
@@ -177,6 +188,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RejectSubmission")),
 			connect.WithClientOptions(opts...),
 		),
+		reopenSubmission: connect.NewClient[v1.ReopenSubmissionRequest, v1.ReopenSubmissionResponse](
+			httpClient,
+			baseURL+AdminServiceReopenSubmissionProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ReopenSubmission")),
+			connect.WithClientOptions(opts...),
+		),
 		openSubmittedFlag: connect.NewClient[v1.OpenSubmittedFlagRequest, v1.OpenSubmittedFlagResponse](
 			httpClient,
 			baseURL+AdminServiceOpenSubmittedFlagProcedure,
@@ -197,6 +214,7 @@ type adminServiceClient struct {
 	listSubmissions   *connect.Client[v1.ListSubmissionsRequest, v1.ListSubmissionsResponse]
 	approveSubmission *connect.Client[v1.ApproveSubmissionRequest, v1.ApproveSubmissionResponse]
 	rejectSubmission  *connect.Client[v1.RejectSubmissionRequest, v1.RejectSubmissionResponse]
+	reopenSubmission  *connect.Client[v1.ReopenSubmissionRequest, v1.ReopenSubmissionResponse]
 	openSubmittedFlag *connect.Client[v1.OpenSubmittedFlagRequest, v1.OpenSubmittedFlagResponse]
 }
 
@@ -243,6 +261,11 @@ func (c *adminServiceClient) ApproveSubmission(ctx context.Context, req *connect
 // RejectSubmission calls flags.v1.AdminService.RejectSubmission.
 func (c *adminServiceClient) RejectSubmission(ctx context.Context, req *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error) {
 	return c.rejectSubmission.CallUnary(ctx, req)
+}
+
+// ReopenSubmission calls flags.v1.AdminService.ReopenSubmission.
+func (c *adminServiceClient) ReopenSubmission(ctx context.Context, req *connect.Request[v1.ReopenSubmissionRequest]) (*connect.Response[v1.ReopenSubmissionResponse], error) {
+	return c.reopenSubmission.CallUnary(ctx, req)
 }
 
 // OpenSubmittedFlag calls flags.v1.AdminService.OpenSubmittedFlag.
@@ -294,6 +317,14 @@ type AdminServiceHandler interface {
 	// later. What was paid for it is refunded. NotFound for an unknown submission, or one its player replaced; FailedPrecondition for one decided already; InvalidArgument for no
 	// reason, or OTHER with no note.
 	RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error)
+	// Reopens a submission the judge rejected, for the operator to decide: it waits again, as if its player had asked a
+	// person to look again. Its appeal is kept, so it shows even unpaid, is never judged again, and its player cannot
+	// ask again; ApproveSubmission or RejectSubmission then decides it. Nobody is told: its player sees it waiting. What
+	// was paid was refunded at the rejection, so an approval waits to be paid for again. NotFound for an unknown
+	// submission; FailedPrecondition for one not rejected, one the judge did not reject (the operator's own rejection, or
+	// one the judge was unsure of), one a person looked at already, one whose picture was deleted (30 days after the
+	// rejection), or while another submission of its player waits.
+	ReopenSubmission(context.Context, *connect.Request[v1.ReopenSubmissionRequest]) (*connect.Response[v1.ReopenSubmissionResponse], error)
 	// Opens the flag of an approved submission for every player, until its end, at the submission's pin: a flag sold
 	// by hand until payments exist. FailedPrecondition for a submission not approved, opened already, or a name another
 	// flag took since; InvalidArgument for an end gone by. A closed flag is never deleted: open one only when the owner says so.
@@ -363,6 +394,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RejectSubmission")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceReopenSubmissionHandler := connect.NewUnaryHandler(
+		AdminServiceReopenSubmissionProcedure,
+		svc.ReopenSubmission,
+		connect.WithSchema(adminServiceMethods.ByName("ReopenSubmission")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceOpenSubmittedFlagHandler := connect.NewUnaryHandler(
 		AdminServiceOpenSubmittedFlagProcedure,
 		svc.OpenSubmittedFlag,
@@ -389,6 +426,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceApproveSubmissionHandler.ServeHTTP(w, r)
 		case AdminServiceRejectSubmissionProcedure:
 			adminServiceRejectSubmissionHandler.ServeHTTP(w, r)
+		case AdminServiceReopenSubmissionProcedure:
+			adminServiceReopenSubmissionHandler.ServeHTTP(w, r)
 		case AdminServiceOpenSubmittedFlagProcedure:
 			adminServiceOpenSubmittedFlagHandler.ServeHTTP(w, r)
 		default:
@@ -434,6 +473,10 @@ func (UnimplementedAdminServiceHandler) ApproveSubmission(context.Context, *conn
 
 func (UnimplementedAdminServiceHandler) RejectSubmission(context.Context, *connect.Request[v1.RejectSubmissionRequest]) (*connect.Response[v1.RejectSubmissionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.RejectSubmission is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ReopenSubmission(context.Context, *connect.Request[v1.ReopenSubmissionRequest]) (*connect.Response[v1.ReopenSubmissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.AdminService.ReopenSubmission is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) OpenSubmittedFlag(context.Context, *connect.Request[v1.OpenSubmittedFlagRequest]) (*connect.Response[v1.OpenSubmittedFlagResponse], error) {

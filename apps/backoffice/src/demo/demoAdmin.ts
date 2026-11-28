@@ -103,6 +103,8 @@ import {FakeAdmin, keptSubmission, soldFlag} from "../fakeAdmin.ts"
 import {
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
+    Judgement,
+    JudgementVerdict,
     KeptSubmission,
     OpenFlagRequest,
     OpenFlagResponse,
@@ -379,8 +381,8 @@ export class DemoAdmin extends FakeAdmin {
         ]})
         this.flags.listed = [...this.flags.listed.filter(flag => flag.sold === undefined), ...DEMO_FLAGS]
         // Seven flags players submitted: four waiting (Catalonia, fine; Tyrol, which the game had; a photo of Lake Garda;
-        // a new name and picture for Bavaria), Sardinia approved and waiting to be opened, Brittany rejected, and Cornwall,
-        // opened from its submission.
+        // a new name and picture for Bavaria), Sardinia approved and waiting to be opened, Brittany rejected by Claude
+        // (the operator may reopen it), and Cornwall, opened from its submission.
         const founders = this.accounts.filter(account => account.name !== "" && !account.guest)
         this.flags.submissions = DEMO_SUBMISSIONS.map(({id, name, pin, hoursAgo, decidedHoursAgo, picture, part}, n) => keptSubmission(id, name, pin, {
             accountId: founders[(n * 7 + 3) % founders.length].id,
@@ -792,6 +794,7 @@ export class DemoAdmin extends FakeAdmin {
         listSubmissions: this.flags.listSubmissions.bind(this.flags),
         approveSubmission: this.flags.approveSubmission.bind(this.flags),
         rejectSubmission: this.flags.rejectSubmission.bind(this.flags),
+        reopenSubmission: this.flags.reopenSubmission.bind(this.flags),
         openSubmittedFlag: this.flags.openSubmittedFlag.bind(this.flags),
         renameFlag: this.flags.renameFlag.bind(this.flags),
     }
@@ -991,7 +994,13 @@ const DEMO_SUBMISSIONS: DemoSubmission[] = [
             `<rect width="11" height="10" fill="#fff"/>` +
             [[2, 2], [5.5, 2], [9, 2], [3.75, 5], [7.25, 5], [2, 8], [5.5, 8], [9, 8]].map(([x, y]) =>
                 `<path d="M${x} ${y - 1} l.6 1.4 l-.6 .6 l-.6 -.6z" fill="#000"/>`).join("")),
-        part: {state: SubmissionState.REJECTED, rejection: new Rejection({reason: RejectionReason.EXISTS}), otherColorsPercent: 1},
+        part: {
+            state: SubmissionState.REJECTED, rejection: new Rejection({reason: RejectionReason.EXISTS}), otherColorsPercent: 1,
+            judgement: new Judgement({
+                verdict: JudgementVerdict.REJECT, why: "Brittany's flag, the Gwenn-ha-du, which the game has.",
+                judgedAt: at(NOW - 70 * HOUR),
+            }),
+        },
     },
     {
         id: "demo-sub-cornwall", name: "Cornwall", pin: TRURO, hoursAgo: 24 * 32, decidedHoursAgo: 24 * 30,

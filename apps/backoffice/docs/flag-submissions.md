@@ -3,8 +3,8 @@
 `src/submissions/`, one page (`SubmissionsView`), in the menu under **Moderation**, after Graffiti, at
 `#/submissions`. **Players submit a flag** (a name, a picture, its capital on the globe), and the operator judges it
 here (step 3 of the regional flags). It is under Moderation because it is an inbox of what players send, as the reports
-and the graffiti are. `flags.v1.AdminService` keeps them: `ListSubmissions`, `ApproveSubmission`, `RejectSubmission`
-and `OpenSubmittedFlag`. **The capital is `pin` in the code and on the wire** (`flags.v1.Pin`); the page says capital:
+and the graffiti are. `flags.v1.AdminService` keeps them: `ListSubmissions`, `ApproveSubmission`, `RejectSubmission`,
+`ReopenSubmission` and `OpenSubmittedFlag`. **The capital is `pin` in the code and on the wire** (`flags.v1.Pin`); the page says capital:
 it is where the flag starts in Capital Siege.
 
 ## The inbox
@@ -111,6 +111,20 @@ left to you", then what decided it, in its words. A flag it approved or rejected
   server refused it: the flag r-… is named Tyrol"): one decided already, a name another flag took since, the flags'
   pictures off; `invalid_argument` is quoted too (a capital off the globe).
 
+## Reopening Claude's rejection
+
+`ReopenPanel`, "Look again", on a submission Claude rejected that no person looked at yet and whose picture is still
+kept (`reopenable`: rejected, Claude's verdict Reject, no appeal, a picture). **Reopen asks first** ("Reopen Greater
+Greece? It waits for your verdict again, and its player sees it waiting."), then `ReopenSubmission` puts it back to
+waiting as if its player had asked a person (see the backend's
+[The operator's reopen](../../backend/docs/flags.md#the-operators-reopen)): it stays open, the green line says
+"Reopened. It waits for your verdict.", its card shows the Appeal with Claude's rejection, and the Verdict comes back.
+The player can no longer ask a person, and what it paid was refunded: an approval waits to be paid for again.
+
+- **Not on the operator's own rejection**: that one is final.
+- **What the server refuses**: `failed_precondition` is quoted (not Claude's rejection, looked at already, its picture
+  deleted, another of its player's submissions waiting); `not_found` is a submission no longer kept.
+
 ## Writing to the player
 
 `LetterPanel` (in `src/support/`, over `letters.ts`), "Write to SilentEagle29", on every submission whose founder is
@@ -156,11 +170,12 @@ an approved one's is on `https://media.clickplanet.lol`, also there (see [Deploy
 `npm run demo` holds seven made-up submissions, each picture drawn in the page (SVG): Catalonia (waiting, fine), Tyrol
 (waiting, a name the closed sold flag Tyrol has, its capital beside it, and its letter, its founder's reply in it), Lake Garda
 (waiting, a photo, 41% of other colours, a founder with no verified address), Free State of Bavaria (waiting, at the
-capital of the sold flag Bavaria), Sardinia (approved, to open), Brittany (rejected: Has a flag already) and Cornwall (opened). The map is
+capital of the sold flag Bavaria), Sardinia (approved, to open), Brittany (rejected by Claude: Has a flag already, so it shows Look again) and Cornwall
+(opened). The map is
 drawn on `earth-2`, the board the world plays. `FakeAdmin.flags` (`FakeFlags`) keeps six of the same kind for the
-tests, and answers the four calls with the server's refusals: `not_found` for an unknown id, `invalid_argument` for a
-capital off the globe, `failed_precondition` for one decided already, a name another flag has, or not an approved
-flag, `invalid_argument` for no reason, Other with no note, a note past 500 characters, or an end gone by. An approval
+tests, and answers the five calls with the server's refusals: `not_found` for an unknown id, `invalid_argument` for a
+capital off the globe, `failed_precondition` for one decided already, a name another flag has, not an approved flag,
+or a reopen the server refuses (in its words), `invalid_argument` for no reason, Other with no note, a note past 500 characters, or an end gone by. An approval
 keeps the moved capital on the submission. `FakeAdmin` answers the letters as the server
 does: a verified address for BraveFox42 alone (`addresses`), `failed_precondition` for none, `invalid_argument` for no
 submission, a subject or a text out of bounds, `already_exists` for a second letter about a submission, `not_found` for

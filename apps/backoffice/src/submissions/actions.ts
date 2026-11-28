@@ -22,6 +22,11 @@ export async function reject(flags: FlagsAdmin, submissionId: string, reason: Re
     return answered((await flags.rejectSubmission({submissionId, rejection: {reason, note: note.trim()}})).submission)
 }
 
+// Claude's rejection, waiting again for the operator's verdict.
+export async function reopen(flags: FlagsAdmin, submissionId: string): Promise<KeptSubmission> {
+    return answered((await flags.reopenSubmission({submissionId})).submission)
+}
+
 export async function openSubmitted(flags: FlagsAdmin, submissionId: string, endsAt: Date): Promise<Flag> {
     const {flag} = await flags.openSubmittedFlag({submissionId, endsAt: Timestamp.fromDate(endsAt)})
     if (flag === undefined) throw new Refused("The server answered no flag. Reload the list.")
@@ -35,6 +40,12 @@ export function approveRefusalOf(err: unknown): string {
 
 export function rejectRefusalOf(err: unknown): string {
     return refused(err) ?? wordsOf(err, {notFound: GONE, failedPrecondition: "It is decided already. Reload the list."})
+}
+
+// A failed_precondition is quoted: not Claude's rejection, looked at already, its picture deleted, or another of its
+// player's waiting.
+export function reopenRefusalOf(err: unknown): string {
+    return refused(err) ?? quoted(err) ?? wordsOf(err, {notFound: GONE})
 }
 
 // A failed_precondition is quoted: opened already, or a name another flag took since.

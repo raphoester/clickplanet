@@ -68,7 +68,8 @@ src/
                     the other capitals, zoom, pan and the capital moved) over mapView.ts (the view: region, world, zoom,
                     pan, a place under a point) and mapLand.ts (the board's land in pixels, a box at a time, the
                     whole world once a board), SubmissionVerdict (Approve or Reject, at the capital moved),
-                    OpenSubmittedPanel (an approved new flag opened), actions.ts (the calls and their refusals),
+                    ReopenPanel (Claude's rejection reopened for a verdict), OpenSubmittedPanel (an approved new
+                    flag opened), actions.ts (the calls and their refusals),
                     submissions.ts (the lists, the filters, the next one, the board's land and capitals, the capitals
                     near one and the flags of the same name, the photo warning, the founders who replied)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
