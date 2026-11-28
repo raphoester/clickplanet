@@ -25,7 +25,7 @@ func (l *Logged) Execute(ctx context.Context) (link_members_usecase.Out, error) 
 			slog.String("discord_user", string(failed.User)), slog.Any("error", failed.Err))
 	}
 	attrs := []any{
-		slog.Int("linked", out.Linked), slog.Int("named", out.Named), slog.Int("outside", out.Outside),
+		slog.Int("linked", out.Linked), slog.Int("moved", out.Moved), slog.Int("named", out.Named), slog.Int("outside", out.Outside),
 		slog.Int("failed", len(out.Failed)),
 	}
 	if err != nil {

@@ -10,12 +10,15 @@ export async function reconcileTitles(progression: ProgressionAdmin): Promise<Re
     return {granted: answer.granted, revoked: answer.revoked}
 }
 
-export type MembersLinked = {linked: number, named: number, outside: number, failed: number}
+export type MembersLinked = {linked: number, moved: number, named: number, outside: number, failed: number}
 
-// Links every account signed in with Discord whose user is in the server already, with its flag's role, and gives every
-// linked one its username as its nickname. A second run links and renames nobody twice. It asks Discord about each
+// Links every account signed in with Discord whose user is in the server already, with its flag's role, gives every
+// linked one the role of the flag it plays for when it holds another, and its username as its nickname. A second run
+// links, moves and renames nobody twice. It asks Discord about each
 // account in turn, so it takes the long timeout.
 export async function linkMembers(alerts: AlertsAdmin): Promise<MembersLinked> {
     const answer = await alerts.linkMembers({}, {timeoutMs: LONG_CALL_MS})
-    return {linked: answer.linked, named: answer.named, outside: answer.outside, failed: answer.failed}
+    return {
+        linked: answer.linked, moved: answer.moved, named: answer.named, outside: answer.outside, failed: answer.failed,
+    }
 }

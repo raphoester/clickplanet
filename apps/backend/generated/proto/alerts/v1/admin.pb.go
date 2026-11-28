@@ -305,7 +305,9 @@ type LinkMembersResponse struct {
 	// Discord or the game could not be asked, or Discord refused a nickname: a run again tries them again.
 	Failed uint32 `protobuf:"varint,3,opt,name=failed,proto3" json:"failed,omitempty"`
 	// Linked, new or not, and given its username as its nickname in the server now.
-	Named         uint32 `protobuf:"varint,4,opt,name=named,proto3" json:"named,omitempty"`
+	Named uint32 `protobuf:"varint,4,opt,name=named,proto3" json:"named,omitempty"`
+	// Linked before, and given the role of the flag it plays for now.
+	Moved         uint32 `protobuf:"varint,5,opt,name=moved,proto3" json:"moved,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -368,6 +370,13 @@ func (x *LinkMembersResponse) GetNamed() uint32 {
 	return 0
 }
 
+func (x *LinkMembersResponse) GetMoved() uint32 {
+	if x != nil {
+		return x.Moved
+	}
+	return 0
+}
+
 var File_alerts_v1_admin_proto protoreflect.FileDescriptor
 
 const file_alerts_v1_admin_proto_rawDesc = "" +
@@ -388,12 +397,13 @@ const file_alerts_v1_admin_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"2\n" +
 	"\x14UnlinkPlayerResponse\x12\x1a\n" +
 	"\bunlinked\x18\x01 \x01(\bR\bunlinked\"\x14\n" +
-	"\x12LinkMembersRequest\"u\n" +
+	"\x12LinkMembersRequest\"\x8b\x01\n" +
 	"\x13LinkMembersResponse\x12\x16\n" +
 	"\x06linked\x18\x01 \x01(\rR\x06linked\x12\x18\n" +
 	"\aoutside\x18\x02 \x01(\rR\aoutside\x12\x16\n" +
 	"\x06failed\x18\x03 \x01(\rR\x06failed\x12\x14\n" +
-	"\x05named\x18\x04 \x01(\rR\x05named2\x86\x02\n" +
+	"\x05named\x18\x04 \x01(\rR\x05named\x12\x14\n" +
+	"\x05moved\x18\x05 \x01(\rR\x05moved2\x86\x02\n" +
 	"\fAdminService\x12W\n" +
 	"\rGetPlayerLink\x12\x1f.alerts.v1.GetPlayerLinkRequest\x1a .alerts.v1.GetPlayerLinkResponse\"\x03\x90\x02\x01\x12O\n" +
 	"\fUnlinkPlayer\x12\x1e.alerts.v1.UnlinkPlayerRequest\x1a\x1f.alerts.v1.UnlinkPlayerResponse\x12L\n" +

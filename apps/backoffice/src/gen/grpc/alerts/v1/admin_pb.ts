@@ -272,6 +272,13 @@ export class LinkMembersResponse extends Message<LinkMembersResponse> {
    */
   named = 0;
 
+  /**
+   * Linked before, and given the role of the flag it plays for now.
+   *
+   * @generated from field: uint32 moved = 5;
+   */
+  moved = 0;
+
   constructor(data?: PartialMessage<LinkMembersResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -284,6 +291,7 @@ export class LinkMembersResponse extends Message<LinkMembersResponse> {
     { no: 2, name: "outside", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "failed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "named", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "moved", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkMembersResponse {

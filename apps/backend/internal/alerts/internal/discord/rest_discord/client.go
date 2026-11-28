@@ -127,6 +127,14 @@ func (c *Client) PaintRole(ctx context.Context, role discord.RoleID, color disco
 	return nil
 }
 
+// discord.ErrNoRole when the server has no such role: someone deleted it by hand.
+func (c *Client) RenameRole(ctx context.Context, role discord.RoleID, name string) error {
+	if _, err := c.bot(ctx, http.MethodPatch, c.roles()+"/"+string(role), map[string]any{"name": name}, nil); err != nil {
+		return fmt.Errorf("failed to rename the role %s: %w", role, err)
+	}
+	return nil
+}
+
 // A role the server no longer has is deleted already.
 func (c *Client) DeleteRole(ctx context.Context, role discord.RoleID) error {
 	_, err := c.bot(ctx, http.MethodDelete, c.roles()+"/"+string(role), nil, nil)

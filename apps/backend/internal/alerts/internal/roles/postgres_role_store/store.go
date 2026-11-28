@@ -23,24 +23,25 @@ var _ roles.Store = (*Store)(nil)
 
 func (s *Store) RoleOf(ctx context.Context, key roles.Key) (roles.Kept, error) {
 	var (
-		id    string
-		color int
+		id, name string
+		color    int
 	)
-	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT role_id, color FROM roles WHERE key = $1`, string(key)).Scan(&id, &color)
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT role_id, color, name FROM roles WHERE key = $1`, string(key)).
+		Scan(&id, &color, &name)
 	if errors.Is(err, sql.ErrNoRows) {
 		return roles.Kept{}, roles.ErrNoRole
 	}
 	if err != nil {
 		return roles.Kept{}, fmt.Errorf("failed to read a role: %w", err)
 	}
-	return roles.Kept{ID: discord.RoleID(id), Color: discord.Color(color)}, nil
+	return roles.Kept{ID: discord.RoleID(id), Color: discord.Color(color), Name: name}, nil
 }
 
 func (s *Store) SaveRole(ctx context.Context, key roles.Key, kept roles.Kept) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO roles (key, role_id, color) VALUES ($1, $2, $3)
-		ON CONFLICT (key) DO UPDATE SET role_id = EXCLUDED.role_id, color = EXCLUDED.color
-	`, string(key), string(kept.ID), int(kept.Color)); err != nil {
+		INSERT INTO roles (key, role_id, color, name) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (key) DO UPDATE SET role_id = EXCLUDED.role_id, color = EXCLUDED.color, name = EXCLUDED.name
+	`, string(key), string(kept.ID), int(kept.Color), kept.Name); err != nil {
 		return fmt.Errorf("failed to upsert a role: %w", err)
 	}
 	return nil

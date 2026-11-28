@@ -21,12 +21,18 @@ type Planet interface {
 
 const askTimeout = 5 * time.Second
 
-func New(planet Planet) Allegiances {
-	return Allegiances{planet: planet}
+// nations.Catalog.
+type Flags interface {
+	FlagOf(code string) (nations.Flag, bool)
+}
+
+func New(planet Planet, flags Flags) Allegiances {
+	return Allegiances{planet: planet, flags: flags}
 }
 
 type Allegiances struct {
 	planet Planet
+	flags  Flags
 }
 
 // No flag when the account never pledged one, or plays for one with no role.
@@ -42,6 +48,6 @@ func (a Allegiances) FlagOf(ctx context.Context, account links.AccountID) (natio
 	if pledged == "" {
 		return "", nil
 	}
-	flag, _ := nations.FlagOf(pledged)
+	flag, _ := a.flags.FlagOf(pledged)
 	return flag, nil
 }

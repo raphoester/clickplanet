@@ -48,7 +48,7 @@
   `Picture` (public URL, size, `stretch` and focus), `ends_at`, `closed_at` and, since 2026-11-26, `removed`: closed for
   good by the operator, never claimed). A flag opened since is `r-` and ten
   letters or digits. Beside it, `events.proto` is `FlagOpened` and `FlagClosed`, which planet keeps in its catalog, and
-  `FlagRenamed`, and `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`, `CloseFlag`
+  `FlagRenamed` (the alerts hear it and `FlagOpened` for the name of each sold flag's Discord role), and `admin.proto` the operator's `ListFlags`, `CreateFlagUpload`, `OpenFlag`, `AddTime`, `CloseFlag`
   (a removal since 2026-11-26) and `RenameFlag` (`flags_*`), and since 2026-11-24 the review of the players' submissions: `ListSubmissions`
   (`KeptSubmission`), `ApproveSubmission`, `RejectSubmission` (a `Rejection`: its `RejectionReason` and a note) and
   `OpenSubmittedFlag`. A sold flag has a `Pin` (latitude and longitude, never a tile), `Sold.pin`. `FlagService` also

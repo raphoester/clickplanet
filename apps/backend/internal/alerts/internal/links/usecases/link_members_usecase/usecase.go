@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -37,6 +38,11 @@ type Roles interface {
 	Ensure(ctx context.Context, role roles.Role) (discord.RoleID, error)
 }
 
+// follow_flag_usecase: a linked member's role moves to the flag it plays for.
+type Follower interface {
+	Execute(ctx context.Context, in follow_flag_usecase.In) error
+}
+
 // links.Namer: a linked member's nickname.
 type Namer interface {
 	Name(ctx context.Context, account links.AccountID) (bool, error)
@@ -62,6 +68,9 @@ type Failure struct {
 type Out struct {
 	// In the server, and linked now with its flag's role.
 	Linked int
+	// Linked before, and given the role of the flag it plays for now: a flag that had no role when it pledged, as a sold
+	// flag before the alerts knew its name, or a pledge the bus gave up on.
+	Moved int
 	// Linked, now or before, and given its username as its nickname now.
 	Named int
 	// Not in the server: only the user's own Discord sign-in can add it.
@@ -70,10 +79,12 @@ type Out struct {
 }
 
 func New(
-	clock cptime.Clock, store Store, accounts Accounts, members Members, allegiances Allegiances, book Roles, namer Namer,
+	clock cptime.Clock, store Store, accounts Accounts, members Members, allegiances Allegiances, book Roles,
+	follower Follower, namer Namer,
 ) *UseCase {
 	return &UseCase{
-		clock: clock, store: store, accounts: accounts, members: members, allegiances: allegiances, roles: book, namer: namer,
+		clock: clock, store: store, accounts: accounts, members: members, allegiances: allegiances, roles: book,
+		follower: follower, namer: namer,
 	}
 }
 
@@ -84,17 +95,19 @@ type UseCase struct {
 	members     Members
 	allegiances Allegiances
 	roles       Roles
+	follower    Follower
 	namer       Namer
 }
 
 var _ Executor = (*UseCase)(nil)
 
 // Links each account signed in with Discord whose user is in the server already and that has no link: it joined by
-// the invite, or signed in before the sign-in asked to join. An account linked already, and a user linked from
-// another account, are left as they are, so a second run links nobody twice. Each account linked, now or before, is
-// given its username as its nickname when it does not wear it yet: a second run renames nobody twice, and the links
-// made before the nicknames are named by the first. One account that fails does not stop the others; a run cut short,
-// or auth that does not answer, stops it.
+// the invite, or signed in before the sign-in asked to join. A user linked from another account is left as it is, so a
+// second run links nobody twice. An account linked already is given the role of the flag it plays for when it does not
+// hold it yet: the players of a sold flag that pledged before the alerts knew its name hold none. Each account linked,
+// now or before, is given its username as its nickname when it does not wear it yet: a second run moves and renames
+// nobody twice, and the links made before the nicknames are named by the first. One account that fails does not stop
+// the others; a run cut short, or auth that does not answer, stops it.
 func (u *UseCase) Execute(ctx context.Context) (Out, error) {
 	var (
 		out   Out
@@ -113,6 +126,8 @@ func (u *UseCase) Execute(ctx context.Context) (Out, error) {
 			switch made {
 			case linked:
 				out.Linked++
+			case moved:
+				out.Moved++
 			case outside:
 				out.Outside++
 			case kept:
@@ -136,6 +151,7 @@ type outcome int
 const (
 	kept outcome = iota
 	linked
+	moved
 	outside
 )
 
@@ -157,7 +173,14 @@ func (u *UseCase) settle(ctx context.Context, signed links.DiscordAccount) (outc
 }
 
 func (u *UseCase) link(ctx context.Context, signed links.DiscordAccount) (outcome, error) {
-	if done, err := u.linkedAlready(ctx, signed); done || err != nil {
+	own, err := u.store.LinkOf(ctx, signed.Account)
+	switch {
+	case err == nil:
+		return u.follow(ctx, own)
+	case !errors.Is(err, links.ErrNoLink):
+		return kept, fmt.Errorf("failed to read the account's link: %w", err)
+	}
+	if done, err := u.linkedToAnother(ctx, signed); done || err != nil {
 		return kept, err
 	}
 
@@ -193,16 +216,26 @@ func (u *UseCase) link(ctx context.Context, signed links.DiscordAccount) (outcom
 	return linked, nil
 }
 
-// The account has a link, or its user is another account's: a run never moves one.
-func (u *UseCase) linkedAlready(ctx context.Context, signed links.DiscordAccount) (bool, error) {
-	_, err := u.store.LinkOf(ctx, signed.Account)
-	switch {
-	case err == nil:
-		return true, nil
-	case !errors.Is(err, links.ErrNoLink):
-		return false, fmt.Errorf("failed to read the account's link: %w", err)
+// The role of a linked account moves to the flag it plays for, as a pledge's does; one that holds it already is asked
+// nothing more.
+func (u *UseCase) follow(ctx context.Context, link links.Link) (outcome, error) {
+	account := link.TakeSnapshot().Account
+	flag, err := u.allegiances.FlagOf(ctx, account)
+	if err != nil {
+		return kept, err //nolint:wrapcheck // the adapter named it.
 	}
-	_, err = u.store.LinkOfUser(ctx, signed.User)
+	if flag == link.TakeSnapshot().Flag {
+		return kept, nil
+	}
+	if err := u.follower.Execute(ctx, follow_flag_usecase.In{Account: account, Flag: flag}); err != nil {
+		return kept, err //nolint:wrapcheck // the use case named it.
+	}
+	return moved, nil
+}
+
+// The account's user is another account's: a run never moves it.
+func (u *UseCase) linkedToAnother(ctx context.Context, signed links.DiscordAccount) (bool, error) {
+	_, err := u.store.LinkOfUser(ctx, signed.User)
 	switch {
 	case err == nil:
 		return true, nil

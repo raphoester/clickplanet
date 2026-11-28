@@ -31,6 +31,7 @@ func (h LinkMembersHandler) LinkMembers(
 		Outside: countOf(out.Outside),
 		Failed:  countOf(len(out.Failed)),
 		Named:   countOf(out.Named),
+		Moved:   countOf(out.Moved),
 	}), nil
 }
 

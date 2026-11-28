@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations/postgres_sold_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/reviews"
@@ -90,6 +91,13 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, roles.Kept{ID: "77", Color: 0x169b62}, kept)
 
+		empire := roles.Nation("r-jz9cwqzp0k").Key
+		require.NoError(t, store.SaveRole(t.Context(), empire, roles.Kept{ID: "79", Color: 0x123456, Name: "Holy Roman Empire"}))
+		kept, err = store.RoleOf(t.Context(), empire)
+		require.NoError(t, err)
+		assert.Equal(t, roles.Kept{ID: "79", Color: 0x123456, Name: "Holy Roman Empire"}, kept, "a sold flag's role keeps its name")
+		require.NoError(t, store.ForgetRole(t.Context(), empire))
+
 		keys, err := store.Keys(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, []roles.Key{"battles", ireland}, keys)
@@ -114,6 +122,34 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		pinged, err = store.StartPinged(t.Context(), "season-1/battle-1")
 		require.NoError(t, err)
 		assert.True(t, pinged)
+	})
+
+	t.Run("the sold flags heard, by their latest name", func(t *testing.T) {
+		store := postgres_sold_store.New(db)
+		catalog, err := nations.Load(t.Context(), store)
+		require.NoError(t, err)
+		_, ok := catalog.FlagOf("r-jz9cwqzp0k")
+		require.False(t, ok)
+
+		_, _, err = catalog.Name(t.Context(), "r-jz9cwqzp0k", "Holy Roman Empire", now)
+		require.NoError(t, err)
+		_, _, err = catalog.Name(t.Context(), "gb-eng", "England", now)
+		require.NoError(t, err)
+		_, _, err = catalog.Name(t.Context(), "r-jz9cwqzp0k", "Heiliges Römisches Reich", now.Add(time.Hour))
+		require.NoError(t, err)
+
+		reloaded, err := nations.Load(t.Context(), store)
+		require.NoError(t, err)
+		_, ok = reloaded.FlagOf("r-jz9cwqzp0k")
+		assert.True(t, ok)
+		assert.Equal(t, "Heiliges Römisches Reich", reloaded.NameOf("r-jz9cwqzp0k"))
+		assert.Equal(t, "England", reloaded.NameOf("gb-eng"))
+		sold, err := store.SoldFlags(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, []nations.SoldSnapshot{
+			{Flag: "gb-eng", Name: "England", NamedAt: now},
+			{Flag: "r-jz9cwqzp0k", Name: "Heiliges Römisches Reich", NamedAt: now.Add(time.Hour)},
+		}, []nations.SoldSnapshot{sold[0].TakeSnapshot(), sold[1].TakeSnapshot()})
 	})
 
 	t.Run("the reviews told", func(t *testing.T) {

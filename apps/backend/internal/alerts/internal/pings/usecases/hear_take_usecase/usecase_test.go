@@ -29,9 +29,9 @@ type fixture struct {
 func setUp() fixture {
 	f := fixture{
 		clock: cptime.NewFixedClock(now), store: pings.NewInMemoryStore(), poster: &pings.RecordedPoster{},
-		book: roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}),
+		book: roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}, nations.NewCatalog(nil)),
 	}
-	herald := pings.NewHerald(f.book, f.poster, pings.Channels{Alerts: "100", Battles: "200"}, "https://clickplanet.lol/play")
+	herald := pings.NewHerald(f.book, nations.NewCatalog(nil), f.poster, pings.Channels{Alerts: "100", Battles: "200"}, "https://clickplanet.lol/play")
 	f.useCase = hear_take_usecase.New(pings.NewWatch(), f.clock, f.store, herald, cpatomic.FakeTransactioner{})
 	return f
 }

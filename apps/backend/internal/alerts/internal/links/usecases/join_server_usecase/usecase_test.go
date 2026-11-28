@@ -59,7 +59,7 @@ type fixture struct {
 func setUp(flag nations.Flag) fixture {
 	f := fixture{store: links.NewInMemoryStore(), discord: &fakeDiscord{}, maker: &roles.FakeMaker{}}
 	f.useCase = join_server_usecase.New(cptime.NewFixedClock(now), f.store, f.discord, pledged(flag),
-		roles.NewBook(roles.NewInMemoryStore(), f.maker))
+		roles.NewBook(roles.NewInMemoryStore(), f.maker, nations.NewCatalog(nil)))
 	return f
 }
 

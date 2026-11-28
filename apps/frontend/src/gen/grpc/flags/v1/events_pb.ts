@@ -145,7 +145,8 @@ export class FlagClosed extends Message<FlagClosed> {
 }
 
 /**
- * The flag's name from renamed_at: the operator's rename. Its code stays. Only the flags module listens.
+ * The flag's name from renamed_at: the operator's rename. Its code stays. The flags module and the alerts listen (the
+ * flag's Discord role wears its name).
  *
  * @generated from message flags.v1.FlagRenamed
  */

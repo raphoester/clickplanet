@@ -49,8 +49,9 @@ renamed_at}`, and of a submission's verdict `SubmissionApproved{submission_id, a
 `SubmissionRejected{submission_id, rejected_at}`, of a payment refused `TimeRefused{grant_id, refused_at}`
 ([Paid time](#paid-time)), and of a flag that waits on a person `ReviewAsked{submission_id, name, cause, why,
 asked_at}` ([Ask a person](#ask-a-person)), through its outbox (a lost one would leave planet refusing a flag for good), in the transaction that changes the flag.
-The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module hears `FlagRenamed`, the
-operator's rename: the pages read the flag from the table as it is now. `FlagOpened` carries the capital, at each
+The outbox's `outbox_event` enum names each. Planet keeps no name, so only the flags module and the alerts hear
+`FlagRenamed`, the operator's rename: the pages read the flag from the table as it is now, and the alerts rename the
+flag's Discord role. `FlagOpened` carries the capital, at each
 opening, claim, return and restatement. **No fact moves a capital** since 2026-11-24: `FlagMoved` told a founder's change
 approved, and went with it (`20261124145305_no_changes` deleted any left in the outbox; the enum keeps its value, as
 postgres drops none).
@@ -136,10 +137,10 @@ removed one). It reads no token: every page hears the same, never a flag's holde
 
 See the frontend's [flag catalog](../../frontend/docs/flag-catalog.md).
 
-**The alerts keep the flags the game ships with.** A Discord role is made per built-in flag; a flag opened since has
-none yet. `nations.FlagOf` answers no flag for it, so a pledge to it takes the user's role off, and a take by it or of
-its land pings nobody. It is never an error that holds the alerts' stream. Roles for the flags opened since are a later
-step.
+**The alerts keep the sold flags' names** since 2026-11-28, from `FlagOpened` and `FlagRenamed` (`alerts.sold_flags`),
+so a sold flag has a Discord role under its name as a flag the game ships with does, renamed with the flag, and its
+pings name it. A closed flag keeps its role. See [Discord pings](alerts.md#the-sold-flags-roles). Until then a pledge to
+a sold flag took the user's role off, and a take by it or of its land pinged nobody.
 
 ## The reads
 
@@ -499,8 +500,8 @@ players' pledges, its chat room, its season points, its ledger rows.
   flag closed and asked for another.
 - **Its picture goes into the bucket by hand, once**, since no flag was opened through `OpenFlag`: until it does, the
   page draws Brittany as the blank.
-- **What it lost**: its Discord role (the alerts' tidy at boot deletes a role whose flag the game does not ship; sold
-  flags get roles in a later step), its names in other languages (a sold flag's name is English), its old address
+- **What it lost**: its Discord role (the alerts' tidy at boot deleted the role of a flag the game no longer ships; since
+  2026-11-28 a sold flag has one again, made at its next grant), its names in other languages (a sold flag's name is English), its old address
   (`clickplanet.lol/xb/<name>`). Its 16 quiz questions moved to subject `fr`, their ids kept, so their ratings stay: the
   quiz generator takes only a subject the game ships.
 

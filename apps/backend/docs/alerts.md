@@ -1,7 +1,8 @@
 # Discord pings (`internal/alerts/`)
 
 **A player connects Discord once, by signing in with it, and the game's Discord server pings it.** The sign-in adds the
-player to the server with the role of the flag it plays for, and its username in the game as its nickname there. The
+player to the server with the role of the flag it plays for, a sold flag's too, and its username in the game as its
+nickname there. The
 server pings a flag's role when that flag is attacked, and everybody in the server (`@everyone`) when a battle or a
 season starts. Off by default
 (`alerts.enabled`); off, the module is not built, `alerts.v1` 404s, which the client reads as no offer, and a Discord
@@ -77,8 +78,9 @@ On the console and admin listeners, as every operator tool (see [Operator tools]
   (`FailedPrecondition`). Unlinked, the game offers that account
   to join again, and its next Discord sign-in joins it again: this is how the offer is tried. Players cannot unlink
   themselves; leaving the server is how they stop the pings.
-- **`LinkMembers()`**: links the players already in the server who have no link (`link_members_usecase`), gives every
-  linked one its username as its nickname, and counts them. See below.
+- **`LinkMembers()`**: links the players already in the server who have no link (`link_members_usecase`), moves every
+  linked one to the role of the flag it plays for when it holds another, gives every linked one its username as its
+  nickname, and counts them. See below.
 
 ### The players a sign-in never joined (`LinkMembers`)
 
@@ -98,11 +100,16 @@ sign-in asked `guilds.join` (before the alerts, November 2026), or whose join fa
   linked sees "Join Discord" in the chat's Discord bar and "Get pinged" when its flag is attacked, and that Discord
   sign-in, a link of the identity it holds already, joins the server (see [Auth](auth.md)). `LinkMembers` counts them
   (`outside`) and changes nothing.
+- **Every linked account holds its flag's role** (`moved`): the run asks planet the flag each linked account plays
+  for (`GetAllegianceOf`), and one whose link names another moves to it as a pledge does (`follow_flag_usecase`). Those
+  are the players of a sold flag who pledged before the alerts knew its name (they hold no role), or a pledge the bus
+  gave up on. Discord is not asked whether a linked user is in the server: the grant answers it, and a user who left is
+  forgotten.
 - **Every linked account is named** (`links.Namer`, below), the ones linked before the nicknames too: the first run
   after they came names every member, and counts each in `named`. Discord is asked only for a member that does not
   wear its name yet, so a second run renames nobody. A member the bot may not rename (the server's owner, a member
   above the bot) is counted in `failed` at each run, its reason logged.
-- **A second run links nobody twice**: an account linked already is skipped before Discord is asked whether its user
+- **A second run links and moves nobody twice**: an account linked already is skipped before Discord is asked whether its user
   is in the server, and a user linked from another account is never moved. The ones outside are asked again: they may have joined since. **An account
   the operator unlinked, still in the server, is linked again**: unlinking stops nothing once a run follows.
 - **One account that fails does not stop the others**: it is counted (`failed`) and logged with its reason
@@ -144,14 +151,43 @@ and `roles` keeps its id and its color by key, `flag:<code>`. A role's name is t
 (`golang.org/x/text/language/display`), so a new name in the library changes nothing that is kept.
 `roles.Book` makes each role once in one process: two subscribers that need the same new one wait on each other.
 
+- **A sold flag's role wears the name its holder gave it** (below), and follows the operator's rename.
 - **The color is the flag's hue** (`roles.ColorOf`): FNV-1a of the code, at saturation 62% and lightness 55%, so it is
   bright on Discord's dark theme, the same on every boot, and no two of the common flags share one. Discord draws a
   role with no color in gray, and the flags' own colors are mostly the same red, white and blue. A better palette is a
   change of `ColorOf` alone: the boot repaints.
 - **The boot tidies** (`tidy_roles_runner`, `Book.Tidy`), once: a flag role kept in another color is repainted
-  (`PATCH /guilds/{guild}/roles/{id}`), and a role the game no longer names is deleted from the server and forgotten.
-  That is how the `Battles` role of the first version went. A role someone deleted by hand is made again when needed.
+  (`PATCH /guilds/{guild}/roles/{id}`), a sold flag's kept under another name renamed, and a role the game no longer
+  names is deleted from the server and forgotten: that is how the `Battles` role of the first version went, and the
+  roles of Brittany, England, Scotland and Wales when they left the build (a sold flag never heard has none). A role
+  someone deleted by hand is made again when needed.
 - **No role for battles.** A battle is everyone's, whatever flag they play for: its ping is `@everyone`.
+
+### The sold flags' roles
+
+**A flag sold since the game shipped has a role as one the game ships with**, since 2026-11-28 (until then
+`nations.FlagOf` knew the built-in flags alone, so a pledge to Heiliges Römisches Reich took the player's role off).
+Its name is not the library's: the alerts keep it (`nations.Catalog`).
+
+- **The alerts hear the flags module's names** (`alerts-flags-opened`, `flags.v1.FlagOpened`, at each opening, claim and
+  return, and again for each open flag at every boot; `alerts-flags-renamed`, `FlagRenamed`, the operator's rename),
+  through `flag_named_subscriber` and `name_flag_usecase`, into `alerts.sold_flags` (`flag`, `name`, `named_at`,
+  migration `20261128085523_sold_flags`). **The latest name holds**: a name told at or after the time of the one kept
+  replaces it (`nations.Sold.Named`), so an opening heard after the rename it came before changes nothing, and the
+  restatement at each boot, which tells the name now at the opening's time, puts right a rename the alerts missed.
+- **Held in memory, written through** (`nations.Load` at boot): every take of a batch asks the catalog, and the module
+  runs in one process. A flag the game ships with is never read from it. A sold flag no fact named (Bavaria, closed
+  before the alerts listened: the restatement tells a closed flag as `FlagClosed` alone) has no role, as before.
+- **The role is made at its first grant**, a pledge, a join or `LinkMembers`, under the name kept, which `roles.name`
+  keeps beside it (empty for a flag the game ships with, whose name never follows). **A rename renames it**
+  (`Book.Refresh`, `PATCH /guilds/{guild}/roles/{id}` with `name`), asked after every fact that names the flag, so a
+  rename Discord refused is tried again with the fact, and the boot's tidy renames what is left; a flag with no role yet
+  makes none.
+- **A closed flag keeps its role.** Its players pick another flag at once, and their role follows the pledge; one that
+  comes back finds its role. A removed flag is told closed too, so its role stays: delete it by hand in the server if
+  its name must go.
+- **The players who pledged before the deploy hold no role** (their link names none): the operator's `LinkMembers`
+  moves them to it (above), once after the deploy.
 
 ## The pings (`pings/`)
 
@@ -172,6 +208,11 @@ ping goes to `#alerts`, with the victim's role, the attacker, the tiles and the 
   a day; 50 tiles gave 75 a day, and a server that pings all day is muted.
 - **A flag is pinged at most once in 3 hours and twice a day** (`pings.History`, read from `attack_pings`).
 - **Only a flag a player ever linked is pinged**: no role, nobody to call.
+- **A flag is named with its emoji, then its name** (`nations.Label`): the regional indicators of a flag the game ships
+  with, the black flag with the tags of `gb-eng`, `gb-sct` or `gb-wls`, and none for any other sold flag (Brittany's
+  `xb` would draw two letters):
+
+> @Austria Heiliges Römisches Reich took 230 of your tiles in 🇦🇹 Austria in 5 minutes. https://…
 - **An attack older than 10 minutes is not pinged**: a boot or a new group that reads a backlog of takes stays quiet.
 - **A restart forgets the watch**: the takes of the last minutes, and at most one attack with them.
 - **A ping Discord refused is not tried again.** The ping is kept in the transaction of the post, so a refused post
@@ -253,7 +294,10 @@ the grants, which wait in their stream up to `redis.maxLen`, and a group made la
 commits. `rest_discord` runs against an `httptest` Discord. `discord_join_granted_subscriber`'s test pins what is
 tried again and what is not, and that the token is not logged; `rpc_auth_grants`' what auth's answers mean.
 `reviews/review_test.go` pins a warning's text and its escaping, `post_review_usecase`'s test that it is told once per
-cause and tried again after a refusal, `review_asked_subscriber`'s the event read. `links/namer_test.go` pins the nickname: given once, followed, taken off with no name, a user who left forgotten, a
+cause and tried again after a refusal, `review_asked_subscriber`'s the event read. `nations/flag_test.go` pins which flags have a role, their names and emoji, and the latest name kept;
+`roles_test.go` a sold flag's role made under its name, renamed once, and kept by the tidy while its flag is heard;
+`name_flag_usecase`'s and `flag_named_subscriber`'s tests the facts heard; `link_members_usecase`'s a linked member moved
+to its flag's role. `links/namer_test.go` pins the nickname: given once, followed, taken off with no name, a user who left forgotten, a
 refusal that keeps the link unnamed, and a name kept without the flag's move undone; `links.FakeNames` and
 `links.FakeRenamer` stand in for player and Discord. `nickname_subscriber`'s test pins the three events and what is
 tried again; `rpc_player_names`' what player's answer means.

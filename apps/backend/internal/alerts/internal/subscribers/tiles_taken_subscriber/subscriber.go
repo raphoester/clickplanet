@@ -16,11 +16,17 @@ type UseCase interface {
 	Execute(ctx context.Context, takes ...pings.Take) error
 }
 
-func New(useCase UseCase) Subscriber {
-	return Subscriber{useCase: useCase}
+// nations.Catalog.
+type Flags interface {
+	FlagOf(code string) (nations.Flag, bool)
+}
+
+func New(flags Flags, useCase UseCase) Subscriber {
+	return Subscriber{flags: flags, useCase: useCase}
 }
 
 type Subscriber struct {
+	flags   Flags
 	useCase UseCase
 }
 
@@ -30,7 +36,7 @@ var _ cpredis.BatchHandler[*planetv1.TilesTaken] = Subscriber{}
 func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.TilesTaken) error {
 	var takes []pings.Take
 	for _, event := range events {
-		heard, err := takesOf(event)
+		heard, err := s.takesOf(event)
 		if err != nil {
 			return err
 		}
@@ -46,7 +52,7 @@ func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.TilesTak
 	return s.useCase.Execute(ctx, takes...) //nolint:wrapcheck // the use case named it.
 }
 
-func takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
+func (s Subscriber) takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
 	// The tiles' points are their board's, and so is how close a ping's view comes.
 	scale, err := cpboards.ScaleOf(event.GetBoard())
 	if err != nil {
@@ -57,16 +63,16 @@ func takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
 		if tile.GetPrevious() == "" || tile.GetPrevious() == event.GetCountry() {
 			continue
 		}
-		// A flag opened since the game shipped has no role to ping, nor a name the server knows.
-		victim, ok := nations.FlagOf(tile.GetPrevious())
+		// A sold flag whose name the alerts never heard has no role to ping, nor a name to tell.
+		victim, ok := s.flags.FlagOf(tile.GetPrevious())
 		if !ok {
 			continue
 		}
-		attacker, ok := nations.FlagOf(event.GetCountry())
+		attacker, ok := s.flags.FlagOf(event.GetCountry())
 		if !ok {
 			continue
 		}
-		ground, ok := nations.FlagOf(tile.GetGround())
+		ground, ok := s.flags.FlagOf(tile.GetGround())
 		if !ok {
 			ground = victim
 		}

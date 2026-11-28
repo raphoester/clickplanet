@@ -62,18 +62,23 @@ describe("linking the Discord members", () => {
 
 describe("what a run of the Discord members says", () => {
     it("says there was nothing to do", () => {
-        expect(membersLinkedWords({linked: 0, named: 0, outside: 0, failed: 0}))
+        expect(membersLinkedWords({linked: 0, moved: 0, named: 0, outside: 0, failed: 0}))
             .toBe("Nothing to do: every player signed in with Discord is linked and named already.")
     })
 
     it("says nobody new was in the server, and who could not be checked", () => {
-        expect(membersLinkedWords({linked: 0, named: 0, outside: 1, failed: 2})).toBe("Nobody new was in the server. "
+        expect(membersLinkedWords({linked: 0, moved: 0, named: 0, outside: 1, failed: 2})).toBe("Nobody new was in the server. "
             + "1 player not in the server: the game offers them \"Join Discord\". "
             + "2 players could not be linked or named: the server's log says why, and a run again tries them.")
     })
 
     it("says who was given their nickname, though nobody new was in the server", () => {
-        expect(membersLinkedWords({linked: 0, named: 1, outside: 0, failed: 0}))
+        expect(membersLinkedWords({linked: 0, moved: 0, named: 1, outside: 0, failed: 0}))
             .toBe("Nobody new was in the server. Gave 1 player their username as their nickname.")
+    })
+
+    it("says who was given the role of the flag they play for", () => {
+        expect(membersLinkedWords({linked: 0, moved: 3, named: 0, outside: 0, failed: 0}))
+            .toBe("Nobody new was in the server. Gave 3 players the role of the flag they play for.")
     })
 })

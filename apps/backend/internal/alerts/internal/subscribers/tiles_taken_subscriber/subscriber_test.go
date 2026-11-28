@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tiles_taken_subscriber"
 )
@@ -28,7 +29,7 @@ var at = time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC)
 func TestATakeFromAnotherFlagIsHeard(t *testing.T) {
 	useCase := &heard{}
 
-	err := tiles_taken_subscriber.New(useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
+	err := tiles_taken_subscriber.New(nations.NewCatalog(nil), useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
 		{Country: "gb", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
 			{Previous: "ie", Ground: "us", Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}},
 			{Previous: "ie", Ground: ""},
@@ -47,7 +48,7 @@ func TestATakeFromAnotherFlagIsHeard(t *testing.T) {
 func TestTheTakesOfABatchAreHeardTogetherInOrder(t *testing.T) {
 	useCase := &heard{}
 
-	err := tiles_taken_subscriber.New(useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
+	err := tiles_taken_subscriber.New(nations.NewCatalog(nil), useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
 		{Country: "gb", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "ie", Ground: "ie"}}},
 		{Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "de", Ground: "de"}}},
 		{Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "fr", Ground: "fr"}}},
@@ -63,10 +64,27 @@ func TestTheTakesOfABatchAreHeardTogetherInOrder(t *testing.T) {
 func TestABatchThatTookNothingFromAnyoneCallsNothing(t *testing.T) {
 	useCase := &heard{}
 
-	err := tiles_taken_subscriber.New(useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
+	err := tiles_taken_subscriber.New(nations.NewCatalog(nil), useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
 		{Country: "gb", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Ground: "ie"}}},
 	})
 
 	require.NoError(t, err)
 	assert.Empty(t, useCase.calls)
+}
+
+func TestASoldFlagIsHeardOnceItsNameIs(t *testing.T) {
+	useCase := &heard{}
+	catalog := nations.NewCatalog(map[nations.Flag]string{"r-jz9cwqzp0k": "Heiliges Römisches Reich"})
+
+	err := tiles_taken_subscriber.New(catalog, useCase).HandleBatch(t.Context(), []*planetv1.TilesTaken{
+		{Country: "r-jz9cwqzp0k", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "at", Ground: "at"}}},
+		{Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "r-jz9cwqzp0k", Ground: "de"}}},
+		{Country: "r-k3p9x2ma0b", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{Previous: "fr", Ground: "fr"}}},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, [][]pings.Take{{
+		{Victim: "at", Attacker: "r-jz9cwqzp0k", Ground: "at", At: at},
+		{Victim: "r-jz9cwqzp0k", Attacker: "fr", Ground: "de", At: at},
+	}}, useCase.calls, "a sold flag never named has no role to ping")
 }

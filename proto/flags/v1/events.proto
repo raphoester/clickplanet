@@ -26,7 +26,8 @@ message FlagClosed {
   google.protobuf.Timestamp closed_at = 2;
 }
 
-// The flag's name from renamed_at: the operator's rename. Its code stays. Only the flags module listens.
+// The flag's name from renamed_at: the operator's rename. Its code stays. The flags module and the alerts listen (the
+// flag's Discord role wears its name).
 message FlagRenamed {
   string flag = 1;
   // In English.

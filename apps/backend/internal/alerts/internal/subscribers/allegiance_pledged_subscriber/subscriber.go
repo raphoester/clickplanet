@@ -15,11 +15,17 @@ type UseCase interface {
 	Execute(ctx context.Context, in follow_flag_usecase.In) error
 }
 
-func New(useCase UseCase) Subscriber {
-	return Subscriber{useCase: useCase}
+// nations.Catalog.
+type Flags interface {
+	FlagOf(code string) (nations.Flag, bool)
+}
+
+func New(flags Flags, useCase UseCase) Subscriber {
+	return Subscriber{flags: flags, useCase: useCase}
 }
 
 type Subscriber struct {
+	flags   Flags
 	useCase UseCase
 }
 
@@ -30,8 +36,8 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.AllegiancePledge
 	if err != nil {
 		return err //nolint:wrapcheck // the rule named it.
 	}
-	// A flag with no role takes the user's off.
-	flag, _ := nations.FlagOf(event.GetCountry())
+	// A flag with no role takes the user's off: a sold one whose name the alerts never heard.
+	flag, _ := s.flags.FlagOf(event.GetCountry())
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()

@@ -39,6 +39,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/name_member_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/unlink_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations/postgres_sold_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations/usecases/name_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/announce_start_usecase"
@@ -53,6 +56,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/board_switched_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/flag_named_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/nickname_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
@@ -90,7 +94,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
-	allegiances := rpc_planet_allegiance.New(planet)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -111,23 +114,41 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 	}
 
+	// The sold flags heard, read once here: every role, grant and ping asks it, the takes of each batch too.
+	nationsCatalog, err := nations.Load(ctx, postgres_sold_store.New(db))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to load the sold flags the alerts heard: %w", err)
+	}
+	allegiances := rpc_planet_allegiance.New(planet, nationsCatalog)
+
 	server := rest_discord.New(config.Discord.app(), rest_discord.Production, &http.Client{Timeout: discordTimeout})
 	linkStore := postgres_link_store.New(db)
 	pingStore := postgres_ping_store.New(db)
-	book := roles.NewBook(postgres_role_store.New(db), server)
-	herald := pings.NewHerald(book, server, config.Discord.channels(), config.GameURL)
+	book := roles.NewBook(postgres_role_store.New(db), server, nationsCatalog)
+	herald := pings.NewHerald(book, nationsCatalog, server, config.Discord.channels(), config.GameURL)
+	nameFlag := name_flag_usecase.New(nationsCatalog, book)
 	announce := announce_start_usecase.New(clock, pingStore, herald, db)
 	namer := links.NewNamer(linkStore, rpc_player_names.New(player), server)
 	nameMember := name_member_usecase.New(namer)
+	followFlag := follow_flag_usecase.New(linkStore, book, server)
 
 	subscribes := []func() (cpbootstrap.Runner, error){
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.SubscribeBatch(ctx, streams, "alerts-attacks", log_subscriber.NewBatch(tiles_taken_subscriber.New(
+			return cpredis.SubscribeBatch(ctx, streams, "alerts-attacks", log_subscriber.NewBatch(tiles_taken_subscriber.New(nationsCatalog,
 				hear_take_usecase.New(pings.NewWatch(), clock, pingStore, herald, db)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.Subscribe(ctx, streams, "alerts-allegiances", log_subscriber.New(allegiance_pledged_subscriber.New(
-				follow_flag_usecase.New(linkStore, book, server)), props.Logger))
+			return cpredis.Subscribe(ctx, streams, "alerts-allegiances", log_subscriber.New(allegiance_pledged_subscriber.New(nationsCatalog,
+				followFlag), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-flags-opened", log_subscriber.New(
+				flag_named_subscriber.NewOpened(nameFlag), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-flags-renamed", log_subscriber.New(
+				flag_named_subscriber.NewRenamed(nameFlag), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-battles", log_subscriber.New(battle_started_subscriber.New(
@@ -205,7 +226,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetPlayerLinkHandler: get_player_link_handler.New(player_link_query.NewPostgresQuery(db)),
 		UnlinkPlayerHandler:  unlink_player_handler.New(unlink_player_usecase.New(linkStore, book, server)),
 		LinkMembersHandler: link_members_handler.New(log_link_members.New(link_members_usecase.New(
-			clock, linkStore, rpc_auth_discord_accounts.New(auth), server, allegiances, book, namer), props.Logger)),
+			clock, linkStore, rpc_auth_discord_accounts.New(auth), server, allegiances, book, followFlag, namer), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAdminServiceHandler(adminService, options...)

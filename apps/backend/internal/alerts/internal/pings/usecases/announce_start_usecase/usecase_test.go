@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/announce_start_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -20,7 +21,8 @@ var now = time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC)
 func setUp() (*pings.RecordedPoster, *pings.InMemoryStore, *announce_start_usecase.UseCase) {
 	poster := &pings.RecordedPoster{}
 	store := pings.NewInMemoryStore()
-	herald := pings.NewHerald(roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}), poster,
+	catalog := nations.NewCatalog(nil)
+	herald := pings.NewHerald(roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}, catalog), catalog, poster,
 		pings.Channels{Alerts: "100", Battles: "200"}, "https://clickplanet.lol/play")
 	return poster, store, announce_start_usecase.New(cptime.NewFixedClock(now), store, herald, cpatomic.FakeTransactioner{})
 }

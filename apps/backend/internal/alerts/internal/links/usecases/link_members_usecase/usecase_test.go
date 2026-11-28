@@ -14,6 +14,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/link_members_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -82,7 +83,18 @@ func (p pledged) FlagOf(_ context.Context, account links.AccountID) (nations.Fla
 	return p[account], nil
 }
 
+// The pledges followed, as follow_flag_usecase hears them.
+type fakeFollower struct {
+	followed []follow_flag_usecase.In
+}
+
+func (f *fakeFollower) Execute(_ context.Context, in follow_flag_usecase.In) error {
+	f.followed = append(f.followed, in)
+	return nil
+}
+
 type fixture struct {
+	follower *fakeFollower
 	store    *links.InMemoryStore
 	accounts *fakeAccounts
 	members  *fakeMembers
@@ -100,13 +112,15 @@ func setUp() *fixture {
 		members: &fakeMembers{
 			in: cpcolls.NewSet[discord.UserID](), failing: cpcolls.NewSet[discord.UserID](), leaving: cpcolls.NewSet[discord.UserID](),
 		},
-		maker:   &roles.FakeMaker{},
-		flags:   pledged{},
-		names:   links.NewFakeNames(),
-		renamer: &links.FakeRenamer{},
+		maker:    &roles.FakeMaker{},
+		flags:    pledged{},
+		names:    links.NewFakeNames(),
+		renamer:  &links.FakeRenamer{},
+		follower: &fakeFollower{},
 	}
 	f.useCase = link_members_usecase.New(cptime.NewFixedClock(now), f.store, f.accounts, f.members, f.flags,
-		roles.NewBook(roles.NewInMemoryStore(), f.maker), links.NewNamer(f.store, f.names, f.renamer))
+		roles.NewBook(roles.NewInMemoryStore(), f.maker, nations.NewCatalog(nil)), f.follower,
+		links.NewNamer(f.store, f.names, f.renamer))
 	return f
 }
 
@@ -167,9 +181,9 @@ func TestAMemberWhoLeftBeforeTheGrantIsOutside(t *testing.T) {
 	assert.Empty(t, f.store.Links())
 }
 
-func TestALinkedAccountIsLeftAsItIs(t *testing.T) {
+func TestALinkedAccountWithItsFlagsRoleIsLeftAsItIs(t *testing.T) {
 	f := setUp()
-	f.signedIn(ada, "1111", "ie", true)
+	f.signedIn(ada, "1111", "gb", true)
 	require.NoError(t, f.store.SaveLinks(t.Context(), links.NewLink(ada, "1111", "gb", now.Add(-time.Hour))))
 
 	out, err := f.useCase.Execute(t.Context())
@@ -177,8 +191,25 @@ func TestALinkedAccountIsLeftAsItIs(t *testing.T) {
 
 	assert.Equal(t, link_members_usecase.Out{}, out)
 	assert.Empty(t, f.members.checked, "Discord is not asked")
+	assert.Empty(t, f.follower.followed)
 	assert.Equal(t, []links.LinkSnapshot{{Account: ada, User: "1111", Flag: "gb", LinkedAt: now.Add(-time.Hour)}},
 		f.store.Links())
+}
+
+func TestALinkedAccountMovesToTheRoleOfTheFlagItPlaysFor(t *testing.T) {
+	f := setUp()
+	f.signedIn(ada, "1111", "r-jz9cwqzp0k", true)
+	f.signedIn(bob, "2222", "", true)
+	require.NoError(t, f.store.SaveLinks(t.Context(),
+		links.NewLink(ada, "1111", "", now.Add(-time.Hour)), links.NewLink(bob, "2222", "gb", now.Add(-time.Hour))))
+
+	out, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, link_members_usecase.Out{Moved: 2}, out)
+	assert.Equal(t, []follow_flag_usecase.In{{Account: ada, Flag: "r-jz9cwqzp0k"}, {Account: bob}}, f.follower.followed,
+		"a sold flag's player that pledged before its name was heard, and one whose flag has no role now")
+	assert.Empty(t, f.members.checked, "Discord is not asked whether a linked user is in the server")
 }
 
 func TestAUserLinkedFromAnotherAccountIsNotMoved(t *testing.T) {
@@ -256,7 +287,7 @@ func TestAMemberLinkedNowIsGivenItsUsername(t *testing.T) {
 
 func TestAnAccountLinkedBeforeIsGivenItsUsernameOnce(t *testing.T) {
 	f := setUp()
-	f.signedIn(ada, "1111", "ie", true)
+	f.signedIn(ada, "1111", "gb", true)
 	require.NoError(t, f.store.SaveLinks(t.Context(), links.NewLink(ada, "1111", "gb", now.Add(-time.Hour))))
 	f.names.Name(ada, "BraveFox42")
 

@@ -152,8 +152,31 @@ func TestAnAttackOrAStartPastItsMinutesIsStale(t *testing.T) {
 }
 
 func herald(poster *pings.RecordedPoster) (pings.Herald, *roles.Book) {
-	book := roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{})
-	return pings.NewHerald(book, poster, pings.Channels{Alerts: "100", Battles: "200"}, "https://clickplanet.lol/play"), book
+	catalog := nations.NewCatalog(map[nations.Flag]string{"r-jz9cwqzp0k": "Heiliges Römisches Reich", "gb-eng": "England"})
+	book := roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}, catalog)
+	return pings.NewHerald(book, catalog, poster, pings.Channels{Alerts: "100", Battles: "200"}, "https://clickplanet.lol/play"), book
+}
+
+func TestTheHeraldCallsASoldFlagByItsName(t *testing.T) {
+	poster := &pings.RecordedPoster{}
+	herald, book := herald(poster)
+	_, err := book.Ensure(t.Context(), roles.Nation("r-jz9cwqzp0k"))
+	require.NoError(t, err)
+	_, err = book.Ensure(t.Context(), roles.Nation("de"))
+	require.NoError(t, err)
+
+	require.NoError(t, herald.CallToDefend(t.Context(), pings.Attack{
+		Victim: "r-jz9cwqzp0k", Attacker: "gb-eng", Ground: "at", Tiles: 210,
+	}))
+	require.NoError(t, herald.CallToDefend(t.Context(), pings.Attack{
+		Victim: "de", Attacker: "r-jz9cwqzp0k", Ground: "de", Tiles: 230,
+	}))
+
+	require.Len(t, poster.Posts, 2)
+	assert.Equal(t, "<@&1> 🏴\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F England took 210 of your tiles in "+
+		"🇦🇹 Austria in 5 minutes. https://clickplanet.lol/play", poster.Posts[0].Text)
+	assert.Equal(t, "<@&2> Heiliges Römisches Reich took 230 of your tiles in 🇩🇪 Germany in 5 minutes. "+
+		"https://clickplanet.lol/play", poster.Posts[1].Text)
 }
 
 func TestTheHeraldCallsTheVictimsRoleToDefend(t *testing.T) {

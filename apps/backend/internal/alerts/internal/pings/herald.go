@@ -5,11 +5,17 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 )
 
 type Roles interface {
 	IDOf(ctx context.Context, role roles.Role) (discord.RoleID, error)
+}
+
+// nations.Catalog: a sold flag's name is the flags module's.
+type Names interface {
+	NameOf(flag nations.Flag) string
 }
 
 type Poster interface {
@@ -21,13 +27,14 @@ type Channels struct {
 	Battles discord.ChannelID
 }
 
-func NewHerald(roles Roles, poster Poster, channels Channels, gameURL string) Herald {
-	return Herald{roles: roles, poster: poster, channels: channels, gameURL: gameURL}
+func NewHerald(roles Roles, names Names, poster Poster, channels Channels, gameURL string) Herald {
+	return Herald{roles: roles, names: names, poster: poster, channels: channels, gameURL: gameURL}
 }
 
 // Says it in the server, to whom it is for.
 type Herald struct {
 	roles    Roles
+	names    Names
 	poster   Poster
 	channels Channels
 	gameURL  string
@@ -40,13 +47,17 @@ func (h Herald) CallToDefend(ctx context.Context, attack Attack) error {
 		return err //nolint:wrapcheck // the book named it.
 	}
 	audience := discord.RoleAudience(role)
-	text := fmt.Sprintf("%s %s %s took %d of your tiles in %s %s in %d minutes. %s",
-		audience.Mention(), attack.Attacker.Emoji(), attack.Attacker.Name(), attack.Tiles,
-		attack.Ground.Emoji(), attack.Ground.Name(), int(AttackWindow.Minutes()), attack.View.linkFrom(h.gameURL))
+	text := fmt.Sprintf("%s %s took %d of your tiles in %s in %d minutes. %s",
+		audience.Mention(), h.label(attack.Attacker), attack.Tiles, h.label(attack.Ground), int(AttackWindow.Minutes()),
+		attack.View.linkFrom(h.gameURL))
 	if err := h.poster.Post(ctx, h.channels.Alerts, text, audience); err != nil {
 		return fmt.Errorf("failed to call %s to defend: %w", attack.Victim, err)
 	}
 	return nil
+}
+
+func (h Herald) label(flag nations.Flag) string {
+	return nations.Label(flag, h.names.NameOf(flag))
 }
 
 // Everybody in the server: a battle is everyone's, whatever flag they play for.

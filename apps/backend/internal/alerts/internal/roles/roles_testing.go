@@ -57,12 +57,13 @@ func (s *InMemoryStore) ForgetRole(_ context.Context, key Key) error {
 	return nil
 }
 
-// Makes role "1", "2", … and remembers each name, each paint and each deletion. A role in Gone is one someone deleted
-// by hand: painting it is discord.ErrNoRole.
+// Makes role "1", "2", … and remembers each name, each paint, each rename and each deletion. A role in Gone is one
+// someone deleted by hand: painting or renaming it is discord.ErrNoRole.
 type FakeMaker struct {
 	mu      sync.Mutex
 	Made    []string
 	Painted map[discord.RoleID]discord.Color
+	Renamed map[discord.RoleID]string
 	Deleted []discord.RoleID
 	Gone    map[discord.RoleID]bool
 }
@@ -83,6 +84,19 @@ func (m *FakeMaker) PaintRole(_ context.Context, role discord.RoleID, color disc
 		return discord.ErrNoRole
 	}
 	m.paint(role, color)
+	return nil
+}
+
+func (m *FakeMaker) RenameRole(_ context.Context, role discord.RoleID, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Gone[role] {
+		return discord.ErrNoRole
+	}
+	if m.Renamed == nil {
+		m.Renamed = map[discord.RoleID]string{}
+	}
+	m.Renamed[role] = name
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 )
 
@@ -42,7 +43,7 @@ func setUp(t *testing.T) (*links.InMemoryStore, *fakeMembers, *follow_flag_useca
 	t.Helper()
 	store := links.NewInMemoryStore()
 	members := &fakeMembers{}
-	book := roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{})
+	book := roles.NewBook(roles.NewInMemoryStore(), &roles.FakeMaker{}, nations.NewCatalog(nil))
 	_, err := book.Ensure(t.Context(), roles.Nation("ie"))
 	require.NoError(t, err)
 	return store, members, follow_flag_usecase.New(store, book, members)

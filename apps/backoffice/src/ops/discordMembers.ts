@@ -2,11 +2,14 @@ import {countOf} from "../support/labels.ts"
 import {MembersLinked} from "./actions.ts"
 
 // What a run of LinkMembers did, in the operator's words.
-export function membersLinkedWords({linked, named, outside, failed}: MembersLinked): string {
-    if (linked === 0 && named === 0 && outside === 0 && failed === 0) {
+export function membersLinkedWords({linked, moved, named, outside, failed}: MembersLinked): string {
+    if (linked === 0 && moved === 0 && named === 0 && outside === 0 && failed === 0) {
         return "Nothing to do: every player signed in with Discord is linked and named already."
     }
     const lines = [linked === 0 ? "Nobody new was in the server." : `Linked ${countOf(linked, "player")}.`]
+    if (moved > 0) {
+        lines.push(`Gave ${countOf(moved, "player")} the role of the flag they play for.`)
+    }
     if (named > 0) {
         lines.push(`Gave ${countOf(named, "player")} their username as their nickname.`)
     }

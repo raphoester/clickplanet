@@ -272,10 +272,11 @@ and says what is in it. Read the doc before you change its area.
   the operator writes to a player first, one per flag submission, and its replies; each report told to the chat's
   judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
-  as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; the pings
-  when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season
-  starts; the operator's unlink; `LinkMembers`, which links the players in the server no sign-in linked and names
-  every member; the staff's private channel, told of each flag that waits on a person; off by default.
+  as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; a sold
+  flag's role under the name the alerts heard (`sold_flags`), renamed with it; the pings when its flag is attacked, with
+  a link that opens the globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink;
+  `LinkMembers`, which links the players in the server no sign-in linked, moves every linked one to its flag's role and
+  names every member; the staff's private channel, told of each flag that waits on a person; off by default.
 - [The vandal squad](docs/vandalsquad.md) — what players paint on the map: each player's takes of the last hour, read
   in planet's ledger once a minute, the tiles it still holds split into drawings, each read as a swastika by rules taken
   from real ones (and the samples they are tested on), only one that shows on another flag's ground flagged, at Warn

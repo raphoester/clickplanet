@@ -15,8 +15,10 @@ service AdminService {
 
   // Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
   // joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-  // in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice. Every
-  // linked member, new or not, is given its username as its nickname in the server when it does not wear it yet.
+  // in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice. A member
+  // linked already is given the role of the flag it plays for when it does not hold it: the players of a sold flag who
+  // pledged before the bot knew its name. Every linked member, new or not, is given its username as its nickname in the
+  // server when it does not wear it yet.
   rpc LinkMembers(LinkMembersRequest) returns (LinkMembersResponse);
 }
 
@@ -56,4 +58,6 @@ message LinkMembersResponse {
   uint32 failed = 3;
   // Linked, new or not, and given its username as its nickname in the server now.
   uint32 named = 4;
+  // Linked before, and given the role of the flag it plays for now.
+  uint32 moved = 5;
 }
