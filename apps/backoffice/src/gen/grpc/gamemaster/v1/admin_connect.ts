@@ -42,7 +42,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
+     * Changes an entry that has not started, by the rules of AddEntry. Once it started, only its end moves sooner, or
+     * only its times and description change, which reach its round in scoring until it is scored: FailedPrecondition
+     * otherwise.
      *
      * @generated from rpc gamemaster.v1.AdminService.EditEntry
      */
@@ -90,8 +92,9 @@ export const AdminService = {
     },
     /**
      * Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
-     * end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or
-     * moves starts after now: FailedPrecondition otherwise.
+     * end moves only to a time after now. Once its finale started, its end and its finale's length and rule set stay,
+     * and only its times and description change, which reach its round in scoring until it is scored; a finale that
+     * changes otherwise or moves starts after now: FailedPrecondition otherwise.
      *
      * @generated from rpc gamemaster.v1.AdminService.EditSeason
      */

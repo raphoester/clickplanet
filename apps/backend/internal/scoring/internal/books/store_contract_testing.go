@@ -169,6 +169,35 @@ func (s *RoundsContractSuite) TestARoundOpenedIsFoundOpenAndOpeningItAgainChange
 	s.Equal(contractDay, round)
 }
 
+func (s *RoundsContractSuite) TestARoundNotScoredTakesNewTimesAndAScoredOneKeepsItsOwn() {
+	s.open(contractBattle, contractDay)
+	scored := Scored{Round: contractDay}
+	scored.Round.Scored, scored.Round.EndsAt = true, contractEnd.Add(-2*time.Hour)
+	s.True(s.score(scored))
+
+	retimed, err := s.rounds.Retime(s.T().Context(), contractBattle.ID, 10)
+	s.Require().NoError(err)
+	again, err := s.rounds.Retime(s.T().Context(), contractBattle.ID, 10)
+	s.Require().NoError(err)
+	late, err := s.rounds.Retime(s.T().Context(), contractDay.ID, 10)
+	s.Require().NoError(err)
+	never, err := s.rounds.Retime(s.T().Context(), contractNextDay.ID, 10)
+	s.Require().NoError(err)
+
+	s.True(retimed)
+	s.False(again, "a round that has these times is left as it is")
+	s.False(late, "a scored round keeps the times it was scored at")
+	s.False(never, "a round never opened is not opened by a retime")
+	battle, _ := s.find(contractBattle.ID)
+	want := contractBattle
+	want.Times = 10
+	s.Equal(want, battle)
+	day, _ := s.find(contractDay.ID)
+	s.Equal(scored.Round, day)
+	_, found := s.find(contractNextDay.ID)
+	s.False(found)
+}
+
 func (s *RoundsContractSuite) TestARoundKeepsEachRanking() {
 	for _, ranking := range []Ranking{GainRanking{}, HeldAndGainRanking{}, FightersRanking{}, KnockOutRanking{}} {
 		round := Round{ID: RoundID(ranking.Name()), Book: contractBook.ID, Times: 2, Ranking: ranking, StartsAt: contractEnd}

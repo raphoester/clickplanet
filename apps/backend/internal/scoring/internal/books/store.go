@@ -24,6 +24,9 @@ type Rounds interface {
 	Of(ctx context.Context, books []BookID) ([]Round, error)
 	// Open answers whether this call opened the round, kept with its start: one kept before is left as it is.
 	Open(ctx context.Context, round Round, start Start) (bool, error)
+	// Retime answers whether this call changed the times of a round not scored yet: a scored round, or one that has
+	// these times, is left as it is.
+	Retime(ctx context.Context, id RoundID, times uint32) (bool, error)
 	// StartOf is what each country held when the round opened: empty for one opened before starts were kept.
 	StartOf(ctx context.Context, id RoundID) (Start, error)
 	// Fights is the tiles each country's players took during the round, none for a country that took none.

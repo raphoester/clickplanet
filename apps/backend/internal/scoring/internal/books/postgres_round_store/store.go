@@ -133,6 +133,17 @@ func (s *Store) Open(ctx context.Context, round books.Round, start books.Start) 
 	return done, err //nolint:wrapcheck // each step named what failed.
 }
 
+func (s *Store) Retime(ctx context.Context, id books.RoundID, times uint32) (bool, error) {
+	retiming, err := s.db.On(ctx).ExecContext(ctx, `
+		UPDATE rounds SET times = $2
+		WHERE round_id = $1 AND times <> $2 AND NOT EXISTS (SELECT FROM scored_rounds WHERE scored_rounds.round_id = $1)
+	`, string(id), int64(times))
+	if err != nil {
+		return false, fmt.Errorf("failed to change the round's times: %w", err)
+	}
+	return applied(retiming, "failed to change the round's times")
+}
+
 func (s *Store) StartOf(ctx context.Context, id books.RoundID) (books.Start, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT country, tiles FROM round_starts WHERE round_id = $1`, string(id))
 	if err != nil {

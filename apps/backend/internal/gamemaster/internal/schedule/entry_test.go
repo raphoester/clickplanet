@@ -140,6 +140,33 @@ func TestARunningEntryEndsNeitherLaterNorByNowNorChangesAnythingElse(t *testing.
 	require.ErrorIs(t, err, schedule.ErrStarted, "once it ended")
 }
 
+func TestARunningEntryMayChangeItsPointsAndWordsAndNothingElse(t *testing.T) {
+	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
+	require.NoError(t, err)
+	running := finale.Add(30 * time.Minute)
+	asked := draft("calm", finale, battleEnds, 1)
+	asked.Times, asked.Description = 10, "Points ×10."
+
+	rescored, err := made.Edited(asked, running)
+
+	require.NoError(t, err)
+	assert.Equal(t, schedule.EntrySnapshot{
+		ID: id(1), Set: "calm", Kind: schedule.Battle, Description: "Points ×10.", StartsAt: finale, EndsAt: battleEnds,
+		Priority: 1, Times: 10, MadeAt: now,
+	}, rescored.TakeSnapshot(), "it keeps its place in a tie")
+
+	tooMany := asked
+	tooMany.Times = schedule.MaxTimes + 1
+	_, err = made.Edited(tooMany, running)
+	require.ErrorIs(t, err, schedule.ErrInvalidEntry, "its points are checked as any battle's")
+	elsewhere := asked
+	elsewhere.Set = "rush"
+	_, err = made.Edited(elsewhere, running)
+	require.ErrorIs(t, err, schedule.ErrStarted, "and its set stays")
+	_, err = made.Edited(asked, battleEnds)
+	require.ErrorIs(t, err, schedule.ErrStarted, "once it ended")
+}
+
 func TestAnEditIsCheckedAsANewEntry(t *testing.T) {
 	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
 	require.NoError(t, err)

@@ -20,6 +20,7 @@ type Rounds interface {
 	Lock(ctx context.Context, id books.RoundID) error
 	Missed(ctx context.Context, id books.RoundID) (books.MissedRound, bool, error)
 	Open(ctx context.Context, round books.Round, start books.Start) (bool, error)
+	Retime(ctx context.Context, id books.RoundID, times uint32) (bool, error)
 }
 
 type Territory interface {
@@ -49,15 +50,19 @@ type UseCase struct {
 	territory     Territory
 }
 
-// Execute answers whether it opened the round: one kept before is left as it is, and one missed or of no open book
-// is refused.
+// Execute answers whether it opened the round: one kept before keeps its start and its ranking, and takes the
+// command's times until it is scored; one missed or of no open book is refused.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	round, err := books.NewRound(command.Round, command.Book, command.Times, command.Ranking, command.StartsAt)
 	if err != nil {
 		return false, err //nolint:wrapcheck // the round says why.
 	}
-	if _, found, err := u.rounds.Find(ctx, command.Round); err != nil || found {
+	kept, found, err := u.rounds.Find(ctx, command.Round)
+	if err != nil {
 		return false, err //nolint:wrapcheck // the store says what failed.
+	}
+	if found {
+		return false, u.retime(ctx, kept, command.Times)
 	}
 	book, found, err := u.books.Find(ctx, command.Book)
 	if err != nil {
@@ -89,6 +94,23 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		return nil
 	})
 	return opened, err //nolint:wrapcheck // each step named what failed.
+}
+
+// retime gives a round kept the times the gamemaster asks now: a battle's points changed while it runs. A scored
+// round keeps the times it was scored at.
+func (u *UseCase) retime(ctx context.Context, kept books.Round, times uint32) error {
+	if kept.Scored || kept.Times == times {
+		return nil
+	}
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // each step names what failed.
+		if err := u.rounds.Lock(ctx, kept.ID); err != nil {
+			return err //nolint:wrapcheck // the store says what failed.
+		}
+		if _, err := u.rounds.Retime(ctx, kept.ID, times); err != nil {
+			return fmt.Errorf("failed to change the times of round %s: %w", kept.ID, err)
+		}
+		return nil
+	})
 }
 
 func (u *UseCase) startOf(ctx context.Context, round books.Round, fromNothing bool) (books.Start, error) {
