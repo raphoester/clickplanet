@@ -179,11 +179,14 @@ func (e Entry) Changeable(now time.Time) error {
 }
 
 // Edited is the entry with the draft's values, and keeps its place in a tie. A running entry changes only by ending
-// sooner (endedSooner).
+// sooner (endedSooner), or by its points and its words (rescored).
 func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 	if err := e.Changeable(now); err != nil {
 		if e.runs(now) && e.onlyEndMoved(draft) {
 			return e.endedSooner(draft.EndsAt, now)
+		}
+		if e.runs(now) && e.onlyPointsOrWordsChanged(draft) {
+			return e.rescored(draft)
 		}
 		return Entry{}, err
 	}
@@ -201,6 +204,30 @@ func (e Entry) onlyEndMoved(draft Draft) bool {
 	return draft.Set == e.set && draft.Kind == e.kind && draft.Description == e.description &&
 		draft.StartsAt.Equal(e.startsAt) && draft.Priority == e.priority && draft.Times == e.times &&
 		!draft.EndsAt.Equal(e.endsAt)
+}
+
+// onlyPointsOrWordsChanged is true when the draft holds every value of the entry but its times or its description.
+func (e Entry) onlyPointsOrWordsChanged(draft Draft) bool {
+	return draft.Set == e.set && draft.Kind == e.kind && draft.StartsAt.Equal(e.startsAt) && draft.EndsAt.Equal(e.endsAt) &&
+		draft.Priority == e.priority && (draft.Times != e.times || draft.Description != e.description)
+}
+
+// rescored is a running entry with the draft's times and description: a battle's points changed while it runs, which
+// its round in scoring takes until it is scored.
+func (e Entry) rescored(draft Draft) (Entry, error) {
+	var found reasons
+	if err := draft.Description.Check(); err != nil {
+		found = append(found, err)
+	}
+	if err := draft.Times.Check(e.kind); err != nil {
+		found = append(found, err)
+	}
+	if len(found) > 0 {
+		return Entry{}, fmt.Errorf("%w: %w", ErrInvalidEntry, found)
+	}
+	rescored := e
+	rescored.times, rescored.description = draft.Times, draft.Description
+	return rescored, nil
 }
 
 // endedSooner is a running entry that ends at a time after now and before its end: never later, since a battle's arena

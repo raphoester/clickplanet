@@ -65,8 +65,9 @@ type InternalServiceClient interface {
 	// in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
 	OpenBook(context.Context, *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error)
 	// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
-	// Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
-	// is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+	// Takes from starts_at count in it. A round open already keeps its start and its ranking, and takes these times
+	// until it is scored. FailedPrecondition for a round whose book is not open, or a round closed missed;
+	// InvalidArgument for one with no ranking, or times outside 1 to 10.
 	OpenRound(context.Context, *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error)
 	// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
 	// round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.
@@ -210,8 +211,9 @@ type InternalServiceHandler interface {
 	// in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
 	OpenBook(context.Context, *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error)
 	// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
-	// Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
-	// is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+	// Takes from starts_at count in it. A round open already keeps its start and its ranking, and takes these times
+	// until it is scored. FailedPrecondition for a round whose book is not open, or a round closed missed;
+	// InvalidArgument for one with no ranking, or times outside 1 to 10.
 	OpenRound(context.Context, *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error)
 	// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
 	// round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.

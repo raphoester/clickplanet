@@ -186,7 +186,7 @@ export function finaleStartOf(row: Row): Date | undefined {
     return new Date(row.endsAt.getTime() - secondsOf(finale.length) * 1000)
 }
 
-// Once its finale started, a season's end and its finale stay.
+// Once its finale started, a season's end, its finale's length and its finale's set stay; its times and words change.
 export function finaleStarted(row: Row, now: Date): boolean {
     const startsAt = finaleStartOf(row)
     return startsAt !== undefined && startsAt <= now

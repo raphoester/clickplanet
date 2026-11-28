@@ -73,12 +73,13 @@ func TestMovingTheEndBeforeTheFinaleStartsMovesTheFinale(t *testing.T) {
 	require.ErrorIs(t, err, season.ErrInvalidSeason, "its finale would have started")
 }
 
-func TestOnceTheFinaleStartedTheSeasonsEndAndItsFinaleStay(t *testing.T) {
+func TestOnceTheFinaleStartedTheSeasonsEndAndItsFinaleStayButItsPointsAndWords(t *testing.T) {
 	during := finaleStart.Add(time.Minute)
 	for name, draft := range map[string]season.Draft{
 		"a later end":    {Length: zero.Length + time.Hour, Finale: rush},
 		"an earlier end": {Length: zero.Length - time.Minute, Finale: rush},
 		"another set":    {Length: zero.Length, Finale: season.Finale{Length: 2 * time.Hour, Set: "storm", Times: 3}},
+		"another length": {Length: zero.Length, Finale: season.Finale{Length: 3 * time.Hour, Set: "rush", Times: 3}},
 		"no finale":      {Length: zero.Length},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -89,4 +90,21 @@ func TestOnceTheFinaleStartedTheSeasonsEndAndItsFinaleStay(t *testing.T) {
 
 	_, err := planned(finaleZero).Edited(0, season.Draft{Length: zero.Length, Finale: rush}, during)
 	require.NoError(t, err, "nothing moves")
+}
+
+func TestAFinaleThatStartedTakesNewPointsAndWordsUntilItEnds(t *testing.T) {
+	during := finaleStart.Add(time.Minute)
+	rescored := season.Finale{Length: rush.Length, Set: rush.Set, Description: "Points ×10.", Times: 10}
+
+	edited, err := planned(finaleZero).Edited(0, season.Draft{Length: zero.Length, Finale: rescored}, during)
+
+	require.NoError(t, err)
+	assert.Equal(t, season.Snapshot{Number: 0, Length: zero.Length, Finale: rescored}, edited.TakeSnapshot())
+
+	tooMany := rescored
+	tooMany.Times = schedule.MaxTimes + 1
+	_, err = planned(finaleZero).Edited(0, season.Draft{Length: zero.Length, Finale: tooMany}, during)
+	require.ErrorIs(t, err, season.ErrInvalidSeason, "its points are checked as any finale's")
+	_, err = planned(finaleZero).Edited(0, season.Draft{Length: zero.Length, Finale: rescored}, seasonZeroEnds)
+	require.ErrorIs(t, err, season.ErrEnded, "nothing changes once it ended")
 }

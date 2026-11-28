@@ -86,7 +86,7 @@ func TestARoundACloseMissedNeverOpens(t *testing.T) {
 	assert.False(t, stack.found(t, battle))
 }
 
-func TestARoundOfOneToTenTimesOpensOnceAndKeepsItsFirstRanking(t *testing.T) {
+func TestARoundOfOneToTenTimesOpensOnceKeepsItsFirstRankingAndStartAndTakesNewTimes(t *testing.T) {
 	stack := newStack(t, books.NewBook("season-1", utc(8, 0)))
 	for _, times := range []uint32{0, books.MaxTimes + 1} {
 		_, err := stack.useCase.Execute(t.Context(), command("season-1/day-1", times, utc(8, 0)))
@@ -104,7 +104,28 @@ func TestARoundOfOneToTenTimesOpensOnceAndKeepsItsFirstRanking(t *testing.T) {
 
 	round, _, err := stack.rounds.Find(t.Context(), "season-1/day-1")
 	require.NoError(t, err)
-	assert.Equal(t, books.Round{ID: "season-1/day-1", Book: "season-1", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(8, 0)}, round)
+	assert.Equal(t, books.Round{ID: "season-1/day-1", Book: "season-1", Times: 2, Ranking: books.GainRanking{}, StartsAt: utc(8, 0)}, round,
+		"a battle's points changed while it runs reach its round")
+}
+
+func TestARoundScoredKeepsTheTimesItWasScoredAt(t *testing.T) {
+	stack := newStack(t, books.NewBook("season-1", utc(8, 0)))
+	_, err := stack.useCase.Execute(t.Context(), command(battle, 10, utc(8, 17)))
+	require.NoError(t, err)
+	round, _, err := stack.rounds.Find(t.Context(), battle)
+	require.NoError(t, err)
+	scored := books.Scored{Round: round}
+	scored.Round.Scored, scored.Round.EndsAt = true, utc(8, 21)
+	_, err = stack.rounds.Score(t.Context(), scored)
+	require.NoError(t, err)
+
+	opened, err := stack.useCase.Execute(t.Context(), command(battle, 3, utc(8, 17)))
+	require.NoError(t, err)
+
+	assert.False(t, opened)
+	kept, _, err := stack.rounds.Find(t.Context(), battle)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(10), kept.Times)
 }
 
 func TestARoundOpenedWhileTheMapCannotBeReadOpensOnTheNextCall(t *testing.T) {

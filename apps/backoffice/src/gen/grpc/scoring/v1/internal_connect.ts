@@ -33,8 +33,9 @@ export const InternalService = {
     },
     /**
      * A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
-     * Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
-     * is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+     * Takes from starts_at count in it. A round open already keeps its start and its ranking, and takes these times
+     * until it is scored. FailedPrecondition for a round whose book is not open, or a round closed missed;
+     * InvalidArgument for one with no ranking, or times outside 1 to 10.
      *
      * @generated from rpc scoring.v1.InternalService.OpenRound
      */

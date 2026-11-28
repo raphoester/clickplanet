@@ -392,3 +392,26 @@ func TestNoSeasonStartedSendsNothing(t *testing.T) {
 
 	assert.Empty(t, h.execute())
 }
+
+func TestABattleWhosePointsChangeWhileItRunsIsOpenedAgainWithItsNewTimes(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Second))
+	h.execute()
+	h.at(finale)
+	h.execute()
+
+	rescored := zero
+	rescored.Finale.Times = 10
+	require.NoError(t, h.seasons.Save(t.Context(), rescored.Restore()))
+	h.at(finale.Add(time.Hour))
+
+	assert.Equal(t, []moments.Command{
+		{Action: moments.OpenRound, Book: book, Round: battle, Times: 10, At: finale, Ranking: moments.RankedByFighters},
+	}, h.execute(), "its round takes the new times")
+	h.at(finale.Add(time.Hour + time.Second))
+	assert.Empty(t, h.execute(), "and once is enough")
+
+	h.boot()
+	assert.Equal(t, []moments.Command{
+		{Action: moments.OpenRound, Book: book, Round: battle, Times: 10, At: finale, Ranking: moments.RankedByFighters},
+	}, h.execute()[1:], "a boot opens the running battle with the times it plays")
+}

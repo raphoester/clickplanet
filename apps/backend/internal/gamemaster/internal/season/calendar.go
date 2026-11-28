@@ -31,8 +31,8 @@ func (c Calendar) Added(draft Draft, now time.Time) (Season, error) {
 }
 
 // Edited is a season that has not ended, planned again; the seasons after it move with it. One that started keeps its
-// break, and its end moves only to a time after now. Once its finale started, its end and its finale stay; a finale
-// that changes or moves starts after now.
+// break, and its end moves only to a time after now. Once its finale started, its end, its length and its rule set
+// stay, and only its points and its words change; a finale that changes otherwise or moves starts after now.
 func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, error) {
 	kept, err := c.season(number)
 	if err != nil {
@@ -56,10 +56,14 @@ func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, err
 	if !moved.EndsAt.Equal(window.EndsAt) && !moved.EndsAt.After(now) {
 		return Season{}, refused("its end would move to %s, not after now", stamp(moved.EndsAt))
 	}
-	unmoved := moved.EndsAt.Equal(window.EndsAt) && draft.Finale == kept.finale
-	if window.finaleStarted(now) && !unmoved {
-		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.FinaleStartsAt()), ErrFinaleStarted)
+	sameEnd := moved.EndsAt.Equal(window.EndsAt)
+	if window.finaleStarted(now) {
+		if !sameEnd || !kept.finale.sameBattle(draft.Finale) {
+			return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.FinaleStartsAt()), ErrFinaleStarted)
+		}
+		return edited, nil
 	}
+	unmoved := sameEnd && draft.Finale == kept.finale
 	if !unmoved && moved.Finale.Planned() && !moved.FinaleStartsAt().After(now) {
 		return Season{}, refused("its finale would start at %s, not after now", stamp(moved.FinaleStartsAt()))
 	}

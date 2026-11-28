@@ -57,14 +57,22 @@ const (
 	RankedByKnockOut    Ranking = "knock-out"
 )
 
-// Key is a command's identity: a call is made until scoring answers it, once per process.
+// Key is a command's identity: a call is made until scoring answers it, once per process. An open's times are part of
+// it: a battle whose points change while it runs is opened again with its new times, which its round takes.
 type Key struct {
 	Action Action
 	Book   BookID
 	Round  RoundID
+	Times  schedule.Times
 }
 
-func (c Command) Key() Key { return Key{Action: c.Action, Book: c.Book, Round: c.Round} }
+func (c Command) Key() Key {
+	key := Key{Action: c.Action, Book: c.Book, Round: c.Round}
+	if c.Action == OpenRound {
+		key.Times = c.Times
+	}
+	return key
+}
 
 // ErrRefused is a call its receiver refused for good: it is not made again in this process.
 var ErrRefused = errors.New("refused")
