@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_submitted_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reject_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reopen_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
 )
 
@@ -40,6 +41,7 @@ type AdminService struct {
 	list_submissions_handler.ListSubmissionsHandler
 	approve_submission_handler.ApproveSubmissionHandler
 	reject_submission_handler.RejectSubmissionHandler
+	reopen_submission_handler.ReopenSubmissionHandler
 	open_submitted_flag_handler.OpenSubmittedFlagHandler
 	rename_flag_handler.RenameFlagHandler
 }

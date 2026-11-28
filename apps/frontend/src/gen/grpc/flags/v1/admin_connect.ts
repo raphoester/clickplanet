@@ -5,7 +5,7 @@
 
 import { ListFlagsRequest, ListFlagsResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AddTimeRequest, AddTimeResponse, ApproveSubmissionRequest, ApproveSubmissionResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, ListSubmissionsRequest, ListSubmissionsResponse, OpenFlagRequest, OpenFlagResponse, OpenSubmittedFlagRequest, OpenSubmittedFlagResponse, RejectSubmissionRequest, RejectSubmissionResponse, RenameFlagRequest, RenameFlagResponse } from "./admin_pb.js";
+import { AddTimeRequest, AddTimeResponse, ApproveSubmissionRequest, ApproveSubmissionResponse, CloseFlagRequest, CloseFlagResponse, CreateFlagUploadRequest, CreateFlagUploadResponse, ListSubmissionsRequest, ListSubmissionsResponse, OpenFlagRequest, OpenFlagResponse, OpenSubmittedFlagRequest, OpenSubmittedFlagResponse, RejectSubmissionRequest, RejectSubmissionResponse, RenameFlagRequest, RenameFlagResponse, ReopenSubmissionRequest, ReopenSubmissionResponse } from "./admin_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -138,6 +138,23 @@ export const AdminService = {
       name: "RejectSubmission",
       I: RejectSubmissionRequest,
       O: RejectSubmissionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reopens a submission the judge rejected, for the operator to decide: it waits again, as if its player had asked a
+     * person to look again. Its appeal is kept, so it shows even unpaid, is never judged again, and its player cannot
+     * ask again; ApproveSubmission or RejectSubmission then decides it. Nobody is told: its player sees it waiting. What
+     * was paid was refunded at the rejection, so an approval waits to be paid for again. NotFound for an unknown
+     * submission; FailedPrecondition for one not rejected, one the judge did not reject (the operator's own rejection, or
+     * one the judge was unsure of), one a person looked at already, one whose picture was deleted (30 days after the
+     * rejection), or while another submission of its player waits.
+     *
+     * @generated from rpc flags.v1.AdminService.ReopenSubmission
+     */
+    reopenSubmission: {
+      name: "ReopenSubmission",
+      I: ReopenSubmissionRequest,
+      O: ReopenSubmissionResponse,
       kind: MethodKind.Unary,
     },
     /**

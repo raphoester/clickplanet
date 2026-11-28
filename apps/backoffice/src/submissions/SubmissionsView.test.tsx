@@ -385,6 +385,61 @@ describe("the submissions inbox", () => {
         expect(await screen.findByRole("region", {name: "Verdict"})).toBeTruthy()
     })
 
+    it("reopens Claude's rejection, asked first: it waits again for the verdict, its appeal shown", async () => {
+        const admin = new FakeAdmin()
+        admin.flags.submissions = [...admin.flags.submissions, keptSubmission("sub-greece", "Greater Greece", CATALONIA, {
+            state: SubmissionState.REJECTED, decidedAt: minute(-60), accountId: "account-greece",
+            rejection: new Rejection({reason: RejectionReason.EXISTS, note: "Greece is in the game."}),
+            judgement: new Judgement({verdict: JudgementVerdict.REJECT, why: "Greece's flag under another name"}),
+        })]
+        render(<Inbox admin={admin} first="sub-greece"/>)
+
+        const panel = within(await screen.findByRole("region", {name: "Look again"}))
+        expect(screen.queryByRole("region", {name: "Verdict"})).toBeNull()
+        fireEvent.click(panel.getByRole("button", {name: "Reopen"}))
+        expect(panel.getByRole("group", {name: "Reopen"}).textContent).toContain("Reopen Greater Greece?")
+        expect(admin.askedFor("reopenSubmission")).toEqual([])
+        fireEvent.click(panel.getByRole("button", {name: "Yes, reopen"}))
+
+        expect(await screen.findByRole("region", {name: "Verdict"})).toBeTruthy()
+        expect(admin.askedFor("reopenSubmission")).toEqual([{submissionId: "sub-greece"}])
+        expect(opened()).toBe("sub-greece")
+        expect(screen.getByRole("status").textContent).toContain("Reopened. It waits for your verdict.")
+        const open = await detail()
+        expect(open.getByText("Waiting", {selector: ".badge"})).toBeTruthy()
+        expect(open.getByText(/of Claude's rejection: Has a flag already/)).toBeTruthy()
+        expect(screen.queryByRole("region", {name: "Look again"})).toBeNull()
+        expect(list().getByRole("button", {name: /Greater Greece/}).textContent).toContain("Appeal")
+    })
+
+    it("quotes the server's refusal of a reopen", async () => {
+        const admin = new FakeAdmin()
+        admin.flags.submissions = [
+            ...admin.flags.submissions.map(each => each.id === "sub-catalonia"
+                ? keptSubmission("sub-catalonia", "Catalonia", CATALONIA, {accountId: "account-greece"}) : each),
+            keptSubmission("sub-greece", "Greater Greece", CATALONIA, {
+                state: SubmissionState.REJECTED, accountId: "account-greece",
+                rejection: new Rejection({reason: RejectionReason.EXISTS}),
+                judgement: new Judgement({verdict: JudgementVerdict.REJECT, why: "Greece's flag under another name"}),
+            }),
+        ]
+        render(<Inbox admin={admin} first="sub-greece"/>)
+
+        const panel = within(await screen.findByRole("region", {name: "Look again"}))
+        fireEvent.click(panel.getByRole("button", {name: "Reopen"}))
+        fireEvent.click(panel.getByRole("button", {name: "Yes, reopen"}))
+
+        expect((await panel.findByRole("alert")).textContent)
+            .toBe("The server refused it: another of the account's submissions waits for its review")
+    })
+
+    it("offers no reopen of the operator's own rejection", async () => {
+        render(<Inbox admin={new FakeAdmin()} first="sub-brittany"/>)
+
+        await detail()
+        expect(screen.queryByRole("region", {name: "Look again"})).toBeNull()
+    })
+
     it("lists the flags of the same name, the game's own among them", async () => {
         const admin = new FakeAdmin()
         admin.flags.listed = [...admin.flags.listed, new Flag({code: "xb", name: "Brittany"})]

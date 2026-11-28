@@ -21,7 +21,7 @@ type Props = {
 // What the operator did last, said above the next one.
 type Done = {who: string, said: string}
 
-// The submissions a verdict changed since the list was read, over that read.
+// The submissions a verdict or a reopen changed since the list was read, over that read.
 type Changed = {on: Listed | undefined, submissions: Map<string, KeptSubmission>}
 
 const FILTERS: {filter: Filter, label: string}[] = [
@@ -70,14 +70,21 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
     const submission = submissions.find(each => each.id === opened)
     const count = (each: Filter) => shownOf(submissions, each, replied).length
 
+    // The submission as the server answered it, over the list as read.
+    const keep = (done: KeptSubmission) => setChanged(was => ({
+        on: listed,
+        submissions: new Map([...(was.on === listed ? was.submissions : []), [done.id, done]]),
+    }))
     const decided = (done: KeptSubmission, said: string) => {
         const before = submissions.filter(waiting)
-        setChanged(was => ({
-            on: listed,
-            submissions: new Map([...(was.on === listed ? was.submissions : []), [done.id, done]]),
-        }))
+        keep(done)
         setLast({who: done.name, said})
         onOpen(nextOf(before, done.id))
+    }
+    // It stays open, waiting again, for the verdict.
+    const reopened = (done: KeptSubmission) => {
+        keep(done)
+        setLast({who: done.name, said: "Reopened. It waits for your verdict."})
     }
     const openedFlag = (flag: Flag) => {
         const until = flag.sold?.endsAt?.toDate()
@@ -146,6 +153,7 @@ export function SubmissionsView({opened, onOpen, clients = CLIENTS, ground: read
                         onBack={() => pick("")}
                         onOpen={pick}
                         onDecided={decided}
+                        onReopened={reopened}
                         onOpened={openedFlag}
                         onLettersChanged={readRepliedAgain}
                     />

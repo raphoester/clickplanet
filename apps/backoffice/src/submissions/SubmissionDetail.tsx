@@ -15,10 +15,11 @@ import {Call} from "../useCall.ts"
 import {CapitalMap, Mark} from "./CapitalMap.tsx"
 import {FlagFigure} from "./FlagFigure.tsx"
 import {OpenSubmittedPanel} from "./OpenSubmittedPanel.tsx"
+import {ReopenPanel} from "./ReopenPanel.tsx"
 import {SubmissionVerdict} from "./SubmissionVerdict.tsx"
 import {
     Around, aroundOf, founderOf, Ground, judgementLabel, looksLikePhoto, NEAR_KM, nearOf, Other, reasonLabel, sameNameOf,
-    stateLabel, toOpen, waiting,
+    reopenable, stateLabel, toOpen, waiting,
 } from "./submissions.ts"
 
 type Props = {
@@ -33,15 +34,18 @@ type Props = {
     onBack: () => void
     onOpen: (submissionId: string) => void
     onDecided: (decided: KeptSubmission, said: string) => void
+    // Claude's rejection, waiting again for the operator's verdict.
+    onReopened: (reopened: KeptSubmission) => void
     onOpened: (flag: Flag) => void
     onLettersChanged: () => void
 }
 
 // One submission, read top down as it is judged: the picture, the name, who sent it, its capital on a map and the
-// capitals near it, the flags of the same name; then the verdict, or the open of an approved new flag. A waiting one's
-// capital moves on the map before the verdict.
+// capitals near it, the flags of the same name; then the verdict, the reopen of Claude's rejection, or the open of an
+// approved new flag. A waiting one's capital moves on the map before the verdict.
 export function SubmissionDetail({
-    submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onOpened, onLettersChanged,
+    submission, submissions, flags, names, ground, clients, onBack, onOpen, onDecided, onReopened, onOpened,
+    onLettersChanged,
 }: Props) {
     const {pin, rejection} = submission
     const [moved, setMoved] = useState<Place>()
@@ -176,6 +180,7 @@ export function SubmissionDetail({
                     onDecided={onDecided}
                 />
             )}
+            {reopenable(submission) && <ReopenPanel flags={clients.flags} submission={submission} onReopened={onReopened}/>}
             {toOpen(submission) && <OpenSubmittedPanel flags={clients.flags} submission={submission} onOpened={onOpened}/>}
         </section>
     )

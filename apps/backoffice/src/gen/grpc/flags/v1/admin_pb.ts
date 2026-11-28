@@ -890,6 +890,82 @@ export class RejectSubmissionResponse extends Message<RejectSubmissionResponse> 
 }
 
 /**
+ * @generated from message flags.v1.ReopenSubmissionRequest
+ */
+export class ReopenSubmissionRequest extends Message<ReopenSubmissionRequest> {
+  /**
+   * @generated from field: string submission_id = 1;
+   */
+  submissionId = "";
+
+  constructor(data?: PartialMessage<ReopenSubmissionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.ReopenSubmissionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReopenSubmissionRequest {
+    return new ReopenSubmissionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReopenSubmissionRequest {
+    return new ReopenSubmissionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReopenSubmissionRequest {
+    return new ReopenSubmissionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReopenSubmissionRequest | PlainMessage<ReopenSubmissionRequest> | undefined, b: ReopenSubmissionRequest | PlainMessage<ReopenSubmissionRequest> | undefined): boolean {
+    return proto3.util.equals(ReopenSubmissionRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.ReopenSubmissionResponse
+ */
+export class ReopenSubmissionResponse extends Message<ReopenSubmissionResponse> {
+  /**
+   * Waiting, with the judge's judgement and its appeal.
+   *
+   * @generated from field: flags.v1.KeptSubmission submission = 1;
+   */
+  submission?: KeptSubmission;
+
+  constructor(data?: PartialMessage<ReopenSubmissionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.ReopenSubmissionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "submission", kind: "message", T: KeptSubmission },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReopenSubmissionResponse {
+    return new ReopenSubmissionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReopenSubmissionResponse {
+    return new ReopenSubmissionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReopenSubmissionResponse {
+    return new ReopenSubmissionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReopenSubmissionResponse | PlainMessage<ReopenSubmissionResponse> | undefined, b: ReopenSubmissionResponse | PlainMessage<ReopenSubmissionResponse> | undefined): boolean {
+    return proto3.util.equals(ReopenSubmissionResponse, a, b);
+  }
+}
+
+/**
  * @generated from message flags.v1.OpenSubmittedFlagRequest
  */
 export class OpenSubmittedFlagRequest extends Message<OpenSubmittedFlagRequest> {

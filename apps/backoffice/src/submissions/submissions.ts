@@ -65,6 +65,13 @@ export function toOpen(submission: KeptSubmission): boolean {
     return submission.state === SubmissionState.APPROVED
 }
 
+// Claude rejected it, no person looked at it yet and its picture is still kept: the operator may reopen it to decide
+// it, as its player's appeal would.
+export function reopenable(submission: KeptSubmission): boolean {
+    return submission.state === SubmissionState.REJECTED && submission.judgement?.verdict === JudgementVerdict.REJECT &&
+        submission.appeal === undefined && submission.picture !== undefined
+}
+
 // `replied` holds the submissions whose founder's reply to their letter waits.
 export function shownOf(submissions: KeptSubmission[], filter: Filter, replied: ReadonlySet<string>): KeptSubmission[] {
     switch (filter) {

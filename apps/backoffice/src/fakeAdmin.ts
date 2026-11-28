@@ -236,7 +236,7 @@ import {
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
-    Flag, ListFlagsRequest, ListFlagsResponse, Picture, Pin, Rejection, RejectionReason, Sold, SubmissionState,
+    Appeal, Flag, ListFlagsRequest, ListFlagsResponse, Picture, Pin, Rejection, RejectionReason, Sold, SubmissionState,
 } from "./gen/grpc/flags/v1/flags_pb.ts"
 import {
     AddTimeRequest,
@@ -247,6 +247,7 @@ import {
     CloseFlagResponse,
     CreateFlagUploadRequest,
     CreateFlagUploadResponse,
+    JudgementVerdict,
     KeptSubmission,
     ListSubmissionsRequest,
     ListSubmissionsResponse,
@@ -258,6 +259,8 @@ import {
     RejectSubmissionResponse,
     RenameFlagRequest,
     RenameFlagResponse,
+    ReopenSubmissionRequest,
+    ReopenSubmissionResponse,
 } from "./gen/grpc/flags/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, AuthAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, FlagsAdmin, GamemasterAdmin, MissionsAdmin,
@@ -1089,6 +1092,29 @@ export class FakeFlags implements FlagsAdmin {
         const rejected = this.decided(submission, {state: SubmissionState.REJECTED, rejection: new Rejection({reason, note})})
         const answer = this.admin.answer("rejectSubmission", request, new RejectSubmissionResponse({submission: rejected}))
         if (!this.admin.refusals.has("rejectSubmission")) this.keep(rejected)
+        return answer
+    }
+
+    // Claude's rejection, waiting again as its player's appeal would: once, while its picture is kept and no other of its
+    // player's waits.
+    reopenSubmission(request: PartialMessage<ReopenSubmissionRequest>): Promise<ReopenSubmissionResponse> {
+        const submission = this.submissions.find(each => each.id === request.submissionId)
+        if (submission === undefined) return this.refused("reopenSubmission", request, "no such submission", Code.NotFound)
+        const another = this.submissions.some(each => each.id !== submission.id && each.accountId === submission.accountId &&
+            each.state === SubmissionState.WAITING)
+        const why = submission.state !== SubmissionState.REJECTED ? "only a rejected submission is looked at again"
+            : submission.judgement?.verdict !== JudgementVerdict.REJECT ? "only a rejection the judge made is looked at again by a person"
+                : submission.appeal !== undefined ? "a person was asked to look at this submission again already"
+                    : submission.picture === undefined ? "the rejected picture was deleted: nothing is left to look at again"
+                        : another ? "another of the account's submissions waits for its review" : undefined
+        if (why !== undefined) return this.refused("reopenSubmission", request, why, Code.FailedPrecondition)
+        const now = Timestamp.fromDate(new Date())
+        const reopened = this.decided(submission, {
+            state: SubmissionState.WAITING, rejection: undefined,
+            appeal: new Appeal({askedAt: now, rejection: submission.rejection}),
+        })
+        const answer = this.admin.answer("reopenSubmission", request, new ReopenSubmissionResponse({submission: reopened}))
+        if (!this.admin.refusals.has("reopenSubmission")) this.keep(reopened)
         return answer
     }
 
