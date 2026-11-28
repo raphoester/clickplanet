@@ -388,6 +388,13 @@ export class Sold extends Message<Sold> {
    */
   removed = false;
 
+  /**
+   * The music the game plays when the flag leads the board, as a country's anthem; unset for none.
+   *
+   * @generated from field: flags.v1.Anthem anthem = 6;
+   */
+  anthem?: Anthem;
+
   constructor(data?: PartialMessage<Sold>) {
     super();
     proto3.util.initPartial(data, this);
@@ -401,6 +408,7 @@ export class Sold extends Message<Sold> {
     { no: 3, name: "closed_at", kind: "message", T: Timestamp },
     { no: 4, name: "pin", kind: "message", T: Pin },
     { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "anthem", kind: "message", T: Anthem },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sold {
@@ -417,6 +425,54 @@ export class Sold extends Message<Sold> {
 
   static equals(a: Sold | PlainMessage<Sold> | undefined, b: Sold | PlainMessage<Sold> | undefined): boolean {
     return proto3.util.equals(Sold, a, b);
+  }
+}
+
+/**
+ * A sold flag's anthem, which its player chose: never a file a player sent, whose rights nobody could check.
+ *
+ * @generated from message flags.v1.Anthem
+ */
+export class Anthem extends Message<Anthem> {
+  /**
+   * @generated from oneof flags.v1.Anthem.source
+   */
+  source: {
+    /**
+     * A recording of the game's library: the one it plays for this flag the game ships with ("de", Germany's "Das Lied
+     * der Deutschen", Haydn's "Gott erhalte Franz den Kaiser"). Public domain: the US Navy Band's.
+     *
+     * @generated from field: string library_code = 1;
+     */
+    value: string;
+    case: "libraryCode";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<Anthem>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.Anthem";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "library_code", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "source" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Anthem {
+    return new Anthem().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Anthem {
+    return new Anthem().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Anthem {
+    return new Anthem().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Anthem | PlainMessage<Anthem> | undefined, b: Anthem | PlainMessage<Anthem> | undefined): boolean {
+    return proto3.util.equals(Anthem, a, b);
   }
 }
 
@@ -590,6 +646,13 @@ export class SubmitFlagRequest extends Message<SubmitFlagRequest> {
    */
   replaces = "";
 
+  /**
+   * Optional: the flag's anthem, which its flag takes when it opens. Unset for none.
+   *
+   * @generated from field: flags.v1.Anthem anthem = 6;
+   */
+  anthem?: Anthem;
+
   constructor(data?: PartialMessage<SubmitFlagRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -602,6 +665,7 @@ export class SubmitFlagRequest extends Message<SubmitFlagRequest> {
     { no: 2, name: "upload_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "pin", kind: "message", T: Pin },
     { no: 5, name: "replaces", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "anthem", kind: "message", T: Anthem },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubmitFlagRequest {
@@ -871,6 +935,13 @@ export class Submission extends Message<Submission> {
    */
   appeal?: Appeal;
 
+  /**
+   * The anthem its flag takes when it opens; unset for none. Once open, the flag's own (Sold.anthem) plays.
+   *
+   * @generated from field: flags.v1.Anthem anthem = 14;
+   */
+  anthem?: Anthem;
+
   constructor(data?: PartialMessage<Submission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -891,6 +962,7 @@ export class Submission extends Message<Submission> {
     { no: 11, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 12, name: "rejected_by_judge", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "appeal", kind: "message", T: Appeal },
+    { no: 14, name: "anthem", kind: "message", T: Anthem },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Submission {
@@ -907,6 +979,84 @@ export class Submission extends Message<Submission> {
 
   static equals(a: Submission | PlainMessage<Submission> | undefined, b: Submission | PlainMessage<Submission> | undefined): boolean {
     return proto3.util.equals(Submission, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.SetAnthemRequest
+ */
+export class SetAnthemRequest extends Message<SetAnthemRequest> {
+  /**
+   * The code of a flag the caller holds.
+   *
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * Unset takes the anthem off.
+   *
+   * @generated from field: flags.v1.Anthem anthem = 2;
+   */
+  anthem?: Anthem;
+
+  constructor(data?: PartialMessage<SetAnthemRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SetAnthemRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "anthem", kind: "message", T: Anthem },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAnthemRequest {
+    return new SetAnthemRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAnthemRequest {
+    return new SetAnthemRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAnthemRequest {
+    return new SetAnthemRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAnthemRequest | PlainMessage<SetAnthemRequest> | undefined, b: SetAnthemRequest | PlainMessage<SetAnthemRequest> | undefined): boolean {
+    return proto3.util.equals(SetAnthemRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message flags.v1.SetAnthemResponse
+ */
+export class SetAnthemResponse extends Message<SetAnthemResponse> {
+  constructor(data?: PartialMessage<SetAnthemResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.SetAnthemResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAnthemResponse {
+    return new SetAnthemResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAnthemResponse {
+    return new SetAnthemResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAnthemResponse {
+    return new SetAnthemResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAnthemResponse | PlainMessage<SetAnthemResponse> | undefined, b: SetAnthemResponse | PlainMessage<SetAnthemResponse> | undefined): boolean {
+    return proto3.util.equals(SetAnthemResponse, a, b);
   }
 }
 

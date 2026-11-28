@@ -40,6 +40,12 @@ service FlagService {
   // submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
   // picture was deleted (30 days after the rejection); NotFound for an unknown one.
   rpc AppealSubmission(AppealSubmissionRequest) returns (AppealSubmissionResponse);
+
+  // Sets the anthem of a flag the caller holds, open or closed, or takes it off with no anthem: the game plays it as a
+  // country's when the flag leads. Every page hears the flag again on its stream. PermissionDenied for a guest or a
+  // flag another account holds (or none, opened by hand); FailedPrecondition for a removed flag; InvalidArgument for an
+  // anthem that is no recording of the game's library; NotFound for an unknown flag.
+  rpc SetAnthem(SetAnthemRequest) returns (SetAnthemResponse);
 }
 
 message ListFlagsRequest {}
@@ -87,6 +93,17 @@ message Sold {
   // The operator removed it, for good: nobody pays for it, and its name is free for a new flag. A removed flag is
   // closed.
   bool removed = 5;
+  // The music the game plays when the flag leads the board, as a country's anthem; unset for none.
+  Anthem anthem = 6;
+}
+
+// A sold flag's anthem, which its player chose: never a file a player sent, whose rights nobody could check.
+message Anthem {
+  oneof source {
+    // A recording of the game's library: the one it plays for this flag the game ships with ("de", Germany's "Das Lied
+    // der Deutschen", Haydn's "Gott erhalte Franz den Kaiser"). Public domain: the US Navy Band's.
+    string library_code = 1;
+  }
 }
 
 // A flag's capital: a point on the globe, in degrees, where it starts in Capital Siege. Never a tile: each board numbers
@@ -120,6 +137,8 @@ message SubmitFlagRequest {
   reserved "flag";
   // The id of the account's submission that waits, which this one replaces; empty for none.
   string replaces = 5;
+  // Optional: the flag's anthem, which its flag takes when it opens. Unset for none.
+  Anthem anthem = 6;
 }
 
 message SubmitFlagResponse {
@@ -169,7 +188,18 @@ message Submission {
   // Its player asked a person to look again at the judge's rejection; unset for none. A submission a person looks at
   // again is not changed.
   Appeal appeal = 13;
+  // The anthem its flag takes when it opens; unset for none. Once open, the flag's own (Sold.anthem) plays.
+  Anthem anthem = 14;
 }
+
+message SetAnthemRequest {
+  // The code of a flag the caller holds.
+  string flag = 1;
+  // Unset takes the anthem off.
+  Anthem anthem = 2;
+}
+
+message SetAnthemResponse {}
 
 // A player's ask that a person look again at the judge's rejection of its submission.
 message Appeal {

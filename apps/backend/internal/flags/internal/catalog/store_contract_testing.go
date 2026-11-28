@@ -74,6 +74,27 @@ func (s *StoreContractSuite) TestAFlagsHolderIsKeptAndChanges() {
 	s.Equal(AccountID{15: 2}, kept.TakeSnapshot().Holder)
 }
 
+func (s *StoreContractSuite) TestAFlagsAnthemIsKeptAndTakenOff() {
+	held := HeldFlag("r-0000000001", "Rennes", TestHolder, openedAt)
+	germany, err := ParseAnthem("de")
+	s.Require().NoError(err)
+	sung, _, err := held.Sung(TestHolder, germany, closedAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), sung))
+
+	kept, err := s.store.Flag(s.T().Context(), "r-0000000001")
+	s.Require().NoError(err)
+	s.Equal(sung.TakeSnapshot(), kept.TakeSnapshot())
+	s.Equal("de", kept.TakeSnapshot().Anthem)
+
+	off, _, err := kept.Sung(TestHolder, Anthem{}, closedAt.Add(time.Hour))
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), off))
+	kept, err = s.store.Flag(s.T().Context(), "r-0000000001")
+	s.Require().NoError(err)
+	s.Empty(kept.TakeSnapshot().Anthem)
+}
+
 func (s *StoreContractSuite) TestARemovalsNoteIsKeptUntilTheFlagComesBack() {
 	removed, err := s.opened("r-0000000001", "Rennes").Removed("Broke the rules.", closedAt)
 	s.Require().NoError(err)

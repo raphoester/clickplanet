@@ -452,6 +452,37 @@ which the alerts module posts to the staff's private Discord channel (see [Disco
 `appeal_test.go`, the use cases' tests, `submissions_query`'s test of a flag appealed shown unpaid, and the stores'
 contract suites hold it.
 
+## Anthems
+
+**A sold flag may have an anthem, which the page plays as a country's when the flag leads** (the owner, 2026-11-28; the
+whole design, Commons included, is the shared [A sold flag's anthem](../../../docs/flag-anthems.md)). PR 1 built the
+game's own library alone: a recording the game plays for a flag it ships with, named by that flag's code
+(`catalog.Anthem`, `ParseAnthem`: a code `cpflags.IsBuiltIn` knows, `ErrInvalidAnthem` otherwise). Never a file a player
+sends: nobody could check its rights.
+
+- **The backend keeps a code, not a recording.** The page owns the recordings (`static/anthems/`, `npm run anthems`)
+  and offers only the codes it has one for; a code with none (Antarctica's) plays nothing, as for its own flag. So no
+  list is vendored here.
+- **Optional at the submission** (`SubmitFlagRequest.anthem`, `Draft.Anthem`, `submissions.anthem_library`), shown to
+  its player (`Submission.anthem`) and to the operator (`KeptSubmission.anthem`). **The flag opened from it takes it**
+  (`Submission.Open`, `Opening.OpenFor`). A replacement carries the anthem it sends. No judge: the game ships the
+  recording.
+- **Its holder sets it, changes it or takes it off** (`FlagService/SetAnthem`, the click token, `set_anthem_usecase`,
+  `Flag.Sung`): open or closed, never removed (`ErrRemoved`, `FailedPrecondition`); another account, or a flag opened by
+  hand with no holder, is `ErrNotHolder` (`PermissionDenied`). A claim keeps the anthem: it is the flag's, not the
+  holder's. The flag is read for update and kept with `AnthemChanged{flag, changed_at}` in one transaction; the same
+  anthem again changes and tells nothing.
+- **On the wire**: `Sold.anthem` (`flags.v1.Anthem`, `oneof source { library_code }`, room left for Commons), on
+  `ListFlags` and the stream's `flag_changed`. **The pages hear a change** through `flags-streams-anthems`
+  (`told_subscriber.AnthemChanged`), as a rename; planet and the alerts hear nothing.
+- **Migration** `20261128150113_anthems`: `flags.anthem_library` and `submissions.anthem_library` (NULL for none), and
+  `outbox_event`'s `flags.v1.AnthemChanged`.
+- **Not built yet**: Commons, its checks and its judge, and the operator's removal with a note (PRs 2 to 4 of the
+  design).
+
+`anthem_test.go` holds the rules; the stores' contract suites keep it; `told_test.go` tells an open page a holder's
+anthem and refuses another account's; `flags_query`'s test reads it on the list.
+
 ## The pictures
 
 **Each flag opened since wears a picture of its own, never in the atlas**: no deploy per flag, and pages load only the

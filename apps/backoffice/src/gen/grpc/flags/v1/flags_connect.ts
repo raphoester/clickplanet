@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AppealSubmissionRequest, AppealSubmissionResponse, CreateSubmissionUploadRequest, CreateSubmissionUploadResponse, FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse, ListMySubmissionsRequest, ListMySubmissionsResponse, SubmitFlagRequest, SubmitFlagResponse } from "./flags_pb.js";
+import { AppealSubmissionRequest, AppealSubmissionResponse, CreateSubmissionUploadRequest, CreateSubmissionUploadResponse, FlagEvent, ListenForEventsRequest, ListFlagsRequest, ListFlagsResponse, ListMySubmissionsRequest, ListMySubmissionsResponse, SetAnthemRequest, SetAnthemResponse, SubmitFlagRequest, SubmitFlagResponse } from "./flags_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -94,6 +94,20 @@ export const FlagService = {
       name: "AppealSubmission",
       I: AppealSubmissionRequest,
       O: AppealSubmissionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets the anthem of a flag the caller holds, open or closed, or takes it off with no anthem: the game plays it as a
+     * country's when the flag leads. Every page hears the flag again on its stream. PermissionDenied for a guest or a
+     * flag another account holds (or none, opened by hand); FailedPrecondition for a removed flag; InvalidArgument for an
+     * anthem that is no recording of the game's library; NotFound for an unknown flag.
+     *
+     * @generated from rpc flags.v1.FlagService.SetAnthem
+     */
+    setAnthem: {
+      name: "SetAnthem",
+      I: SetAnthemRequest,
+      O: SetAnthemResponse,
       kind: MethodKind.Unary,
     },
   }

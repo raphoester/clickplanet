@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_submitted_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reject_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/set_anthem_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
 )
 
@@ -27,6 +28,7 @@ type FlagService struct {
 	submit_flag_handler.SubmitFlagHandler
 	list_my_submissions_handler.ListMySubmissionsHandler
 	appeal_submission_handler.AppealSubmissionHandler
+	set_anthem_handler.SetAnthemHandler
 }
 
 var _ flagsv1connect.FlagServiceHandler = FlagService{}

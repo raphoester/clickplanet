@@ -48,6 +48,7 @@ func snapshotsOf(submissions []Submission) []Snapshot {
 func (s *StoreContractSuite) TestASubmissionIsReadAsItWasKept() {
 	waiting := TestWaiting(SubmissionID{15: 1}, ada, submittedAt)
 	waiting.Pin = catalog.Pin{Latitude: -33.8688, Longitude: 151.2093}
+	waiting.Anthem = "au"
 	s.kept(waiting)
 
 	kept, err := s.store.Submission(s.T().Context(), SubmissionID{15: 1})

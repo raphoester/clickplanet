@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/close_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/set_anthem_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed/usecases/tell_streams_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/migrations"
@@ -133,4 +135,39 @@ func TestAFlagOpenedOrClosedIsToldToTheOtherModulesAndToTheOpenPages(t *testing.
 	assert.Equal(t, catalog.Name("Roazhon"), (<-page).Name, "the page hears it renamed")
 
 	assert.Equal(t, []string{"opened " + out.ID.String() + " Rennes", "closed " + out.ID.String()}, planet.all())
+}
+
+func TestAnAnthemItsHolderSetIsToldToTheOpenPages(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "flags", migrations.FS)
+	redis := cpredistest.StartServer(t).Config()
+	teller := cpredis.New(redis, prometheus.NewRegistry())
+	require.NoError(t, teller.ConnectCtx(t.Context()))
+	t.Cleanup(func() { _ = teller.Close() })
+
+	store := postgres_flag_store.New(db)
+	clock := cptime.NewFixedClock(time.Date(2026, 11, 28, 9, 0, 0, 0, time.UTC))
+	require.NoError(t, store.Save(t.Context(),
+		catalog.HeldFlag("r-jz9cwqzp0k", "Heiliges Römisches Reich", catalog.TestHolder, clock.Now())))
+	board := feed.NewBoard(8)
+	page, leave := board.Attend()
+	t.Cleanup(leave)
+	tell := tell_streams_usecase.New(feed.NewsSince(clock.Now()), store, board)
+	anthems, err := cpredis.Subscribe(t.Context(), teller, "flags-streams-anthems", told_subscriber.NewAnthemChanged(tell))
+	require.NoError(t, err)
+	running(t, anthems, cpoutbox.NewRelay("flags-outbox", db, teller, slog.New(slog.DiscardHandler)))
+
+	clock.Advance(time.Minute)
+	setAnthem := set_anthem_usecase.New(clock, db, store, cpoutbox.New(db))
+	require.NoError(t, setAnthem.Execute(t.Context(), set_anthem_usecase.In{
+		Account: uuid.UUID(catalog.TestHolder).String(), Flag: "r-jz9cwqzp0k", Anthem: "de",
+	}))
+	assert.Equal(t, "de", (<-page).Anthem, "the page hears the flag with its anthem")
+
+	err = setAnthem.Execute(t.Context(), set_anthem_usecase.In{
+		Account: uuid.UUID(catalog.AccountID{15: 9}).String(), Flag: "r-jz9cwqzp0k", Anthem: "at",
+	})
+	require.ErrorIs(t, err, catalog.ErrNotHolder)
+	kept, err := store.Flag(t.Context(), "r-jz9cwqzp0k")
+	require.NoError(t, err)
+	assert.Equal(t, "de", kept.TakeSnapshot().Anthem, "another account changed nothing")
 }

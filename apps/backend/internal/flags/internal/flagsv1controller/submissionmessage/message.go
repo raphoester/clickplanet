@@ -42,6 +42,7 @@ func (m Messages) Submission(submission submissions.Snapshot, reviews Reviews) *
 		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
 		Rejection: rejection(submission), Paid: submission.Paid, Appeal: Appeal(reviews.Appeal),
+		Anthem: flagmessage.Anthem(submission.Anthem),
 		// The rejection in force is the judge's until an appeal: the operator's after it is final.
 		RejectedByJudge: submission.State == submissions.Rejected && reviews.Judgement.Verdict == judgements.Reject &&
 			reviews.Appeal.State == "",
@@ -58,7 +59,7 @@ func (m Messages) Kept(submission submissions.Snapshot) (*flagsv1.KeptSubmission
 		Flag: submission.Flag.String(), State: State(submission.State),
 		SubmittedAt: timestamppb.New(submission.SubmittedAt), DecidedAt: timestamppb.New(submission.DecidedAt),
 		Rejection: rejection(submission), OtherColorsPercent: uint32(submission.OtherColors),
-		AccountId: submission.Account.String(),
+		AccountId: submission.Account.String(), Anthem: flagmessage.Anthem(submission.Anthem),
 	}
 	switch {
 	case submission.Held:

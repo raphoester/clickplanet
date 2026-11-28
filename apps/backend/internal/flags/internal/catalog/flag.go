@@ -65,6 +65,8 @@ type Flag struct {
 	holder AccountID
 	// Only while removed.
 	note Note
+	// The zero Anthem for none.
+	anthem Anthem
 }
 
 func NewOpening(ids IDProvider, clock cptime.Clock) Opening {
@@ -76,13 +78,15 @@ type Opening struct {
 	clock cptime.Clock
 }
 
-// Open is a flag opened by hand, which no account holds.
+// Open is a flag opened by hand, which no account holds, with no anthem.
 func (o Opening) Open(name Name, picture pictures.Picture, pin Pin, endsAt time.Time) (Flag, error) {
-	return o.OpenFor(AccountID{}, name, picture, pin, endsAt)
+	return o.OpenFor(AccountID{}, name, picture, pin, Anthem{}, endsAt)
 }
 
-// OpenFor is a flag its holder's payment opens.
-func (o Opening) OpenFor(holder AccountID, name Name, picture pictures.Picture, pin Pin, endsAt time.Time) (Flag, error) {
+// OpenFor is a flag its holder's payment opens, with the anthem its submission chose.
+func (o Opening) OpenFor(
+	holder AccountID, name Name, picture pictures.Picture, pin Pin, anthem Anthem, endsAt time.Time,
+) (Flag, error) {
 	now := o.clock.Now()
 	if !endsAt.After(now) {
 		return Flag{}, fmt.Errorf("%w: %s", ErrEnded, endsAt.Format(time.RFC3339))
@@ -93,6 +97,7 @@ func (o Opening) OpenFor(holder AccountID, name Name, picture pictures.Picture, 
 	}
 	return Flag{
 		id: id, name: name, picture: picture, pin: pin, state: Open, decidedAt: now, endsAt: endsAt, holder: holder,
+		anthem: anthem,
 	}, nil
 }
 
@@ -184,6 +189,21 @@ func (f Flag) Renamed(name Name, at time.Time) (Flag, *flagsv1.FlagRenamed) {
 	return f, &flagsv1.FlagRenamed{Flag: f.id.String(), Name: name.String(), RenamedAt: timestamppb.New(at)}
 }
 
+// Sung is the flag with the anthem its holder chose, or none: open or closed (a claim keeps it), never once removed.
+// False when it plays that anthem already, and nothing is told.
+func (f Flag) Sung(by AccountID, anthem Anthem, at time.Time) (Flag, *flagsv1.AnthemChanged, error) {
+	switch {
+	case f.state == Removed:
+		return f, nil, fmt.Errorf("%s: %w", f.id, ErrRemoved)
+	case f.holder == AccountID{} || f.holder != by:
+		return f, nil, fmt.Errorf("%s: %w", f.id, ErrNotHolder)
+	case f.anthem == anthem:
+		return f, nil, nil
+	}
+	f.anthem = anthem
+	return f, &flagsv1.AnthemChanged{Flag: f.id.String(), ChangedAt: timestamppb.New(at)}, nil
+}
+
 // Expired is false while the flag has time left, or is closed already.
 func (f Flag) Expired(now time.Time) (Flag, bool) {
 	if f.state != Open || f.endsAt.After(now) {
@@ -209,7 +229,7 @@ func (f Flag) Facts() []proto.Message {
 func (f Flag) TakeSnapshot() Snapshot {
 	return Snapshot{
 		ID: f.id, Name: f.name, Picture: f.picture.TakeSnapshot(), Pin: f.pin, State: f.state, DecidedAt: f.decidedAt,
-		EndsAt: f.endsAt, Holder: f.holder, Note: f.note,
+		EndsAt: f.endsAt, Holder: f.holder, Note: f.note, Anthem: f.anthem.Library(),
 	}
 }
 
@@ -224,6 +244,8 @@ type Snapshot struct {
 	// The zero id for none.
 	Holder AccountID
 	Note   Note
+	// The library code of its anthem, empty for none.
+	Anthem string
 }
 
 func (s Snapshot) Restore() (Flag, error) {
@@ -234,6 +256,10 @@ func (s Snapshot) Restore() (Flag, error) {
 	if err := s.Pin.check(); err != nil {
 		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
 	}
+	anthem, err := ParseAnthem(s.Anthem)
+	if err != nil {
+		return Flag{}, fmt.Errorf("the flag %s: %w", s.ID, err)
+	}
 	if (s.Note != "") != (s.State == Removed) {
 		return Flag{}, fmt.Errorf("the flag %s is %q with the note %q: only a removed flag has one", s.ID, s.State, s.Note)
 	}
@@ -241,7 +267,7 @@ func (s Snapshot) Restore() (Flag, error) {
 	case Open, Closed, Removed:
 		return Flag{
 			id: s.ID, name: s.Name, picture: picture, pin: s.Pin, state: s.State, decidedAt: s.DecidedAt,
-			endsAt: s.EndsAt, holder: s.Holder, note: s.Note,
+			endsAt: s.EndsAt, holder: s.Holder, note: s.Note, anthem: anthem,
 		}, nil
 	}
 	return Flag{}, fmt.Errorf("the flag %s is %q, which is no state", s.ID, s.State)

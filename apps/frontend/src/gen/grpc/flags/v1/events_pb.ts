@@ -199,6 +199,51 @@ export class FlagRenamed extends Message<FlagRenamed> {
 }
 
 /**
+ * The flag's holder set its anthem, or took it off, at changed_at: the pages read the flag again.
+ *
+ * @generated from message flags.v1.AnthemChanged
+ */
+export class AnthemChanged extends Message<AnthemChanged> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp changed_at = 2;
+   */
+  changedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AnthemChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "flags.v1.AnthemChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "changed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnthemChanged {
+    return new AnthemChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnthemChanged {
+    return new AnthemChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnthemChanged {
+    return new AnthemChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnthemChanged | PlainMessage<AnthemChanged> | undefined, b: AnthemChanged | PlainMessage<AnthemChanged> | undefined): boolean {
+    return proto3.util.equals(AnthemChanged, a, b);
+  }
+}
+
+/**
  * The operator approved a submission. One paid for while it waited opens its flag now, with the time paid.
  *
  * @generated from message flags.v1.SubmissionApproved

@@ -44,7 +44,8 @@ type PostgresQuery struct {
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed + `,
+	COALESCE(s.anthem_library, '')`
 
 // Time held for a submission and neither released nor taken back.
 const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
@@ -235,7 +236,7 @@ func (q PostgresQuery) read(ctx context.Context, query string, args ...any) ([]s
 		if err := rows.Scan(&id, &account, &flag, &name, &row.Pin.Latitude, &row.Pin.Longitude,
 			&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY, &others,
 			&row.Held, &state, &row.SubmittedAt, &row.DecidedAt, &reason, &row.Rejection.Note, &row.Paid,
-			&row.Appealed); err != nil {
+			&row.Appealed, &row.Anthem); err != nil {
 			return nil, fmt.Errorf("failed to read a submission: %w", err)
 		}
 		row.ID, row.Flag, row.Name, row.State = submissions.SubmissionID(id), catalog.FlagID(flag), catalog.Name(name),

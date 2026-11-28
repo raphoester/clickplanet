@@ -27,7 +27,7 @@ var _ submissions.Store = (*Store)(nil)
 const columns = `s.id, s.account_id, s.flag, s.name, s.pin_latitude, s.pin_longitude,
 	s.picture_hash, s.picture_width, s.picture_height, s.picture_stretch, s.picture_focus_x, s.picture_focus_y,
 	s.picture_other_colors, s.picture_held, s.state::text, s.submitted_at, s.decided_at,
-	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed
+	COALESCE(r.reason::text, ''), COALESCE(r.note, ''), ` + paid + `, ` + appealed + `, COALESCE(s.anthem_library, '')`
 
 // Time held for a submission and neither released nor taken back.
 const paid = `EXISTS (SELECT 1 FROM time_held h WHERE h.submission_id = s.id
@@ -95,7 +95,7 @@ func submissionOf(scan func(dest ...any) error) (submissions.Submission, error) 
 	if err := scan(&id, &account, &flag, &name, &kept.Pin.Latitude, &kept.Pin.Longitude,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
 		&others, &kept.Held, &state, &kept.SubmittedAt, &kept.DecidedAt, &reason, &kept.Rejection.Note,
-		&kept.Paid, &kept.Appealed); err != nil {
+		&kept.Paid, &kept.Appealed, &kept.Anthem); err != nil {
 		return submissions.Submission{}, fmt.Errorf("failed to read a submission: %w", err)
 	}
 	kept.ID, kept.Name, kept.State = submissions.SubmissionID(id), catalog.Name(name), submissions.State(state)
@@ -125,15 +125,16 @@ func (s *Store) Save(ctx context.Context, kept ...submissions.Submission) error 
 		if _, err := s.db.On(ctx).ExecContext(ctx, `
 			INSERT INTO submissions (id, account_id, flag, name, pin_latitude, pin_longitude,
 				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
-				picture_other_colors, picture_held, state, submitted_at, decided_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::submission_state, $16, $17)
+				picture_other_colors, picture_held, state, submitted_at, decided_at, anthem_library)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::submission_state, $16, $17,
+				NULLIF($18, ''))
 			ON CONFLICT (id) DO UPDATE SET flag = EXCLUDED.flag,
 				name = EXCLUDED.name, pin_latitude = EXCLUDED.pin_latitude, pin_longitude = EXCLUDED.pin_longitude,
 				picture_held = EXCLUDED.picture_held, state = EXCLUDED.state, decided_at = EXCLUDED.decided_at
 		`, uuid.UUID(row.ID), uuid.UUID(row.Account), row.Flag.String(), row.Name.String(), row.Pin.Latitude,
 			row.Pin.Longitude, picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch,
 			float32(picture.Fit.FocusX), float32(picture.Fit.FocusY), uint32(row.OtherColors), row.Held,
-			string(row.State), row.SubmittedAt.UTC(), row.DecidedAt.UTC()); err != nil {
+			string(row.State), row.SubmittedAt.UTC(), row.DecidedAt.UTC(), row.Anthem); err != nil {
 			return fmt.Errorf("failed to keep the submission %s: %w", row.ID, err)
 		}
 		if row.State != submissions.Rejected {

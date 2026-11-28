@@ -35,21 +35,21 @@ func (q PostgresQuery) Flags(ctx context.Context) (*flagsv1.ListFlagsResponse, e
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT id, name, state::text, decided_at, ends_at,
 			picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
-			pin_latitude, pin_longitude
+			pin_latitude, pin_longitude, COALESCE(anthem_library, '')
 		FROM flags ORDER BY name, id`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the flags opened: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
-		var code, name, state string
+		var code, name, state, anthem string
 		var decidedAt, endsAt time.Time
 		var picture pictures.Snapshot
 		var focusX, focusY float32
 		var pin catalog.Pin
 		if err := rows.Scan(&code, &name, &state, &decidedAt, &endsAt,
 			&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
-			&pin.Latitude, &pin.Longitude); err != nil {
+			&pin.Latitude, &pin.Longitude, &anthem); err != nil {
 			return nil, fmt.Errorf("failed to read a flag opened: %w", err)
 		}
 		kept, err := stateOf(state)
@@ -59,7 +59,7 @@ func (q PostgresQuery) Flags(ctx context.Context) (*flagsv1.ListFlagsResponse, e
 		picture.Fit.FocusX, picture.Fit.FocusY = float64(focusX), float64(focusY)
 		message := q.messages.Flag(catalog.Snapshot{
 			ID: catalog.FlagID(code), Name: catalog.Name(name), Picture: picture, Pin: pin, State: kept,
-			DecidedAt: decidedAt, EndsAt: endsAt,
+			DecidedAt: decidedAt, EndsAt: endsAt, Anthem: anthem,
 		})
 		flags = append(flags, message)
 	}

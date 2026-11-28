@@ -57,7 +57,10 @@
   `KeptSubmission.appeal`, and `events.proto`'s `ReviewAsked`, which the alerts post to the staff) and
   `ListMySubmissions` (`Submission`, its
   `SubmissionState`, `held`, the codes of the flags it holds, and a `Closure` per flag it holds that the operator
-  removed: the note `CloseFlag` requires, which the holder alone reads). `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
+  removed: the note `CloseFlag` requires, which the holder alone reads). `Sold.anthem`, `SubmitFlagRequest.anthem`, `Submission.anthem`, `KeptSubmission.anthem` and the holder's
+  `SetAnthem` (since 2026-11-28) are a sold flag's anthem, a recording of the game's library by code (`flags.v1.Anthem`),
+  told to the pages by `events.proto`'s `AnthemChanged` (see [A sold flag's anthem](flag-anthems.md)).
+  `SubmitFlagRequest.replaces` names the account's submission that waits, which a change
   replaces: nothing changes a submission once decided (`flag` and `Submission.change`, a founder's change of its flag,
   are `reserved` since 2026-11-24, and `FlagMoved` is gone). Planet's
   `Allegiance.closed` says the flag held is closed: its account picks another at once. `FlagService/ListenForEvents` is

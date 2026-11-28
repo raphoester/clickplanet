@@ -32,6 +32,8 @@ type In struct {
 	Upload    string
 	Latitude  float64
 	Longitude float64
+	// The library code of the anthem its flag takes; empty for none.
+	Anthem string
 	// The account's submission that waits, which this one replaces; empty for none.
 	Replaces string
 }
@@ -60,7 +62,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (submissions.Snapshot, err
 	if err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the rule names it.
 	}
-	draft, err := submissions.ParseDraft(in.Name, in.Latitude, in.Longitude, in.Replaces)
+	anthem, err := catalog.ParseAnthem(in.Anthem)
+	if err != nil {
+		return submissions.Snapshot{}, err //nolint:wrapcheck // the parse names it.
+	}
+	draft, err := submissions.ParseDraft(in.Name, in.Latitude, in.Longitude, anthem, in.Replaces)
 	if err != nil {
 		return submissions.Snapshot{}, err //nolint:wrapcheck // the parse names it.
 	}

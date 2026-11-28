@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/open_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/rename_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/restate_flags_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/catalog/usecases/set_anthem_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/commands/grant_time_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/commands/take_back_time_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/feed"
@@ -47,6 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/open_submitted_flag_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/reject_submission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/rename_flag_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/set_anthem_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submissions_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/flags/internal/flagsv1controller/submit_flag_handler"
@@ -155,6 +157,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the streams to flags.v1.FlagRenamed: %w", err)
 	}
+	anthems, err := cpredis.Subscribe(ctx, redis, "flags-streams-anthems",
+		log_subscriber.New(told_subscriber.NewAnthemChanged(tell), props.Logger))
+	if err != nil {
+		_ = redis.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the streams to flags.v1.AnthemChanged: %w", err)
+	}
 
 	// Each module keeps what it heard: one that subscribed after a flag was told hears it at the next boot.
 	if err := restate_flags_usecase.New(db, store, cpoutbox.New(db)).Execute(ctx); err != nil {
@@ -227,7 +236,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger),
 		delete_rejected_pictures_usecase.NewRunner(rejectedSweep,
 			delete_rejected_pictures_usecase.New(clock, submitted, gallery), props.Logger),
-		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, granted, takenBack, released, answeredYes,
+		cpredis.CloseAfter(redis, props.Logger, opened, closed, renamed, anthems, granted, takenBack, released, answeredYes,
 			answeredNo, cpoutbox.NewRelay("flags-outbox", db, redis, props.Logger)),
 	}
 	approve := approve_submission_usecase.New(clock, gallery, db,
@@ -274,6 +283,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 					appeal_submission_usecase.Stores{Submissions: submitted, Judgements: judged, Appeals: appealed},
 					cpoutbox.New(db),
 				), reviews),
+				SetAnthemHandler: set_anthem_handler.New(set_anthem_usecase.New(clock, db, store, cpoutbox.New(db))),
 			}, options...)
 		},
 		flagsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),

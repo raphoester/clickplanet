@@ -42,16 +42,18 @@ const (
 	Opened State = "opened"
 )
 
-// Draft is what a player typed: the place's name and its pin, and the account's submission that waits, which it
-// replaces.
+// Draft is what a player typed: the place's name and its pin, the anthem it chose, and the account's submission that
+// waits, which it replaces.
 type Draft struct {
 	Name catalog.Name
 	Pin  catalog.Pin
+	// The zero Anthem for none.
+	Anthem catalog.Anthem
 	// The zero id for none.
 	Replaces SubmissionID
 }
 
-func ParseDraft(name string, latitude, longitude float64, replaces string) (Draft, error) {
+func ParseDraft(name string, latitude, longitude float64, anthem catalog.Anthem, replaces string) (Draft, error) {
 	parsed, err := catalog.ParseName(name)
 	if err != nil {
 		return Draft{}, err //nolint:wrapcheck // the parse names it.
@@ -60,7 +62,7 @@ func ParseDraft(name string, latitude, longitude float64, replaces string) (Draf
 	if err != nil {
 		return Draft{}, err //nolint:wrapcheck // the parse names it.
 	}
-	draft := Draft{Name: parsed, Pin: pin}
+	draft := Draft{Name: parsed, Pin: pin, Anthem: anthem}
 	if replaces == "" {
 		return draft, nil
 	}
@@ -79,6 +81,7 @@ type Submission struct {
 	flag    catalog.FlagID
 	name    catalog.Name
 	pin     catalog.Pin
+	anthem  catalog.Anthem
 	picture pictures.Picture
 	others  pictures.OtherColors
 	held    bool
@@ -114,7 +117,8 @@ func Submit(
 		return Submission{}, nil, fmt.Errorf("%w: %s", ErrNotWaiting, draft.Replaces)
 	}
 	submission, err := Snapshot{
-		ID: id, Account: account, Name: draft.Name, Pin: draft.Pin, Picture: drawn.Picture.TakeSnapshot(),
+		ID: id, Account: account, Name: draft.Name, Pin: draft.Pin, Anthem: draft.Anthem.Library(),
+		Picture:     drawn.Picture.TakeSnapshot(),
 		OtherColors: drawn.OtherColors, Held: true, State: Waiting, SubmittedAt: at, DecidedAt: at,
 	}.Restore()
 	return submission, replaced, err
@@ -185,7 +189,7 @@ func (s Submission) Open(opening catalog.Opening, names catalog.Names, endsAt ti
 	if err := names.Free(s.name, ""); err != nil {
 		return s, catalog.Flag{}, err //nolint:wrapcheck // the names say which.
 	}
-	flag, err := opening.OpenFor(s.account, s.name, s.picture, s.pin, endsAt)
+	flag, err := opening.OpenFor(s.account, s.name, s.picture, s.pin, s.anthem, endsAt)
 	if err != nil {
 		return s, catalog.Flag{}, err //nolint:wrapcheck // the opening names it.
 	}
@@ -257,7 +261,7 @@ func (s Submission) PictureDeleted(now time.Time) (Submission, bool) {
 
 func (s Submission) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: s.id, Account: s.account, Flag: s.flag, Name: s.name, Pin: s.pin,
+		ID: s.id, Account: s.account, Flag: s.flag, Name: s.name, Pin: s.pin, Anthem: s.anthem.Library(),
 		Picture: s.picture.TakeSnapshot(), OtherColors: s.others, Held: s.held, Paid: s.paid, Appealed: s.appealed,
 		State:     s.state,
 		Rejection: s.rejection, SubmittedAt: s.submittedAt, DecidedAt: s.decidedAt,
@@ -268,9 +272,11 @@ type Snapshot struct {
 	ID      SubmissionID
 	Account catalog.AccountID
 	// The flag opened from it; empty until then.
-	Flag        catalog.FlagID
-	Name        catalog.Name
-	Pin         catalog.Pin
+	Flag catalog.FlagID
+	Name catalog.Name
+	Pin  catalog.Pin
+	// The library code of the anthem its flag takes, empty for none.
+	Anthem      string
 	Picture     pictures.Snapshot
 	OtherColors pictures.OtherColors
 	// The bucket holds the picture in private: until its approval, or 30 days after its rejection.
@@ -301,11 +307,15 @@ func (s Snapshot) Restore() (Submission, error) {
 	if _, err := catalog.ParsePin(s.Pin.Latitude, s.Pin.Longitude); err != nil {
 		return Submission{}, fmt.Errorf("the submission %s: %w", s.ID, err)
 	}
+	anthem, err := catalog.ParseAnthem(s.Anthem)
+	if err != nil {
+		return Submission{}, fmt.Errorf("the submission %s: %w", s.ID, err)
+	}
 	if err := s.checkState(); err != nil {
 		return Submission{}, fmt.Errorf("the submission %s: %w", s.ID, err)
 	}
 	return Submission{
-		id: s.ID, account: s.Account, flag: s.Flag, name: s.Name, pin: s.Pin, picture: picture,
+		id: s.ID, account: s.Account, flag: s.Flag, name: s.Name, pin: s.Pin, anthem: anthem, picture: picture,
 		others: s.OtherColors, held: s.Held, paid: s.Paid, appealed: s.Appealed, state: s.State, rejection: s.Rejection,
 		submittedAt: s.SubmittedAt, decidedAt: s.DecidedAt,
 	}, nil

@@ -27,7 +27,7 @@ var _ catalog.Store = (*Store)(nil)
 
 const columns = `f.id, f.name, f.state::text, f.decided_at, f.ends_at,
 	f.picture_hash, f.picture_width, f.picture_height, f.picture_stretch, f.picture_focus_x, f.picture_focus_y,
-	f.pin_latitude, f.pin_longitude, h.account_id, COALESCE(c.note, '')`
+	f.pin_latitude, f.pin_longitude, h.account_id, COALESCE(c.note, ''), COALESCE(f.anthem_library, '')`
 
 const from = ` FROM flags f LEFT JOIN closures c ON c.flag = f.id LEFT JOIN holders h ON h.flag = f.id`
 
@@ -83,7 +83,7 @@ func flagOf(scan func(dest ...any) error) (catalog.Flag, error) {
 	var holder uuid.NullUUID
 	if err := scan(&id, &name, &state, &kept.DecidedAt, &kept.EndsAt,
 		&picture.Hash, &picture.Width, &picture.Height, &picture.Fit.Stretch, &focusX, &focusY,
-		&kept.Pin.Latitude, &kept.Pin.Longitude, &holder, &note); err != nil {
+		&kept.Pin.Latitude, &kept.Pin.Longitude, &holder, &note, &kept.Anthem); err != nil {
 		return catalog.Flag{}, fmt.Errorf("failed to read a flag: %w", err)
 	}
 	flagID, err := catalog.ParseFlagID(id)
@@ -115,17 +115,17 @@ func (s *Store) Save(ctx context.Context, flags ...catalog.Flag) error {
 		_, err := s.db.On(ctx).ExecContext(ctx, `
 			INSERT INTO flags (id, name, state, decided_at, ends_at,
 				picture_hash, picture_width, picture_height, picture_stretch, picture_focus_x, picture_focus_y,
-				pin_latitude, pin_longitude)
-			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+				pin_latitude, pin_longitude, anthem_library)
+			VALUES ($1, $2, $3::flag_state, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''))
 			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state = EXCLUDED.state,
 				decided_at = EXCLUDED.decided_at, ends_at = EXCLUDED.ends_at, picture_hash = EXCLUDED.picture_hash,
 				picture_width = EXCLUDED.picture_width, picture_height = EXCLUDED.picture_height,
 				picture_stretch = EXCLUDED.picture_stretch, picture_focus_x = EXCLUDED.picture_focus_x,
 				picture_focus_y = EXCLUDED.picture_focus_y, pin_latitude = EXCLUDED.pin_latitude,
-				pin_longitude = EXCLUDED.pin_longitude
+				pin_longitude = EXCLUDED.pin_longitude, anthem_library = EXCLUDED.anthem_library
 		`, kept.ID.String(), kept.Name.String(), string(kept.State), kept.DecidedAt.UTC(), kept.EndsAt.UTC(),
 			picture.Hash, picture.Width, picture.Height, picture.Fit.Stretch, float32(picture.Fit.FocusX),
-			float32(picture.Fit.FocusY), kept.Pin.Latitude, kept.Pin.Longitude)
+			float32(picture.Fit.FocusY), kept.Pin.Latitude, kept.Pin.Longitude, kept.Anthem)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
 			return fmt.Errorf("%s: %w", kept.Name, catalog.ErrNameTaken)

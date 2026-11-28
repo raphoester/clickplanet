@@ -160,6 +160,8 @@ message KeptSubmission {
   // Its player asked a person to look again at the judge's rejection: it waits again, shown even unpaid, and is never
   // judged again. Unset for none.
   Appeal appeal = 14;
+  // The anthem its flag takes when it opens, as its player chose it; unset for none.
+  Anthem anthem = 15;
 }
 
 message Judgement {

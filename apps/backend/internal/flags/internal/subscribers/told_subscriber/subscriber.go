@@ -62,3 +62,20 @@ func (s Renamed) Handle(ctx context.Context, event *flagsv1.FlagRenamed) error {
 		Flag: event.GetFlag(), DecidedAt: event.GetRenamedAt().AsTime(),
 	})
 }
+
+func NewAnthemChanged(useCase UseCase) AnthemChanged {
+	return AnthemChanged{useCase: useCase}
+}
+
+// AnthemChanged hears the module's own flags.v1.AnthemChanged, for the open streams.
+type AnthemChanged struct {
+	useCase UseCase
+}
+
+var _ cpredis.Handler[*flagsv1.AnthemChanged] = AnthemChanged{}
+
+func (s AnthemChanged) Handle(ctx context.Context, event *flagsv1.AnthemChanged) error {
+	return s.useCase.Execute(ctx, tell_streams_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Flag: event.GetFlag(), DecidedAt: event.GetChangedAt().AsTime(),
+	})
+}

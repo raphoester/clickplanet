@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
-import { Appeal, Flag, Picture, Pin, Rejection, SubmissionState } from "./flags_pb.js";
+import { Anthem, Appeal, Flag, Picture, Pin, Rejection, SubmissionState } from "./flags_pb.js";
 
 /**
  * @generated from enum flags.v1.JudgementVerdict
@@ -636,6 +636,13 @@ export class KeptSubmission extends Message<KeptSubmission> {
    */
   appeal?: Appeal;
 
+  /**
+   * The anthem its flag takes when it opens, as its player chose it; unset for none.
+   *
+   * @generated from field: flags.v1.Anthem anthem = 15;
+   */
+  anthem?: Anthem;
+
   constructor(data?: PartialMessage<KeptSubmission>) {
     super();
     proto3.util.initPartial(data, this);
@@ -657,6 +664,7 @@ export class KeptSubmission extends Message<KeptSubmission> {
     { no: 12, name: "other_colors_percent", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 13, name: "judgement", kind: "message", T: Judgement },
     { no: 14, name: "appeal", kind: "message", T: Appeal },
+    { no: 15, name: "anthem", kind: "message", T: Anthem },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptSubmission {

@@ -35,6 +35,12 @@ message FlagRenamed {
   google.protobuf.Timestamp renamed_at = 3;
 }
 
+// The flag's holder set its anthem, or took it off, at changed_at: the pages read the flag again.
+message AnthemChanged {
+  string flag = 1;
+  google.protobuf.Timestamp changed_at = 2;
+}
+
 // The operator approved a submission. One paid for while it waited opens its flag now, with the time paid.
 message SubmissionApproved {
   string submission_id = 1;

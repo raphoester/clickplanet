@@ -25,8 +25,12 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 	require.NoError(t, err)
 	ended, ok := catalog.OpenFlag("r-0000000003", "Savoy", openedAt).Expired(openedAt.AddDate(0, 2, 0))
 	require.True(t, ok)
-	require.NoError(t, postgres_flag_store.New(db).Save(t.Context(),
-		removed, catalog.OpenFlag("r-0000000002", "Bavaria", openedAt), ended))
+	germany, err := catalog.ParseAnthem("de")
+	require.NoError(t, err)
+	bavaria, _, err := catalog.HeldFlag("r-0000000002", "Bavaria", catalog.TestHolder, openedAt).
+		Sung(catalog.TestHolder, germany, openedAt)
+	require.NoError(t, err)
+	require.NoError(t, postgres_flag_store.New(db).Save(t.Context(), removed, bavaria, ended))
 
 	list, err := flags_query.NewPostgresQuery(db, flagmessage.New("https://media.test")).Flags(t.Context())
 	require.NoError(t, err)
@@ -43,6 +47,8 @@ func TestTheListIsTheFlagsTheGameShipsWithThenTheOnesOpenedByName(t *testing.T) 
 	assert.Equal(t, "https://media.test/"+catalog.TestPicture.Key(), opened[0].GetSold().GetPicture().GetUrl())
 	assert.Equal(t, uint32(300), opened[0].GetSold().GetPicture().GetWidth())
 	assert.Equal(t, openedAt.Add(30*24*time.Hour), opened[0].GetSold().GetEndsAt().AsTime())
+	assert.Equal(t, "de", opened[0].GetSold().GetAnthem().GetLibraryCode(), "its holder's anthem")
+	assert.Nil(t, opened[4].GetSold().GetAnthem(), "none")
 	for i, left := range map[int][2]string{1: {"xb", "Brittany"}, 2: {"gb-eng", "England"}, 5: {"gb-sct", "Scotland"}, 6: {"gb-wls", "Wales"}} {
 		listed := [2]string{opened[i].GetCode(), opened[i].GetName()}
 		assert.Equal(t, left, listed, "sold since it left the build")

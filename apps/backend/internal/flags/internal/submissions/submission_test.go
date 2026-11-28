@@ -42,21 +42,21 @@ func TestAGuestFoundsNoFlag(t *testing.T) {
 }
 
 func TestADraftIsANameAPinAndTheSubmissionItReplaces(t *testing.T) {
-	draft, err := submissions.ParseDraft(" Rennes ", 48.1173, -1.6778, "")
+	draft, err := submissions.ParseDraft(" Rennes ", 48.1173, -1.6778, catalog.Anthem{}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rennes, draft)
 
-	again, err := submissions.ParseDraft("Rennes", 48.1173, -1.6778, first.String())
+	again, err := submissions.ParseDraft("Rennes", 48.1173, -1.6778, catalog.Anthem{}, first.String())
 	require.NoError(t, err)
 	assert.Equal(t, first, again.Replaces)
 
-	_, err = submissions.ParseDraft("", 0, 0, "")
+	_, err = submissions.ParseDraft("", 0, 0, catalog.Anthem{}, "")
 	require.ErrorIs(t, err, catalog.ErrInvalidName)
-	_, err = submissions.ParseDraft("Rennes", 90.5, 0, "")
+	_, err = submissions.ParseDraft("Rennes", 90.5, 0, catalog.Anthem{}, "")
 	require.ErrorIs(t, err, catalog.ErrInvalidPin)
-	_, err = submissions.ParseDraft("Rennes", 0, -180.5, "")
+	_, err = submissions.ParseDraft("Rennes", 0, -180.5, catalog.Anthem{}, "")
 	require.ErrorIs(t, err, catalog.ErrInvalidPin)
-	_, err = submissions.ParseDraft("Rennes", 0, 0, "fr")
+	_, err = submissions.ParseDraft("Rennes", 0, 0, catalog.Anthem{}, "fr")
 	require.ErrorIs(t, err, submissions.ErrUnknownSubmission)
 }
 
@@ -139,6 +139,30 @@ func TestARejectionHasAReasonAndOtherNeedsANote(t *testing.T) {
 		_, err := submissions.ParseRejection(invalid.Reason, invalid.Note)
 		require.ErrorIs(t, err, submissions.ErrInvalidRejection, "%+v", invalid)
 	}
+}
+
+func TestTheAnthemASubmissionChoseIsItsFlagsOnceOpen(t *testing.T) {
+	waiting := submissions.TestWaiting(first, ada, at)
+	waiting.Anthem = "de"
+	approved, err := submissions.Restored(waiting).Approved(none, at)
+	require.NoError(t, err)
+
+	_, flag, err := approved.Open(catalog.NewOpening(&catalog.Sequence{}, cptime.NewFixedClock(at.Add(time.Hour))), none,
+		at.Add(30*24*time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, "de", flag.TakeSnapshot().Anthem)
+}
+
+func TestADraftCarriesTheAnthemChosen(t *testing.T) {
+	germany, err := catalog.ParseAnthem("de")
+	require.NoError(t, err)
+	draft, err := submissions.ParseDraft("Heiliges Römisches Reich", 48.37, 16.48, germany, "")
+	require.NoError(t, err)
+	submission, _, err := submissions.Submit(first, ada, draft, submissions.TestDrawn, nil, at)
+	require.NoError(t, err)
+
+	assert.Equal(t, "de", submission.TakeSnapshot().Anthem)
 }
 
 func TestAnApprovedNewSubmissionOpensItsFlagAtItsPin(t *testing.T) {

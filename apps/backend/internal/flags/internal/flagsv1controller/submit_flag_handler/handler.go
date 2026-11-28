@@ -38,7 +38,8 @@ func (h SubmitFlagHandler) SubmitFlag(
 	submission, err := h.useCase.Execute(ctx, submit_flag_usecase.In{
 		Account: cpctx.GetAccount(ctx), Linked: cpctx.GetLinked(ctx), Name: req.Msg.GetName(),
 		Upload: req.Msg.GetUploadId(), Latitude: req.Msg.GetPin().GetLatitude(),
-		Longitude: req.Msg.GetPin().GetLongitude(), Replaces: req.Msg.GetReplaces(),
+		Longitude: req.Msg.GetPin().GetLongitude(), Anthem: req.Msg.GetAnthem().GetLibraryCode(),
+		Replaces: req.Msg.GetReplaces(),
 	})
 	switch {
 	case errors.Is(err, submissions.ErrGuest):
@@ -51,7 +52,7 @@ func (h SubmitFlagHandler) SubmitFlag(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrPaid)
 	case errors.Is(err, submissions.ErrAppealed):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, submissions.ErrAppealed)
-	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrInvalidPin),
+	case errors.Is(err, catalog.ErrInvalidName), errors.Is(err, catalog.ErrInvalidPin), errors.Is(err, catalog.ErrInvalidAnthem),
 		errors.Is(err, submissions.ErrUnknownSubmission), errors.Is(err, pictures.ErrUnknownUpload),
 		errors.Is(err, pictures.ErrTooLarge), errors.Is(err, pictures.ErrNotAPicture),
 		errors.Is(err, pictures.ErrMoves), errors.Is(err, pictures.ErrShape), errors.Is(err, pictures.ErrTooSmall):

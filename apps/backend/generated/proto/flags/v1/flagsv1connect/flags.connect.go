@@ -49,6 +49,8 @@ const (
 	// FlagServiceAppealSubmissionProcedure is the fully-qualified name of the FlagService's
 	// AppealSubmission RPC.
 	FlagServiceAppealSubmissionProcedure = "/flags.v1.FlagService/AppealSubmission"
+	// FlagServiceSetAnthemProcedure is the fully-qualified name of the FlagService's SetAnthem RPC.
+	FlagServiceSetAnthemProcedure = "/flags.v1.FlagService/SetAnthem"
 )
 
 // FlagServiceClient is a client for the flags.v1.FlagService service.
@@ -80,6 +82,11 @@ type FlagServiceClient interface {
 	// submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
 	// picture was deleted (30 days after the rejection); NotFound for an unknown one.
 	AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error)
+	// Sets the anthem of a flag the caller holds, open or closed, or takes it off with no anthem: the game plays it as a
+	// country's when the flag leads. Every page hears the flag again on its stream. PermissionDenied for a guest or a
+	// flag another account holds (or none, opened by hand); FailedPrecondition for a removed flag; InvalidArgument for an
+	// anthem that is no recording of the game's library; NotFound for an unknown flag.
+	SetAnthem(context.Context, *connect.Request[v1.SetAnthemRequest]) (*connect.Response[v1.SetAnthemResponse], error)
 }
 
 // NewFlagServiceClient constructs a client for the flags.v1.FlagService service. By default, it
@@ -130,6 +137,12 @@ func NewFlagServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(flagServiceMethods.ByName("AppealSubmission")),
 			connect.WithClientOptions(opts...),
 		),
+		setAnthem: connect.NewClient[v1.SetAnthemRequest, v1.SetAnthemResponse](
+			httpClient,
+			baseURL+FlagServiceSetAnthemProcedure,
+			connect.WithSchema(flagServiceMethods.ByName("SetAnthem")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -141,6 +154,7 @@ type flagServiceClient struct {
 	submitFlag             *connect.Client[v1.SubmitFlagRequest, v1.SubmitFlagResponse]
 	listMySubmissions      *connect.Client[v1.ListMySubmissionsRequest, v1.ListMySubmissionsResponse]
 	appealSubmission       *connect.Client[v1.AppealSubmissionRequest, v1.AppealSubmissionResponse]
+	setAnthem              *connect.Client[v1.SetAnthemRequest, v1.SetAnthemResponse]
 }
 
 // ListFlags calls flags.v1.FlagService.ListFlags.
@@ -173,6 +187,11 @@ func (c *flagServiceClient) AppealSubmission(ctx context.Context, req *connect.R
 	return c.appealSubmission.CallUnary(ctx, req)
 }
 
+// SetAnthem calls flags.v1.FlagService.SetAnthem.
+func (c *flagServiceClient) SetAnthem(ctx context.Context, req *connect.Request[v1.SetAnthemRequest]) (*connect.Response[v1.SetAnthemResponse], error) {
+	return c.setAnthem.CallUnary(ctx, req)
+}
+
 // FlagServiceHandler is an implementation of the flags.v1.FlagService service.
 type FlagServiceHandler interface {
 	// Every flag of the catalog, the closed ones too: history still names them. A GET.
@@ -202,6 +221,11 @@ type FlagServiceHandler interface {
 	// submissions waits; FailedPrecondition for one not rejected, rejected by the operator, asked about already, or whose
 	// picture was deleted (30 days after the rejection); NotFound for an unknown one.
 	AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error)
+	// Sets the anthem of a flag the caller holds, open or closed, or takes it off with no anthem: the game plays it as a
+	// country's when the flag leads. Every page hears the flag again on its stream. PermissionDenied for a guest or a
+	// flag another account holds (or none, opened by hand); FailedPrecondition for a removed flag; InvalidArgument for an
+	// anthem that is no recording of the game's library; NotFound for an unknown flag.
+	SetAnthem(context.Context, *connect.Request[v1.SetAnthemRequest]) (*connect.Response[v1.SetAnthemResponse], error)
 }
 
 // NewFlagServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -248,6 +272,12 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(flagServiceMethods.ByName("AppealSubmission")),
 		connect.WithHandlerOptions(opts...),
 	)
+	flagServiceSetAnthemHandler := connect.NewUnaryHandler(
+		FlagServiceSetAnthemProcedure,
+		svc.SetAnthem,
+		connect.WithSchema(flagServiceMethods.ByName("SetAnthem")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/flags.v1.FlagService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlagServiceListFlagsProcedure:
@@ -262,6 +292,8 @@ func NewFlagServiceHandler(svc FlagServiceHandler, opts ...connect.HandlerOption
 			flagServiceListMySubmissionsHandler.ServeHTTP(w, r)
 		case FlagServiceAppealSubmissionProcedure:
 			flagServiceAppealSubmissionHandler.ServeHTTP(w, r)
+		case FlagServiceSetAnthemProcedure:
+			flagServiceSetAnthemHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -293,4 +325,8 @@ func (UnimplementedFlagServiceHandler) ListMySubmissions(context.Context, *conne
 
 func (UnimplementedFlagServiceHandler) AppealSubmission(context.Context, *connect.Request[v1.AppealSubmissionRequest]) (*connect.Response[v1.AppealSubmissionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.AppealSubmission is not implemented"))
+}
+
+func (UnimplementedFlagServiceHandler) SetAnthem(context.Context, *connect.Request[v1.SetAnthemRequest]) (*connect.Response[v1.SetAnthemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("flags.v1.FlagService.SetAnthem is not implemented"))
 }

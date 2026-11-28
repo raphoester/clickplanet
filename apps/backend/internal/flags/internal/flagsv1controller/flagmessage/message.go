@@ -26,6 +26,7 @@ func (m Messages) Flag(flag catalog.Snapshot) *flagsv1.Flag {
 		EndsAt:  timestamppb.New(flag.EndsAt),
 		Pin:     Pin(flag.Pin),
 		Removed: flag.State == catalog.Removed,
+		Anthem:  Anthem(flag.Anthem),
 	}
 	if flag.State != catalog.Open {
 		sold.ClosedAt = timestamppb.New(flag.DecidedAt)
@@ -33,6 +34,14 @@ func (m Messages) Flag(flag catalog.Snapshot) *flagsv1.Flag {
 	return &flagsv1.Flag{
 		Code: flag.ID.String(), Name: flag.Name.String(), Closed: flag.State != catalog.Open, Sold: sold,
 	}
+}
+
+// Anthem is the recording of the game's library a library code names; nil for none.
+func Anthem(library string) *flagsv1.Anthem {
+	if library == "" {
+		return nil
+	}
+	return &flagsv1.Anthem{Source: &flagsv1.Anthem_LibraryCode{LibraryCode: library}}
 }
 
 // Picture is a picture made public, at its address.
